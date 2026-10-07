@@ -37,12 +37,21 @@ describe("buildView", () => {
     expect(v.nextGoal!.progress).toBe(1);
   });
 
-  it("has no goal once everything is unlocked, and maxed upgrades can't be bought", () => {
+  it("falls back to the cheapest upgrade once every case is unlocked (review fix)", () => {
     const run = new Run(1);
     run.state.cash = 1e12;
     run.unlockCase("wildwood");
     run.unlockCase("bedrock");
-    while (run.buyUpgrade("quickHands").ok) {}
+    run.state.cash = 4;
+    expect(buildView(run).nextGoal).toEqual({ label: "Quick Hands Lv 1", progress: 0.5 });
+  });
+
+  it("has no goal only when everything is unlocked and maxed; maxed upgrades can't be bought", () => {
+    const run = new Run(1);
+    run.state.cash = 1e15;
+    run.unlockCase("wildwood");
+    run.unlockCase("bedrock");
+    for (const id of ["luck", "appraiser", "quickHands"] as const) while (run.buyUpgrade(id).ok) {}
     const v = buildView(run);
     expect(v.nextGoal).toBeNull();
     const qh = v.upgrades.find((u) => u.id === "quickHands")!;

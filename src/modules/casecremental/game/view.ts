@@ -70,7 +70,6 @@ export function buildView(run: Run): GameView {
       canBuy: cost !== null && s.cash >= cost,
     };
   });
-  const next = cases.find((c) => !c.unlocked);
   return {
     cash: s.cash,
     combo: s.combo,
@@ -81,8 +80,22 @@ export function buildView(run: Run): GameView {
     canBrake: run.canBrake(),
     cases,
     upgrades,
-    nextGoal: next
-      ? { label: `Unlock ${next.name}`, progress: Math.min(1, Math.max(0, s.cash / next.unlockCost)) }
-      : null,
+    nextGoal: nextGoal(s.cash, cases, upgrades),
   };
+}
+
+/** A goal is always on screen (spec §9.2): the next case to unlock, else the cheapest upgrade left. */
+function nextGoal(
+  cash: number,
+  cases: CaseView[],
+  upgrades: UpgradeView[],
+): { label: string; progress: number } | null {
+  const progress = (cost: number) => Math.min(1, Math.max(0, cash / cost));
+  const next = cases.find((c) => !c.unlocked);
+  if (next) return { label: `Unlock ${next.name}`, progress: progress(next.unlockCost) };
+  let cheapest: UpgradeView | null = null;
+  for (const u of upgrades)
+    if (u.cost !== null && (cheapest === null || u.cost < (cheapest.cost ?? Infinity))) cheapest = u;
+  if (!cheapest || cheapest.cost === null) return null;
+  return { label: `${cheapest.name} Lv ${cheapest.level + 1}`, progress: progress(cheapest.cost) };
 }
