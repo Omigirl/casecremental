@@ -27,3 +27,19 @@ describe("formatCash", () => {
     expect(text).not.toMatch(/NaN|Infinity/);
   });
 });
+
+describe("formatCash at rounding boundaries (deferred minor fix)", () => {
+  it.each([
+    [999.6, "$1.00K"],
+    [999_500, "$1.00M"],
+    [999_999, "$1.00M"],
+    [999_999_999, "$1.00B"],
+  ])("rounds %s up into the next suffix: %s", (n, text) => {
+    expect(formatCash(n)).toBe(text);
+  });
+
+  it("never prints a minus sign on an amount that rounds to zero", () => {
+    expect(formatCash(-0.004)).toBe("$0.00");
+    expect(formatCash(-0.006)).toBe("-$0.01");
+  });
+});
