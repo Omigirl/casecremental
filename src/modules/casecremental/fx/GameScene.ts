@@ -10,6 +10,8 @@ export function createGameScene(controller: GameController): EngineScene {
   let app: Application | null = null;
   let world: World | null = null;
   let ready: Promise<void> = Promise.resolve();
+  /** Pixi throws if an Application is destroyed before its async init resolves. */
+  let appReady = false;
   let running = false;
 
   const tick = (ticker: Ticker): void => {
@@ -27,6 +29,7 @@ export function createGameScene(controller: GameController): EngineScene {
       const host = ctx.host;
       const a = new Application();
       app = a;
+      appReady = false;
       ready = a
         .init({
           resizeTo: host,
@@ -37,14 +40,19 @@ export function createGameScene(controller: GameController): EngineScene {
         })
         .then(() => {
           if (app !== a) {
+            // destroyed (or remounted) while init was running: tear down now that it is safe
             a.destroy(true);
             return;
           }
+          appReady = true;
           host.appendChild(a.canvas);
           world = new World(a, controller);
           a.ticker.add(tick);
           if (!running) a.ticker.stop();
           controller.mounted = true;
+        })
+        .catch((error: unknown) => {
+          console.error("[casecremental] renderer failed to start", error);
         });
     },
     ready: () => ready,
@@ -61,8 +69,11 @@ export function createGameScene(controller: GameController): EngineScene {
     destroy() {
       world?.destroy();
       world = null;
-      app?.destroy(true, { children: true });
+      const a = app;
       app = null;
+      // Still initializing → the init callback destroys it once Pixi can be torn down safely.
+      if (a && appReady) a.destroy(true, { children: true });
+      appReady = false;
       controller.mounted = false;
       controller.running = false;
     },
