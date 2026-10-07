@@ -1,5 +1,6 @@
 import { ColorMatrixFilter, type Container } from "pixi.js";
 import { AdvancedBloomFilter } from "pixi-filters";
+import { bloomActive, lookFor } from "./look";
 
 // The look of each intensity stage, eased over ~1 s. Stage 1 (Sober): muted colors, no glow.
 // Stage 2 (Buzzed): full color and bloom. Stages 3–5 arrive in milestone 2.
@@ -17,8 +18,9 @@ export class StageLook {
   }
 
   setStage(stage: number): void {
-    this.satTarget = stage >= 2 ? 0.15 : -0.35;
-    this.bloomTarget = stage >= 2 ? 0.9 : 0;
+    const look = lookFor(stage);
+    this.satTarget = look.saturation;
+    this.bloomTarget = look.bloom;
   }
 
   update(dt: number): void {
@@ -29,6 +31,7 @@ export class StageLook {
   }
 
   private apply(): void {
+    this.bloom.enabled = bloomActive(this.bloom.bloomScale);
     this.color.reset();
     this.color.saturate(this.sat, false);
   }
