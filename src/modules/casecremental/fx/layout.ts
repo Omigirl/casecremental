@@ -71,3 +71,11 @@ export function computeLayout(width: number, height: number): Layout {
     cashTarget: { x: width / 2, y: 30 },
   };
 }
+
+/** Whether a point is over the case on the bench, with some slack — where a dropped key counts. */
+export function overCase(l: Layout, p: Point, slack = 24): boolean {
+  return (
+    Math.abs(p.x - l.bench.x) <= l.caseSize.w / 2 + slack &&
+    Math.abs(p.y - l.bench.y) <= l.caseSize.h / 2 + slack
+  );
+}

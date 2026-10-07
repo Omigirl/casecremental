@@ -7,7 +7,7 @@ import type { Bench } from "../sim/run";
 import type { CaseDef, Drop, SkinDef } from "../sim/types";
 import { wearOf } from "../sim/wear";
 import { makeDraggable } from "./drag";
-import { KEY_RADIUS, type Layout, type Point } from "./layout";
+import { KEY_RADIUS, overCase, type Layout, type Point } from "./layout";
 import { makeCard } from "./ReelView";
 
 // The bench: the bought case with its lock, the key (drag it into the lock), the revealed skin
@@ -65,7 +65,8 @@ export class BenchView extends Container {
     makeDraggable(this.key, {
       home: () => this.l?.keyHome ?? { x: 0, y: 0 },
       onTap: () => void this.controller.act({ type: "insertKey" }),
-      onDrop: (p) => !!this.l && dist(p, this.l.lock) < 70 && this.controller.act({ type: "insertKey" }).ok,
+      onDrop: (p) =>
+        !!this.l && (overCase(this.l, p) || dist(p, this.l.lock) < 70) && this.controller.act({ type: "insertKey" }).ok,
     });
     makeDraggable(this.reveal, {
       home: () => this.l?.bench ?? { x: 0, y: 0 },
