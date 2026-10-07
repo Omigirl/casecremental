@@ -15,6 +15,7 @@ import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
 import { computeLayout, type Layout } from "./layout";
 import { ReelView } from "./ReelView";
+import { restorePlan } from "./restore";
 import { clearSkinTextures } from "./skins/skinTexture";
 
 // Everything drawn on the canvas: background, reel, bench and the juice — sparks, coins, sound,
@@ -68,6 +69,17 @@ export class World {
     this.reel.start(first, this.rng.pick(first.skins), this.rng);
     this.layout = computeLayout(app.screen.width, app.screen.height);
     this.applyLayout();
+    this.restore();
+  }
+
+  /** Redraw a run already in progress (the scene is rebuilt after a trip to the lobby). */
+  private restore(): void {
+    const plan = restorePlan(this.controller.run.state);
+    if (plan.caseId) this.bench.showCase(caseById(plan.caseId));
+    if (plan.spinning) this.reel.start(caseById(plan.spinning.caseId), skinById(plan.spinning.skinId), this.rng);
+    if (plan.revealed) this.bench.showReveal(skinById(plan.revealed.skinId), plan.revealed);
+    this.look.setStage(plan.stage);
+    this.lastStage = plan.stage;
   }
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */
