@@ -10,8 +10,8 @@ export const CASE_ECONOMY: Readonly<
   Record<string, { price: number; unlockCost: number }>
 > = {
   bootcamp: { price: 2, unlockCost: 0 },
-  wildwood: { price: 15, unlockCost: 60 },
-  bedrock: { price: 150, unlockCost: 900 },
+  wildwood: { price: 15, unlockCost: 40 },
+  bedrock: { price: 150, unlockCost: 1200 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {
