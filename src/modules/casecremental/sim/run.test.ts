@@ -166,3 +166,34 @@ describe("Run", () => {
     expect(revealOne(a)).toEqual(revealOne(b));
   });
 });
+
+describe("Run intensity after a pause (review fix)", () => {
+  function fastCycles(run: Run, n: number) {
+    for (let i = 0; i < n; i++) {
+      run.buyCase("bootcamp");
+      run.insertKey();
+      tickFor(run, 1.6);
+      run.brake();
+      tickFor(run, 0.4);
+      run.sell();
+    }
+  }
+
+  it("keeps the stage through a short pause — the combo's share fades instead of snapping", () => {
+    const run = new Run(4);
+    run.state.cash = 1e6;
+    fastCycles(run, 25);
+    expect(run.state.stage).toBeGreaterThanOrEqual(2);
+    tickFor(run, 5);
+    expect(run.state.combo).toBe(0);
+    expect(run.state.stage).toBeGreaterThanOrEqual(2);
+  });
+
+  it("still comes down after a long pause", () => {
+    const run = new Run(4);
+    run.state.cash = 1e6;
+    fastCycles(run, 25);
+    tickFor(run, 60);
+    expect(run.state.stage).toBe(1);
+  });
+});

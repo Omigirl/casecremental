@@ -6,6 +6,7 @@ import {
   BRAKE_AFTER_FRACTION,
   BRAKE_SECONDS,
   COMBO_CAP,
+  COMBO_HEAT_DECAY_SECONDS,
   COMBO_STEP,
   COMBO_WINDOW_SECONDS,
   FREE_CASE_SECONDS,
@@ -53,6 +54,8 @@ export interface RunState {
   upgrades: Record<UpgradeId, number>;
   bench: Bench;
   combo: number;
+  /** The combo's share of intensity: jumps up with the combo, fades smoothly after it breaks. */
+  comboHeat: number;
   lastSellAt: number;
   freeCaseTimer: number;
   heat: number;
@@ -81,6 +84,7 @@ export class Run {
       upgrades: { luck: 0, appraiser: 0, quickHands: 0 },
       bench: { phase: "empty" },
       combo: 0,
+      comboHeat: 0,
       lastSellAt: -1e9,
       freeCaseTimer: 0,
       heat: 0,
@@ -106,7 +110,7 @@ export class Run {
   }
 
   intensity(): number {
-    return intensityLevel(this.state.heat, this.state.lastTier, this.state.combo);
+    return intensityLevel(this.state.heat, this.state.lastTier, this.state.comboHeat);
   }
 
   canBrake(): boolean {
@@ -218,6 +222,8 @@ export class Run {
     }
 
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
+    s.comboHeat =
+      s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
 
     // Anti-softlock: broke with nothing on the bench → a free first-tier case.
     const cheapest = Math.min(...s.unlocked.map(priceOf));

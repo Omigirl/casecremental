@@ -81,8 +81,10 @@ export const FREE_CASE_SECONDS = 10;
 export const HEAT_TAU_SECONDS = 10;
 /** Intensity bonus per case tier above the first. */
 export const TIER_HEAT_BONUS = 0.5;
-/** Combo adds combo / this to intensity. */
+/** Combo adds comboHeat / this to intensity. */
 export const COMBO_HEAT_DIVISOR = 25;
+/** comboHeat follows the combo up at once but fades with this time constant once the combo breaks. */
+export const COMBO_HEAT_DECAY_SECONDS = 15;
 /** Intensity needed for stages 2, 3, 4, 5. */
 export const STAGE_THRESHOLDS = [0.8, 3, 10, 40] as const;
 /** A stage is kept until intensity falls below its threshold × this. */
