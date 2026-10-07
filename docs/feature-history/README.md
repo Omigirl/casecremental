@@ -6,3 +6,4 @@ gets a new file here plus ONE line below; an existing one gets its file updated.
 instead.
 
 <!-- One line per entry: - [Title](slug.md) — one-line gist -->
+- [Casecremental core loop](casecremental-core.md) — milestone 1: sim, reel, bench, upgrades, juice, stages 1–2

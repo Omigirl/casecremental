@@ -19,7 +19,7 @@ platform — do not edit by hand.
 
 <!-- idos:modules:start -->
 
-_None yet._
+- `casecremental` (0.1.0) — src/modules/casecremental/
 <!-- idos:modules:end -->
 
 ## How the project is built
