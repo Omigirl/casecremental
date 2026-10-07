@@ -1,0 +1,15 @@
+{
+  "id": "casecremental",
+  "type": "template",
+  "summary": "Incremental case opener: open CS-style cases by hand, sell the skins, automate everything, and escalate from calm to casino-on-drugs.",
+  "description": "A Scritchy Scratchy-style incremental game with weapon cases instead of scratch tickets. Buy a case, drag the key in, watch or brake the reel, drag the skin to the sell bin; upgrades and new cases unlock as you go, and the screen escalates from sober to cyberpsychosis.",
+  "provides": [
+    "case opening with a CS-style reel and near misses",
+    "skins with rarity, wear and StatTrak",
+    "upgrades and a case ladder",
+    "intensity stages that escalate the visuals"
+  ],
+  "tags": ["incremental", "idle", "cases", "skins", "pixi"],
+  "author": { "name": "Yerassyl Omirtay" },
+  "version": "0.1.0"
+}

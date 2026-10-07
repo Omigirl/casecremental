@@ -1,4 +1,5 @@
 import type { Module } from "@idosgames/module-sdk";
+import { casecrementalModule } from "./modules/casecremental";
 
 // The modules this app is made of, on top of the base (./base — sign-in and the lobby): the systems
 // shown as lobby tabs (shop, heroes, leaderboards…) and the games launched by "Play". Remove a module
@@ -8,4 +9,4 @@ import type { Module } from "@idosgames/module-sdk";
 // Example, after copying a module into src/modules/voxelcraft/:
 //   import { voxelcraftModule } from "./modules/voxelcraft";
 //   export const modules: Module[] = [voxelcraftModule];
-export const modules: Module[] = [];
+export const modules: Module[] = [casecrementalModule];
