@@ -1,11 +1,12 @@
-import { botSpeed, botSpeedCost, type BotStep } from "../sim/botSeller";
+import { SELLER_SPEED_LEVELS, sellerSpeedCost } from "../sim/autoSeller";
+import { botSpeed, botSpeedCost } from "../sim/botOpener";
 import type { CharmId } from "../sim/charms";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { STAGE_NAMES } from "../sim/intensity";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
-import { BOT_WAKE_COST, DAY_JOB_SECONDS, FINALE_SECONDS, PERK_COSTS, UPGRADE_COSTS } from "../sim/tuning";
-import type { RarityId } from "../sim/types";
+import { BOT_WAKE_COST, DAY_JOB_SECONDS, FINALE_SECONDS, PERK_COSTS, SELLER_COST, UPGRADE_COSTS } from "../sim/tuning";
+import type { Drop, RarityId } from "../sim/types";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCost, type UpgradeId } from "../sim/upgrades";
 
 // What the React overlay shows — derived from the run, never stored separately.
@@ -40,10 +41,22 @@ export interface BotView {
   speedLevel: number;
   speedCost: number | null;
   canBuySpeed: boolean;
+  /** The case it opens; null = the dearest you can afford. */
+  caseChoice: string | null;
+  spinning: boolean;
+  /** Its card waiting at its station. */
+  card: TrayItemView | null;
+}
+
+export interface SellerView {
+  on: boolean;
+  cost: number;
+  canBuy: boolean;
+  speedLevel: number;
+  maxLevel: number;
+  speedCost: number | null;
+  canBuySpeed: boolean;
   threshold: RarityId;
-  step: BotStep | null;
-  /** Standing by a full tray. */
-  waiting: boolean;
 }
 
 export interface TrayItemView {
@@ -86,6 +99,7 @@ export interface GameView {
     | { kind: "vault"; progress: number }
     | null;
   bot: BotView;
+  seller: SellerView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
   vault: { shown: boolean; price: number; canBuy: boolean };
@@ -127,20 +141,32 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
   });
   const b = s.bot;
   const speedCost = botSpeedCost(b.speedLevel);
+  const item = (d: Drop) => ({ skinId: d.skinId, rarity: d.rarity, value: run.payout(d, false) });
   const bot: BotView = {
     awake: b.awake,
     wakeCost: BOT_WAKE_COST,
-    canWake: !b.awake && s.cash >= BOT_WAKE_COST && !run.locked(),
+    canWake: open && !b.awake && s.cash >= BOT_WAKE_COST,
     speed: botSpeed(b.speedLevel),
     speedLevel: b.speedLevel,
     speedCost,
-    canBuySpeed: b.awake && speedCost !== null && s.cash >= speedCost && !run.locked(),
-    threshold: b.threshold,
-    step: b.job?.step ?? null,
-    waiting: b.job?.step === "wait",
+    canBuySpeed: open && b.awake && speedCost !== null && s.cash >= speedCost,
+    caseChoice: b.caseChoice,
+    spinning: b.spin !== null,
+    card: b.card ? item(b.card) : null,
+  };
+  const sc = sellerSpeedCost(s.seller.speedLevel);
+  const seller: SellerView = {
+    on: s.seller.on,
+    cost: SELLER_COST,
+    canBuy: open && !s.seller.on && s.cash >= SELLER_COST,
+    speedLevel: s.seller.speedLevel,
+    maxLevel: SELLER_SPEED_LEVELS,
+    speedCost: sc,
+    canBuySpeed: open && s.seller.on && sc !== null && s.cash >= sc,
+    threshold: s.seller.threshold,
   };
   const tray = {
-    items: s.tray.map((d) => ({ skinId: d.skinId, rarity: d.rarity, value: run.payout(d, false) })),
+    items: s.tray.map(item),
     capacity: run.setup.trayCapacity,
   };
   const dayJob = {
@@ -178,6 +204,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     upgrades,
     nextGoal: nextGoal(s.cash, cases, upgrades, vault),
     bot,
+    seller,
     tray,
     dayJob,
     vault,

@@ -78,7 +78,12 @@ describe("GameController — the campaign", () => {
     c.run.state.cash = 1e6;
     expect(c.act({ type: "wakeBot" }).ok).toBe(true);
     expect(c.act({ type: "buyBotSpeed" }).ok).toBe(true);
-    expect(c.act({ type: "setBotThreshold", rarity: "covert" }).ok).toBe(true);
+    expect(c.act({ type: "setBotCase", caseId: "bootcamp" }).ok).toBe(true);
+    expect(c.act({ type: "sellBot" }).ok).toBe(false); // nothing landed yet
+    expect(c.act({ type: "buySeller" }).ok).toBe(true);
+    expect(c.act({ type: "buySellerSpeed" }).ok).toBe(true);
+    expect(c.act({ type: "setSellerThreshold", rarity: "covert" }).ok).toBe(true);
+    expect(c.act({ type: "holdCard", spot: null }).ok).toBe(true);
     expect(c.act({ type: "claim", index: 0 }).ok).toBe(false);
     expect(c.act({ type: "startDayJob" }).ok).toBe(false);
   });

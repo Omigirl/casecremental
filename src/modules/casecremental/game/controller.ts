@@ -1,6 +1,6 @@
 import type { CharmId } from "../sim/charms";
 import { buyPerk, completeVault, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
-import { Run, type ActionResult, type SimEvent } from "../sim/run";
+import { Run, type ActionResult, type CardSpot, type SimEvent } from "../sim/run";
 import type { RarityId } from "../sim/types";
 import type { UpgradeId } from "../sim/upgrades";
 import { SAVE_VERSION, type SaveSlot } from "./save";
@@ -20,8 +20,12 @@ export type Action =
   | { type: "claim"; index: number }
   | { type: "wakeBot" }
   | { type: "buyBotSpeed" }
-  | { type: "setBotThreshold"; rarity: RarityId }
-  | { type: "holdCard"; held: boolean }
+  | { type: "sellBot" }
+  | { type: "setBotCase"; caseId: string | null }
+  | { type: "buySeller" }
+  | { type: "buySellerSpeed" }
+  | { type: "setSellerThreshold"; rarity: RarityId }
+  | { type: "holdCard"; spot: CardSpot | null }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "buyPerk"; id: PerkId }
@@ -150,10 +154,18 @@ export class GameController {
         return run.wakeBot();
       case "buyBotSpeed":
         return run.buyBotSpeed();
-      case "setBotThreshold":
-        return run.setBotThreshold(a.rarity);
+      case "sellBot":
+        return run.sellBotCard();
+      case "setBotCase":
+        return run.setBotCase(a.caseId);
+      case "buySeller":
+        return run.buySeller();
+      case "buySellerSpeed":
+        return run.buySellerSpeed();
+      case "setSellerThreshold":
+        return run.setSellerThreshold(a.rarity);
       case "holdCard":
-        return run.setHeld(a.held);
+        return run.setHeld(a.spot);
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":

@@ -32,7 +32,14 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         unlocked: [...s.unlocked],
         upgrades: { ...s.upgrades },
         tray: s.tray.length,
-        bot: { awake: s.bot.awake, speedLevel: s.bot.speedLevel, threshold: s.bot.threshold, step: s.bot.job?.step ?? null },
+        bot: {
+          awake: s.bot.awake,
+          speedLevel: s.bot.speedLevel,
+          caseChoice: s.bot.caseChoice,
+          spinning: s.bot.spin !== null,
+          card: s.bot.card?.rarity ?? null,
+        },
+        seller: { ...s.seller },
         dayJob: s.dayJob,
         finale: s.finale,
         over: s.over,
@@ -66,10 +73,14 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       claim: (args: Args) => run({ type: "claim", index: Number(args?.index ?? 0) }),
       wakeBot: () => run({ type: "wakeBot" }),
       buyBotSpeed: () => run({ type: "buyBotSpeed" }),
-      setBotThreshold: async (args: Args) => {
+      sellBot: () => run({ type: "sellBot" }),
+      setBotCase: (args: Args) => run({ type: "setBotCase", caseId: args?.caseId == null ? null : String(args.caseId) }),
+      buySeller: () => run({ type: "buySeller" }),
+      buySellerSpeed: () => run({ type: "buySellerSpeed" }),
+      setSellerThreshold: async (args: Args) => {
         const r = String(args?.rarity ?? "");
         if (!RARITY_ORDER.includes(r as RarityId)) throw new Error(`unknown rarity "${r}"; valid: ${RARITY_ORDER.join(", ")}`);
-        return c.act({ type: "setBotThreshold", rarity: r as RarityId });
+        return c.act({ type: "setSellerThreshold", rarity: r as RarityId });
       },
       startDayJob: () => run({ type: "startDayJob" }),
       buyVault: () => run({ type: "buyVault" }),
@@ -88,9 +99,13 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       unlockCase: "Unlock the next case in the ladder: { caseId }.",
       buyUpgrade: "Buy one level: { id: luck|appraiser|quickHands }.",
       claim: "Sell a claim-tray item by hand: { index }.",
-      wakeBot: "Wake the bot (it then carries drops to the bin or the tray).",
+      wakeBot: "Wake the bot: it then opens its own cases with your cash.",
       buyBotSpeed: "Buy one bot Speed level.",
-      setBotThreshold: "The rarest drop the bot may sell: { rarity: milspec|restricted|classified|covert|gold }.",
+      sellBot: "Sell the bot's waiting card by hand.",
+      setBotCase: "The case the bot opens: { caseId } or { caseId: null } for the dearest you can afford.",
+      buySeller: "Buy the auto-seller (sells waiting cards, sets good ones aside in the tray).",
+      buySellerSpeed: "Buy one auto-seller Speed level.",
+      setSellerThreshold: "The rarest drop the auto-seller sells: { rarity: milspec|restricted|classified|covert|gold }.",
       startDayJob: "Broke with an empty bench: take a ~3 s day job.",
       buyVault: "Buy Vault Case I (all cases unlocked); its finale ends the run.",
       buyPerk: "Between runs: buy a perk with CLOUT: { id: startCash|luck|charmSlot|botAwake|biggerTray }.",

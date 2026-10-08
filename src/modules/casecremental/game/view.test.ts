@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, START_CASH } from "../sim/tuning";
+import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, SELLER_COST, START_CASH } from "../sim/tuning";
 import { buildView } from "./view";
 
 describe("buildView", () => {
@@ -63,11 +63,37 @@ describe("buildView", () => {
 });
 
 describe("buildView — M2b", () => {
-  it("shows the bot asleep and wakeable", () => {
+  it("shows the bot asleep and wakeable, then spinning and its card", () => {
     const run = new Run(1);
     run.state.cash = BOT_WAKE_COST;
-    const v = buildView(run);
-    expect(v.bot).toMatchObject({ awake: false, canWake: true, wakeCost: BOT_WAKE_COST, speed: 1, step: null, waiting: false });
+    let v = buildView(run);
+    expect(v.bot).toMatchObject({
+      awake: false,
+      canWake: true,
+      wakeCost: BOT_WAKE_COST,
+      speed: 1,
+      spinning: false,
+      card: null,
+      caseChoice: null,
+    });
+    run.state.cash = 1e6;
+    run.wakeBot();
+    run.tick(1 / 30);
+    expect(buildView(run).bot.spinning).toBe(true);
+    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(1 / 30);
+    v = buildView(run);
+    expect(v.bot.card).toMatchObject({ skinId: run.state.bot.card!.skinId });
+  });
+
+  it("shows the auto-seller to buy, then its speed and threshold", () => {
+    const run = new Run(1);
+    run.state.cash = SELLER_COST;
+    let v = buildView(run);
+    expect(v.seller).toMatchObject({ on: false, cost: SELLER_COST, canBuy: true });
+    run.buySeller();
+    run.state.cash = 1e6;
+    v = buildView(run);
+    expect(v.seller).toMatchObject({ on: true, canBuy: false, speedLevel: 0, canBuySpeed: true, threshold: "classified" });
   });
 
   it("shows the tray and the day job", () => {

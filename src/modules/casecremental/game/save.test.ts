@@ -64,11 +64,17 @@ describe("the local save", () => {
     const d = data() as unknown as { meta: { perks: Record<string, number> }; run: { setup: unknown; state: Record<string, unknown> } };
     delete d.meta.perks.luck;
     d.run.setup = {};
-    d.run.state.held = true;
+    d.run.state.held = "bench";
     const loaded = decodeSave(JSON.stringify(d))!;
     expect(loaded.meta.perks.luck).toBe(0);
     expect(loaded.run.setup).toEqual(DEFAULT_SETUP);
-    expect(loaded.run.state.held).toBe(false); // nobody is holding a card after a reload
+    expect(loaded.run.state.held).toBeNull(); // nobody is holding a card after a reload
+  });
+
+  it("drops a version-1 save (the M2b bot) with a warning (Review Focus 4)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(decodeSave(JSON.stringify({ ...data(), v: 1 }))).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("drops a save whose bench it cannot draw", () => {

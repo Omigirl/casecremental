@@ -143,7 +143,7 @@ export class Bench {
 
   pointerDown(p: Pt): boolean {
     const grabbed = this.drag.down(p, this.grabbables());
-    if (grabbed === "card") this.controller.act({ type: "holdCard", held: true }); // the bot turns back (spec §3)
+    if (grabbed === "card") this.controller.act({ type: "holdCard", spot: "bench" }); // the bot turns back (spec §3)
     if (grabbed) return true;
     if (this.phase === "revealed" && this.l && dist(p, this.l.bin) <= this.l.binR + 2) return this.controller.act({ type: "sell" }).ok;
     return false;
@@ -163,7 +163,7 @@ export class Bench {
       if (end.id === "key" && (dist(end.at, lock) <= 18 || inside(l.you.mat, end.at))) this.controller.act({ type: "insertKey" });
       if (end.id === "card" && dist(end.at, l.bin) <= l.binR + 8) this.controller.act({ type: "sell" });
     }
-    if (wasCard) this.controller.act({ type: "holdCard", held: false });
+    if (wasCard) this.controller.act({ type: "holdCard", spot: null });
     this.homeItems();
   }
 
@@ -183,7 +183,7 @@ export class Bench {
 
   /** The viewport changed under a drag: the item goes home and nothing fires. */
   cancelDrag(): void {
-    if (this.drag.dragging === "card") this.controller.act({ type: "holdCard", held: false });
+    if (this.drag.dragging === "card") this.controller.act({ type: "holdCard", spot: null });
     this.drag.cancel();
     this.homeItems();
   }
