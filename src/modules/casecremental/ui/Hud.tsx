@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { outlined, useAnimatedNumber, v } from "@idosgames/react/ui";
 import type { GameView } from "../game/view";
 import { formatCash } from "../sim/format";
+import { caseName, upgradeName } from "../i18n/content";
 import { HUD_HEIGHT } from "../fx/layout";
 
 // Top of the screen: cash, the intensity stage, the combo and the next goal — always visible
@@ -30,7 +31,7 @@ export function Hud({ view }: { view: GameView }): ReactNode {
       </div>
       {view.nextGoal ? (
         <div style={{ width: "min(320px, 80vw)", display: "grid", gap: 2 }}>
-          <div style={{ ...outlined, fontSize: 11, color: v.textDim, textAlign: "center" }}>{view.nextGoal.label}</div>
+          <div style={{ ...outlined, fontSize: 11, color: v.textDim, textAlign: "center" }}>{view.nextGoal.kind === "unlock" ? caseName(view.nextGoal.caseId) : `${upgradeName(view.nextGoal.upgradeId)} ${view.nextGoal.level}`}</div>
           <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.12)", overflow: "hidden" }}>
             <div style={{ width: `${Math.round(view.nextGoal.progress * 100)}%`, height: "100%", background: view.nextGoal.progress >= 1 ? "#3ddc84" : v.gold, transition: "width .2s" }} />
           </div>

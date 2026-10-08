@@ -17,7 +17,8 @@ describe("buildView", () => {
     ]);
     expect(v.upgrades.map((u) => u.id)).toEqual(["luck", "appraiser", "quickHands"]);
     expect(v.nextGoal).toEqual({
-      label: "Unlock Wildwood Case",
+      kind: "unlock",
+      caseId: "wildwood",
       progress: START_CASH / unlockCostOf("wildwood"),
     });
   });
@@ -43,7 +44,7 @@ describe("buildView", () => {
     run.unlockCase("wildwood");
     run.unlockCase("bedrock");
     run.state.cash = 4;
-    expect(buildView(run).nextGoal).toEqual({ label: "Quick Hands Lv 1", progress: 0.5 });
+    expect(buildView(run).nextGoal).toEqual({ kind: "upgrade", upgradeId: "quickHands", level: 1, progress: 0.5 });
   });
 
   it("has no goal only when everything is unlocked and maxed; maxed upgrades can't be bought", () => {
