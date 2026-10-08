@@ -1,3 +1,4 @@
+import { freshSeller, sellerHold, sellerSpeedCost, sellsAt, type SellerState } from "./autoSeller";
 import { botCaseFor, botSpeedCost, botSpinSeconds, freshBot, type BotState, type CardSpot } from "./botOpener";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity, type CharmId } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
@@ -18,6 +19,7 @@ import {
   GOLDEN_HOUR_LUCK,
   GOLDEN_HOUR_SECONDS,
   PITY_LUCK_LEVELS,
+  SELLER_COST,
   START_CASH,
   TRAY_BASE_CAPACITY,
   VAULT_BASE_PRICE,
@@ -90,7 +92,9 @@ export type SimEvent =
   | { type: "stageChanged"; stage: number }
   | { type: "dayJobStarted" }
   | { type: "dayJobDone"; amount: number }
-  | { type: "stored"; drop: Drop }
+  | { type: "stored"; drop: Drop; from: CardSpot }
+  | { type: "sellerBought" }
+  | { type: "sellerUpgraded"; level: number }
   | { type: "botWoke" }
   | { type: "botUpgraded"; level: number }
   | { type: "botSpinStarted"; caseId: string; drop: Drop; duration: number }
@@ -133,6 +137,7 @@ export interface RunState {
   /** Drops the auto-seller set aside for the player to claim (above its threshold). */
   tray: Drop[];
   bot: BotState;
+  seller: SellerState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
   /** Seconds into the vault finale, or null. */
@@ -184,6 +189,7 @@ export class Run {
       freeCases: [],
       tray: [],
       bot: freshBot(this.setup.botAwake),
+      seller: freshSeller(),
       held: null,
       finale: null,
       over: false,
@@ -365,6 +371,7 @@ export class Run {
     s.comboHeat = s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
 
     this.tickBot(dt);
+    this.tickSeller();
     this.tickDayJob(dt);
     this.tickFinale(dt);
 
@@ -501,6 +508,64 @@ export class Run {
     s.lifetimeEarnings += amount;
     this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "tray", from: null });
     return OK;
+  }
+
+  buySeller(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
+    const s = this.state;
+    if (s.seller.on) return fail("the auto-seller is already on");
+    if (s.cash < SELLER_COST) return fail("not enough cash");
+    s.cash -= SELLER_COST;
+    s.seller.on = true;
+    this.events.push({ type: "sellerBought" });
+    return OK;
+  }
+
+  buySellerSpeed(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
+    const s = this.state;
+    if (!s.seller.on) return fail("buy the auto-seller first");
+    const cost = sellerSpeedCost(s.seller.speedLevel);
+    if (cost === null) return fail("max level for this run");
+    if (s.cash < cost) return fail("not enough cash");
+    s.cash -= cost;
+    s.seller.speedLevel += 1;
+    this.events.push({ type: "sellerUpgraded", level: s.seller.speedLevel });
+    return OK;
+  }
+
+  setSellerThreshold(rarity: RarityId): ActionResult {
+    this.state.seller.threshold = rarity;
+    return OK;
+  }
+
+  /** The auto-seller takes cards left waiting (rework spec §1). */
+  private tickSeller(): void {
+    const s = this.state;
+    const seller = s.seller;
+    if (!seller.on || this.locked()) return;
+    const b = s.bench;
+    if (b.phase === "revealed" && s.held !== "bench" && s.time - s.revealedAt >= sellerHold(b.drop.rarity, seller.speedLevel))
+      if (this.autoTake(b.drop, "bench")) s.bench = { phase: "empty" };
+    const d = s.bot.card;
+    if (d && s.held !== "bot" && s.time - s.bot.cardAt >= sellerHold(d.rarity, seller.speedLevel))
+      if (this.autoTake(d, "bot")) s.bot.card = null;
+  }
+
+  /** Sell it (at or below the threshold) or set it aside in the tray; false when the tray is full. */
+  private autoTake(d: Drop, from: CardSpot): boolean {
+    const s = this.state;
+    if (sellsAt(s.seller.threshold, d.rarity)) {
+      const amount = this.payout(d, false);
+      s.cash += amount;
+      s.lifetimeEarnings += amount;
+      this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from });
+      return true;
+    }
+    if (s.tray.length >= this.setup.trayCapacity) return false;
+    s.tray.push(d);
+    this.events.push({ type: "stored", drop: d, from });
+    return true;
   }
 
   /** The bot's own reel (rework spec §1): finish a spin into its card, or start the next one. */

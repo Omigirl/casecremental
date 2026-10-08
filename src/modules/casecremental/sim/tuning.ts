@@ -148,3 +148,11 @@ export const PERK_COSTS = {
   botAwake: { baseCost: 8, growth: 1, maxLevel: 1 },
   biggerTray: { baseCost: 4, growth: 2, maxLevel: 3 },
 } as const;
+
+/** The auto-seller machine (rework spec §1): unlocked in Run 1, then it takes any waiting card. */
+export const SELLER_COST = 150;
+/** Seconds a card waits before the machine takes it, per Speed level (Run 1: 4 levels). */
+export const SELLER_HOLD_SECONDS = [2.5, 1.8, 1.2, 0.8, 0.5] as const;
+/** A Covert or ★ waits this long, so its reveal (the knife's showcase) plays first. */
+export const SELLER_BIG_HOLD = 2.6;
+export const SELLER_SPEED_COSTS = { baseCost: 120, growth: 2.4 } as const;
