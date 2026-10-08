@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { QUICK_HANDS_FACTOR, SPIN_BASE_SECONDS } from "./tuning";
 import { effectsOf, upgradeCost, UPGRADE_IDS } from "./upgrades";
 
-const zero = { luck: 0, appraiser: 0, quickHands: 0 };
+const zero = { luck: 0, appraiser: 0, quickHands: 0, multiOpen: 0 };
 
 describe("upgradeCost", () => {
   it("grows geometrically from the base cost", () => {
@@ -22,7 +22,7 @@ describe("upgradeCost", () => {
 
 describe("effectsOf", () => {
   it("starts at the base values", () => {
-    expect(effectsOf(zero)).toEqual({ luckLevel: 0, sellMult: 1, spinSeconds: SPIN_BASE_SECONDS });
+    expect(effectsOf(zero)).toEqual({ luckLevel: 0, sellMult: 1, spinSeconds: SPIN_BASE_SECONDS, openCount: 1 });
   });
 
   it("applies each upgrade", () => {
@@ -34,5 +34,10 @@ describe("effectsOf", () => {
 
   it("never spins faster than the minimum", () => {
     expect(effectsOf({ ...zero, quickHands: 10 }).spinSeconds).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it("multi-open opens two cases at level 1, and Run 1 caps it there", () => {
+    expect(effectsOf({ ...zero, multiOpen: 1 }).openCount).toBe(2);
+    expect(upgradeCost("multiOpen", 1)).toBeNull();
   });
 });

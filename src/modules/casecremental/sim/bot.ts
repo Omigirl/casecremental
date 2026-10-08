@@ -71,7 +71,7 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
       run.sellBotCard();
       busyUntil = s.time + timings.sell;
     } else if (b.phase === "revealed") {
-      run.sell();
+      run.sell(b.cards.findIndex((d) => d !== null));
       busyUntil = s.time + timings.sell;
     } else if (b.phase === "locked") {
       run.insertKey();

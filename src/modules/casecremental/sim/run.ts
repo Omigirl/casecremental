@@ -36,20 +36,25 @@ import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades
 // upgrades, combo and intensity. Pure and deterministic from its seed; the renderer and the UI read
 // `state` and consume `drainEvents()`. Milestone 1 has one bench; later milestones add more.
 
+/** One of your bench's reels: its drop, its own tease, and how long it runs (its crawl included). */
+export interface BenchReel {
+  drop: Drop;
+  tease: Tease | null;
+  duration: number;
+}
+
 export type Bench =
   | { phase: "empty" }
-  | { phase: "locked"; caseId: string; free: boolean }
+  | { phase: "locked"; caseId: string; free: boolean; /** Cases this open holds (multi-open). */ count: number }
   | {
       phase: "spinning";
       caseId: string;
-      drop: Drop;
+      reels: BenchReel[];
       elapsed: number;
-      /** The reel always runs this long (Quick Hands shortens it); there is no brake. */
+      /** The longest reel: the cards come up when it lands. There is no brake. */
       fullDuration: number;
-      /** A red or a knife on its way (or a fake one): the crawl is part of fullDuration. */
-      tease: Tease | null;
     }
-  | { phase: "revealed"; caseId: string; drop: Drop };
+  | { phase: "revealed"; caseId: string; /** Side by side, left to right; null once sold or taken. */ cards: (Drop | null)[] };
 
 export type VaultState = { phase: "key" } | { phase: "opening"; t: number; drops: Drop[]; landed: number };
 
@@ -88,16 +93,16 @@ export interface RunSnapshot {
 }
 
 export type SimEvent =
-  | { type: "caseBought"; caseId: string; free: boolean }
-  | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number; tease: Tease | null }
-  | { type: "revealed"; drop: Drop }
-  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | null }
+  | { type: "caseBought"; caseId: string; free: boolean; count: number }
+  | { type: "spinStarted"; caseId: string; reels: BenchReel[]; fullDuration: number }
+  | { type: "revealed"; drops: Drop[] }
+  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | null; slot: number }
   | { type: "caseUnlocked"; caseId: string }
   | { type: "upgradeBought"; id: UpgradeId; level: number }
   | { type: "stageChanged"; stage: number }
   | { type: "dayJobStarted" }
   | { type: "dayJobDone"; amount: number }
-  | { type: "stored"; drop: Drop; from: CardSpot }
+  | { type: "stored"; drop: Drop; from: CardSpot; slot: number }
   | { type: "sellerBought" }
   | { type: "sellerUpgraded"; level: number }
   | { type: "botWoke" }
@@ -150,6 +155,8 @@ export interface RunState {
   seller: SellerState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
+  /** Which bench card is held (when held is "bench"). */
+  heldSlot: number;
   /** Vault Case I is out (rework spec §4), or null. */
   vault: VaultState | null;
   /** The vault has opened: the run is over. */
@@ -182,7 +189,7 @@ export class Run {
       cash: this.setup.startCash,
       lifetimeEarnings: 0,
       unlocked: [CASES[0]!.id],
-      upgrades: { luck: 0, appraiser: 0, quickHands: 0 },
+      upgrades: { luck: 0, appraiser: 0, quickHands: 0, multiOpen: 0 },
       bench: { phase: "empty" },
       combo: 0,
       comboHeat: 0,
@@ -201,6 +208,7 @@ export class Run {
       bot: freshBot(this.setup.botAwake),
       seller: freshSeller(),
       held: null,
+      heldSlot: 0,
       vault: null,
       over: false,
     };
@@ -253,6 +261,13 @@ export class Run {
     s.lastSellAt = s.time;
   }
 
+  /** How many cases one BUY opens: the Multi-open level, but only as many as you can afford (never 0 - the
+   *  shelf only offers BUY at one price). Multi-open never applies to the vault. */
+  openCount(caseId: string): number {
+    const price = this.casePrice(caseId);
+    return Math.max(1, Math.min(this.effects().openCount, Math.floor(this.state.cash / price)));
+  }
+
   buyCase(caseId: string): ActionResult {
     if (this.locked()) return fail("the vault is open");
     const s = this.state;
@@ -260,9 +275,10 @@ export class Run {
     if (!s.unlocked.includes(caseId)) return fail(`case ${caseId} is locked`);
     const price = this.casePrice(caseId);
     if (s.cash < price) return fail("not enough cash");
-    s.cash -= price;
-    s.bench = { phase: "locked", caseId, free: false };
-    this.events.push({ type: "caseBought", caseId, free: false });
+    const count = this.openCount(caseId);
+    s.cash -= price * count;
+    s.bench = { phase: "locked", caseId, free: false, count };
+    this.events.push({ type: "caseBought", caseId, free: false, count });
     return OK;
   }
 
@@ -300,30 +316,45 @@ export class Run {
     if (b.phase !== "locked") return fail("no locked case on the bench");
     const c = caseById(b.caseId);
     const fx = this.effects();
-    const drop = this.rollFor(c.id);
     const topTier = Math.max(...s.unlocked.map((id) => caseById(id).tier));
-    const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
-    this.forcedFake = false;
-    const fullDuration = fx.spinSeconds + (tease?.extraSeconds ?? 0);
-    s.lastSellAt += fullDuration; // the spin (tease crawl included) never counts against the combo
-    s.bench = { phase: "spinning", caseId: c.id, drop, elapsed: 0, fullDuration, tease };
+    const reels: BenchReel[] = [];
+    for (let i = 0; i < b.count; i++) {
+      const drop = this.rollFor(c.id);
+      const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
+      this.forcedFake = false;
+      reels.push({ drop, tease, duration: fx.spinSeconds + (tease?.extraSeconds ?? 0) });
+    }
+    const fullDuration = Math.max(...reels.map((r) => r.duration));
+    s.lastSellAt += fullDuration; // the spin (tease crawls included) never counts against the combo
+    s.bench = { phase: "spinning", caseId: c.id, reels, elapsed: 0, fullDuration };
     s.lastTier = c.tier;
-    this.events.push({ type: "spinStarted", caseId: c.id, drop, fullDuration, tease });
+    this.events.push({ type: "spinStarted", caseId: c.id, reels, fullDuration });
     return OK;
   }
 
-  sell(): ActionResult {
+  /** A bench card leaves (sold or taken); the bench empties with the last one. */
+  private takeBenchCard(slot: number): void {
+    const s = this.state;
+    const b = s.bench;
+    if (b.phase !== "revealed") return;
+    b.cards[slot] = null;
+    if (s.held === "bench" && s.heldSlot === slot) s.held = null;
+    if (b.cards.every((d) => d === null)) s.bench = { phase: "empty" };
+  }
+
+  sell(slot = 0): ActionResult {
     if (this.locked()) return fail("the vault is open");
     const s = this.state;
     const b = s.bench;
     if (b.phase !== "revealed") return fail("nothing to sell");
+    const d = b.cards[slot];
+    if (!d) return fail("nothing in that spot");
     this.bumpCombo();
-    const amount = this.payout(b.drop, true);
+    const amount = this.payout(d, true);
     s.cash += amount;
     s.lifetimeEarnings += amount;
-    s.bench = { phase: "empty" };
-    s.held = null;
-    this.events.push({ type: "sold", drop: b.drop, amount, combo: s.combo, source: "bench", from: "bench" });
+    this.takeBenchCard(slot);
+    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bench", from: "bench", slot });
     return OK;
   }
 
@@ -363,18 +394,19 @@ export class Run {
     if (b.phase === "spinning") {
       b.elapsed += dt;
       if (b.elapsed >= b.fullDuration) {
-        s.bench = { phase: "revealed", caseId: b.caseId, drop: b.drop };
-        this.onReveal(b.drop, "bench");
-        this.revealsThisTick++;
-        this.events.push({ type: "revealed", drop: b.drop });
+        const drops = b.reels.map((r) => r.drop);
+        s.bench = { phase: "revealed", caseId: b.caseId, cards: [...drops] };
+        for (const d of drops) this.onReveal(d, "bench");
+        this.revealsThisTick += drops.length;
+        this.events.push({ type: "revealed", drops });
       }
     }
 
     // a Ricochet case takes the bench as soon as it is clear
     if (s.bench.phase === "empty" && s.freeCases.length > 0 && !this.locked()) {
       const caseId = s.freeCases.shift()!;
-      s.bench = { phase: "locked", caseId, free: true };
-      this.events.push({ type: "caseBought", caseId, free: true });
+      s.bench = { phase: "locked", caseId, free: true, count: 1 };
+      this.events.push({ type: "caseBought", caseId, free: true, count: 1 });
     }
 
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
@@ -431,7 +463,7 @@ export class Run {
       const amount = this.payout(d, false);
       s.cash += amount;
       s.lifetimeEarnings += amount;
-      this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from: "bot" });
+      this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from: "bot", slot: 0 });
     }
     s.bot.card = null;
     s.bot.spin = null;
@@ -515,10 +547,12 @@ export class Run {
   }
 
   /** The player picks a waiting card up (bench or bot) or lets go (null): machines leave a held card alone. */
-  setHeld(spot: CardSpot | null): ActionResult {
+  setHeld(spot: CardSpot | null, slot = 0): ActionResult {
     const s = this.state;
-    const waiting = spot === "bench" ? s.bench.phase === "revealed" : spot === "bot" ? s.bot.card !== null : true;
+    const b = s.bench;
+    const waiting = spot === "bench" ? b.phase === "revealed" && !!b.cards[slot] : spot === "bot" ? s.bot.card !== null : true;
     s.held = waiting ? spot : null;
+    s.heldSlot = waiting && spot === "bench" ? slot : 0;
     return OK;
   }
 
@@ -541,7 +575,7 @@ export class Run {
     s.lifetimeEarnings += amount;
     s.bot.card = null;
     if (s.held === "bot") s.held = null;
-    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bot", from: "bot" });
+    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bot", from: "bot", slot: 0 });
     return OK;
   }
 
@@ -556,7 +590,7 @@ export class Run {
     const amount = this.payout(d, true);
     s.cash += amount;
     s.lifetimeEarnings += amount;
-    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "tray", from: null });
+    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "tray", from: null, slot: 0 });
     return OK;
   }
 
@@ -595,26 +629,30 @@ export class Run {
     const seller = s.seller;
     if (!seller.on || this.locked()) return;
     const b = s.bench;
-    if (b.phase === "revealed" && s.held !== "bench" && s.time - s.revealedAt >= sellerHold(b.drop.rarity, seller.speedLevel))
-      if (this.autoTake(b.drop, "bench")) s.bench = { phase: "empty" };
+    if (b.phase === "revealed")
+      b.cards.forEach((d, slot) => {
+        if (!d || (s.held === "bench" && s.heldSlot === slot)) return;
+        if (s.time - s.revealedAt < sellerHold(d.rarity, seller.speedLevel)) return;
+        if (this.autoTake(d, "bench", slot)) this.takeBenchCard(slot);
+      });
     const d = s.bot.card;
     if (d && s.held !== "bot" && s.time - s.bot.cardAt >= sellerHold(d.rarity, seller.speedLevel))
       if (this.autoTake(d, "bot")) s.bot.card = null;
   }
 
   /** Sell it (at or below the threshold) or set it aside in the tray; false when the tray is full. */
-  private autoTake(d: Drop, from: CardSpot): boolean {
+  private autoTake(d: Drop, from: CardSpot, slot = 0): boolean {
     const s = this.state;
     if (sellsAt(s.seller.threshold, d.rarity)) {
       const amount = this.payout(d, false);
       s.cash += amount;
       s.lifetimeEarnings += amount;
-      this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from });
+      this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from, slot });
       return true;
     }
     if (s.tray.length >= this.setup.trayCapacity) return false;
     s.tray.push(d);
-    this.events.push({ type: "stored", drop: d, from });
+    this.events.push({ type: "stored", drop: d, from, slot });
     return true;
   }
 

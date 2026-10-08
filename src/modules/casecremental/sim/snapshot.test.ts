@@ -46,4 +46,20 @@ describe("run snapshots", () => {
     tickFor(b, 20);
     expect(b.state.over).toBe(true);
   });
+
+  it("restores a two-reel spin and a half-sold pair identically (Review Focus 3)", () => {
+    const a = new Run(9);
+    a.state.upgrades.multiOpen = 1;
+    a.state.cash = 1000;
+    a.buyCase("bootcamp");
+    a.insertKey();
+    tickFor(a, 1);
+    const mid = Run.fromSnapshot(JSON.parse(JSON.stringify(a.snapshot())));
+    expect(mid.state).toEqual(a.state);
+    for (const r of [a, mid]) tickFor(r, 12);
+    expect(mid.state).toEqual(a.state);
+    a.sell(0);
+    const half = Run.fromSnapshot(JSON.parse(JSON.stringify(a.snapshot())));
+    expect(half.state.bench).toEqual(a.state.bench);
+  });
 });

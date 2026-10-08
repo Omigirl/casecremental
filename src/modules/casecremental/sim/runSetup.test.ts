@@ -17,7 +17,7 @@ function reveal(run: Run, rarity: RarityId | null = null) {
   tickFor(run, (b.phase === "spinning" ? b.fullDuration : 0) + 0.1);
   const r = run.state.bench;
   if (r.phase !== "revealed") throw new Error("expected revealed");
-  return r.drop;
+  return r.cards[0]!;
 }
 
 describe("run setup", () => {
@@ -71,7 +71,7 @@ describe("run setup", () => {
     reveal(run, "covert");
     run.sell();
     run.tick(DT);
-    expect(run.state.bench).toEqual({ phase: "locked", caseId: "bootcamp", free: true });
+    expect(run.state.bench).toEqual({ phase: "locked", caseId: "bootcamp", free: true, count: 1 });
   });
 
   it("Gold Rush starts a Golden Hour on a ★", () => {

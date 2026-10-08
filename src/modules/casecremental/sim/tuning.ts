@@ -77,6 +77,8 @@ export const UPGRADE_COSTS = {
   luck: { baseCost: 15, growth: 1.6, maxLevel: 25 },
   appraiser: { baseCost: 10, growth: 1.55, maxLevel: 25 },
   quickHands: { baseCost: 8, growth: 1.7, maxLevel: 10 },
+  /** Run 1 cap x2 (rework spec 2): one level. */
+  multiOpen: { baseCost: 500, growth: 1, maxLevel: 1 },
 } as const;
 
 /** Sells closer together than this keep the combo going. */

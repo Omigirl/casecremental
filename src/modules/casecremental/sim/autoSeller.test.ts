@@ -44,7 +44,7 @@ describe("the auto-seller", () => {
     run.state.cash = 1e6;
     revealOnBench(run, "milspec");
     const b = run.state.bench;
-    const d = b.phase === "revealed" ? b.drop : null;
+    const d = b.phase === "revealed" ? b.cards[0] : null;
     const cash = run.state.cash;
     tickFor(run, SELLER_HOLD_SECONDS[0] + 0.1);
     expect(run.state.bench.phase).toBe("empty");

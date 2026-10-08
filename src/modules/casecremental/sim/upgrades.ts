@@ -1,12 +1,13 @@
 import { APPRAISER_PER_LEVEL, QUICK_HANDS_FACTOR, SPIN_BASE_SECONDS, SPIN_MIN_SECONDS, UPGRADE_COSTS } from "./tuning";
 
 export type UpgradeId = keyof typeof UPGRADE_COSTS;
-export const UPGRADE_IDS: readonly UpgradeId[] = ["luck", "appraiser", "quickHands"];
+export const UPGRADE_IDS: readonly UpgradeId[] = ["luck", "appraiser", "quickHands", "multiOpen"];
 
 export const UPGRADE_INFO: Readonly<Record<UpgradeId, { name: string; description: string }>> = {
   luck: { name: "Luck", description: "Better rarities drop more often" },
   appraiser: { name: "Appraiser", description: "+25% sell value per level" },
   quickHands: { name: "Quick Hands", description: "The reel spins faster" },
+  multiOpen: { name: "Multi-open", description: "One BUY opens 2 cases" },
 };
 
 /** Price of the next level, or null when maxed. */
@@ -20,6 +21,8 @@ export interface Effects {
   luckLevel: number;
   sellMult: number;
   spinSeconds: number;
+  /** Cases one BUY opens. */
+  openCount: number;
 }
 
 export function effectsOf(levels: Record<UpgradeId, number>): Effects {
@@ -27,5 +30,6 @@ export function effectsOf(levels: Record<UpgradeId, number>): Effects {
     luckLevel: levels.luck,
     sellMult: 1 + APPRAISER_PER_LEVEL * levels.appraiser,
     spinSeconds: Math.max(SPIN_MIN_SECONDS, SPIN_BASE_SECONDS * QUICK_HANDS_FACTOR ** levels.quickHands),
+    openCount: 1 + levels.multiOpen,
   };
 }

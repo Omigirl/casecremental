@@ -14,7 +14,7 @@ function revealOne(run: Run, caseId = "bootcamp") {
   tickFor(run, (spin.phase === "spinning" ? spin.fullDuration : 0) + 0.1); // a tease stretches the spin
   const b = run.state.bench;
   if (b.phase !== "revealed") throw new Error(`expected revealed, got ${b.phase}`);
-  return b.drop;
+  return b.cards[0]!;
 }
 const types = (events: SimEvent[]) => events.map((e) => e.type);
 /** Tick until the spinning reel lands, tease crawl included. */
@@ -36,7 +36,7 @@ describe("Run", () => {
     expect(run.buyCase("bootcamp")).toEqual({ ok: true });
     expect(run.buyCase("bootcamp")).toEqual({ ok: false, reason: "bench is busy" });
     expect(run.state.cash).toBe(START_CASH - priceOf("bootcamp"));
-    expect(run.state.bench).toEqual({ phase: "locked", caseId: "bootcamp", free: false });
+    expect(run.state.bench).toEqual({ phase: "locked", caseId: "bootcamp", free: false, count: 1 });
   });
 
   it("refuses locked cases and empty wallets", () => {
@@ -69,10 +69,10 @@ describe("Run", () => {
     run.insertKey();
     const b = run.state.bench;
     if (b.phase !== "spinning") throw new Error("expected spinning");
-    expect(b.tease).toEqual({ strength: 1, fake: null, extraSeconds: TEASE_CRAWL * SPIN_BASE_SECONDS });
+    expect(b.reels[0]!.tease).toEqual({ strength: 1, fake: null, extraSeconds: TEASE_CRAWL * SPIN_BASE_SECONDS });
     expect(b.fullDuration).toBeCloseTo(SPIN_BASE_SECONDS * (1 + TEASE_CRAWL));
     const started = run.drainEvents().find((e) => e.type === "spinStarted");
-    expect(started && started.type === "spinStarted" && started.tease).toEqual(b.tease);
+    expect(started && started.type === "spinStarted" && started.reels[0]!.tease).toEqual(b.reels[0]!.tease);
   });
 
   it("the dev board can force a fake tease: an ordinary drop with a decoy beside it", () => {
@@ -82,8 +82,8 @@ describe("Run", () => {
     run.insertKey();
     const b = run.state.bench;
     if (b.phase !== "spinning") throw new Error("expected spinning");
-    expect(b.drop.rarity).toBe("milspec");
-    expect(b.tease?.fake).not.toBeNull();
+    expect(b.reels[0]!.drop.rarity).toBe("milspec");
+    expect(b.reels[0]!.tease?.fake).not.toBeNull();
     spinOut(run);
     expect(run.state.bench.phase).toBe("revealed");
   });
@@ -127,7 +127,7 @@ describe("Run", () => {
     expect(b.phase).toBe("spinning");
     if (b.phase === "spinning") {
       expect(b.fullDuration).toBe(SPIN_BASE_SECONDS);
-      expect(b.drop.caseId).toBe("bootcamp");
+      expect(b.reels[0]!.drop.caseId).toBe("bootcamp");
     }
   });
 
@@ -249,5 +249,84 @@ describe("Run intensity after a pause (review fix)", () => {
     fastCycles(run, 25);
     tickFor(run, 60);
     expect(run.state.stage).toBe(1);
+  });
+});
+
+describe("multi-open", () => {
+  const multi = () => {
+    const run = new Run(11);
+    run.state.upgrades.multiOpen = 1;
+    run.state.cash = 1000;
+    return run;
+  };
+  const spinToReveal = (run: Run) => {
+    for (let i = 0; i < 2000 && run.state.bench.phase !== "revealed"; i++) run.tick(1 / 30);
+  };
+
+  it("one BUY buys and opens two cases at twice the price, each reel with its own drop and tease", () => {
+    const run = multi();
+    const price = run.casePrice("bootcamp");
+    expect(run.buyCase("bootcamp").ok).toBe(true);
+    expect(run.state.cash).toBeCloseTo(1000 - 2 * price);
+    expect(run.state.bench).toMatchObject({ phase: "locked", count: 2 });
+    run.insertKey();
+    const b = run.state.bench;
+    if (b.phase !== "spinning") throw new Error("not spinning");
+    expect(b.reels).toHaveLength(2);
+    expect(b.reels[0]!.drop.id).not.toBe(b.reels[1]!.drop.id);
+    expect(b.fullDuration).toBe(Math.max(...b.reels.map((r) => r.duration)));
+    spinToReveal(run);
+    const r = run.state.bench;
+    expect(r.phase === "revealed" && r.cards.map((d) => d?.id)).toEqual(b.reels.map((x) => x.drop.id));
+  });
+
+  it("opens one case at one price when only one is affordable — never stuck (Review Focus 1)", () => {
+    const run = multi();
+    run.state.cash = run.casePrice("bootcamp") * 1.5;
+    expect(run.openCount("bootcamp")).toBe(1);
+    run.buyCase("bootcamp");
+    expect(run.state.bench).toMatchObject({ phase: "locked", count: 1 });
+    expect(run.state.cash).toBeCloseTo(run.casePrice("bootcamp") * 0.5);
+  });
+
+  it("sells each card on its own; the bench empties with the last one; each hand sale bumps the combo", () => {
+    const run = multi();
+    run.buyCase("bootcamp");
+    run.insertKey();
+    spinToReveal(run);
+    run.drainEvents();
+    expect(run.sell(1).ok).toBe(true);
+    expect(run.state.bench).toMatchObject({ phase: "revealed" });
+    expect(run.sell(1).ok).toBe(false); // already gone
+    expect(run.sell(0).ok).toBe(true);
+    expect(run.state.bench.phase).toBe("empty");
+    const sold = run.drainEvents().filter((e) => e.type === "sold");
+    expect(sold.map((e) => e.type === "sold" && e.slot)).toEqual([1, 0]);
+    expect(run.state.combo).toBe(2);
+  });
+
+  it("the auto-seller takes the card you are not holding and leaves the held one (Review Focus 2)", () => {
+    const run = multi();
+    run.state.seller.on = true;
+    run.state.seller.threshold = "covert";
+    run.buyCase("bootcamp");
+    run.insertKey();
+    spinToReveal(run);
+    run.setHeld("bench", 0);
+    for (let i = 0; i < 30 * 5; i++) run.tick(1 / 30);
+    const b = run.state.bench;
+    expect(b.phase).toBe("revealed");
+    expect(b.phase === "revealed" && b.cards[1]).toBeNull();
+    expect(b.phase === "revealed" && b.cards[0]).not.toBeNull();
+    run.setHeld(null);
+    for (let i = 0; i < 30 * 5; i++) run.tick(1 / 30);
+    expect(run.state.bench.phase).toBe("empty");
+  });
+
+  it("a free Ricochet case and the vault are never multiplied", () => {
+    const run = multi();
+    run.state.freeCases.push("bootcamp");
+    run.tick(1 / 30);
+    expect(run.state.bench).toMatchObject({ phase: "locked", free: true, count: 1 });
   });
 });
