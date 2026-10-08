@@ -11,9 +11,9 @@ export const RARITY_INFO: Readonly<Record<RarityId, { name: string; color: numbe
   gold: { name: "★ Rare Special", color: 0xffd700 },
 };
 
-/** Normalized drop weights: Luck multiplies everything above Mil-Spec, then they sum to 1. */
-export function rarityWeights(luckLevel: number): Record<RarityId, number> {
-  const boost = 1 + LUCK_PER_LEVEL * Math.max(0, luckLevel);
+/** Normalized drop weights: Luck multiplies everything above Mil-Spec (× luckMult, the Golden Hour), then they sum to 1. */
+export function rarityWeights(luckLevel: number, luckMult = 1): Record<RarityId, number> {
+  const boost = (1 + LUCK_PER_LEVEL * Math.max(0, luckLevel)) * luckMult;
   const raw = Object.fromEntries(RARITY_ORDER.map((r) => [r, RARITY_BASE_WEIGHT[r] * (r === "milspec" ? 1 : boost)])) as Record<
     RarityId,
     number

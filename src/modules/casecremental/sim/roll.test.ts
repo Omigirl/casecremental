@@ -88,4 +88,18 @@ describe("rollDrop", () => {
     expect(avg("bootcamp", "milspec")).toBeGreaterThan(0.85); // per $1 of price, was ~0.53
     expect(avg("bootcamp")).toBeGreaterThan(avg("wildwood")); // a little more on average than the base table
   });
+
+  it("takes options: a luck multiplier, a StatTrak chance and a minimum rarity", () => {
+    const rng = createRng(11);
+    let covertPlain = 0;
+    let covertBoosted = 0;
+    for (let i = 0; i < 20_000; i++) if (rollDrop(bootcamp, 2, 0, rng, i).rarity === "covert") covertPlain++;
+    for (let i = 0; i < 20_000; i++) if (rollDrop(bootcamp, 2, 0, rng, i, null, { luckMult: 3 }).rarity === "covert") covertBoosted++;
+    expect(covertBoosted).toBeGreaterThan(covertPlain * 2);
+    for (let i = 0; i < 200; i++) {
+      const d = rollDrop(bootcamp, 2, 0, rng, i, null, { statTrakChance: 1, minRarity: "classified" });
+      expect(d.statTrak).toBe(true);
+      expect(["classified", "covert", "gold"]).toContain(d.rarity);
+    }
+  });
 });

@@ -34,4 +34,12 @@ describe("createRng", () => {
   it("pick refuses an empty list", () => {
     expect(() => createRng(1).pick([])).toThrow(/empty/);
   });
+
+  it("resumes from a saved state exactly where it left off", () => {
+    const a = createRng(7);
+    for (let i = 0; i < 5; i++) a.next();
+    const saved = a.state();
+    const b = createRng(7, saved);
+    expect([b.next(), b.next(), b.next()]).toEqual([a.next(), a.next(), a.next()]);
+  });
 });

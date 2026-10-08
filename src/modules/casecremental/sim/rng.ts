@@ -7,10 +7,12 @@ export interface Rng {
   /** Integer in [min, maxExclusive). */
   int(min: number, maxExclusive: number): number;
   pick<T>(items: readonly T[]): T;
+  /** The generator's internal state, for saving (resume with createRng(seed, state)). */
+  state(): number;
 }
 
-export function createRng(seed: number): Rng {
-  let s = seed >>> 0;
+export function createRng(seed: number, resume?: number): Rng {
+  let s = (resume ?? seed) >>> 0;
   const next = (): number => {
     s = (s + 0x6d2b79f5) >>> 0;
     let t = s;
@@ -20,6 +22,7 @@ export function createRng(seed: number): Rng {
   };
   return {
     next,
+    state: () => s,
     int: (min, maxExclusive) => min + Math.floor(next() * (maxExclusive - min)),
     pick<T>(items: readonly T[]): T {
       if (items.length === 0) throw new Error("pick from an empty list");

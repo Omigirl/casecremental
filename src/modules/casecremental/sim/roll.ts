@@ -17,14 +17,31 @@ export function pickRarity(weights: Record<RarityId, number>, roll: number): Rar
 /** A skin's value as a multiple of its case price: the base table, with the case's own changes. */
 export const valueMultOf = (caseId: string, rarity: RarityId): number => CASE_VALUE_MULT[caseId]?.[rarity] ?? RARITY_VALUE_MULT[rarity];
 
+export interface RollOptions {
+  /** Multiplies Luck's boost (Gold Rush's Golden Hour). */
+  luckMult?: number;
+  statTrakChance?: number;
+  /** A lower roll is raised to this rarity (Lucky Seven). */
+  minRarity?: RarityId | null;
+}
+
 /** Rolls one case: rarity (luck-adjusted), skin, float/wear, StatTrak, base value. */
-export function rollDrop(c: CaseDef, price: number, luckLevel: number, rng: Rng, id: number, forced: RarityId | null = null): Drop {
+export function rollDrop(
+  c: CaseDef,
+  price: number,
+  luckLevel: number,
+  rng: Rng,
+  id: number,
+  forced: RarityId | null = null,
+  opts: RollOptions = {},
+): Drop {
   const roll = rng.next(); // drawn either way, so a forced drop leaves the rest of the run unchanged
-  const rarity = forced ?? pickRarity(rarityWeights(luckLevel), roll);
+  let rarity = forced ?? pickRarity(rarityWeights(luckLevel, opts.luckMult ?? 1), roll);
+  if (opts.minRarity && RARITY_ORDER.indexOf(rarity) < RARITY_ORDER.indexOf(opts.minRarity)) rarity = opts.minRarity;
   const skin = rng.pick(c.skins.filter((s) => s.rarity === rarity));
   const float = rng.next();
   const wear = wearOf(float);
-  const statTrak = rng.next() < STATTRAK_CHANCE;
+  const statTrak = rng.next() < (opts.statTrakChance ?? STATTRAK_CHANCE);
   const value = price * valueMultOf(c.id, rarity) * wear.mult * (statTrak ? STATTRAK_MULT : 1);
   return { id, caseId: c.id, skinId: skin.id, rarity, float, wear: wear.id, statTrak, value };
 }
