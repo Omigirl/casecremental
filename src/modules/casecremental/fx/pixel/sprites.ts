@@ -61,10 +61,17 @@ export class SpriteLibrary {
     private readonly owned: Texture[],
   ) {}
 
-  static async load(): Promise<SpriteLibrary> {
+  /** A file that fails to load or decode is skipped (drawn as a placeholder): the game always starts. */
+  static async load(loadTexture: (url: string) => Promise<Texture> = (url) => Assets.load(url)): Promise<SpriteLibrary> {
     const sets = new Map<string, SpriteSet>();
     for (const [id, { meta, url }] of spriteIndex()) {
-      const base: Texture = await Assets.load(url);
+      let base: Texture;
+      try {
+        base = await loadTexture(url);
+      } catch (err) {
+        console.warn(`[casecremental] sprite "${id}" failed to load — using a placeholder`, err);
+        continue;
+      }
       base.source.scaleMode = "nearest";
       const frames = Array.from(
         { length: meta.frames },

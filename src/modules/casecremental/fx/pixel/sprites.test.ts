@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeholderMeta, spriteIndex } from "./sprites";
+import { placeholderMeta, SpriteLibrary, spriteIndex } from "./sprites";
 
 describe("sprite index", () => {
   it("lists the built sprites with their meta and URL", () => {
@@ -13,5 +13,12 @@ describe("sprite index", () => {
   it("makes a placeholder meta for a missing sprite", () => {
     expect(spriteIndex().has("does-not-exist")).toBe(false);
     expect(placeholderMeta("x", 24, 20, 4)).toEqual({ id: "x", frames: 4, frameW: 24, frameH: 20, ground: 19, eyes: null });
+  });
+
+  it("a built sprite that fails to load is skipped, and the game still starts", async () => {
+    const lib = await SpriteLibrary.load(async () => {
+      throw new Error("decode failed");
+    });
+    expect(lib.has("bot-open")).toBe(false); // drawn as a placeholder instead
   });
 });

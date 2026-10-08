@@ -57,23 +57,35 @@ export function fallbackBase(weapon: WeaponId, w = 26, h = 10): PixelImage {
   return { w, h, data };
 }
 
-export async function loadWeaponBases(index: Map<string, { url: string }>): Promise<Map<WeaponId, PixelImage>> {
+async function loadPixelImage(url: string): Promise<PixelImage> {
+  const img = await new Promise<HTMLImageElement>((ok, bad) => {
+    const i = new Image();
+    i.onload = () => ok(i);
+    i.onerror = bad;
+    i.src = url;
+  });
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const g = c.getContext("2d")!;
+  g.drawImage(img, 0, 0);
+  return { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data };
+}
+
+/** The greyscale weapon bases; one that fails to load is left out, so its silhouette is used instead. */
+export async function loadWeaponBases(
+  index: Map<string, { url: string }>,
+  load: (url: string) => Promise<PixelImage> = loadPixelImage,
+): Promise<Map<WeaponId, PixelImage>> {
   const out = new Map<WeaponId, PixelImage>();
   for (const w of ["rifle", "sniper", "pistol", "heavyPistol", "smg", "shotgun", "mg", "knife"] as const) {
     const entry = index.get(`weapon-${w}`);
     if (!entry) continue;
-    const img = await new Promise<HTMLImageElement>((ok, bad) => {
-      const i = new Image();
-      i.onload = () => ok(i);
-      i.onerror = bad;
-      i.src = entry.url;
-    });
-    const c = document.createElement("canvas");
-    c.width = img.width;
-    c.height = img.height;
-    const g = c.getContext("2d")!;
-    g.drawImage(img, 0, 0);
-    out.set(w, { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data });
+    try {
+      out.set(w, await load(entry.url));
+    } catch (err) {
+      console.warn(`[casecremental] weapon "${w}" failed to load — using its silhouette`, err);
+    }
   }
   return out;
 }

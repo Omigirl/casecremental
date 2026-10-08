@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fallbackBase, tintWeapon } from "./pixelSkin";
+import { loadWeaponBases, fallbackBase, tintWeapon } from "./pixelSkin";
 
 describe("pixel skins", () => {
   it("keeps outline pixels dark, transparent pixels empty, and shades the pattern by the base", () => {
@@ -20,5 +20,15 @@ describe("pixel skins", () => {
       for (let i = 3; i < b.data.length; i += 4) if (b.data[i]) opaque++;
       expect(opaque, w).toBeGreaterThan(30);
     }
+  });
+});
+
+describe("loadWeaponBases", () => {
+  it("skips a weapon image that fails to load (its silhouette is used instead)", async () => {
+    const index = new Map([["weapon-rifle", { url: "/rifle.png" }]]);
+    const bases = await loadWeaponBases(index, async () => {
+      throw new Error("404");
+    });
+    expect(bases.has("rifle")).toBe(false);
   });
 });
