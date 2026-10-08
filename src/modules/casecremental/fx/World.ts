@@ -54,7 +54,7 @@ export class World {
     this.reel = new ReelView(() => this.sfx.tick(controller.run.state.combo));
     this.bench = new BenchView(controller);
     this.particles = new Particles(dot);
-    this.coins = new Coins(coin);
+    this.coins = new Coins([coin]);
     this.root.addChild(this.bg, this.reel, this.bench, this.particles.container, this.coins.container);
     this.look = new StageLook(this.root);
     app.stage.addChild(this.root);

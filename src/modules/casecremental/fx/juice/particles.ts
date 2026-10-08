@@ -1,5 +1,5 @@
 import { Container, Sprite, type Texture } from "pixi.js";
-import type { Point } from "../layout";
+import type { Pt } from "../pixel/layout";
 
 // Pooled sprite sparks: bursts on reveals, tinted by rarity, falling with gravity and fading out.
 
@@ -23,7 +23,7 @@ export class Particles {
     private readonly max = 1500,
   ) {}
 
-  burst(at: Point, color: number, count: number, speed: number): void {
+  burst(at: Pt, color: number, count: number, speed: number): void {
     for (let i = 0; i < count && this.live.length < this.max; i++) {
       const s = this.pool.pop() ?? new Sprite(this.texture);
       s.anchor.set(0.5);
