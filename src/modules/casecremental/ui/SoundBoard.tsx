@@ -14,12 +14,15 @@ export function SoundBoard({
   audio,
   stage,
   onForce,
+  onCheat,
   onClose,
 }: {
   audio: AudioEngine;
   stage: number;
   /** A rarity for the next drop, or "fake": an ordinary drop with a fake tease. */
   onForce: (r: RarityId | "fake") => void;
+  /** Dev cheats to reach the vault quickly. */
+  onCheat?: (c: "cash" | "unlockAll") => void;
   onClose: () => void;
 }): ReactNode {
   const { scale } = useContext(UiEnvContext);
@@ -72,6 +75,12 @@ export function SoundBoard({
             </PxButton>
           </span>
         </div>
+        {onCheat ? (
+          <div className="cc-tabs">
+            <PxButton onClick={() => onCheat("cash")}>+$100K (DEV)</PxButton>
+            <PxButton onClick={() => onCheat("unlockAll")}>UNLOCK ALL (DEV)</PxButton>
+          </div>
+        ) : null}
         {(Object.keys(SOUNDS) as SoundId[]).map((id) => (
           <div key={id} className="cc-row-line">
             <span>{id}</span>

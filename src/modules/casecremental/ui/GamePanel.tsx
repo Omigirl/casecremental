@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import type { AudioEngine } from "../fx/audio/AudioEngine";
 import { cameraCss, type Camera } from "../fx/camera";
+import { CASES } from "../sim/content/cases";
 import type { GameController } from "../game/controller";
 import { CaseShelf } from "./CaseShelf";
 import { Drawer } from "./Drawer";
@@ -88,6 +89,14 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
               <Settings
                 onClose={() => setSettings(false)}
                 onSoundBoard={import.meta.env.DEV ? () => (setSettings(false), setSoundBoard(true)) : undefined}
+                onReset={
+                  import.meta.env.DEV
+                    ? () => {
+                        controller.resetProgress();
+                        setSettings(false);
+                      }
+                    : undefined
+                }
               />
             ) : null}
             {prestigeShown && view.prestige ? <Prestige p={view.prestige} act={act} /> : null}
@@ -96,6 +105,11 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 audio={audio}
                 stage={view.stage}
                 onForce={(r) => (r === "fake" ? controller.run.forceFakeTease() : controller.run.forceNextRarity(r))}
+                onCheat={(c) => {
+                  // dev only: straight into the run's state, like the forced drops
+                  if (c === "cash") controller.run.state.cash += 100_000;
+                  else controller.run.state.unlocked = CASES.map((x) => x.id);
+                }}
                 onClose={() => setSoundBoard(false)}
               />
             ) : null}

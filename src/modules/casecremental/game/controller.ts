@@ -114,6 +114,11 @@ export class GameController {
     this.refreshView();
   }
 
+  /** Save now (the page is closing): autosave runs only about once a second. */
+  saveNow(): void {
+    this.save();
+  }
+
   onEvent(listener: (e: SimEvent) => void): () => void {
     this.eventListeners.add(listener);
     return () => this.eventListeners.delete(listener);

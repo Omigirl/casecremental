@@ -31,6 +31,10 @@ export const casecrementalModule: Module = defineModule({
     window.addEventListener("pointerdown", () => audio.unlock());
     window.addEventListener("keydown", () => audio.unlock());
     const controller = new GameController(undefined, browserSlot()); // the run and the meta survive a reload
+    window.addEventListener("pagehide", () => controller.saveNow());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") controller.saveNow();
+    });
     const camera = new Camera(); // the scene moves it; the overlay follows it
     ctx.registerScene(createGameScene(controller, audio, camera));
     ctx.registerPanel({ id: "game", slot: "overlay", component: makeGamePanel(controller, audio, camera) });

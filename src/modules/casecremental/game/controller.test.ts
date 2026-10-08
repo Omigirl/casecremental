@@ -65,6 +65,14 @@ function openVault(c: GameController) {
 }
 
 describe("GameController — the campaign", () => {
+  it("saves on demand (the page is closing) — even between autosaves", () => {
+    const slot = memorySlot();
+    const a = new GameController(1, slot);
+    a.run.state.cash = 77;
+    a.saveNow();
+    expect(new GameController(2, slot).run.state.cash).toBe(77);
+  });
+
   it("routes the new actions", () => {
     const c = new GameController(1);
     c.run.state.cash = 1e6;
