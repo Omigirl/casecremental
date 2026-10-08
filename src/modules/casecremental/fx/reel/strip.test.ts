@@ -25,6 +25,9 @@ describe("buildStrip", () => {
   });
 });
 
+/** A card shows 28 of its 30 px slot: the marker is on the card while |jitter| < 14/30. */
+const VISIBLE_HALF = 14 / 30;
+
 describe("landingJitter", () => {
   it("stops a sliver short of a decoy ahead, or a sliver past one behind — never on it", () => {
     const rng = createRng(4);
@@ -32,9 +35,9 @@ describe("landingJitter", () => {
       const short = landingJitter("short", rng);
       const over = landingJitter("over", rng);
       expect(short).toBeGreaterThan(0.38);
-      expect(short).toBeLessThan(0.5);
+      expect(short).toBeLessThan(VISIBLE_HALF); // still on the winner, never on the gap beside it
       expect(over).toBeLessThan(-0.38);
-      expect(over).toBeGreaterThan(-0.5);
+      expect(over).toBeGreaterThan(-VISIBLE_HALF);
       expect(Math.abs(landingJitter(null, rng))).toBeLessThanOrEqual(0.35);
     }
   });

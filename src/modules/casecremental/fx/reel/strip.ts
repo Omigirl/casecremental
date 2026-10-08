@@ -34,6 +34,6 @@ export function buildStrip(c: CaseDef, winner: SkinDef, rng: Rng, decoy: Decoy |
 /** Where on the winning card the marker stops, as a fraction of a card from its centre (±0.5 = its edges). */
 export function landingJitter(side: NearMissSide | null, rng: Rng): number {
   if (!side) return (rng.next() - 0.5) * 0.7;
-  const sliver = 0.4 + rng.next() * 0.08; // 0.40–0.48: a hair from the edge, never over it
+  const sliver = 0.39 + rng.next() * 0.04; // 0.39–0.43: a hair inside the card's visible edge (28 of 30 px), never on the gap
   return side === "short" ? sliver : -sliver;
 }
