@@ -7,7 +7,12 @@ const G = { posterize: 48, outline: [18, 14, 16] };
 /** A synthetic 2×2 sheet of 4 "robots" 40×80 source px (cyan eyes on a dark visor). */
 function sheet() {
   const img = createImage(200, 220);
-  [[10, 10], [110, 10], [10, 120], [110, 120]].forEach(([x, y], i) => {
+  [
+    [10, 10],
+    [110, 10],
+    [10, 120],
+    [110, 120],
+  ].forEach(([x, y], i) => {
     const hop = i === 2 ? 10 : 0;
     fillRect(img, x, y + 10 - hop, 40, 80, [96, 96, 144, 255]);
     fillRect(img, x + 6, y + 18 - hop, 28, 16, [0, 16, 32, 255]);
@@ -19,12 +24,19 @@ function sheet() {
 
 describe("buildAsset", () => {
   it("turns a 2×2 character sheet into 4 aligned 48 px frames with level eyes", () => {
-    const { strip, meta } = buildAsset({ id: "t", source: "x.png", kind: "sheet", frames: 4, rows: 2, targetH: 48, eyes: true }, sheet(), G);
+    const { strip, meta } = buildAsset(
+      { id: "t", source: "x.png", kind: "sheet", frames: 4, rows: 2, targetH: 48, eyes: true },
+      sheet(),
+      G,
+    );
     expect(meta.frames).toBe(4);
     expect(strip.w).toBe(meta.frameW * 4);
     expect(strip.h).toBe(meta.frameH);
     expect(meta.eyes).toHaveLength(4);
-    for (const e of meta.eyes) { expect(e).toHaveLength(2); expect(e[0][1]).toBe(e[1][1]); }
+    for (const e of meta.eyes) {
+      expect(e).toHaveLength(2);
+      expect(e[0][1]).toBe(e[1][1]);
+    }
     // the hop frame (index 2) sits higher than the others
     expect(meta.eyes[2][0][1]).toBeLessThan(meta.eyes[0][0][1]);
   });

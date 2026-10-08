@@ -43,7 +43,13 @@ export class DragTracker {
   down(p: Pt, items: readonly Grabbable[]): string | null {
     const item = items.find((i) => hit(i.rect, p));
     if (!item) return null;
-    this.active = { id: item.id, start: p, grab: { x: p.x - item.rect.x, y: p.y - item.rect.y }, moved: 0, exact: { x: item.rect.x, y: item.rect.y } };
+    this.active = {
+      id: item.id,
+      start: p,
+      grab: { x: p.x - item.rect.x, y: p.y - item.rect.y },
+      moved: 0,
+      exact: { x: item.rect.x, y: item.rect.y },
+    };
     return item.id;
   }
 

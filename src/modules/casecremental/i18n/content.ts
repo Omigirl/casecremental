@@ -107,9 +107,18 @@ export const stageName = (stage: number): string => pick(STAGES[stage - 1]);
 /** Every content name with its budget key, for the budget test. */
 export function CONTENT_KEYS(): Array<[string, string, string]> {
   const rows: Array<[string, string, string]> = [];
-  const add = (prefix: string, table: Record<string, Pair>) => { for (const [k, p] of Object.entries(table)) rows.push([prefix + k, p.en, p.ru]); };
-  add("case.", CASES); add("weapon.", WEAPONS); add("skin.", SKINS); add("rarity.", RARITIES); add("wear.", WEARS);
-  for (const [k, u] of Object.entries(UPGRADES)) { rows.push(["upgrade.name." + k, u.name.en, u.name.ru]); rows.push(["upgrade.desc." + k, u.desc.en, u.desc.ru]); }
+  const add = (prefix: string, table: Record<string, Pair>) => {
+    for (const [k, p] of Object.entries(table)) rows.push([prefix + k, p.en, p.ru]);
+  };
+  add("case.", CASES);
+  add("weapon.", WEAPONS);
+  add("skin.", SKINS);
+  add("rarity.", RARITIES);
+  add("wear.", WEARS);
+  for (const [k, u] of Object.entries(UPGRADES)) {
+    rows.push(["upgrade.name." + k, u.name.en, u.name.ru]);
+    rows.push(["upgrade.desc." + k, u.desc.en, u.desc.ru]);
+  }
   STAGES.forEach((p, i) => rows.push(["stage." + (i + 1), p.en, p.ru]));
   return rows;
 }

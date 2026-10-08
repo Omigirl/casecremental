@@ -3,7 +3,9 @@ import manifest from "../../../../../art/manifest.json";
 import { ANIM_SPRITE, ANIMS, loopLength, type AnimId } from "./anims";
 
 const framesOf = (sprite: string): number => {
-  const ids = sprite.endsWith("*") ? manifest.assets.filter((a) => a.id.startsWith(sprite.slice(0, -1))) : manifest.assets.filter((a) => a.id === sprite);
+  const ids = sprite.endsWith("*")
+    ? manifest.assets.filter((a) => a.id.startsWith(sprite.slice(0, -1)))
+    : manifest.assets.filter((a) => a.id === sprite);
   expect(ids.length, sprite).toBeGreaterThan(0);
   return Math.min(...ids.map((a) => ("frames" in a && a.frames ? a.frames : 1)));
 };

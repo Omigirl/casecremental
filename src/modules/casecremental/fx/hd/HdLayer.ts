@@ -63,9 +63,20 @@ export class HdLayer {
       g.fillStyle = grad;
       g.fillRect(0, 0, 256, 256);
     });
-    const vignette = radial(256, [[0, "rgba(0,0,0,0)"], [0.6, "rgba(0,0,0,0.15)"], [1, "rgba(0,0,0,0.8)"]]);
-    const soft = radial(64, [[0, "rgba(255,255,255,1)"], [1, "rgba(255,255,255,0)"]]);
-    const dot = radial(16, [[0, "rgba(255,255,255,1)"], [0.5, "rgba(255,255,255,0.6)"], [1, "rgba(255,255,255,0)"]]);
+    const vignette = radial(256, [
+      [0, "rgba(0,0,0,0)"],
+      [0.6, "rgba(0,0,0,0.15)"],
+      [1, "rgba(0,0,0,0.8)"],
+    ]);
+    const soft = radial(64, [
+      [0, "rgba(255,255,255,1)"],
+      [1, "rgba(255,255,255,0)"],
+    ]);
+    const dot = radial(16, [
+      [0, "rgba(255,255,255,1)"],
+      [0.5, "rgba(255,255,255,0.6)"],
+      [1, "rgba(255,255,255,0)"],
+    ]);
     this.textures = [cone, vignette, soft, dot];
 
     this.lamp = new Sprite({ texture: cone, anchor: { x: 0.5, y: 0 }, blendMode: "add" });
@@ -100,7 +111,10 @@ export class HdLayer {
     this.glowSprite.position.set(l.you.reveal.x * k, l.you.reveal.y * k);
     this.glowSprite.width = this.glowSprite.height = 70 * k;
     for (const z of this.zs) z.style.fontSize = hdFontSize(k);
-    this.led.clear().circle(0, 0, Math.max(1.5, k * 0.6)).fill({ color: 0xff3b30 });
+    this.led
+      .clear()
+      .circle(0, 0, Math.max(1.5, k * 0.6))
+      .fill({ color: 0xff3b30 });
     this.led.position.set(l.seller.x * k, (l.seller.y - 26) * k);
     this.coins.setScale(k, hdFontSize(k, 16));
   }

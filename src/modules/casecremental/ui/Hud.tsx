@@ -56,9 +56,17 @@ export function Hud({ view, hudH, onSettings }: { view: GameView; hudH: number; 
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "start", gap: 2 * scale }}>
         <span style={{ color: view.stage >= 2 ? "#ff7ad9" : "#a89a8c" }}>{stageName(view.stage)}</span>
-        {view.combo > 1 ? <span style={{ color: "#7affc1" }}>{t("hud.combo", { mult: view.comboMult.toFixed(2).replace(".", lang === "ru" ? "," : ".") })}</span> : null}
+        {view.combo > 1 ? (
+          <span style={{ color: "#7affc1" }}>
+            {t("hud.combo", { mult: view.comboMult.toFixed(2).replace(".", lang === "ru" ? "," : ".") })}
+          </span>
+        ) : null}
         <span style={{ pointerEvents: "auto" }}>
-          <PxButton onClick={onSettings} title={t("hud.settings")} style={{ fontFamily: "system-ui, sans-serif", fontSize: "calc(var(--fs) * 1.5)", lineHeight: 1 }}>
+          <PxButton
+            onClick={onSettings}
+            title={t("hud.settings")}
+            style={{ fontFamily: "system-ui, sans-serif", fontSize: "calc(var(--fs) * 1.5)", lineHeight: 1 }}
+          >
             ⚙
           </PxButton>
         </span>

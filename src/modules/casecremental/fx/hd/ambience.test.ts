@@ -11,7 +11,7 @@ describe("ambience", () => {
 
   it("keeps dust inside its box forever", () => {
     let seed = 1;
-    const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     const box = { x: 100, y: 50, w: 200, h: 120 };
     const motes = makeMotes(40, box, random);
     for (let i = 0; i < 3000; i++) stepMotes(motes, 1 / 30, box, i / 30);

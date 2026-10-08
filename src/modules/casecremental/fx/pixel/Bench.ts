@@ -92,9 +92,12 @@ export class Bench {
     const { w, h } = ITEM_SIZE.reveal;
     const color = RARITY_INFO[drop.rarity].color;
     const frame = new Graphics()
-      .rect(0, 0, w, h).fill({ color: 0x120e10 })
-      .rect(1, 1, w - 2, h - 2).fill({ color })
-      .rect(2, 2, w - 4, h - 4).fill({ color: 0x15161d });
+      .rect(0, 0, w, h)
+      .fill({ color: 0x120e10 })
+      .rect(1, 1, w - 2, h - 2)
+      .fill({ color })
+      .rect(2, 2, w - 4, h - 4)
+      .fill({ color: 0x15161d });
     const art = new Sprite(this.skins.texture(skin));
     art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - art.height) / 2));
     const face = new Container();

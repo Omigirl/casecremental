@@ -9,8 +9,7 @@ const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.len
 
 describe("pacing (greedy bot, human-speed actions)", () => {
   const reports = SEEDS.map((s) => playGreedy(s, 600));
-  const at = (pick: (r: (typeof reports)[number]) => number | undefined) =>
-    median(reports.map((r) => pick(r) ?? Number.POSITIVE_INFINITY));
+  const at = (pick: (r: (typeof reports)[number]) => number | undefined) => median(reports.map((r) => pick(r) ?? Number.POSITIVE_INFINITY));
 
   it("unlocks Wildwood in about 1–2.5 minutes", () => {
     const t = at((r) => r.caseUnlockedAt.wildwood);

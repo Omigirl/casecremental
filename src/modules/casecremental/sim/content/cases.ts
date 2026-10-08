@@ -5,20 +5,15 @@ import { WEAPON_NAMES } from "./weapons";
 // The case ladder. Each later case uses a richer pattern technique than the one before it, so its
 // cheapest skins already outshine the previous case's best (spec §4.3, §5). Milestone 1: cases 1–3.
 
-const skin = (
-  id: string,
-  name: string,
-  weapon: WeaponId,
-  rarity: RarityId,
-  pattern: PatternSpec,
-): SkinDef => ({ id, name, weapon, rarity, pattern });
+const skin = (id: string, name: string, weapon: WeaponId, rarity: RarityId, pattern: PatternSpec): SkinDef => ({
+  id,
+  name,
+  weapon,
+  rarity,
+  pattern,
+});
 
-const p = (
-  kind: PatternSpec["kind"],
-  palette: string[],
-  scale: number,
-  seed: number,
-): PatternSpec => ({ kind, palette, scale, seed });
+const p = (kind: PatternSpec["kind"], palette: string[], scale: number, seed: number): PatternSpec => ({ kind, palette, scale, seed });
 
 const bootcamp: CaseDef = {
   id: "bootcamp",

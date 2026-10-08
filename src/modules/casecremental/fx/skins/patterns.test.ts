@@ -30,13 +30,10 @@ describe("patterns", () => {
     expect(colors(a).size).toBeGreaterThanOrEqual(2);
   });
 
-  it.each(["camo", "digital", "tiger", "leaves", "granite", "crystal"] as PatternKind[])(
-    "%s uses only palette colors",
-    (kind) => {
-      const allowed = new Set(PALETTE.map((h) => hexToRgb(h).join(",")));
-      for (const c of colors(renderPattern(spec(kind), 64, 32))) expect(allowed).toContain(c);
-    },
-  );
+  it.each(["camo", "digital", "tiger", "leaves", "granite", "crystal"] as PatternKind[])("%s uses only palette colors", (kind) => {
+    const allowed = new Set(PALETTE.map((h) => hexToRgb(h).join(",")));
+    for (const c of colors(renderPattern(spec(kind), 64, 32))) expect(allowed).toContain(c);
+  });
 
   it("changes with the seed", () => {
     expect(renderPattern(spec("camo", 1), 32, 16)).not.toEqual(renderPattern(spec("camo", 2), 32, 16));

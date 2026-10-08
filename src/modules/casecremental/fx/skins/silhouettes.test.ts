@@ -5,10 +5,12 @@ import { SILHOUETTE_BOX, SILHOUETTES } from "./silhouettes";
 const WEAPONS: WeaponId[] = ["rifle", "sniper", "pistol", "heavyPistol", "smg", "shotgun", "mg", "knife"];
 
 const area = (pts: readonly (readonly [number, number])[]) =>
-  Math.abs(pts.reduce((a, [x, y], i) => {
-    const [nx, ny] = pts[(i + 1) % pts.length]!;
-    return a + x * ny - nx * y;
-  }, 0)) / 2;
+  Math.abs(
+    pts.reduce((a, [x, y], i) => {
+      const [nx, ny] = pts[(i + 1) % pts.length]!;
+      return a + x * ny - nx * y;
+    }, 0),
+  ) / 2;
 
 describe.each(WEAPONS)("silhouette %s", (weapon) => {
   const pts = SILHOUETTES[weapon];

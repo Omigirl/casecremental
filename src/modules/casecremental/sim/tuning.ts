@@ -6,9 +6,7 @@ import type { RarityId, WearId } from "./types";
 export const START_CASH = 6;
 
 /** Price and one-time unlock cost per case id, in ladder order. */
-export const CASE_ECONOMY: Readonly<
-  Record<string, { price: number; unlockCost: number }>
-> = {
+export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: number }>> = {
   bootcamp: { price: 2, unlockCost: 0 },
   wildwood: { price: 15, unlockCost: 40 },
   bedrock: { price: 150, unlockCost: 1200 },

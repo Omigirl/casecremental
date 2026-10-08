@@ -3,7 +3,19 @@ import { ITEM_SIZE, PANEL_CHROME, tableLayout, type Rect } from "./layout";
 import { hdFontSize } from "./screen";
 import { pixelViewport } from "./viewport";
 
-const SIZES: Array<[number, number]> = [[1920, 1080], [1280, 720], [3440, 1440], [800, 450], [1366, 768], [390, 844], [820, 1180], [1084, 749], [1159, 777], [1440, 900], [2560, 1440]];
+const SIZES: Array<[number, number]> = [
+  [1920, 1080],
+  [1280, 720],
+  [3440, 1440],
+  [800, 450],
+  [1366, 768],
+  [390, 844],
+  [820, 1180],
+  [1084, 749],
+  [1159, 777],
+  [1440, 900],
+  [2560, 1440],
+];
 const box = (cx: number, bottom: number, w: number, h: number): Rect => ({ x: cx - w / 2, y: bottom - h, w, h });
 const overlap = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const inside = (a: Rect, b: Rect) => a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
@@ -29,9 +41,10 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
 
   it("never lets items overlap (except the case on its mat)", () => {
     const names = Object.keys(items).filter((n) => n !== "case");
-    for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
-      expect(overlap(items[names[i]!]!, items[names[j]!]!), `${names[i]} × ${names[j]}`).toBe(false);
-    }
+    for (let i = 0; i < names.length; i++)
+      for (let j = i + 1; j < names.length; j++) {
+        expect(overlap(items[names[i]!]!, items[names[j]!]!), `${names[i]} × ${names[j]}`).toBe(false);
+      }
     expect(inside(items.case!, { ...l.you.mat, y: l.you.mat.y - 20, h: l.you.mat.h + 20 })).toBe(true);
   });
 
@@ -48,7 +61,12 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
   });
 
   it("puts the reveal card above the mat and below the reel", () => {
-    const card = { x: l.you.reveal.x - ITEM_SIZE.reveal.w / 2, y: l.you.reveal.y - ITEM_SIZE.reveal.h / 2, w: ITEM_SIZE.reveal.w, h: ITEM_SIZE.reveal.h };
+    const card = {
+      x: l.you.reveal.x - ITEM_SIZE.reveal.w / 2,
+      y: l.you.reveal.y - ITEM_SIZE.reveal.h / 2,
+      w: ITEM_SIZE.reveal.w,
+      h: ITEM_SIZE.reveal.h,
+    };
     expect(card.y).toBeGreaterThanOrEqual(l.you.reel.y + l.you.reel.h);
     expect(card.y + card.h).toBeLessThanOrEqual(l.you.mat.y + 4);
   });

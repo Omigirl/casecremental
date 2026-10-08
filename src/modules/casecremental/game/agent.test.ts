@@ -24,15 +24,11 @@ describe("agent surface", () => {
 
   it("rejects unknown upgrade ids with the valid list", async () => {
     const api = createAgentApi(new GameController(1));
-    await expect(api.actions!.buyUpgrade!({ id: "wings" })).rejects.toThrow(
-      /luck, appraiser, quickHands/,
-    );
+    await expect(api.actions!.buyUpgrade!({ id: "wings" })).rejects.toThrow(/luck, appraiser, quickHands/);
   });
 
   it("documents every action", () => {
     const api = createAgentApi(new GameController(1));
-    expect(Object.keys(api.describeActions ?? {}).sort()).toEqual(
-      Object.keys(api.actions ?? {}).sort(),
-    );
+    expect(Object.keys(api.describeActions ?? {}).sort()).toEqual(Object.keys(api.actions ?? {}).sort());
   });
 });

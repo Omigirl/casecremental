@@ -2,14 +2,7 @@ import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
-import {
-  COMBO_CAP,
-  COMBO_HEAT_DECAY_SECONDS,
-  COMBO_STEP,
-  COMBO_WINDOW_SECONDS,
-  FREE_CASE_SECONDS,
-  START_CASH,
-} from "./tuning";
+import { COMBO_CAP, COMBO_HEAT_DECAY_SECONDS, COMBO_STEP, COMBO_WINDOW_SECONDS, FREE_CASE_SECONDS, START_CASH } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
 
@@ -202,8 +195,7 @@ export class Run {
     }
 
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
-    s.comboHeat =
-      s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
+    s.comboHeat = s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
 
     // Anti-softlock: broke with nothing on the bench → a free first-tier case.
     const cheapest = Math.min(...s.unlocked.map(priceOf));

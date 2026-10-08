@@ -16,7 +16,14 @@ export interface UiEnv {
 
 export const UiEnvContext = createContext<UiEnv>({ scale: 1, skinnedButtons: false, click: () => {} });
 
-export function PxButton(props: { onClick?: () => void; disabled?: boolean; on?: boolean; children: ReactNode; style?: CSSProperties; title?: string }): ReactNode {
+export function PxButton(props: {
+  onClick?: () => void;
+  disabled?: boolean;
+  on?: boolean;
+  children: ReactNode;
+  style?: CSSProperties;
+  title?: string;
+}): ReactNode {
   const env = useContext(UiEnvContext);
   const ref = useRef<HTMLButtonElement>(null);
   const cls = ["cc-btn", env.skinnedButtons ? "skinned" : "", props.on ? "on" : ""].filter(Boolean).join(" ");

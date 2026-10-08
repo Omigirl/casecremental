@@ -91,8 +91,7 @@ function nextGoal(cash: number, cases: CaseView[], upgrades: UpgradeView[]): Gam
   const next = cases.find((c) => !c.unlocked);
   if (next) return { kind: "unlock", caseId: next.id, progress: progress(next.unlockCost) };
   let cheapest: UpgradeView | null = null;
-  for (const u of upgrades)
-    if (u.cost !== null && (cheapest === null || u.cost < (cheapest.cost ?? Infinity))) cheapest = u;
+  for (const u of upgrades) if (u.cost !== null && (cheapest === null || u.cost < (cheapest.cost ?? Infinity))) cheapest = u;
   if (!cheapest || cheapest.cost === null) return null;
   return { kind: "upgrade", upgradeId: cheapest.id, level: cheapest.level + 1, progress: progress(cheapest.cost) };
 }

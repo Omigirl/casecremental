@@ -31,7 +31,7 @@ describe("rollDrop", () => {
     expect(h.milspec / n).toBeCloseTo(0.7992, 2);
     expect(h.restricted / n).toBeCloseTo(0.1598, 2);
     expect(h.classified / n).toBeCloseTo(0.032, 2);
-    expect(h.covert / n).toBeGreaterThan(0.0050);
+    expect(h.covert / n).toBeGreaterThan(0.005);
     expect(h.covert / n).toBeLessThan(0.0078);
     expect(h.gold / n).toBeGreaterThan(0.0018);
     expect(h.gold / n).toBeLessThan(0.0034);

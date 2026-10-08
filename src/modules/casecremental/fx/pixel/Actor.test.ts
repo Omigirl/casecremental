@@ -19,8 +19,20 @@ describe("actor bands", () => {
   });
 
   it("moves the eyes with the head band and the look", () => {
-    const meta = { ...placeholderMeta("bot", 51, 62, 2), eyes: [[[30, 30], [36, 30]] as [number, number][], null] };
-    expect(eyePositions(meta, { ...POSE, bodyDy: 1, headDy: -2, look: 1 })).toEqual([{ x: 31, y: 29 }, { x: 37, y: 29 }]);
+    const meta = {
+      ...placeholderMeta("bot", 51, 62, 2),
+      eyes: [
+        [
+          [30, 30],
+          [36, 30],
+        ] as [number, number][],
+        null,
+      ],
+    };
+    expect(eyePositions(meta, { ...POSE, bodyDy: 1, headDy: -2, look: 1 })).toEqual([
+      { x: 31, y: 29 },
+      { x: 37, y: 29 },
+    ]);
     expect(eyePositions(meta, { ...POSE, frame: 1 })).toEqual([]);
   });
 });

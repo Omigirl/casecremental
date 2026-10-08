@@ -31,27 +31,45 @@ export function spriteIndex(): Map<string, { meta: SpriteMeta; url: string }> {
   return out;
 }
 
-export const placeholderMeta = (id: string, w: number, h: number, frames = 1): SpriteMeta => ({ id, frames, frameW: w, frameH: h, ground: h - 1, eyes: null });
+export const placeholderMeta = (id: string, w: number, h: number, frames = 1): SpriteMeta => ({
+  id,
+  frames,
+  frameW: w,
+  frameH: h,
+  ground: h - 1,
+  eyes: null,
+});
 
 function placeholderTexture(w: number, h: number): Texture {
   const c = document.createElement("canvas");
-  c.width = w; c.height = h;
+  c.width = w;
+  c.height = h;
   const g = c.getContext("2d")!;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { g.fillStyle = (x + y) % 2 ? "#ff00ff" : "#2a002a"; g.fillRect(x, y, 1, 1); }
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      g.fillStyle = (x + y) % 2 ? "#ff00ff" : "#2a002a";
+      g.fillRect(x, y, 1, 1);
+    }
   const t = Texture.from(c);
   t.source.scaleMode = "nearest";
   return t;
 }
 
 export class SpriteLibrary {
-  private constructor(private readonly sets: Map<string, SpriteSet>, private readonly owned: Texture[]) {}
+  private constructor(
+    private readonly sets: Map<string, SpriteSet>,
+    private readonly owned: Texture[],
+  ) {}
 
   static async load(): Promise<SpriteLibrary> {
     const sets = new Map<string, SpriteSet>();
     for (const [id, { meta, url }] of spriteIndex()) {
       const base: Texture = await Assets.load(url);
       base.source.scaleMode = "nearest";
-      const frames = Array.from({ length: meta.frames }, (_, i) => new Texture({ source: base.source, frame: new Rectangle(i * meta.frameW, 0, meta.frameW, meta.frameH) }));
+      const frames = Array.from(
+        { length: meta.frames },
+        (_, i) => new Texture({ source: base.source, frame: new Rectangle(i * meta.frameW, 0, meta.frameW, meta.frameH) }),
+      );
       sets.set(id, { meta, frames, placeholder: false });
     }
     return new SpriteLibrary(sets, []);

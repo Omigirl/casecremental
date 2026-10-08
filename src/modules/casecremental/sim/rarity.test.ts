@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RARITY_ORDER, rarityWeights } from "./rarity";
 import { wearOf } from "./wear";
 
-const sum = (w: Record<string, number>) =>
-  Object.values(w).reduce((a, b) => a + b, 0);
+const sum = (w: Record<string, number>) => Object.values(w).reduce((a, b) => a + b, 0);
 
 describe("rarityWeights", () => {
   it("matches CS odds at luck 0", () => {

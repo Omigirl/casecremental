@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  areaDownscale, createImage, eraseEyes, fillRect, hardAlpha, hstack, opaqueBounds,
-  outline, ownFrames, placeInCell, posterize, reflowRows,
+  areaDownscale,
+  createImage,
+  eraseEyes,
+  fillRect,
+  hardAlpha,
+  hstack,
+  opaqueBounds,
+  outline,
+  ownFrames,
+  placeInCell,
+  posterize,
+  reflowRows,
 } from "./ops.mjs";
 
 const px = (img, x, y) => Array.from(img.data.slice((y * img.w + x) * 4, (y * img.w + x) * 4 + 4));
@@ -29,7 +39,8 @@ describe("basic ops", () => {
     const img = createImage(2, 1);
     fillRect(img, 0, 0, 1, 1, [100, 30, 250, 200]);
     fillRect(img, 1, 0, 1, 1, [10, 10, 10, 90]);
-    hardAlpha(img); posterize(img, 48);
+    hardAlpha(img);
+    posterize(img, 48);
     expect(px(img, 0, 0)).toEqual([96, 48, 240, 255]);
     expect(px(img, 1, 0)[3]).toBe(0);
   });
@@ -45,7 +56,8 @@ describe("basic ops", () => {
   });
 
   it("hstack places images side by side", () => {
-    const a = createImage(2, 3), b = createImage(3, 3);
+    const a = createImage(2, 3),
+      b = createImage(3, 3);
     fillRect(b, 0, 0, 1, 1, [1, 2, 3, 255]);
     const s = hstack([a, b]);
     expect([s.w, s.h]).toEqual([5, 3]);
@@ -56,11 +68,11 @@ describe("basic ops", () => {
 describe("sheets", () => {
   it("reflowRows puts rows side by side, each on its own ground line", () => {
     const img = createImage(20, 30);
-    fillRect(img, 2, 2, 4, 6, [255, 0, 0, 255]);   // row 1, ground y=7
-    fillRect(img, 2, 20, 4, 9, [0, 255, 0, 255]);  // row 2, taller, ground y=28
+    fillRect(img, 2, 2, 4, 6, [255, 0, 0, 255]); // row 1, ground y=7
+    fillRect(img, 2, 20, 4, 9, [0, 255, 0, 255]); // row 2, taller, ground y=28
     const out = reflowRows(img, { minRowH: 4 });
     expect([out.w, out.h]).toEqual([40, 9]);
-    expect(px(out, 3, 8)).toEqual([255, 0, 0, 255]);  // row 1 bottom sits on the last line
+    expect(px(out, 3, 8)).toEqual([255, 0, 0, 255]); // row 1 bottom sits on the last line
     expect(px(out, 23, 0)).toEqual([0, 255, 0, 255]); // row 2 starts at the top
   });
 
@@ -85,7 +97,7 @@ describe("eyes", () => {
   function robotWithEyes(eyeY1, eyeY2) {
     const img = createImage(20, 20);
     fillRect(img, 2, 2, 16, 16, [96, 96, 144, 255]); // body
-    fillRect(img, 5, 4, 10, 5, [0, 16, 32, 255]);    // dark visor
+    fillRect(img, 5, 4, 10, 5, [0, 16, 32, 255]); // dark visor
     fillRect(img, 6, eyeY1, 2, 2, [80, 240, 240, 255]);
     fillRect(img, 11, eyeY2, 2, 2, [80, 240, 240, 255]);
     return img;
@@ -111,8 +123,8 @@ describe("eyes", () => {
     fillRect(frame, 0, 0, 6, 10, [255, 255, 255, 255]);
     const { cell, ox, oy } = placeInCell({ img: frame, x0: 100, y0: 20 }, { cellW: 20, cellH: 16, ground: 14, sheetGround: 29 });
     expect([cell.w, cell.h]).toEqual([20, 16]);
-    expect(ox).toBe(8);           // round(cell centre 10 − feet centre 2.5) = 8
-    expect(oy).toBe(5);           // y0 20 + (ground 14 − sheetGround 29) = 5
+    expect(ox).toBe(8); // round(cell centre 10 − feet centre 2.5) = 8
+    expect(oy).toBe(5); // y0 20 + (ground 14 − sheetGround 29) = 5
     expect(px(cell, 8, 14)[3]).toBe(255);
     expect(px(cell, 8, 15)[3]).toBe(0);
   });

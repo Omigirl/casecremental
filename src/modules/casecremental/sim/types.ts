@@ -2,26 +2,8 @@
 
 export type RarityId = "milspec" | "restricted" | "classified" | "covert" | "gold";
 export type WearId = "FN" | "MW" | "FT" | "WW" | "BS";
-export type WeaponId =
-  | "rifle"
-  | "sniper"
-  | "pistol"
-  | "heavyPistol"
-  | "smg"
-  | "shotgun"
-  | "mg"
-  | "knife";
-export type PatternKind =
-  | "camo"
-  | "digital"
-  | "tiger"
-  | "leaves"
-  | "bark"
-  | "moss"
-  | "marble"
-  | "granite"
-  | "crystal"
-  | "lava";
+export type WeaponId = "rifle" | "sniper" | "pistol" | "heavyPistol" | "smg" | "shotgun" | "mg" | "knife";
+export type PatternKind = "camo" | "digital" | "tiger" | "leaves" | "bark" | "moss" | "marble" | "granite" | "crystal" | "lava";
 
 export interface PatternSpec {
   kind: PatternKind;

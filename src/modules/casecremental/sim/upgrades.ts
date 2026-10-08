@@ -1,10 +1,4 @@
-import {
-  APPRAISER_PER_LEVEL,
-  QUICK_HANDS_FACTOR,
-  SPIN_BASE_SECONDS,
-  SPIN_MIN_SECONDS,
-  UPGRADE_COSTS,
-} from "./tuning";
+import { APPRAISER_PER_LEVEL, QUICK_HANDS_FACTOR, SPIN_BASE_SECONDS, SPIN_MIN_SECONDS, UPGRADE_COSTS } from "./tuning";
 
 export type UpgradeId = keyof typeof UPGRADE_COSTS;
 export const UPGRADE_IDS: readonly UpgradeId[] = ["luck", "appraiser", "quickHands"];

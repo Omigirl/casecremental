@@ -18,14 +18,7 @@ export function pickRarity(weights: Record<RarityId, number>, roll: number): Rar
 export const valueMultOf = (caseId: string, rarity: RarityId): number => CASE_VALUE_MULT[caseId]?.[rarity] ?? RARITY_VALUE_MULT[rarity];
 
 /** Rolls one case: rarity (luck-adjusted), skin, float/wear, StatTrak, base value. */
-export function rollDrop(
-  c: CaseDef,
-  price: number,
-  luckLevel: number,
-  rng: Rng,
-  id: number,
-  forced: RarityId | null = null,
-): Drop {
+export function rollDrop(c: CaseDef, price: number, luckLevel: number, rng: Rng, id: number, forced: RarityId | null = null): Drop {
   const roll = rng.next(); // drawn either way, so a forced drop leaves the rest of the run unchanged
   const rarity = forced ?? pickRarity(rarityWeights(luckLevel), roll);
   const skin = rng.pick(c.skins.filter((s) => s.rarity === rarity));

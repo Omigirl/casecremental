@@ -16,8 +16,7 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 /** fbm bunches around 0.5 — spread it over the whole 0..1 range. */
 const spread = (n: number) => clamp01((n - 0.25) / 0.5);
 
-const pick = (pal: readonly Rgb[], t: number): Rgb =>
-  pal[Math.min(pal.length - 1, Math.floor(clamp01(t) * pal.length))]!;
+const pick = (pal: readonly Rgb[], t: number): Rgb => pal[Math.min(pal.length - 1, Math.floor(clamp01(t) * pal.length))]!;
 
 function ramp(pal: readonly Rgb[], t: number): Rgb {
   if (pal.length === 1) return pal[0]!;
@@ -26,11 +25,7 @@ function ramp(pal: readonly Rgb[], t: number): Rgb {
   const f = x - i;
   const a = pal[i]!;
   const b = pal[i + 1]!;
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * f),
-    Math.round(a[1] + (b[1] - a[1]) * f),
-    Math.round(a[2] + (b[2] - a[2]) * f),
-  ];
+  return [Math.round(a[0] + (b[0] - a[0]) * f), Math.round(a[1] + (b[1] - a[1]) * f), Math.round(a[2] + (b[2] - a[2]) * f)];
 }
 
 /** Color at (u, v) ∈ [0,1)² of a 2.5 : 1 texture. */

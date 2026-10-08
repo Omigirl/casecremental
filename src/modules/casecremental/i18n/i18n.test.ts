@@ -17,8 +17,11 @@ describe("language state", () => {
   it("switches language and notifies listeners once per change", () => {
     let calls = 0;
     const off = onLangChange(() => calls++);
-    setLang("ru"); setLang("ru"); setLang("en");
-    off(); setLang("ru");
+    setLang("ru");
+    setLang("ru");
+    setLang("en");
+    off();
+    setLang("ru");
     expect(calls).toBe(2);
     expect(getLang()).toBe("ru");
   });

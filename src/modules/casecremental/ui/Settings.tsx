@@ -19,12 +19,30 @@ export function Settings({ onClose, onSoundBoard }: { onClose: () => void; onSou
   const slider = (label: string, value: number, set: (v: number) => void) => (
     <label style={{ display: "grid", gap: scale }}>
       <span>{label}</span>
-      <input className="cc-slider" type="range" min={0} max={100} value={Math.round(value * 100)} onChange={(e) => set(Number(e.target.value) / 100)} />
+      <input
+        className="cc-slider"
+        type="range"
+        min={0}
+        max={100}
+        value={Math.round(value * 100)}
+        onChange={(e) => set(Number(e.target.value) / 100)}
+      />
     </label>
   );
   return (
     <div className="cc-modal" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={box} role="dialog" aria-label={t("settings.title")} style={{ display: "grid", gap: 4 * scale, padding: 4 * scale, minWidth: "min(80vw, 22em)", ...frameCss(uiSpriteUrl("ui-frame"), scale) }}>
+      <div
+        ref={box}
+        role="dialog"
+        aria-label={t("settings.title")}
+        style={{
+          display: "grid",
+          gap: 4 * scale,
+          padding: 4 * scale,
+          minWidth: "min(80vw, 22em)",
+          ...frameCss(uiSpriteUrl("ui-frame"), scale),
+        }}
+      >
         <div className="cc-title">{t("settings.title")}</div>
         <div style={{ display: "grid", gap: scale }}>
           <span>{t("settings.language")}</span>

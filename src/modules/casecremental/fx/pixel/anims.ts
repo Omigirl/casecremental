@@ -6,7 +6,11 @@ import type { Key } from "./timeline";
 
 export const ANIMS = {
   // case sheet: 0 closed, 1–2 lid lifting, 3 open
-  caseIdle: [{ frame: 0, ms: 1700 }, { frame: 0, ms: 90, dy: -1 }, { frame: 0, ms: 1300 }],
+  caseIdle: [
+    { frame: 0, ms: 1700 },
+    { frame: 0, ms: 90, dy: -1 },
+    { frame: 0, ms: 1300 },
+  ],
   caseDrop: [
     { frame: 0, ms: 40, dy: -9 },
     { frame: 0, ms: 40, dy: -5 },
@@ -21,14 +25,38 @@ export const ANIMS = {
     { frame: 2, ms: 80, dy: -1 },
     { frame: 3, ms: 120, dy: 0, event: "open" },
   ],
-  caseOpenIdle: [{ frame: 3, ms: 900 }, { frame: 3, ms: 900, dy: -1 }],
+  caseOpenIdle: [
+    { frame: 3, ms: 900 },
+    { frame: 3, ms: 900, dy: -1 },
+  ],
   // key sheet: 0 idle, 1 glint, 2–3 turning
-  keyIdle: [{ frame: 0, ms: 2300 }, { frame: 1, ms: 80 }, { frame: 0, ms: 80 }, { frame: 1, ms: 80 }, { frame: 0, ms: 1500 }],
-  keyReady: [{ frame: 0, ms: 260 }, { frame: 0, ms: 260, dy: -1 }, { frame: 1, ms: 80, dy: -1 }],
-  keyTurn: [{ frame: 2, ms: 80 }, { frame: 3, ms: 110, event: "turned" }, { frame: 3, ms: 160 }],
+  keyIdle: [
+    { frame: 0, ms: 2300 },
+    { frame: 1, ms: 80 },
+    { frame: 0, ms: 80 },
+    { frame: 1, ms: 80 },
+    { frame: 0, ms: 1500 },
+  ],
+  keyReady: [
+    { frame: 0, ms: 260 },
+    { frame: 0, ms: 260, dy: -1 },
+    { frame: 1, ms: 80, dy: -1 },
+  ],
+  keyTurn: [
+    { frame: 2, ms: 80 },
+    { frame: 3, ms: 110, event: "turned" },
+    { frame: 3, ms: 160 },
+  ],
   // sell bin sheet: 0 idle, 1–3 swallowing
-  binIdle: [{ frame: 0, ms: 1100 }, { frame: 0, ms: 1100, dy: -1 }],
-  binHungry: [{ frame: 0, ms: 220 }, { frame: 1, ms: 120 }, { frame: 0, ms: 220, dy: -1 }],
+  binIdle: [
+    { frame: 0, ms: 1100 },
+    { frame: 0, ms: 1100, dy: -1 },
+  ],
+  binHungry: [
+    { frame: 0, ms: 220 },
+    { frame: 1, ms: 120 },
+    { frame: 0, ms: 220, dy: -1 },
+  ],
   binSwallow: [
     { frame: 1, ms: 50 },
     { frame: 2, ms: 60 },
@@ -37,7 +65,12 @@ export const ANIMS = {
     { frame: 0, ms: 80, dy: -1 },
     { frame: 0, ms: 60 },
   ],
-  coinSpin: [{ frame: 0, ms: 80 }, { frame: 1, ms: 80 }, { frame: 2, ms: 80 }, { frame: 3, ms: 80 }],
+  coinSpin: [
+    { frame: 0, ms: 80 },
+    { frame: 1, ms: 80 },
+    { frame: 2, ms: 80 },
+    { frame: 3, ms: 80 },
+  ],
   // the sleeping bot breathes (sheet 0–3), eyes shut
   botSleep: [
     { frame: 0, ms: 700, eyes: "closed" },
@@ -45,7 +78,12 @@ export const ANIMS = {
     { frame: 2, ms: 840, eyes: "closed" },
     { frame: 1, ms: 520, eyes: "closed" },
   ],
-  lampSway: [{ frame: 0, ms: 1300 }, { frame: 0, ms: 1250, dx: 1 }, { frame: 0, ms: 1350 }, { frame: 0, ms: 1200, dx: -1 }],
+  lampSway: [
+    { frame: 0, ms: 1300 },
+    { frame: 0, ms: 1250, dx: 1 },
+    { frame: 0, ms: 1350 },
+    { frame: 0, ms: 1200, dx: -1 },
+  ],
 } satisfies Record<string, readonly Key[]>;
 
 export type AnimId = keyof typeof ANIMS;

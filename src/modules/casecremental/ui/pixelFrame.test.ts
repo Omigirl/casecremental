@@ -17,7 +17,12 @@ describe("pixel frames", () => {
 
   it("shows one frame of a strip", () => {
     const meta = { id: "case", frames: 4, frameW: 26, frameH: 34, ground: 32, eyes: null };
-    expect(stripFrameCss({ meta, url: "/c.png" }, 2, 3)).toMatchObject({ width: 78, height: 102, backgroundSize: "312px 102px", backgroundPosition: "-156px 0" });
+    expect(stripFrameCss({ meta, url: "/c.png" }, 2, 3)).toMatchObject({
+      width: 78,
+      height: 102,
+      backgroundSize: "312px 102px",
+      backgroundPosition: "-156px 0",
+    });
     expect(stripFrameCss(undefined, 0, 3)).toBeNull();
   });
 });

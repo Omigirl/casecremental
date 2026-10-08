@@ -75,7 +75,10 @@ describe("AudioEngine", () => {
 
   it("auditions one exact variant without jitter (the dev sound board)", async () => {
     const { ctx, started } = fakeContext();
-    const a = new AudioEngine(URLS, deps(ctx, () => 0.99));
+    const a = new AudioEngine(
+      URLS,
+      deps(ctx, () => 0.99),
+    );
     a.unlock();
     await a.ready;
     expect(a.variantCount("reel-tick")).toBe(2);
@@ -83,7 +86,10 @@ describe("AudioEngine", () => {
     a.playVariant("reel-tick", 1);
     a.playVariant("reel-tick", 1);
     a.playVariant("reel-tick", 7); // out of range: nothing
-    expect(started.filter((x) => !x.loop).map((x) => [x.url, x.rate])).toEqual([["tick2", 1], ["tick2", 1]]);
+    expect(started.filter((x) => !x.loop).map((x) => [x.url, x.rate])).toEqual([
+      ["tick2", 1],
+      ["tick2", 1],
+    ]);
   });
 
   it("starts the stage loop and falls back to the nearest lower stage", async () => {

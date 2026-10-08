@@ -14,20 +14,11 @@ describe("cases", () => {
     }
   });
 
-  it.each(CASES.map((c) => [c.id, c] as const))(
-    "%s has 5 / 3 / 2 / 2 / 1 skins by rarity",
-    (_id, c) => {
-      const count = (r: string) => c.skins.filter((s) => s.rarity === r).length;
-      expect([
-        count("milspec"),
-        count("restricted"),
-        count("classified"),
-        count("covert"),
-        count("gold"),
-      ]).toEqual([5, 3, 2, 2, 1]);
-      expect(c.skins.find((s) => s.rarity === "gold")?.weapon).toBe("knife");
-    },
-  );
+  it.each(CASES.map((c) => [c.id, c] as const))("%s has 5 / 3 / 2 / 2 / 1 skins by rarity", (_id, c) => {
+    const count = (r: string) => c.skins.filter((s) => s.rarity === r).length;
+    expect([count("milspec"), count("restricted"), count("classified"), count("covert"), count("gold")]).toEqual([5, 3, 2, 2, 1]);
+    expect(c.skins.find((s) => s.rarity === "gold")?.weapon).toBe("knife");
+  });
 
   it("uses globally unique skin ids and valid palettes", () => {
     const ids = CASES.flatMap((c) => c.skins.map((s) => s.id));

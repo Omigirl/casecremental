@@ -48,7 +48,10 @@ let store: Store | null = null;
 const listeners = new Set<() => void>();
 
 /** Read the stored prefs and apply the language. Call once in the module's setup. */
-export function initPrefs(s: Store | null = browserStore(), languages: readonly string[] = typeof navigator !== "undefined" ? navigator.languages : []): Prefs {
+export function initPrefs(
+  s: Store | null = browserStore(),
+  languages: readonly string[] = typeof navigator !== "undefined" ? navigator.languages : [],
+): Prefs {
   store = s;
   let raw: string | null = null;
   try {

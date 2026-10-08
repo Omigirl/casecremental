@@ -60,9 +60,19 @@ export class Reel extends Container {
     this.position.set(rect.x, rect.y);
     this.frame.width = rect.w;
     this.frame.height = rect.h;
-    this.clip.clear().rect(3, 3, rect.w - 6, rect.h - 6).fill({ color: 0xffffff });
+    this.clip
+      .clear()
+      .rect(3, 3, rect.w - 6, rect.h - 6)
+      .fill({ color: 0xffffff });
     const mx = Math.floor(rect.w / 2);
-    this.marker.clear().rect(mx, 2, 1, rect.h - 4).fill({ color: 0xffd34d }).rect(mx - 1, 2, 3, 1).fill({ color: 0xffd34d }).rect(mx - 1, rect.h - 3, 3, 1).fill({ color: 0xffd34d });
+    this.marker
+      .clear()
+      .rect(mx, 2, 1, rect.h - 4)
+      .fill({ color: 0xffd34d })
+      .rect(mx - 1, 2, 3, 1)
+      .fill({ color: 0xffd34d })
+      .rect(mx - 1, rect.h - 3, 3, 1)
+      .fill({ color: 0xffd34d });
     this.rebuild();
     this.place(this.fraction, false);
   }

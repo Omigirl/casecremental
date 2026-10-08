@@ -16,7 +16,18 @@ export interface PlayOptions {
   delay?: number;
 }
 
-export type Ctx = Pick<AudioContext, "createGain" | "createBufferSource" | "createDynamicsCompressor" | "decodeAudioData" | "currentTime" | "destination" | "state" | "resume" | "close">;
+export type Ctx = Pick<
+  AudioContext,
+  | "createGain"
+  | "createBufferSource"
+  | "createDynamicsCompressor"
+  | "decodeAudioData"
+  | "currentTime"
+  | "destination"
+  | "state"
+  | "resume"
+  | "close"
+>;
 
 export interface AudioDeps {
   createContext: () => Ctx | null;
@@ -26,7 +37,10 @@ export interface AudioDeps {
 
 const browserDeps: AudioDeps = {
   createContext: () => {
-    const AC = typeof window !== "undefined" ? (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) : undefined;
+    const AC =
+      typeof window !== "undefined"
+        ? (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+        : undefined;
     try {
       return AC ? new AC() : null;
     } catch {

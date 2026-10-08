@@ -50,8 +50,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       unlockCase: (args: Args) => run({ type: "unlockCase", caseId: String(args?.caseId ?? "") }),
       buyUpgrade: async (args: Args) => {
         const id = String(args?.id ?? "");
-        if (!UPGRADE_IDS.includes(id as UpgradeId))
-          throw new Error(`unknown upgrade "${id}"; valid: ${UPGRADE_IDS.join(", ")}`);
+        if (!UPGRADE_IDS.includes(id as UpgradeId)) throw new Error(`unknown upgrade "${id}"; valid: ${UPGRADE_IDS.join(", ")}`);
         return c.act({ type: "buyUpgrade", id: id as UpgradeId });
       },
     },

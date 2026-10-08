@@ -48,7 +48,8 @@ export class Room {
     this.botReel = new NineSliceSprite({ texture: reelFrame, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
     this.botReel.tint = 0x444455;
     for (const s of [this.wall, this.backdrop, this.shelves, this.lamp.actor, this.botReel]) if (s) this.back.addChild(s);
-    for (const s of [this.tableBody, this.tableTop, this.matFallback, this.mat, this.tray, this.seller, this.bot.actor]) if (s) this.front.addChild(s);
+    for (const s of [this.tableBody, this.tableTop, this.matFallback, this.mat, this.tray, this.seller, this.bot.actor])
+      if (s) this.front.addChild(s);
   }
 
   layout(l: TableLayout): void {
@@ -61,11 +62,19 @@ export class Room {
       this.tableTop.position.set(t.x, t.y);
       this.tableTop.width = t.w;
     }
-    this.tableBody.clear().rect(t.x, t.y, t.w, topH).fill({ color: WOOD }).rect(t.x, t.y + topH, t.w, t.h - topH).fill({ color: WOOD_DARK });
+    this.tableBody
+      .clear()
+      .rect(t.x, t.y, t.w, topH)
+      .fill({ color: WOOD })
+      .rect(t.x, t.y + topH, t.w, t.h - topH)
+      .fill({ color: WOOD_DARK });
     const m = l.you.mat;
     if (this.mat) this.mat.position.set(Math.round(m.x + (m.w - this.mat.width) / 2), m.y + m.h - this.mat.height);
     else this.matFallback.clear().rect(m.x, m.y, m.w, m.h).fill({ color: FELT });
-    this.tray.position.set(Math.round(l.tray.x + (l.tray.w - this.tray.width) / 2), Math.round(l.tray.y + (l.tray.h - this.tray.height) / 2));
+    this.tray.position.set(
+      Math.round(l.tray.x + (l.tray.w - this.tray.width) / 2),
+      Math.round(l.tray.y + (l.tray.h - this.tray.height) / 2),
+    );
     this.seller.position.set(Math.round(l.seller.x - this.seller.width / 2), l.seller.y - this.seller.height);
     this.bot.actor.place(l.bot.spot.x, l.bot.spot.y);
     this.botReel.visible = !!l.bot.reel;

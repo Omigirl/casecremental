@@ -1,20 +1,8 @@
-import {
-  COMBO_HEAT_DIVISOR,
-  HEAT_TAU_SECONDS,
-  STAGE_HYSTERESIS,
-  STAGE_THRESHOLDS,
-  TIER_HEAT_BONUS,
-} from "./tuning";
+import { COMBO_HEAT_DIVISOR, HEAT_TAU_SECONDS, STAGE_HYSTERESIS, STAGE_THRESHOLDS, TIER_HEAT_BONUS } from "./tuning";
 
 // Intensity drives the escalation from "Sober" to "Cyberpsychosis" (spec §9.1).
 
-export const STAGE_NAMES: readonly string[] = [
-  "Sober",
-  "Buzzed",
-  "High",
-  "Tripping",
-  "Cyberpsychosis",
-];
+export const STAGE_NAMES: readonly string[] = ["Sober", "Buzzed", "High", "Tripping", "Cyberpsychosis"];
 
 /** Exponential moving average of reveals per second. */
 export function updateHeat(heat: number, reveals: number, dt: number): number {

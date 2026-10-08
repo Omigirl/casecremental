@@ -31,19 +31,33 @@ function UpgradeRow({ u, act }: { u: UpgradeView; act: Act }): ReactNode {
 
 export function UpgradesBoard({ view, act, title = true }: { view: GameView; act: Act; title?: boolean }): ReactNode {
   const [tab, setTab] = useState<Tab>("you");
-  const tabs: Array<[Tab, string]> = [["you", t("tab.you")], ["bot", t("tab.bot")], ["machines", t("tab.machines")]];
+  const tabs: Array<[Tab, string]> = [
+    ["you", t("tab.you")],
+    ["bot", t("tab.bot")],
+    ["machines", t("tab.machines")],
+  ];
   return (
     <>
       {title ? <div className="cc-title">{t("panel.upgrades")}</div> : null}
       <div className="cc-tabs">
         {tabs.map(([id, label]) => (
-          <PxButton key={id} on={tab === id} disabled={id !== "you"} title={id !== "you" ? t("tab.locked") : undefined} onClick={() => setTab(id)}>
+          <PxButton
+            key={id}
+            on={tab === id}
+            disabled={id !== "you"}
+            title={id !== "you" ? t("tab.locked") : undefined}
+            onClick={() => setTab(id)}
+          >
             {label}
           </PxButton>
         ))}
       </div>
       <div className="cc-scroll">
-        {tab === "you" ? view.upgrades.map((u) => <UpgradeRow key={u.id} u={u} act={act} />) : <div className="cc-dim">{t("tab.locked")}</div>}
+        {tab === "you" ? (
+          view.upgrades.map((u) => <UpgradeRow key={u.id} u={u} act={act} />)
+        ) : (
+          <div className="cc-dim">{t("tab.locked")}</div>
+        )}
       </div>
     </>
   );

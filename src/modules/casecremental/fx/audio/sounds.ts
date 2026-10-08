@@ -37,7 +37,10 @@ export function indexAudio(urls: Record<string, string>): AudioFiles {
   const sfx = new Map<SoundId, string[]>();
   const music = new Map<number, string>();
   for (const [path, url] of Object.entries(urls).sort(([a], [b]) => a.localeCompare(b))) {
-    const name = path.split("/").pop()!.replace(/\.mp3$/, "");
+    const name = path
+      .split("/")
+      .pop()!
+      .replace(/\.mp3$/, "");
     const stage = /^music-(\d+)$/.exec(name);
     if (stage) {
       music.set(Number(stage[1]), url);

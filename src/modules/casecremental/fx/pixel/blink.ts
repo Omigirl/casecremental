@@ -3,7 +3,11 @@ import type { EyeState } from "./timeline";
 // Eyes blink every 2–5 s (spec §6): half → closed → half, ~150 ms. While a blink runs it
 // overrides the animation's own eye state.
 
-const SEQUENCE: Array<[EyeState, number]> = [["half", 40], ["closed", 70], ["half", 40]];
+const SEQUENCE: Array<[EyeState, number]> = [
+  ["half", 40],
+  ["closed", 70],
+  ["half", 40],
+];
 
 export class Blinker {
   private wait: number;
