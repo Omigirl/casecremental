@@ -118,3 +118,15 @@ export const VAULT_BASE_PRICE = 20_000;
 export const DAY_JOB_SECONDS = 3;
 export const DAY_JOB_PAY = 2;
 export const DAY_JOB_PAY_CHANCE = 0.9;
+
+/** The bot as a seller (M2b spec §3): seconds per step at speed ×1. */
+export const BOT_STEP_SECONDS = { toBench: 1.2, pickUp: 0.4, carry: 1.2, drop: 0.3, back: 1.0 } as const;
+/** A revealed card is left alone this long (÷ speed) before the bot comes for it… */
+export const BOT_REVEAL_HOLD = 0.6;
+/** …and a Covert or ★ this long (its reveal — the knife's showcase — plays first). */
+export const BOT_BIG_REVEAL_HOLD = 2.6;
+export const BOT_WAKE_COST = 80;
+/** Run 1's cap: Speed levels and the speed at the last one. */
+export const BOT_SPEED_LEVELS = 5;
+export const BOT_MAX_SPEED = 8;
+export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;

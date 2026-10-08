@@ -1,3 +1,4 @@
+import { botSpeed, botSpeedCost, BOT_STEP_SECONDS, freshBot, revealHold, sellsAt, type BotState } from "./botSeller";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity, type CharmId } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
@@ -5,6 +6,7 @@ import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
 import { rollTease, type Tease } from "./tease";
 import {
+  BOT_WAKE_COST,
   COMBO_CAP,
   COMBO_HEAT_DECAY_SECONDS,
   COMBO_STEP,
@@ -76,7 +78,12 @@ export type SimEvent =
   | { type: "upgradeBought"; id: UpgradeId; level: number }
   | { type: "stageChanged"; stage: number }
   | { type: "dayJobStarted" }
-  | { type: "dayJobDone"; amount: number };
+  | { type: "dayJobDone"; amount: number }
+  | { type: "stored"; drop: Drop }
+  | { type: "botWoke" }
+  | { type: "botUpgraded"; level: number }
+  | { type: "botPickedUp"; drop: Drop; dest: "bin" | "tray" }
+  | { type: "botWaiting" };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
 
@@ -108,6 +115,9 @@ export interface RunState {
   goldenHourUntil: number;
   /** Ricochet: free cases waiting for the bench. */
   freeCases: string[];
+  /** Drops the bot set aside for the player to claim (above its threshold). */
+  tray: Drop[];
+  bot: BotState;
 }
 
 const OK: ActionResult = { ok: true };
@@ -147,6 +157,8 @@ export class Run {
       pity: 0,
       goldenHourUntil: -1,
       freeCases: [],
+      tray: [],
+      bot: freshBot(this.setup.botAwake),
     };
   }
 
@@ -302,6 +314,7 @@ export class Run {
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
     s.comboHeat = s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
 
+    this.tickBot(dt);
     this.tickDayJob(dt);
 
     s.heat = updateHeat(s.heat, this.revealsThisTick, dt);
@@ -325,6 +338,118 @@ export class Run {
     this.state.dayJob = 0;
     this.events.push({ type: "dayJobStarted" });
     return OK;
+  }
+
+  wakeBot(): ActionResult {
+    const s = this.state;
+    if (s.bot.awake) return fail("the bot is already awake");
+    if (s.cash < BOT_WAKE_COST) return fail("not enough cash");
+    s.cash -= BOT_WAKE_COST;
+    s.bot.awake = true;
+    this.events.push({ type: "botWoke" });
+    return OK;
+  }
+
+  buyBotSpeed(): ActionResult {
+    const s = this.state;
+    if (!s.bot.awake) return fail("wake the bot first");
+    const cost = botSpeedCost(s.bot.speedLevel);
+    if (cost === null) return fail("max level for this run");
+    if (s.cash < cost) return fail("not enough cash");
+    s.cash -= cost;
+    s.bot.speedLevel += 1;
+    this.events.push({ type: "botUpgraded", level: s.bot.speedLevel });
+    return OK;
+  }
+
+  setBotThreshold(rarity: RarityId): ActionResult {
+    this.state.bot.threshold = rarity;
+    return OK;
+  }
+
+  /** Sell a tray item by hand (feeds the combo). */
+  claim(index: number): ActionResult {
+    const s = this.state;
+    const d = s.tray[index];
+    if (!d) return fail("nothing in that tray slot");
+    s.tray.splice(index, 1);
+    this.bumpCombo();
+    const amount = this.payout(d, true);
+    s.cash += amount;
+    s.lifetimeEarnings += amount;
+    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "tray" });
+    return OK;
+  }
+
+  /** The bot's job loop (M2b spec §3). */
+  private tickBot(dt: number): void {
+    const s = this.state;
+    const bot = s.bot;
+    if (!bot.awake) return;
+    const speed = botSpeed(bot.speedLevel);
+    if (!bot.job) {
+      const b = s.bench;
+      if (b.phase === "revealed" && s.time - s.revealedAt >= revealHold(b.drop.rarity, speed))
+        bot.job = { step: "toBench", t: 0, drop: null, dest: null };
+      return;
+    }
+    const job = bot.job;
+    if (job.step === "wait") {
+      if (s.bench.phase !== "revealed") Object.assign(job, { step: "back", t: 0 });
+      else if (s.tray.length < this.setup.trayCapacity) Object.assign(job, { step: "pickUp", t: 0 });
+      return;
+    }
+    job.t += dt * speed;
+    if (job.t < BOT_STEP_SECONDS[job.step]) return;
+    job.t = 0;
+    switch (job.step) {
+      case "toBench": {
+        const b = s.bench;
+        if (b.phase !== "revealed") {
+          job.step = "back";
+          break;
+        }
+        job.dest = sellsAt(bot.threshold, b.drop.rarity) ? "bin" : "tray";
+        if (job.dest === "tray" && s.tray.length >= this.setup.trayCapacity) {
+          job.step = "wait";
+          this.events.push({ type: "botWaiting" });
+        } else job.step = "pickUp";
+        break;
+      }
+      case "pickUp": {
+        const b = s.bench;
+        if (b.phase !== "revealed") {
+          job.step = "back";
+          break;
+        }
+        job.drop = b.drop;
+        s.bench = { phase: "empty" };
+        this.events.push({ type: "botPickedUp", drop: b.drop, dest: job.dest! });
+        job.step = "carry";
+        break;
+      }
+      case "carry":
+        job.step = "drop";
+        break;
+      case "drop": {
+        const d = job.drop!;
+        if (job.dest === "bin") {
+          const amount = this.payout(d, false);
+          s.cash += amount;
+          s.lifetimeEarnings += amount;
+          this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bot" });
+        } else {
+          s.tray.push(d);
+          this.events.push({ type: "stored", drop: d });
+        }
+        job.drop = null;
+        job.step = "back";
+        break;
+      }
+      case "back":
+        bot.job = null;
+        break;
+    }
   }
 
   private tickDayJob(dt: number): void {
