@@ -229,6 +229,24 @@ Expected: FAIL — `turnVaultKey` is not a function; `state.vault` undefined.
 ```
 
   and in `tick` call `this.tickVault(dt);` where `tickFinale` was;
+- the bot freezes while the vault is out (C1 final review): in `buyVault`, after paying the price, cash in what the bot holds — its waiting card and the drop of a spin in flight — as machine sales (`payout(d, false)`, a `sold` event with `source: "seller", from: "bot"` each), then `s.bot.card = null; s.bot.spin = null;`; and `tickBot` returns at once while `s.vault !== null`. Test (add to `sim/vault.test.ts`):
+
+```ts
+  it("cashes in the bot's card and its spin when the vault is bought, then freezes the bot", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, botAwake: true });
+    allUnlocked(run);
+    run.state.cash = 1e9;
+    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(DT);
+    const card = run.state.bot.card!;
+    const earned = run.state.lifetimeEarnings;
+    expect(run.buyVault().ok).toBe(true);
+    expect(run.state.bot.card).toBeNull();
+    expect(run.state.bot.spin).toBeNull();
+    expect(run.state.lifetimeEarnings - earned).toBeCloseTo(run.payout(card, false));
+    tickFor(run, 10);
+    expect(run.state.bot.spin).toBeNull(); // frozen
+  });
+```
 - imports: the new tuning names, `VAULT_LEGEND` from `./content/cases`; remove `FINALE_SECONDS`.
 
   Note `locked()` stays true after the run because `over` is true.
