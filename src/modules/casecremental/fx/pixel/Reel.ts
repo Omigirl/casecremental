@@ -1,10 +1,11 @@
-import { Container, Graphics, NineSliceSprite, Sprite } from "pixi.js";
+import { Container, Graphics, NineSliceSprite, Sprite, type Texture } from "pixi.js";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Rng } from "../../sim/rng";
 import type { Tease } from "../../sim/tease";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import { reelFraction, type ReelMotion } from "../reel/motion";
 import { buildStrip, landingJitter, WIN_INDEX } from "../reel/strip";
+import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
 import type { Rect } from "./layout";
 import type { SpriteSet } from "./sprites";
@@ -24,14 +25,14 @@ export function reelPosition(f: number, rectW: number, jitter: number, cardW = C
   return { x: Math.round(rectW / 2 - p), index: Math.floor(p / cardW) };
 }
 
-export function makeCard(skins: SkinTextures, skin: SkinDef, w: number, h: number): Container {
+export function makeCard(skins: SkinTextures, skin: SkinDef, w: number, h: number): Container & { art: Sprite } {
   const color = RARITY_INFO[skin.rarity].color;
   const card = new Container();
   card.addChild(new Graphics().rect(0, 0, w, h).fill({ color: 0x15161d }).rect(0, 0, w, h).fill({ color, alpha: 0.16 }));
   const art = new Sprite(skins.texture(skin));
   art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - 2 - art.height) / 2));
   card.addChild(art, new Graphics().rect(0, h - 2, w, 2).fill({ color }));
-  return card;
+  return Object.assign(card, { art });
 }
 
 export class Reel extends Container {
@@ -44,6 +45,9 @@ export class Reel extends Container {
   private jitter = 0;
   private fraction = 0;
   private lastIndex = -1;
+  /** The winning card's loop, played once the reel has stopped (null: a still skin). */
+  private winner: { art: Sprite; frames: Texture[]; fps: number } | null = null;
+  private settledMs = 0;
 
   constructor(
     frameSet: SpriteSet,
@@ -84,15 +88,23 @@ export class Reel extends Container {
     this.items = buildStrip(c, winner, rng, tease?.fake && side ? { rarity: tease.fake, side } : null);
     this.jitter = landingJitter(side, rng);
     this.fraction = 0;
+    this.settledMs = 0;
     this.lastIndex = -1;
     this.rebuild();
     this.place(0, false);
   }
 
-  update(motion: ReelMotion | null): void {
-    if (!motion) return;
-    this.fraction = reelFraction(motion);
-    this.place(this.fraction, true);
+  /** While spinning: move the strip (every card shows frame 0). Stopped: play the winner's loop. */
+  update(motion: ReelMotion | null, ms = 0): void {
+    if (motion) {
+      this.fraction = reelFraction(motion);
+      this.place(this.fraction, true);
+      this.settledMs = 0;
+      return;
+    }
+    if (!this.winner) return;
+    this.settledMs += ms;
+    this.winner.art.texture = this.winner.frames[frameAt(this.settledMs, this.winner.fps, this.winner.frames.length)]!;
   }
 
   private place(f: number, sound: boolean): void {
@@ -106,11 +118,15 @@ export class Reel extends Container {
 
   private rebuild(): void {
     for (const child of this.strip.removeChildren()) child.destroy({ children: true });
+    this.winner = null;
     const h = this.rect.h - 6;
     this.items.forEach((skin, i) => {
       const card = makeCard(this.skins, skin, CARD_W - GAP, h);
       card.position.set(i * CARD_W + GAP / 2, 3);
       this.strip.addChild(card);
+      if (i !== WIN_INDEX) return;
+      const frames = this.skins.frames(skin);
+      if (frames.length > 1) this.winner = { art: card.art, frames, fps: this.skins.fps(skin) };
     });
   }
 }

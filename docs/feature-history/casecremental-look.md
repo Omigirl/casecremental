@@ -22,6 +22,11 @@ Changes agreed during the M2a review: campaign spec `2026-10-08-casecremental-ca
   CSS fallback, the reel window is drawn in code (`fx/pixel/drawn.ts`), and weapons stay code-drawn
   silhouettes that the skin patterns are painted onto. The optional art hooks for them remain in the code.
   `art/manifest.json` lists 15 assets.
+- **Animated skins** (`fx/skins/motion.ts`, spec `2026-10-08-casecremental-animated-skins-design.md`): a skin's
+  optional `motion` (pattern: flow / shimmer / pulse / sparkle; weapon: bob / recoil / bolt / flip) is baked
+  into a short whole-pixel loop from the weapon's silhouette and played on the reveal card and the landed reel
+  card (never while the strip scrolls). Still skins render exactly as before. In cases 1–3 only the ★ knives move (shimmer + flip,
+  user: "they are rare anyway"); richer finishes are for the later cases.
 - **Code eyes.** The painted eyes are erased in the pipeline and redrawn in code (2×3 blocks on a 5×5
   visor patch, level, open/half/closed/happy, blinking) — the user preferred them to painted eyes.
 - **Press Start 2P everywhere, bundled** (the embedded game may only reach platform hosts). Monospace,

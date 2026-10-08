@@ -1,17 +1,21 @@
 import { CASE_ECONOMY } from "../tuning";
-import type { CaseDef, PatternSpec, RarityId, SkinDef, WeaponId } from "../types";
+import type { CaseDef, PatternSpec, RarityId, SkinDef, SkinMotion, WeaponId } from "../types";
 import { WEAPON_NAMES } from "./weapons";
 
 // The case ladder. Each later case uses a richer pattern technique than the one before it, so its
 // cheapest skins already outshine the previous case's best (spec §4.3, §5). Milestone 1: cases 1–3.
 
-const skin = (id: string, name: string, weapon: WeaponId, rarity: RarityId, pattern: PatternSpec): SkinDef => ({
+const skin = (id: string, name: string, weapon: WeaponId, rarity: RarityId, pattern: PatternSpec, motion?: SkinMotion): SkinDef => ({
   id,
   name,
   weapon,
   rarity,
   pattern,
+  ...(motion ? { motion } : {}),
 });
+
+/** The ★ knives are rare: they shimmer and spin. Everything else in cases 1–3 stays still. */
+const KNIFE_MOTION: SkinMotion = { pattern: "shimmer", weapon: "flip" };
 
 const p = (kind: PatternSpec["kind"], palette: string[], scale: number, seed: number): PatternSpec => ({ kind, palette, scale, seed });
 
@@ -34,7 +38,7 @@ const bootcamp: CaseDef = {
     skin("bc_hunter", "Blaze Hunter", "shotgun", "classified", p("digital", ["#1a1a1a", "#ff6a00", "#ffd000"], 8, 32)),
     skin("bc_commander", "Commander's Pride", "rifle", "covert", p("camo", ["#111111", "#c9a227", "#f2e394", "#4b5320"], 5, 41)),
     skin("bc_warlord", "Warlord", "sniper", "covert", p("tiger", ["#0d0d0d", "#e10600", "#f5f5f5"], 5, 42)),
-    skin("bc_knife", "Field Marshal", "knife", "gold", p("digital", ["#3a2f0b", "#c9a227", "#ffe08a", "#fff6d5"], 9, 51)),
+    skin("bc_knife", "Field Marshal", "knife", "gold", p("digital", ["#3a2f0b", "#c9a227", "#ffe08a", "#fff6d5"], 9, 51), KNIFE_MOTION),
   ],
 };
 
@@ -57,7 +61,7 @@ const wildwood: CaseDef = {
     skin("ww_canopy", "Canopy", "shotgun", "classified", p("leaves", ["#081c15", "#2d6a4f", "#b7e4c7", "#fefae0"], 7, 132)),
     skin("ww_spirit", "Forest Spirit", "rifle", "covert", p("moss", ["#03045e", "#00b4d8", "#90e0ef", "#caf0f8"], 6, 141)),
     skin("ww_elder", "Elder Oak", "sniper", "covert", p("bark", ["#1a0f00", "#7f5539", "#ddb892", "#ffe8a3"], 6, 142)),
-    skin("ww_knife", "Heartwood", "knife", "gold", p("leaves", ["#3d2b00", "#b8860b", "#ffd700", "#fff8dc"], 8, 151)),
+    skin("ww_knife", "Heartwood", "knife", "gold", p("leaves", ["#3d2b00", "#b8860b", "#ffd700", "#fff8dc"], 8, 151), KNIFE_MOTION),
   ],
 };
 
@@ -80,7 +84,7 @@ const bedrock: CaseDef = {
     skin("br_sapphire", "Sapphire Vein", "shotgun", "classified", p("marble", ["#020617", "#1d4ed8", "#93c5fd"], 5, 232)),
     skin("br_magma", "Magma Core", "rifle", "covert", p("lava", ["#120400", "#3a0f00", "#ff4500", "#ffd000"], 5, 241)),
     skin("br_diamond", "Diamond Hands", "sniper", "covert", p("crystal", ["#0f172a", "#38bdf8", "#e0f2fe", "#ffffff"], 8, 242)),
-    skin("br_knife", "Molten Crown", "knife", "gold", p("lava", ["#1a0a00", "#7a3b00", "#ffb000", "#fff3b0"], 6, 251)),
+    skin("br_knife", "Molten Crown", "knife", "gold", p("lava", ["#1a0a00", "#7a3b00", "#ffb000", "#fff3b0"], 6, 251), KNIFE_MOTION),
   ],
 };
 

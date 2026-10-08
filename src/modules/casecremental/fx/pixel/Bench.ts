@@ -4,6 +4,7 @@ import { RARITY_INFO } from "../../sim/rarity";
 import type { Bench as BenchState } from "../../sim/run";
 import type { Drop, SkinDef } from "../../sim/types";
 import type { LiftInfo } from "../hd/Lifted";
+import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { Actor } from "./Actor";
 import { Animated } from "./Animated";
@@ -27,7 +28,10 @@ export class Bench {
   private readonly key: Animated;
   private readonly bin: Animated;
   private readonly card = new Sprite();
-  private cardTexture: Texture | null = null;
+  /** The reveal card, baked once per frame of the skin's loop (one frame for a still skin). */
+  private cardFrames: Texture[] = [];
+  private cardFps = 8;
+  private cardMs = 0;
   private readonly drag = new DragTracker();
   private keyAtLock = 0;
   private l: TableLayout | null = null;
@@ -98,15 +102,21 @@ export class Bench {
       .fill({ color })
       .rect(2, 2, w - 4, h - 4)
       .fill({ color: 0x15161d });
-    const art = new Sprite(this.skins.texture(skin));
-    art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - art.height) / 2));
-    const face = new Container();
-    face.addChild(frame, art);
-    if (drop.statTrak) face.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
-    this.cardTexture?.destroy(true);
-    this.cardTexture = this.bake(face);
-    face.destroy({ children: true });
-    this.card.texture = this.cardTexture;
+    for (const t of this.cardFrames) t.destroy(true);
+    this.cardFrames = this.skins.frames(skin).map((tex) => {
+      const art = new Sprite(tex);
+      art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - art.height) / 2));
+      const face = new Container();
+      face.addChild(frame.clone(), art);
+      if (drop.statTrak) face.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
+      const baked = this.bake(face);
+      face.destroy({ children: true });
+      return baked;
+    });
+    frame.destroy();
+    this.cardFps = this.skins.fps(skin);
+    this.cardMs = 0;
+    this.card.texture = this.cardFrames[0]!;
     this.card.visible = true;
     this.homeItems();
   }
@@ -151,9 +161,9 @@ export class Bench {
       const m = this.key.actor.meta;
       return { id, texture: this.key.actor.set.frames[0]!, center: { x: p.x + m.frameW / 2, y: p.y + m.frameH / 2 } };
     }
-    if (!this.cardTexture) return null;
+    if (!this.cardFrames.length) return null;
     const { w, h } = ITEM_SIZE.reveal;
-    return { id, texture: this.cardTexture, center: { x: p.x + w / 2, y: p.y + h / 2 } };
+    return { id, texture: this.card.texture, center: { x: p.x + w / 2, y: p.y + h / 2 } };
   }
 
   /** The viewport changed under a drag: the item goes home and nothing fires. */
@@ -173,6 +183,10 @@ export class Bench {
     for (const c of this.cases.values()) if (c.actor.visible) c.update(ms);
     this.key.update(ms);
     this.bin.update(ms);
+    if (this.card.visible && this.cardFrames.length > 1) {
+      this.cardMs += ms;
+      this.card.texture = this.cardFrames[frameAt(this.cardMs, this.cardFps, this.cardFrames.length)]!;
+    }
     this.key.actor.alpha = b.phase === "locked" || this.keyAtLock > 0 ? 1 : 0.45;
   }
 
@@ -190,8 +204,8 @@ export class Bench {
   }
 
   destroy(): void {
-    this.cardTexture?.destroy(true);
-    this.cardTexture = null;
+    for (const t of this.cardFrames) t.destroy(true);
+    this.cardFrames = [];
   }
 
   private homeItems(): void {

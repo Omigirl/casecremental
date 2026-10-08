@@ -154,7 +154,7 @@ export class World {
     const run = this.controller.run;
     const b = run.state.bench;
     const crawl = b.phase === "spinning" ? crawlSeconds(b.tease, b.fullDuration) : 0;
-    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null);
+    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null, gameMs);
     if (b.phase === "spinning" && b.tease && !this.leaned && b.elapsed >= b.fullDuration - crawl) {
       this.leaned = true; // a red or a knife is crawling in (or a fake one): lean in toward the reel
       this.zoom.punch(1 + TEASE_ZOOM * b.tease.strength, b.fullDuration - b.elapsed);

@@ -36,4 +36,9 @@ describe("cases", () => {
     expect(() => caseById("nope")).toThrow(/nope/);
     expect(() => priceOf("nope")).toThrow(/nope/);
   });
+
+  it("every ★ knife shimmers and flips; every other skin in cases 1–3 is still", () => {
+    for (const c of CASES)
+      for (const s of c.skins) expect(s.motion).toEqual(s.rarity === "gold" ? { pattern: "shimmer", weapon: "flip" } : undefined);
+  });
 });
