@@ -21,6 +21,7 @@ import { TimeScale } from "./juice/timeScale";
 import { Zoom } from "./juice/zoom";
 import { fitCentre, hintKey, revealLines } from "./labels";
 import { Bench } from "./pixel/Bench";
+import { BotSprite } from "./pixel/BotSprite";
 import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
@@ -49,6 +50,7 @@ export class World {
   private readonly room: Room;
   private readonly bench: Bench;
   private readonly reel: Reel;
+  private readonly bot: BotSprite;
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
   private readonly time = new TimeScale();
@@ -61,6 +63,7 @@ export class World {
   private readonly label = [new Text({ text: "", style: pixelStyle(8, 0xffffff) }), new Text({ text: "", style: pixelStyle(8, 0xffffff) })];
   private labelSpan = { lo: 0, hi: 0 };
   private readonly offline = new Text({ text: "", style: pixelStyle(8, 0x6a6f80) });
+  private readonly botText = new Text({ text: "", style: pixelStyle(8, 0xffd34d) });
   private vp: PixelViewport;
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
@@ -95,11 +98,12 @@ export class World {
       return tex;
     });
     this.reel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
+    this.bot = new BotSprite(lib);
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.knifeFlight = new KnifeFlight(this.hd.root);
-    this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
-    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.lifted.root);
-    for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
+    this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root, this.bot.root);
+    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.botText, this.lifted.root);
+    for (const txt of [this.hint, ...this.label, this.offline, this.botText]) txt.anchor.set(0.5, 0);
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
     app.stage.addChild(this.scene, this.hd.overlay);
@@ -163,6 +167,9 @@ export class World {
       this.zoom.punch(1 + TEASE_ZOOM * b.tease.strength, b.fullDuration - b.elapsed);
     }
     this.bench.update(gameMs, b);
+    const bot = run.state.bot;
+    this.bot.update(gameMs, bot);
+    this.hd.setBotAsleep(!bot.awake);
     this.room.update(realSeconds * 1000);
     this.hd.update(realSeconds);
     this.look.update(realSeconds);
@@ -221,11 +228,12 @@ export class World {
     this.pixel.resize(this.vp);
     this.room.layout(this.l);
     this.bench.layout(this.l);
+    this.bot.layout(this.l);
     this.reel.layout(this.l.you.reel);
     this.hd.layout(this.l, this.vp, width, height);
     const k = this.vp.scale;
     const size = hdFontSize(k);
-    for (const txt of [this.hint, ...this.label, this.offline]) txt.style.fontSize = size;
+    for (const txt of [this.hint, ...this.label, this.offline, this.botText]) txt.style.fontSize = size;
     const r = this.l.you.reel;
     this.hint.position.set((r.x + r.w / 2) * k, (r.y + r.h + 2) * k);
     // The card's lines wrap to the table and slide along it rather than run under a side panel.
@@ -251,6 +259,14 @@ export class World {
     this.placeLabels();
     const off = t("station.offline");
     if (this.offline.text !== off) this.offline.text = off;
+    const bot = this.controller.run.state.bot;
+    const waiting = bot.job?.step === "wait" ? t("bot.waiting") : "";
+    if (this.botText.text !== waiting) this.botText.text = waiting;
+    if (waiting) {
+      const h = this.bot.head();
+      const k = this.vp.scale;
+      this.botText.position.set(h.x * k, h.y * k - this.botText.height);
+    }
   }
 
   private placeLabels(): void {
@@ -298,7 +314,27 @@ export class World {
         if (fromBench) this.bench.clearReveal(true);
         break;
       }
+      case "botWoke":
+        this.bot.wake();
+        this.hd.flash(0xffd28a, 0.15); // the station's lamp flickers on
+        this.audio.play("bot-servo");
+        this.audio.play("bot-beep", { delay: 0.35 });
+        break;
+      case "botUpgraded":
+        this.audio.play("bot-servo", { rate: 1.2 });
+        break;
+      case "botWaiting":
+        this.audio.play("bot-beep", { rate: 0.8 });
+        break;
+      case "dayJobDone": {
+        const tb = this.l.table;
+        const at = this.screenPt({ x: tb.x + tb.w / 2, y: tb.y + 12 });
+        this.hd.coins.floatText(at, e.amount > 0 ? `+${formatCash(e.amount, getLang())}` : t("float.nopay"));
+        if (e.amount > 0) this.audio.play("coin-clink");
+        break;
+      }
       case "botPickedUp":
+        this.audio.play("bot-servo", { rate: 1.1 });
         this.bench.cancelDrag();
         this.knifeFlight.cancel();
         this.bench.clearReveal(false);

@@ -78,6 +78,28 @@ export const ANIMS = {
     { frame: 2, ms: 840, eyes: "closed" },
     { frame: 1, ms: 520, eyes: "closed" },
   ],
+  // the awake bot (bot-open sheet: 0 standing, 1–7 the crouch-and-hop)
+  botIdle: [
+    { frame: 0, ms: 1900 },
+    { frame: 0, ms: 140, dy: 1 },
+    { frame: 0, ms: 1100 },
+  ],
+  botWake: [
+    { frame: 1, ms: 140, eyes: "half" },
+    { frame: 2, ms: 120 },
+    { frame: 3, ms: 110, dy: -1, event: "beep" },
+    { frame: 4, ms: 120, dy: -2 },
+    { frame: 5, ms: 140, dy: -1 },
+    { frame: 6, ms: 120 },
+    { frame: 7, ms: 160, eyes: "happy" },
+    { frame: 0, ms: 200 },
+  ],
+  botFrenzy: [
+    { frame: 4, ms: 60, dx: 1 },
+    { frame: 5, ms: 60, dx: -1, eyes: "happy" },
+    { frame: 6, ms: 60, dx: 1 },
+    { frame: 7, ms: 60, dx: -1 },
+  ],
   lampSway: [
     { frame: 0, ms: 1300 },
     { frame: 0, ms: 1250, dx: 1 },
@@ -102,6 +124,9 @@ export const ANIM_SPRITE: Record<AnimId, string> = {
   binSwallow: "sell-bin",
   coinSpin: "coin",
   botSleep: "bot-sleep",
+  botIdle: "bot-open",
+  botWake: "bot-open",
+  botFrenzy: "bot-open",
   lampSway: "room-lamp",
 };
 

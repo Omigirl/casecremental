@@ -8,7 +8,8 @@ import type { SpriteLibrary } from "./sprites";
 
 // The room and everything on the table that isn't your bench: the backdrop (wall, back layer,
 // shelves — nudged 1–2 px with the pointer for parallax), the swaying lamp, the workbench, the felt
-// mat, the claim tray, the powered-off auto-seller and the sleeping bot with its dark reel (spec §3).
+// mat, the claim tray, the powered-off auto-seller and the bot's dark reel (spec §3). The bot itself is
+// drawn by BotSprite.
 
 const WALL = 0x1b1418;
 /** Depth: the far wall darkest, the shelves a step nearer — the room reads deeper than the art alone. */
@@ -31,7 +32,6 @@ export class Room {
   private readonly matFallback = new Graphics();
   private readonly tray: Sprite;
   private readonly seller: Sprite;
-  private readonly bot: Animated;
   private readonly botReel: NineSliceSprite;
   private l: TableLayout | null = null;
 
@@ -49,12 +49,10 @@ export class Room {
     this.tray = new Sprite(lib.get("tray", { w: 100, h: 18 }).frames[0]);
     this.seller = new Sprite(lib.get("auto-seller", { w: 24, h: 30 }).frames[0]);
     this.seller.tint = 0xa8a8b8; // powered off until M2b — dimmed, but still readable
-    this.bot = new Animated(new Actor(lib.get("bot-sleep", { w: 40, h: 48, frames: 4 })), ANIMS.botSleep);
     this.botReel = new NineSliceSprite({ texture: reelFrame.frames[0]!, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
     this.botReel.tint = 0x444455;
     for (const s of [this.wall, this.backdrop, this.shelves, this.lamp.actor, this.botReel]) if (s) this.back.addChild(s);
-    for (const s of [this.tableBody, this.tableTop, this.matFallback, this.mat, this.tray, this.seller, this.bot.actor])
-      if (s) this.front.addChild(s);
+    for (const s of [this.tableBody, this.tableTop, this.matFallback, this.mat, this.tray, this.seller]) if (s) this.front.addChild(s);
   }
 
   layout(l: TableLayout): void {
@@ -82,7 +80,6 @@ export class Room {
       Math.round(l.tray.y + (l.tray.h - this.tray.height) / 2),
     );
     this.seller.position.set(Math.round(l.seller.x - this.seller.width / 2), l.seller.y - this.seller.height);
-    this.bot.actor.place(l.bot.spot.x, l.bot.spot.y);
     this.botReel.visible = !!l.bot.reel;
     if (l.bot.reel) {
       this.botReel.position.set(l.bot.reel.x, l.bot.reel.y);
@@ -95,6 +92,5 @@ export class Room {
 
   update(ms: number): void {
     this.lamp.update(ms);
-    this.bot.update(ms);
   }
 }
