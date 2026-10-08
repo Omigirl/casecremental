@@ -95,6 +95,12 @@ In addition to base spec §10.3: current run number, chosen charms for the next 
 | M4 | Run 4 + The Last Case, evolutions, stages 3–5 polish, server meta (CLOUT, trophies, leaderboard), Solana |
 | M5 | Ship: balance across 4 runs, deploy |
 
+### 6.0 Changes agreed during the M2a review (2026-10-08, built)
+
+- **No brake.** The reel always runs its full spin; Quick Hands is the only way to a faster reel (the brake made it pointless). Base spin 3 s (was 6 s with a brake that cut most spins to ~2 s), which keeps base spec §13's pacing targets. Supersedes the base spec's "manual brake" and its near-miss timing.
+- **Boot Camp jump-starts a run:** its Mil-Spec pays 0.95× the case price (was 0.55×) and its knife 120× (was 200×); the average return rises ~6 %. Later cases keep the base table.
+- **The camera moves the whole screen:** zoom and shake apply to the HUD and side panels too (not to modals or the vignette).
+
 ### 6.1 Day job (agreed 2026-10-08, for M2b)
 
 Replaces the base spec's anti-softlock (a free Boot Camp case every 10 s when broke). When cash is below the cheapest unlocked case and the bench is empty, a **DAY JOB** button (RU «Подработка») appears where the hint sits. A click starts a short shift (~3 s, progress bar + small pixel animation), then rolls: **90 % → +$2** (coins, "+$2.00" float), **10 % → $0** ("NO PAY" stamp, a sad sound, a small shake). The shift time is the cost, so spam-clicking can't erase the 10 %; it pays at most one Boot Camp case, so it can't be farmed. Open for the M2b brainstorm: the exact shift length, the animation, and whether the payout scales with the cheapest unlocked case.
