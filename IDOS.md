@@ -10,7 +10,9 @@ history of individual features does NOT belong here (see "Feature history" at th
 <!-- 2–4 lines, filled in once the direction is clear: genre, core loop, target platform, tone.
      Update it when the concept changes — not with every feature. -->
 
-_Not described yet._
+Casecremental — a Scritchy Scratchy-style incremental where the scratch ticket is a CS-style weapon
+case: buy, turn the key, watch the reel (reds and knives tease in), sell the skin, and escalate from
+calm to cyberpsychosis over a 4-run campaign. Pixel-art workbench with HD effects, English and Russian.
 
 ## Installed modules
 

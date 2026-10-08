@@ -13,6 +13,7 @@ Spec: `docs/superpowers/specs/2026-10-07-casecremental-design.md`. Plan: `docs/s
 - The run is simulated in the browser (spec §10.1); nothing persists yet — a reload starts over until milestone 4.
 - Every balance number is in `sim/tuning.ts`; `sim/pacing.test.ts` (greedy bot, median of 5 seeds) guards the first-run timeline. Tune numbers, not logic.
 - Near misses are visual only: the sim rolls first, the strip is built around the result.
+- Since M2a there is no brake and the near miss became the sim-driven teasing spin — see `casecremental-look.md`.
 - All names are original parodies; no Valve/CS marks.
 - `package.json` pins `viem` to 2.55.19 via `overrides`: the scaffold's wagmi 3.7.2 imports `viem/tempo/zones`, which later viem releases removed. Lift the pin only together with a wagmi upgrade.
 - The game loop pauses while the tab is hidden (scene suspend / RAF); there is no offline progress yet.
