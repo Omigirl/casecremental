@@ -120,4 +120,15 @@ describe("buildView — M2b", () => {
     expect(v.prestige!.perks.map((p) => p.id)).toEqual(["startCash", "luck", "charmSlot", "botAwake", "biggerTray"]);
     expect(buildView(new Run(1)).prestige).toBeNull();
   });
+
+  it("turns every buy button off while the vault is open and after the run (review minor)", () => {
+    const run = new Run(1);
+    run.state.unlocked = CASES.map((c) => c.id);
+    run.state.cash = DEFAULT_SETUP.vaultPrice + 1e6;
+    run.buyVault();
+    const v = buildView(run);
+    expect(v.cases.some((c) => c.canBuy || c.canUnlock)).toBe(false);
+    expect(v.upgrades.some((u) => u.canBuy)).toBe(false);
+    expect(v.vault.canBuy).toBe(false);
+  });
 });

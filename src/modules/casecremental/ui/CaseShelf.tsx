@@ -61,6 +61,28 @@ function DayJobRow({ view, act }: { view: GameView; act: Act }): ReactNode {
   );
 }
 
+/** Vault Case I (M2b spec §7): shown once every case is unlocked; buying it starts the finale. */
+function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
+  const { scale } = useContext(UiEnvContext);
+  const v = view.vault;
+  if (!v.shown) return null;
+  const k = Math.max(1, Math.floor(scale / 2));
+  const css = stripFrameCss(spriteIndex().get("case-bedrock"), 0, k, CASE_ICON_ROWS);
+  const icon = css ?? { width: 13 * k, height: 10 * k, background: "#ffd34d" };
+  return (
+    <div className="cc-row" style={{ boxShadow: `0 0 0 ${scale}px #ffd34d inset` }}>
+      <div className="cc-row-line">
+        <div style={{ ...icon, flex: "none", filter: "sepia(1) saturate(4) brightness(1.15)" }} />
+        <span style={{ flex: 1, color: "#ffd34d" }}>{caseName("vault1")}</span>
+      </div>
+      <PxButton disabled={!v.canBuy} onClick={() => act({ type: "buyVault" })}>
+        {t("btn.buy")}
+        <span className="cc-btn-sub">{formatCash(v.price, getLang())}</span>
+      </PxButton>
+    </div>
+  );
+}
+
 export function CaseShelf({ view, act, title = true }: { view: GameView; act: Act; title?: boolean }): ReactNode {
   return (
     <>
@@ -69,6 +91,7 @@ export function CaseShelf({ view, act, title = true }: { view: GameView; act: Ac
         {view.cases.map((c) => (
           <CaseRow key={c.id} c={c} act={act} />
         ))}
+        <VaultRow view={view} act={act} />
         <DayJobRow view={view} act={act} />
       </div>
     </>

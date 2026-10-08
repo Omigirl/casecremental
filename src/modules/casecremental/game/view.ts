@@ -98,6 +98,7 @@ export interface GameView {
 export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
   const s = run.state;
   const benchFree = s.bench.phase === "empty";
+  const open = !run.locked();
   const cases = CASES.map((c, i): CaseView => {
     const unlocked = s.unlocked.includes(c.id);
     const previousUnlocked = i === 0 || s.unlocked.includes(CASES[i - 1]!.id);
@@ -109,8 +110,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       price: run.casePrice(c.id),
       unlocked,
       unlockCost: unlockCostOf(c.id),
-      canBuy: unlocked && benchFree && s.cash >= run.casePrice(c.id),
-      canUnlock: !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
+      canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
+      canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {
@@ -121,7 +122,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       level: s.upgrades[id],
       maxLevel: UPGRADE_COSTS[id].maxLevel,
       cost,
-      canBuy: cost !== null && s.cash >= cost,
+      canBuy: open && cost !== null && s.cash >= cost,
     };
   });
   const b = s.bot;
