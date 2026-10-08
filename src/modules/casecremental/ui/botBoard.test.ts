@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cssColor, formatSpeed, nextThreshold, SELL_THRESHOLDS } from "./botBoard";
+import { cssColor, formatSpeed, nextBotCase, nextThreshold, SELL_THRESHOLDS } from "./botBoard";
 
 describe("the Bot tab helpers", () => {
   it("cycles the sell threshold through every rarity and back", () => {
@@ -8,6 +8,14 @@ describe("the Bot tab helpers", () => {
     for (let i = 0; i < SELL_THRESHOLDS.length; i++) seen.push((r = nextThreshold(r)));
     expect(seen.slice(0, SELL_THRESHOLDS.length)).toEqual([...SELL_THRESHOLDS]);
     expect(seen[SELL_THRESHOLDS.length]).toBe(SELL_THRESHOLDS[0]);
+  });
+
+  it("cycles the bot's case: the best affordable, then each unlocked case, then back", () => {
+    const unlocked = ["bootcamp", "wildwood"];
+    expect(nextBotCase(null, unlocked)).toBe("bootcamp");
+    expect(nextBotCase("bootcamp", unlocked)).toBe("wildwood");
+    expect(nextBotCase("wildwood", unlocked)).toBeNull();
+    expect(nextBotCase("bedrock", unlocked)).toBeNull();
   });
 
   it("writes the speed with one decimal at most, in the player's language", () => {

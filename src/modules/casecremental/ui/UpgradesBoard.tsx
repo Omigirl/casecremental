@@ -1,15 +1,15 @@
 import { useState, type ReactNode } from "react";
 import type { Action } from "../game/controller";
 import type { GameView, UpgradeView } from "../game/view";
-import { rarityName, upgradeDesc, upgradeName } from "../i18n/content";
+import { caseName, rarityName, upgradeDesc, upgradeName } from "../i18n/content";
 import { getLang, t } from "../i18n/index";
 import { formatCash } from "../sim/format";
 import { RARITY_INFO } from "../sim/rarity";
-import { cssColor, formatSpeed, nextThreshold } from "./botBoard";
+import { cssColor, formatSpeed, nextBotCase, nextThreshold } from "./botBoard";
 import { PxButton } from "./parts";
 
-// The Upgrades board (left panel, or a drawer tab on phones). Tabs You / Bot / Machines. The bot's tab
-// wakes it and tunes it (M2b); the machines arrive in later runs, so their tab shows LOCKED.
+// The Upgrades board (left panel, or a drawer tab on phones). Tabs You / Bot / Machines: the bot opens
+// its own cases (rework spec §1); the Machines tab holds the auto-seller.
 
 type Act = (a: Action) => void;
 type Tab = "you" | "bot" | "machines";
@@ -34,6 +34,8 @@ function UpgradeRow({ u, act }: { u: UpgradeView; act: Act }): ReactNode {
 function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
   const b = view.bot;
   const lang = getLang();
+  const open = view.finale === null && !view.over;
+  const unlocked = view.cases.filter((c) => c.unlocked).map((c) => c.id);
   if (!b.awake)
     return (
       <div className="cc-row">
@@ -59,11 +61,51 @@ function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
         )}
       </div>
       <div className="cc-row">
-        <div>{t("bot.sells")}</div>
-        <div style={{ color: cssColor(RARITY_INFO[b.threshold].color) }}>{rarityName(b.threshold)}</div>
-        <PxButton onClick={() => act({ type: "setBotThreshold", rarity: nextThreshold(b.threshold) })}>{t("btn.change")}</PxButton>
+        <div>{t("bot.opens")}</div>
+        <div className="cc-dim">{b.caseChoice === null ? t("bot.best") : caseName(b.caseChoice)}</div>
+        <PxButton disabled={!open} onClick={() => act({ type: "setBotCase", caseId: nextBotCase(b.caseChoice, unlocked) })}>
+          {t("btn.change")}
+        </PxButton>
       </div>
-      {b.waiting ? <div style={{ color: "#ffd34d" }}>{t("bot.waiting")}</div> : null}
+    </>
+  );
+}
+
+function SellerPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
+  const s = view.seller;
+  const lang = getLang();
+  const open = view.finale === null && !view.over;
+  if (!s.on)
+    return (
+      <div className="cc-row">
+        <div>{t("seller.name")}</div>
+        <div className="cc-dim">{t("seller.desc")}</div>
+        <PxButton disabled={!s.canBuy} onClick={() => act({ type: "buySeller" })}>
+          {t("btn.buy")}
+          <span className="cc-btn-sub">{formatCash(s.cost, lang)}</span>
+        </PxButton>
+      </div>
+    );
+  return (
+    <>
+      <div className="cc-row">
+        <div>{t("seller.name")}</div>
+        <div className="cc-dim">{t("seller.speed", { n: s.speedLevel })}</div>
+        {s.speedCost === null ? (
+          <PxButton disabled>{t("btn.max")}</PxButton>
+        ) : (
+          <PxButton disabled={!s.canBuySpeed} onClick={() => act({ type: "buySellerSpeed" })}>
+            {formatCash(s.speedCost, lang)}
+          </PxButton>
+        )}
+      </div>
+      <div className="cc-row">
+        <div>{t("seller.sells")}</div>
+        <div style={{ color: cssColor(RARITY_INFO[s.threshold].color) }}>{rarityName(s.threshold)}</div>
+        <PxButton disabled={!open} onClick={() => act({ type: "setSellerThreshold", rarity: nextThreshold(s.threshold) })}>
+          {t("btn.change")}
+        </PxButton>
+      </div>
     </>
   );
 }
@@ -80,13 +122,7 @@ export function UpgradesBoard({ view, act, title = true }: { view: GameView; act
       {title ? <div className="cc-title">{t("panel.upgrades")}</div> : null}
       <div className="cc-tabs">
         {tabs.map(([id, label]) => (
-          <PxButton
-            key={id}
-            on={tab === id}
-            disabled={id === "machines"}
-            title={id === "machines" ? t("tab.locked") : undefined}
-            onClick={() => setTab(id)}
-          >
+          <PxButton key={id} on={tab === id} onClick={() => setTab(id)}>
             {label}
           </PxButton>
         ))}
@@ -97,7 +133,7 @@ export function UpgradesBoard({ view, act, title = true }: { view: GameView; act
         ) : tab === "bot" ? (
           <BotPanel view={view} act={act} />
         ) : (
-          <div className="cc-dim">{t("tab.locked")}</div>
+          <SellerPanel view={view} act={act} />
         )}
       </div>
     </>

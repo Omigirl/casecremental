@@ -35,12 +35,14 @@ describe("content names", () => {
     expect(weaponName("rifle")).toBe("AK-Pew");
     expect(rarityName("covert")).toBe("Covert");
     expect(stageName(2)).toBe("Buzzed");
+    expect(stageName(5)).toBe("Unhinged");
     setLang("ru");
     expect(caseName("bootcamp")).toBe("Учебка");
     expect(weaponName("rifle")).toBe("АК-Пиу");
     expect(rarityName("covert")).toBe("Тайное");
     expect(skinName("bc_woodland")).toBe("Лесные учения");
     expect(stageName(2)).toBe("Навеселе");
+    expect(stageName(5)).toBe("Без тормозов");
   });
 
   it("names every Run 1 charm and perk, and the vault, in both languages", () => {

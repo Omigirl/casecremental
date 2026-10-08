@@ -141,7 +141,7 @@ const STAGES: Pair[] = [
   { en: "Buzzed", ru: "Навеселе" },
   { en: "High", ru: "Эйфория" },
   { en: "Tripping", ru: "Трип" },
-  { en: "Cyberpsychosis", ru: "Киберпсихоз" },
+  { en: "Unhinged", ru: "Без тормозов" },
 ];
 
 export const caseName = (id: string): string => pick(CASES[id]);
