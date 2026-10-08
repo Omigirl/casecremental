@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Skins can declare a `motion` (a moving finish and/or a moving weapon) that is baked into a short whole-pixel loop and played on the reveal card and the landed reel card; the three ★ knives shimmer as the demo.
+**Goal:** Skins can declare a `motion` (a moving finish and/or a moving weapon) that is baked into a short whole-pixel loop and played on the reveal card and the landed reel card; every case's ★ knife shimmers and flips, every other skin in cases 1–3 stays still.
 
 **Architecture:** A pure module `fx/skins/motion.ts` rasterises a skin at a loop phase `t ∈ [0, 1)` straight from the weapon's silhouette polygon (pattern motions recolour the finish, weapon motions transform the polygon first). `SkinTextures` bakes and caches the loop per skin (still skins keep today's exact path); `Reel` and `Bench` swap textures by elapsed time with `frameAt`.
 
@@ -18,7 +18,7 @@
 - Pattern motions: `flow`, `shimmer`, `pulse`, `sparkle`. Weapon motions: `bob`, `recoil`, `bolt`, `flip`.
 - A moving weapon's frames get 2 px of room on every side; a flipping knife gets a square; all frames of one skin share one size.
 - Plays on the reveal card and on the winning reel card once the reel has stopped; cards passing during a spin show frame 0.
-- M2a demo: the three ★ knives get `{ pattern: "shimmer" }`; weapon motions ship tested but unused until M3.
+- Cases 1–3: every ★ knife gets `{ pattern: "shimmer", weapon: "flip" }`; every other skin stays still (richer finishes are for the later cases, M3).
 - The sim never reads `motion`.
 
 ## Review Focus
@@ -41,7 +41,7 @@
 - Modify `src/modules/casecremental/fx/pixel/Reel.ts` — `makeCard` exposes `art`; winner card player.
 - Modify `src/modules/casecremental/fx/pixel/Bench.ts` — reveal card baked per frame and played.
 - Modify `src/modules/casecremental/fx/World.ts` — pass game ms to `reel.update`.
-- Modify `src/modules/casecremental/sim/content/cases.ts` and `cases.test.ts` — the ★ knives shimmer.
+- Modify `src/modules/casecremental/sim/content/cases.ts` and `cases.test.ts` — every ★ knife shimmers and flips.
 - Modify `docs/feature-history/casecremental-look.md` — one paragraph.
 
 ---
@@ -126,6 +126,11 @@ describe("renderSkinFrames", () => {
     for (const f of bob) expect([f.w, f.h]).toEqual([SKIN_W + 4, SKIN_H + 4]);
     const flip = frameSize({ weapon: "flip" });
     expect(flip.w).toBe(flip.h);
+    // a spinning knife is drawn smaller so its square fits a card (reveal card inside: 40 × 26)
+    for (const f of renderSkinFrames(moving({ pattern: "shimmer", weapon: "flip" }, knife))) {
+      expect(f.w).toBe(f.h);
+      expect(f.h).toBeLessThanOrEqual(26);
+    }
   });
 
   it.each<PatternMotion>(["flow", "shimmer", "pulse", "sparkle"])("%s moves the finish but never the outline", (kind) => {
@@ -342,10 +347,17 @@ export function renderSkinFrame(skin: SkinDef, t: number, w = SKIN_W, h = SKIN_H
   return { w: size.w, h: size.h, data };
 }
 
+/** A spinning knife is drawn a little smaller, so its square frame (24 px) fits inside a card. */
+const FLIP_W = 20;
+const FLIP_H = 8;
+
 /** The whole loop: frame n at phase n / frames. */
-export function renderSkinFrames(skin: SkinDef, w = SKIN_W, h = SKIN_H): PixelImage[] {
+export function renderSkinFrames(skin: SkinDef, w?: number, h?: number): PixelImage[] {
+  const flip = skin.motion?.weapon === "flip";
+  const ww = w ?? (flip ? FLIP_W : SKIN_W);
+  const hh = h ?? (flip ? FLIP_H : SKIN_H);
   const n = motionFrames(skin);
-  return Array.from({ length: n }, (_, i) => renderSkinFrame(skin, i / n, w, h));
+  return Array.from({ length: n }, (_, i) => renderSkinFrame(skin, i / n, ww, hh));
 }
 ```
 
@@ -474,7 +486,7 @@ git add src/modules/casecremental/fx/skins/pixelSkin.ts src/modules/casecrementa
 git commit -m "feat(skins): SkinTextures bakes and caches a moving skin's loop"
 ```
 
-### Task 3: Play the loops, and the ★ knives shimmer
+### Task 3: Play the loops, and the ★ knives shimmer and flip
 
 **Files:**
 - Modify: `src/modules/casecremental/sim/content/cases.ts`, `src/modules/casecremental/sim/content/cases.test.ts`
@@ -488,15 +500,16 @@ git commit -m "feat(skins): SkinTextures bakes and caches a moving skin's loop"
 - [ ] **Step 1: Write the failing test** — append inside `describe("cases", …)` in `cases.test.ts`
 
 ```ts
-  it("the ★ knives shimmer; every other skin is still (the M2a demo)", () => {
-    for (const c of CASES) for (const s of c.skins) expect(s.motion).toEqual(s.rarity === "gold" ? { pattern: "shimmer" } : undefined);
+  it("every ★ knife shimmers and flips; every other skin in cases 1–3 is still", () => {
+    for (const c of CASES)
+      for (const s of c.skins) expect(s.motion).toEqual(s.rarity === "gold" ? { pattern: "shimmer", weapon: "flip" } : undefined);
   });
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run src/modules/casecremental/sim/content`
-Expected: FAIL — `expected undefined to deeply equal { pattern: 'shimmer' }`.
+Expected: FAIL — `expected undefined to deeply equal { pattern: 'shimmer', weapon: 'flip' }`.
 
 - [ ] **Step 3: Give the knives their motion** — `cases.ts`
 
@@ -512,14 +525,14 @@ const skin = (id: string, name: string, weapon: WeaponId, rarity: RarityId, patt
   ...(motion ? { motion } : {}),
 });
 
-/** The M2a demo of animated skins: the ★ knives shimmer. */
-const SHIMMER: SkinMotion = { pattern: "shimmer" };
+/** The ★ knives are rare: they shimmer and spin. Everything else in cases 1–3 stays still. */
+const KNIFE_MOTION: SkinMotion = { pattern: "shimmer", weapon: "flip" };
 ```
 
-Then add `, SHIMMER` as the last argument of the three knife lines (`bc_knife`, `ww_knife`, `br_knife`), e.g.:
+Then add `, KNIFE_MOTION` as the last argument of the three knife lines (`bc_knife`, `ww_knife`, `br_knife`), e.g.:
 
 ```ts
-    skin("bc_knife", "Field Marshal", "knife", "gold", p("digital", ["#3a2f0b", "#c9a227", "#ffe08a", "#fff6d5"], 9, 51), SHIMMER),
+    skin("bc_knife", "Field Marshal", "knife", "gold", p("digital", ["#3a2f0b", "#c9a227", "#ffe08a", "#fff6d5"], 9, 51), KNIFE_MOTION),
 ```
 
 - [ ] **Step 4: Run it to verify it passes**
@@ -653,8 +666,9 @@ Expected: all PASS; typecheck clean; build succeeds.
 - [ ] **Step 8: Browser check**
 
 `npm run dev`, open the game. Dev board (⚙ → SOUND BOARD (DEV)) → Next drop ★ → open a case:
-- during the spin the knife card scrolls still (frame 0); after the reel stops the winning card's knife shimmers — a bright band sweeps across about once a second;
-- the reveal card shimmers too, keeps shimmering while dragged (lifted) and while the ★ slow-mo runs (slower);
+- during the spin the knife card scrolls still (frame 0); after the reel stops the winning card's knife spins once a second while a bright band sweeps across its finish (its tips may pass behind the window's edge mid-turn);
+- the reveal card does the same, keeps going while dragged (lifted) and while the ★ slow-mo runs (slower);
+- every other skin stays still;
 - the next spin starts with every card still.
 
 - [ ] **Step 9: Record it and commit**
@@ -665,11 +679,11 @@ Add to `docs/feature-history/casecremental-look.md`, under "Why it is built this
 - **Animated skins** (`fx/skins/motion.ts`, spec `2026-10-08-casecremental-animated-skins-design.md`): a skin's
   optional `motion` (pattern: flow / shimmer / pulse / sparkle; weapon: bob / recoil / bolt / flip) is baked
   into a short whole-pixel loop from the weapon's silhouette and played on the reveal card and the landed reel
-  card (never while the strip scrolls). Still skins render exactly as before. The ★ knives shimmer as the demo;
-  weapon motions wait for the M3 cases.
+  card (never while the strip scrolls). Still skins render exactly as before. In cases 1–3 only the ★ knives move (shimmer + flip,
+  user: "they are rare anyway"); richer finishes are for the later cases.
 ```
 
 ```bash
 git add src/modules/casecremental docs/feature-history/casecremental-look.md
-git commit -m "feat(skins): the reveal card and the landed reel card play animated skins; the ★ knives shimmer"
+git commit -m "feat(skins): the reveal card and the landed reel card play animated skins; ★ knives shimmer and flip"
 ```

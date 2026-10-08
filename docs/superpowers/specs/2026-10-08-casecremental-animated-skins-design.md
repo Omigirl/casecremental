@@ -72,8 +72,11 @@ share one size and one baseline.
 
 ## 6. Demo in M2a
 
-The three ★ knives (Field Marshal, Heartwood, Molten Crown) get `{ pattern: "shimmer" }` — one pattern motion
-per skin. Visible with the dev board's ★ button. Weapon motions ship tested but unused until M3.
+**Only the knives move in cases 1–3** (user: "they are rare anyway"): every case's ★ knife gets
+`{ pattern: "shimmer", weapon: "flip" }` — the finish shimmers while the knife spins. Every other skin in cases
+1–3 stays still; richer animated finishes are what the later cases (M3) earn. Visible with the dev board's ★
+button. A flipping knife needs a square frame (§4), so it is drawn a little smaller (20 × 8 → a 24 px square)
+to fit inside the reveal card; on the landed reel card its tips may pass behind the window's edge mid-turn.
 
 ## 7. Testing
 
