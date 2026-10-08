@@ -26,8 +26,9 @@ Changes agreed during the M2a review: campaign spec `2026-10-08-casecremental-ca
   optional `motion` (pattern: flow / shimmer / pulse / sparkle; weapon: bob / recoil / bolt / flip) is baked
   into a short whole-pixel loop from the weapon's silhouette and played only on the reveal card (never on the
   reel). Still skins render exactly as before. In cases 1–3 only the ★ knives move (shimmer + flip at 5 fps,
-  user: "they are rare anyway"); richer finishes are for the later cases. A ★ knife also makes an entrance
-  (`fx/hd/knifeFlight.ts`): it flies out of the card in the HD layer — spin, 2.5D flip, ~2× — and lands back.
+  user: "they are rare anyway"); richer finishes are for the later cases. A ★ knife also gets a b-roll showcase
+  (`fx/hd/knifeFlight.ts`): it comes out of the card toward the viewer (3.5×), turns once on a turntable
+  with a gentle tilt, and settles back in — slow (2.4 s), no jump (user).
 - **Code eyes.** The painted eyes are erased in the pipeline and redrawn in code (2×3 blocks on a 5×5
   visor patch, level, open/half/closed/happy, blinking) — the user preferred them to painted eyes.
 - **Press Start 2P everywhere, bundled** (the embedded game may only reach platform hosts). Monospace,

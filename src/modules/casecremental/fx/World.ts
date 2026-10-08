@@ -350,11 +350,11 @@ export class World {
     }
   }
 
-  /** The ★ knife leaves the card, flies (2.5D: spin, flip, grow) and lands back in it. */
+  /** The ★ knife's b-roll shot: it comes out of the card toward the viewer, turns, and settles back in. */
   private launchKnife(skin: SkinDef, at: Pt, v: number): void {
     const k = this.vp.scale;
     this.bench.beginKnifeFlight();
-    this.knifeFlight.start(this.skins.frames(skin)[0]!, at, k, 34 * k, () => {
+    this.knifeFlight.start(this.skins.frames(skin)[0]!, at, k, () => {
       this.bench.endKnifeFlight();
       this.shake.add(0.3);
       this.audio.play("coin-clink", { rate: 0.75 });

@@ -68,10 +68,11 @@ share one size and one baseline.
 - A small `SkinPlayer` swaps a sprite's texture by elapsed time at the skin's `fps`.
 - **Where it plays:** only the **reveal card**, the one the player drags (user: the knife must not turn on
   the reel). Reel cards always show frame 0. Later: locker and claim tray (M2b/M3) use the same player.
-- **The ★ knife's entrance** (user, "more pizzazz"): the moment the card comes up, the knife leaves it — in
-  the HD layer it rises ~1 card-height, grows to ~2×, spins two turns and flips edge-on twice (2.5D), then
-  arcs back into the card (~1.2 s, real time, so it plays through the ★ slow-mo) with a clink, sparks and a
-  small shake. Meanwhile the card is empty and can't be picked up; afterwards the knife spins in the card's
+- **The ★ knife's showcase** (user: "like b-roll tape, slower, closer to eyes"): the moment the card comes
+  up, the knife is lifted into the HD layer and shot like product b-roll — it stays over the card and slowly
+  comes toward the viewer (to 3.5×, well past the card's edges), turning once on a turntable (edge-on, its
+  back, face-on) with a gentle ±0.22 rad tilt, then eases back into the card (2.4 s, real time, so it plays
+  through the ★ slow-mo) and settles with a clink, sparks and a small shake. Meanwhile the card is empty and can't be picked up; afterwards the knife spins in the card's
   loop at 5 fps. Selling or a resize mid-flight ends it at once.
 
 ## 6. Demo in M2a
