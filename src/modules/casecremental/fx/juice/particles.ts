@@ -9,6 +9,7 @@ interface Spark {
   vy: number;
   life: number;
   age: number;
+  gravity: number;
 }
 
 const GRAVITY = 600;
@@ -23,7 +24,8 @@ export class Particles {
     private readonly max = 1500,
   ) {}
 
-  burst(at: Pt, color: number, count: number, speed: number): void {
+  /** `gravity` (px/s², default falling) can be negative: embers rise. */
+  burst(at: Pt, color: number, count: number, speed: number, gravity = GRAVITY): void {
     for (let i = 0; i < count && this.live.length < this.max; i++) {
       const s = this.pool.pop() ?? new Sprite(this.texture);
       s.anchor.set(0.5);
@@ -34,7 +36,7 @@ export class Particles {
       this.container.addChild(s);
       const a = Math.random() * Math.PI * 2;
       const v = speed * (0.3 + Math.random());
-      this.live.push({ s, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, life: 0.6 + Math.random() * 0.6, age: 0 });
+      this.live.push({ s, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, life: 0.6 + Math.random() * 0.6, age: 0, gravity });
     }
   }
 
@@ -46,7 +48,7 @@ export class Particles {
         this.pool.push(p.s);
         return false;
       }
-      p.vy += GRAVITY * dt;
+      p.vy += p.gravity * dt;
       p.s.x += p.vx * dt;
       p.s.y += p.vy * dt;
       p.s.alpha = 1 - p.age / p.life;

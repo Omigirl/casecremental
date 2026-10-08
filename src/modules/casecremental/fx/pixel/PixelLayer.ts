@@ -20,8 +20,10 @@ export class PixelLayer {
     this.view.scale.set(vp.scale);
   }
 
-  render(renderer: Renderer): void {
-    if (this.rt) renderer.render({ container: this.world, target: this.rt, clear: true });
+  /** `transparent`: clear to nothing (a layer drawn over another), not the canvas background. */
+  render(renderer: Renderer, transparent = false): void {
+    if (this.rt)
+      renderer.render({ container: this.world, target: this.rt, clear: true, ...(transparent ? { clearColor: [0, 0, 0, 0] } : {}) });
   }
 
   /** Screen shake, rounded to whole CSS px. */

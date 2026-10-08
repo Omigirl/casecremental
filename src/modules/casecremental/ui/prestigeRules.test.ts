@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BLACKOUT_SECONDS } from "../fx/vault/lights";
 import type { PrestigeView } from "../game/view";
 import { charmChoices, PRESTIGE_DELAY_MS, prestigeDelayMs } from "./prestigeRules";
 
@@ -22,9 +23,10 @@ describe("the prestige screen", () => {
     expect(charmChoices(view({ picked: ["ricochet"], slots: 2 })).every((c) => c.enabled)).toBe(true);
   });
 
-  it("waits for the vault's showcase only when you watched the run end; after a reload it shows at once (Review Focus 1)", () => {
+  it("waits for the blackout only when you watched the run end; after a reload it shows at once (Review Focus 1)", () => {
     expect(prestigeDelayMs(true)).toBe(PRESTIGE_DELAY_MS);
     expect(prestigeDelayMs(false)).toBe(0);
-    expect(PRESTIGE_DELAY_MS).toBeGreaterThan(2400); // the knife's 2.4 s flight plays first
+    expect(PRESTIGE_DELAY_MS).toBeGreaterThanOrEqual(BLACKOUT_SECONDS * 1000); // the blackout plays first
+    expect(PRESTIGE_DELAY_MS).toBeLessThanOrEqual(BLACKOUT_SECONDS * 1000 + 500); // ...and the screen comes up right after it
   });
 });

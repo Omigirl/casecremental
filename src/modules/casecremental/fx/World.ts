@@ -1,24 +1,21 @@
-import { Container, Text, type Application, type FederatedPointerEvent, type Texture } from "pixi.js";
+import { Container, Text, type Application, type FederatedPointerEvent } from "pixi.js";
 import type { GameController } from "../game/controller";
 import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
-import { CASES, caseById, skinById } from "../sim/content/cases";
+import { caseById, skinById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
-import { STAGE_NAMES } from "../sim/intensity";
 import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
 import { createRng } from "../sim/rng";
-import type { Bench as BenchState, SimEvent } from "../sim/run";
-import { VAULT_OPENING_SECONDS } from "../sim/tuning";
+import type { Bench as BenchState, RunState, SimEvent } from "../sim/run";
+import { VAULT_LAND_TIMES } from "../sim/tuning";
 import type { Drop, SkinDef } from "../sim/types";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { comboPitch } from "./audio/schedule";
-import { FINALE_COLORS, FINALE_SPIN_SECONDS, finaleKnobs } from "./finale";
 import { loadPixelFont, pixelStyle } from "./hd/font";
 import { HdLayer } from "./hd/HdLayer";
 import { setTweenTimeScale } from "./hd/tween";
 import { KnifeFlight } from "./hd/knifeFlight";
 import { Lifted } from "./hd/Lifted";
-import { CaseRain } from "./hd/rain";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
@@ -32,13 +29,18 @@ import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
 import { Reel } from "./pixel/Reel";
 import { Room } from "./pixel/Room";
+import { scaleTint } from "./pixel/tint";
 import { TrayView } from "./pixel/Tray";
 import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
-import { crawlSeconds, type ReelMotion } from "./reel/motion";
+import { crawlSeconds } from "./reel/motion";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
+import { VAULT_CUE_TIMES } from "./vault/cues";
+import { StackedReels, stackRects } from "./vault/stackedReels";
+import { PowerCycle } from "./vault/vaultFlow";
+import { vaultReelArea, VaultScene } from "./vault/VaultScene";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
 // rendered small and scaled up by a whole number, and the HD layer over it (light, dust, glow,
@@ -48,6 +50,8 @@ import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 
 /** How far a full-strength tease leans the camera in (a ★ in the top case: 1.15×). */
 const TEASE_ZOOM = 0.15;
+/** A hands-off click's sparks (the prestige screen's dark). */
+const SPARK_COLORS = [0xff7ad9, 0x7affc1, 0xffd34d, 0x6ab0ff] as const;
 
 export class World {
   private readonly scene = new Container();
@@ -66,12 +70,11 @@ export class World {
   private readonly zoom = new Zoom();
   private readonly lifted = new Lifted();
   private knifeFlight!: KnifeFlight;
-  private readonly rain = new CaseRain();
-  private readonly caseTextures = new Map<string, Texture>();
-  private finalePhase: "none" | "build" | "silence" = "none";
-  private finaleRain = 0;
-  private finaleFlash = 0;
-  private finaleSpin = 0;
+  /** Vault Case I's scene over everything (screen px), its five reels in a pixel layer of their own inside it. */
+  private readonly vault: VaultScene;
+  private readonly vaultPixel = new PixelLayer();
+  private readonly vaultReels: StackedReels;
+  private readonly power: PowerCycle;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
@@ -131,24 +134,32 @@ export class World {
       this.bot.root,
       this.botCard.root,
     );
-    this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.trayFullLabel, this.lifted.root);
+    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
-    app.stage.addChild(this.scene, this.hd.overlay);
+    this.vault = new VaultScene(lib, this.hd, audio, (trauma) => this.shake.add(trauma));
+    this.vaultReels = new StackedReels(this.reelFrame, skins, (i) => audio.play("reel-tick", { gain: 0.3, rate: 1 + i * 0.1 }));
+    this.vaultPixel.world.addChild(this.vaultReels);
+    this.vaultReels.visible = false;
+    this.vault.reelSlot.addChild(this.vaultPixel.view);
+    this.power = new PowerCycle(audio);
+    app.stage.addChild(this.scene, this.vault.root, this.hd.overlay);
 
     app.stage.eventMode = "static";
     app.stage.hitArea = app.screen;
     app.stage.on("pointerdown", (e: FederatedPointerEvent) => this.pointerDown(e));
     app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
+      this.vault.keyMove(e.global);
       const p = this.worldPt(e);
       this.tray.pointerMove(p);
       this.botCard.pointerMove(p);
       this.bench.pointerMove(p);
     });
     const up = (e: FederatedPointerEvent) => {
+      if (this.vault.keyRelease(e.global) === "turn") void this.controller.act({ type: "turnVaultKey" });
       const p = this.worldPt(e);
       this.tray.pointerUp(p);
       this.botCard.pointerUp(p);
@@ -185,6 +196,25 @@ export class World {
     this.look.setStage(plan.stage);
     this.audio.setStage(plan.stage);
     this.lastStage = plan.stage;
+    this.restoreVault(this.controller.run.state);
+  }
+
+  /** A reload with the vault out waits for the key again, resumes the opening where it is, or sits in the dark
+   *  of the prestige screen. */
+  private restoreVault(s: RunState): void {
+    const v = s.vault;
+    if (v?.phase === "key") this.audio.setTrack("vault-suspense", { loop: true });
+    else if (v?.phase === "opening") {
+      this.startVaultReels(v.drops);
+      this.audio.setTrack("vault-fanfare", { loop: false, offset: v.t });
+    } else if (s.over) this.power.darkNow();
+  }
+
+  private startVaultReels(drops: readonly Drop[]): void {
+    // never caseById on a vault drop (its case is "vault1"): the strips are the top case's skins
+    const top = caseById("bedrock");
+    drops.forEach((d, i) => this.vaultReels.start(i, top, skinById(d.skinId), this.rng));
+    this.vaultReels.visible = true;
   }
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */
@@ -198,6 +228,7 @@ export class World {
       this.bench.cancelDrag(); // Review Focus 3: a resize or rotation mid-drag cancels it
       this.tray.cancelDrag();
       this.botCard.cancelDrag();
+      this.vault.cancelDrag();
       this.vp = pixelViewport(width, height);
       this.l = tableLayout(this.vp);
       this.applyLayout();
@@ -206,8 +237,7 @@ export class World {
     const run = this.controller.run;
     const b = run.state.bench;
     const crawl = b.phase === "spinning" ? crawlSeconds(b.tease, b.fullDuration) : 0;
-    const finaleReel = this.updateFinale(realSeconds);
-    this.reel.update(finaleReel ?? (b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null));
+    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null);
     if (b.phase === "spinning" && b.tease && !this.leaned && b.elapsed >= b.fullDuration - crawl) {
       this.leaned = true; // a red or a knife is crawling in (or a fake one): lean in toward the reel
       this.zoom.punch(1 + TEASE_ZOOM * b.tease.strength, b.fullDuration - b.elapsed);
@@ -228,8 +258,8 @@ export class World {
     this.room.setSellerOn(run.state.seller.on);
     this.hd.setSellerOn(run.state.seller.on);
     this.room.update(realSeconds * 1000);
+    this.updateVault(realSeconds);
     this.hd.update(realSeconds);
-    this.rain.update(realSeconds, 300 * this.vp.scale);
     this.look.update(realSeconds);
     setTweenTimeScale(scale);
     this.updateText(b);
@@ -254,21 +284,25 @@ export class World {
     this.scene.position.set(focus.x + Math.round(s.x * k), focus.y + Math.round(s.y * k));
     this.scene.scale.set(z);
     this.camera.set({ focusX: focus.x, focusY: focus.y, dx: Math.round(s.x * k), dy: Math.round(s.y * k), zoom: z }); // the UI overlay follows
+    this.vault.root.position.set(Math.round(s.x * k), Math.round(s.y * k)); // the vault shakes too, but never zooms
     this.pixel.render(this.app.renderer);
+    if (this.vaultReels.visible) this.vaultPixel.render(this.app.renderer, true);
   }
 
   destroy(): void {
     this.tray.cancelDrag(); // a drag left mid-air would leave the card "held" across a lobby trip
     this.botCard.cancelDrag();
     this.bench.cancelDrag();
+    this.vault.cancelDrag();
     this.off();
     this.app.stage.removeAllListeners();
     this.hd.destroy();
     this.bench.destroy();
     this.tray.destroy();
     this.botCard.destroy();
-    this.rain.clear();
     this.pixel.destroy();
+    this.vaultPixel.destroy();
+    this.vault.destroy();
     this.scene.destroy({ children: true });
     this.skins.destroy();
     this.lib.destroy();
@@ -276,76 +310,43 @@ export class World {
   }
 
   private pointerDown(e: FederatedPointerEvent): void {
-    if (this.controller.run.locked()) {
-      // the finale is hands-off: a click only adds sparks
-      const at = this.hd.root.toLocal(e.global);
-      this.hd.particles.burst({ x: at.x, y: at.y }, this.rng.pick(FINALE_COLORS), 14, 220 * (this.vp.scale / 6));
+    const run = this.controller.run;
+    if (run.locked()) {
+      // the vault's key is the one thing to grab; anywhere else (and over the opening) a click only adds sparks
+      if (run.state.vault?.phase === "key" && this.vault.keyHit(e.global)) return;
+      if (run.state.vault) this.vault.sparks(e.global);
+      else {
+        const at = this.hd.root.toLocal(e.global);
+        this.hd.particles.burst({ x: at.x, y: at.y }, this.rng.pick(SPARK_COLORS), 14, 220 * (this.vp.scale / 6));
+      }
       return;
     }
     const p = this.worldPt(e);
     if (!this.tray.pointerDown(p) && !this.botCard.pointerDown(p)) void this.bench.pointerDown(p);
   }
 
-  /** The vault's finale, read from the sim each frame (a reload picks it up where it is). Returns the
-   *  reel's motion while it spins for the show. */
-  private updateFinale(dt: number): ReelMotion | null {
-    // replaced in Task 5
-    const vs = this.controller.run.state.vault;
-    const f = vs?.phase === "opening" ? vs.t : null;
-    if (f === null) {
-      if (this.finalePhase !== "none") {
-        this.finalePhase = "none";
-        this.bot.setFrenzy(false);
-        this.rain.clear();
-        this.audio.setMusicOn(true);
-      }
-      return null;
-    }
-    const knobs = finaleKnobs(f / VAULT_OPENING_SECONDS);
-    if (knobs.phase !== this.finalePhase) {
-      this.finalePhase = knobs.phase;
-      if (knobs.phase === "build") {
-        const top = STAGE_NAMES.length;
-        this.look.setStage(top);
-        this.audio.setStage(top);
-        this.lastStage = top;
-        this.bot.setFrenzy(true);
-      } else {
-        this.audio.setMusicOn(false); // silence before the vault opens
-        this.bot.setFrenzy(false);
-        this.hd.setGlow(null);
+  /** The vault, read from the sim each frame (a reload picks it up where it is), and the lights. */
+  private updateVault(realSeconds: number): void {
+    const s = this.controller.run.state;
+    const v = s.vault;
+    const opening = v?.phase === "opening" ? v : null;
+    this.vault.show(v?.phase ?? (s.over ? "done" : null), opening?.t ?? 0, opening?.drops ?? [], opening?.landed ?? 0);
+    if (opening) {
+      // each reel spins from the moment they come in until its landing time, then stays landed
+      for (let i = 0; i < VAULT_LAND_TIMES.length; i++) {
+        const fullDuration = VAULT_LAND_TIMES[i]! - VAULT_CUE_TIMES.reels;
+        const elapsed = Math.min(fullDuration, Math.max(0, opening.t - VAULT_CUE_TIMES.reels));
+        this.vaultReels.update(i, { elapsed, fullDuration, crawl: i === VAULT_LAND_TIMES.length - 1 ? 2.5 : 0.8 });
       }
     }
-    if (knobs.phase !== "build") return null;
-    const k = this.vp.scale;
-    const tb = this.l.table;
-    this.shake.add(knobs.shakePerSecond * dt);
-    for (this.finaleRain += knobs.rainPerSecond * dt; this.finaleRain >= 1; this.finaleRain -= 1) {
-      const floor = (tb.y + 12 + this.rng.next() * (tb.h - 30)) * k;
-      this.rain.spawn(this.caseTexture(this.rng.pick(CASES).id), (tb.x + this.rng.next() * tb.w) * k, floor, k, () => this.rng.next());
-    }
-    this.finaleFlash += dt;
-    if (this.finaleFlash >= knobs.flashEvery) {
-      this.finaleFlash = 0;
-      this.hd.flash(this.rng.pick(FINALE_COLORS), 0.2 + 0.3 * knobs.intensity);
-    }
-    this.finaleSpin -= dt;
-    if (this.finaleSpin <= 0) {
-      this.finaleSpin = FINALE_SPIN_SECONDS;
-      const c = this.rng.pick(CASES);
-      this.reel.start(c, this.rng.pick(c.skins), this.rng);
-      this.audio.play("reel-stop", { gain: 0.4 });
-    }
-    return { elapsed: FINALE_SPIN_SECONDS - this.finaleSpin, fullDuration: FINALE_SPIN_SECONDS, crawl: 0 };
-  }
-
-  private caseTexture(id: string): Texture {
-    let tex = this.caseTextures.get(id);
-    if (!tex) {
-      tex = this.lib.get(`case-${id}`, { w: 26, h: 34, frames: 4 }).frames[0]!;
-      this.caseTextures.set(id, tex);
-    }
-    return tex;
+    this.vault.update(realSeconds);
+    const lights = this.power.update(realSeconds);
+    this.hd.setLights(lights);
+    this.room.setLight(lights.room);
+    const reels = scaleTint(0xffffff, lights.reels);
+    this.reel.tint = reels;
+    this.botReel.tint = reels;
+    this.vaultReels.tint = reels;
   }
 
   /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
@@ -371,6 +372,9 @@ export class World {
     if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
     this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
+    this.vaultPixel.resize(this.vp);
+    this.vaultReels.layout(stackRects(vaultReelArea(this.l), VAULT_LAND_TIMES.length));
+    this.vault.layout(this.screen, this.l, this.vp.scale);
     const k = this.vp.scale;
     const size = hdFontSize(k);
     for (const txt of [this.hint, ...this.label, this.offline, this.trayFullLabel]) txt.style.fontSize = size;
@@ -503,26 +507,30 @@ export class World {
         this.audio.play("tray-store");
         break;
       case "vaultBought":
+        // the screen goes to the vault: it slams in, the suspense loop takes over the music
         this.bench.cancelDrag();
         this.tray.cancelDrag();
         this.botCard.cancelDrag();
-        this.hd.flash(0xffd700, 0.5);
-        this.audio.play("jackpot-swell");
+        this.knifeFlight.cancel();
+        this.vault.slam();
+        this.audio.setTrack("vault-suspense", { loop: true });
         break;
-      case "vaultOpened": {
-        // the vault opens on one legendary drop, shown with the b-roll showcase: the Vault I ★ trophy
-        const skin = skinById(e.drop.skinId);
-        this.bench.showReveal(skin, e.drop);
-        const at = this.screenPt(this.bench.revealCentre());
-        const v = this.vp.scale / 6;
-        this.hd.setGlow(RARITY_INFO.gold.color);
-        this.hd.flash(0xffd700, 0.8);
-        this.shake.add(0.6);
-        this.audio.play("jackpot-swell");
-        this.hd.particles.burst(at, 0xffd700, 160, 420 * v);
-        if (skin.motion?.weapon === "flip") this.launchKnife(skin, at, v);
+      case "vaultKeyTurned":
+        this.startVaultReels(e.drops);
+        this.audio.setTrack("vault-fanfare", { loop: false });
         break;
-      }
+      case "vaultReelLanded":
+        this.onVaultReelLanded(e.index, e.drop, e.amount);
+        break;
+      case "vaultOpened":
+        this.power.blackout();
+        break;
+      case "charmPicked":
+        this.audio.play("charm-pick");
+        break;
+      case "perkBought":
+        this.audio.play("perk-buy");
+        break;
       case "runStarted":
         this.bench.cancelDrag();
         this.tray.cancelDrag();
@@ -531,6 +539,8 @@ export class World {
         this.bench.clearReveal(false);
         this.bench.hideCase();
         this.hd.setGlow(null);
+        this.vaultReels.visible = false;
+        this.power.powerUp(); // before restore(): the stage loop waits for the lights
         this.restore(); // the fresh run's stage 1, look and music
         break;
       case "stageChanged":
@@ -545,6 +555,37 @@ export class World {
         this.lastStage = e.stage;
         break;
     }
+  }
+
+  /** A vault reel lands (and pays): each one louder than the last; the fifth is the legendary, shown with the
+   *  knife's b-roll showcase, its animated texture playing as it turns. */
+  private onVaultReelLanded(index: number, d: Drop, amount: number): void {
+    const k = this.vp.scale;
+    const r = stackRects(vaultReelArea(this.l), VAULT_LAND_TIMES.length)[index];
+    if (!r) return;
+    const at = { x: (r.x + r.w / 2) * k, y: (r.y + r.h / 2) * k };
+    const last = index === VAULT_LAND_TIMES.length - 1;
+    const color = RARITY_INFO[d.rarity].color;
+    this.audio.play("vault-reel-land", { rate: 1 + index * 0.08 });
+    this.audio.play("firework", { gain: 0.6, rate: 1.1 + index * 0.05, delay: 0.05 });
+    this.vault.firework(at, color, last);
+    this.vault.floatText({ x: at.x, y: at.y - r.h * k * 0.6 }, `+${formatCash(amount, getLang())}`);
+    this.shake.add(0.25 + index * 0.08);
+    if (!last) return;
+    this.audio.play("legendary-choir");
+    this.hd.flash(0xffd700, 0.9);
+    const skin = skinById(d.skinId); // VAULT_LEGEND (never caseById on it)
+    this.vault.showcase(
+      this.skins.frames(skin),
+      at,
+      k,
+      () => {
+        this.shake.add(0.3);
+        this.audio.play("coin-clink", { rate: 0.75 });
+        this.vault.firework(at, 0xffd700, true);
+      },
+      skin.motion?.fps ?? 8,
+    );
   }
 
   private onReveal(d: Drop): void {

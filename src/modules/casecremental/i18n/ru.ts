@@ -17,6 +17,7 @@ export const RU: Record<StringKey, string> = {
   "hint.buy": "Купи кейс",
   "hint.key": "Тащи ключ",
   "hint.sell": "Тащи на продажу",
+  "hint.vaultkey": "Поверни ключ",
   "settings.title": "НАСТРОЙКИ",
   "settings.language": "ЯЗЫК",
   "settings.music": "МУЗЫКА",

@@ -17,6 +17,7 @@ export const EN = {
   "hint.buy": "Buy a case",
   "hint.key": "Drag the key",
   "hint.sell": "Drag to sell",
+  "hint.vaultkey": "Turn the key",
   "settings.title": "SETTINGS",
   "settings.language": "LANGUAGE",
   "settings.music": "MUSIC",

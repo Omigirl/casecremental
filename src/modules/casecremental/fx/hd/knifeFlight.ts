@@ -44,6 +44,9 @@ export class KnifeFlight {
   private home: Pt = { x: 0, y: 0 };
   private size = 1;
   private onLand: (() => void) | null = null;
+  /** An animated skin's loop plays through the shot. */
+  private frames: readonly Texture[] = [];
+  private fps = 8;
 
   constructor(parent: Container) {
     this.sprite.visible = false;
@@ -54,9 +57,12 @@ export class KnifeFlight {
     return this.t >= 0;
   }
 
-  /** Lift `texture` (the knife's still frame) out of the card at `at` (screen px), drawn at `size`× scale. */
-  start(texture: Texture, at: Pt, size: number, onLand: () => void): void {
-    this.sprite.texture = texture;
+  /** Lift `texture` (the knife's still frame, or an animated skin's frames played at `fps`) out of the card at
+   *  `at` (screen px), drawn at `size`× scale. */
+  start(texture: Texture | readonly Texture[], at: Pt, size: number, onLand: () => void, fps = 8): void {
+    this.frames = Array.isArray(texture) ? texture : [texture as Texture];
+    this.fps = fps;
+    this.sprite.texture = this.frames[0]!;
     this.home = at;
     this.size = size;
     this.onLand = onLand;
@@ -84,6 +90,7 @@ export class KnifeFlight {
 
   private place(): void {
     const p = flightPose(this.t);
+    if (this.frames.length > 1) this.sprite.texture = this.frames[Math.floor(this.t * FLIGHT_SECONDS * this.fps) % this.frames.length]!;
     this.sprite.position.set(this.home.x + p.x, this.home.y + p.y);
     this.sprite.scale.set(this.size * p.scale * p.flip, this.size * p.scale);
     this.sprite.rotation = p.rotation;
