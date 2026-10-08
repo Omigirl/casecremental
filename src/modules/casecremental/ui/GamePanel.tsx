@@ -4,10 +4,12 @@ import { cameraCss, type Camera } from "../fx/camera";
 import type { GameController } from "../game/controller";
 import { CaseShelf } from "./CaseShelf";
 import { Drawer } from "./Drawer";
-import { useButtonImages, useLang, usePixelUi } from "./hooks";
+import { useButtonImages, useDelayedFlag, useLang, usePixelUi } from "./hooks";
 import { Hud } from "./Hud";
 import { comboTint } from "./juice";
 import { Panel, UiEnvContext } from "./parts";
+import { Prestige } from "./Prestige";
+import { prestigeDelayMs } from "./prestigeRules";
 import { Settings } from "./Settings";
 import { SoundBoard } from "./SoundBoard";
 import { UI_CSS } from "./styles";
@@ -38,6 +40,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
     const [settings, setSettings] = useState(false);
     const [soundBoard, setSoundBoard] = useState(false);
     const tint = comboTint(view.combo);
+    const prestigeShown = useDelayedFlag(view.prestige !== null, prestigeDelayMs);
     const scale = ui?.vp.scale ?? 1;
     const vars = {
       "--px": scale,
@@ -87,6 +90,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 onSoundBoard={import.meta.env.DEV ? () => (setSettings(false), setSoundBoard(true)) : undefined}
               />
             ) : null}
+            {prestigeShown && view.prestige ? <Prestige p={view.prestige} act={act} /> : null}
             {import.meta.env.DEV && soundBoard ? (
               <SoundBoard
                 audio={audio}

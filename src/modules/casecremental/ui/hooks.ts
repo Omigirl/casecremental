@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { tableLayout, type TableLayout } from "../fx/pixel/layout";
 import { hdFontSize } from "../fx/pixel/screen";
 import { pixelViewport, type PixelViewport } from "../fx/pixel/viewport";
@@ -49,4 +49,26 @@ export function useButtonImages(): string[] | null {
     };
   }, []);
   return images;
+}
+
+/** `flag`, turning on after `delayFor(wasOffSinceMount)` ms — so a screen can wait for an animation the
+ *  player is watching, yet come back at once after a reload. */
+export function useDelayedFlag(flag: boolean, delayFor: (wasOffSinceMount: boolean) => number): boolean {
+  const wasOff = useRef(!flag);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (!flag) {
+      wasOff.current = true;
+      setShown(false);
+      return;
+    }
+    const ms = delayFor(wasOff.current);
+    if (ms <= 0) {
+      setShown(true);
+      return;
+    }
+    const id = setTimeout(() => setShown(true), ms);
+    return () => clearTimeout(id);
+  }, [flag]);
+  return flag && shown;
 }
