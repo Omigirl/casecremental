@@ -1,0 +1,10 @@
+# Prettier formats only this game's own code. The base, the catalog modules and the generated files
+# belong to the platform (idos.modules.lock.json fingerprints them), so they are left as delivered.
+/*
+!/src/
+/src/*
+!/src/modules/
+/src/modules/*
+!/src/modules/casecremental/
+!/tools/
+/src/modules/casecremental/assets/

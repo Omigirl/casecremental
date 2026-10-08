@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "art": "node tools/art/build.mjs"
+    "art": "node tools/art/build.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "node tools/hooks/install.mjs"
   },
   "//": "Versions are pinned exactly: this is a seed for AI Coder projects, which build offline against a dependency allowlist baked at these versions (see scripts/pack-builder.mjs). Modules bring their own engine deps (three/phaser) when added.",
   "dependencies": {
@@ -38,6 +41,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.4",
+    "prettier": "3.6.2",
     "typescript": "5.9.3",
     "vite": "8.1.5",
     "vitest": "5.0.3"
