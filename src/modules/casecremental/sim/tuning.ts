@@ -135,3 +135,19 @@ export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 export const VAULT_GROWTH = 6;
 export const FINALE_SECONDS = 20;
 export const VAULT_TROPHY = "vault1";
+
+/** CLOUT = floor(√(lifetime earnings) / this). */
+export const CLOUT_DIVISOR = 10;
+/** Each opened vault multiplies every later sale by this (the catch-up boost). */
+export const CATCH_UP_PER_VAULT = 6;
+export const CHARM_OFFER_SIZE = 3;
+export const PERK_START_CASH = 20;
+export const TRAY_PER_PERK = 4;
+/** Meta perks, bought with CLOUT on the prestige screen. */
+export const PERK_COSTS = {
+  startCash: { baseCost: 3, growth: 1.8, maxLevel: 5 },
+  luck: { baseCost: 5, growth: 2, maxLevel: 5 },
+  charmSlot: { baseCost: 15, growth: 1, maxLevel: 1 },
+  botAwake: { baseCost: 8, growth: 1, maxLevel: 1 },
+  biggerTray: { baseCost: 4, growth: 2, maxLevel: 3 },
+} as const;
