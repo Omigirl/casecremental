@@ -1,5 +1,6 @@
 import { Texture } from "pixi.js";
 import type { SkinDef, WeaponId } from "../../sim/types";
+import { motionFps, renderSkinFrames } from "./motion";
 import { renderPattern } from "./patterns";
 import { SILHOUETTE_BOX, SILHOUETTES } from "./silhouettes";
 
@@ -90,27 +91,53 @@ export async function loadWeaponBases(
   return out;
 }
 
-export class SkinTextures {
-  private readonly cache = new Map<string, Texture>();
-  constructor(private readonly bases: Map<WeaponId, PixelImage>) {}
+export type ToTexture = (img: PixelImage) => Texture;
 
-  texture(skin: SkinDef): Texture {
+const canvasTexture: ToTexture = (img) => {
+  const c = document.createElement("canvas");
+  c.width = img.w;
+  c.height = img.h;
+  const g = c.getContext("2d")!;
+  const id = g.createImageData(img.w, img.h);
+  id.data.set(img.data);
+  g.putImageData(id, 0, 0);
+  const tex = Texture.from(c);
+  tex.source.scaleMode = "nearest";
+  return tex;
+};
+
+/** Every skin's frames, baked once: a still skin is one texture (today's exact pixels), a moving one its loop. */
+export class SkinTextures {
+  private readonly cache = new Map<string, Texture[]>();
+  constructor(
+    private readonly bases: Map<WeaponId, PixelImage>,
+    private readonly toTexture: ToTexture = canvasTexture,
+  ) {}
+
+  frames(skin: SkinDef): Texture[] {
     const hit = this.cache.get(skin.id);
     if (hit) return hit;
-    const base = this.bases.get(skin.weapon) ?? fallbackBase(skin.weapon);
-    const pixels = tintWeapon(base, renderPattern(skin.pattern, base.w, base.h));
-    const c = document.createElement("canvas");
-    c.width = base.w;
-    c.height = base.h;
-    c.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(pixels), base.w, base.h), 0, 0);
-    const tex = Texture.from(c);
-    tex.source.scaleMode = "nearest";
-    this.cache.set(skin.id, tex);
-    return tex;
+    let images: PixelImage[];
+    if (skin.motion) images = renderSkinFrames(skin);
+    else {
+      const base = this.bases.get(skin.weapon) ?? fallbackBase(skin.weapon);
+      images = [{ w: base.w, h: base.h, data: tintWeapon(base, renderPattern(skin.pattern, base.w, base.h)) }];
+    }
+    const frames = images.map(this.toTexture);
+    this.cache.set(skin.id, frames);
+    return frames;
+  }
+
+  texture(skin: SkinDef): Texture {
+    return this.frames(skin)[0]!;
+  }
+
+  fps(skin: SkinDef): number {
+    return motionFps(skin);
   }
 
   destroy(): void {
-    for (const t of this.cache.values()) t.destroy(true);
+    for (const frames of this.cache.values()) for (const t of frames) t.destroy(true);
     this.cache.clear();
   }
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { loadWeaponBases, fallbackBase, tintWeapon } from "./pixelSkin";
+import type { Texture } from "pixi.js";
+import { CASES } from "../../sim/content/cases";
+import { renderPattern } from "./patterns";
+import { loadWeaponBases, fallbackBase, SkinTextures, tintWeapon, type PixelImage } from "./pixelSkin";
 
 describe("pixel skins", () => {
   it("keeps outline pixels dark, transparent pixels empty, and shades the pattern by the base", () => {
@@ -30,5 +33,26 @@ describe("loadWeaponBases", () => {
       throw new Error("404");
     });
     expect(bases.has("rifle")).toBe(false);
+  });
+});
+
+describe("SkinTextures", () => {
+  it("bakes a still skin exactly as before, and a moving skin's loop once", () => {
+    const made: PixelImage[] = [];
+    const fake = (img: PixelImage) => {
+      made.push(img);
+      return { destroy() {} } as unknown as Texture;
+    };
+    const st = new SkinTextures(new Map(), fake);
+    const still = { ...CASES[0]!.skins.find((s) => s.weapon === "rifle")!, motion: undefined };
+    expect(st.frames(still)).toHaveLength(1);
+    expect(made[0]!.data).toEqual(tintWeapon(fallbackBase(still.weapon), renderPattern(still.pattern, 26, 10)));
+    const moving = { ...still, id: "moving", motion: { pattern: "shimmer" as const } };
+    const loop = st.frames(moving);
+    expect(loop).toHaveLength(8);
+    expect(st.frames(moving)).toBe(loop); // cached: baked once
+    expect(made).toHaveLength(9);
+    expect(st.texture(moving)).toBe(loop[0]);
+    expect(st.fps(moving)).toBe(8);
   });
 });
