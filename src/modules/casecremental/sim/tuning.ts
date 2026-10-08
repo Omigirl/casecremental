@@ -85,9 +85,6 @@ export const COMBO_WINDOW_SECONDS = 4;
 export const COMBO_STEP = 0.02;
 export const COMBO_CAP = 50;
 
-/** Broke with an empty bench → a free first-tier case after this long. */
-export const FREE_CASE_SECONDS = 10;
-
 /** Heat = exponential moving average of reveals per second, with this time constant. */
 export const HEAT_TAU_SECONDS = 10;
 /** Intensity bonus per case tier above the first. */
@@ -116,3 +113,8 @@ export const MANIAC_OTHER_MULT = 0.5;
 
 export const TRAY_BASE_CAPACITY = 12;
 export const VAULT_BASE_PRICE = 20_000;
+
+/** Broke with an empty bench: a day job (campaign spec §6.1). */
+export const DAY_JOB_SECONDS = 3;
+export const DAY_JOB_PAY = 2;
+export const DAY_JOB_PAY_CHANCE = 0.9;

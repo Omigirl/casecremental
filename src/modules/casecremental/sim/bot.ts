@@ -48,8 +48,9 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
       busyUntil = s.time + timings.key;
     } else if (b.phase === "empty") {
       spend(run);
-      const target = [...s.unlocked].reverse().find((id) => priceOf(id) <= s.cash);
+      const target = [...s.unlocked].reverse().find((id) => run.casePrice(id) <= s.cash);
       if (target && run.buyCase(target).ok) busyUntil = s.time + timings.buy;
+      else if (run.startDayJob().ok) busyUntil = s.time + timings.buy;
     }
   }
   report.finalCash = run.state.cash;

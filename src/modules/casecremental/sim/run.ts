@@ -9,7 +9,9 @@ import {
   COMBO_HEAT_DECAY_SECONDS,
   COMBO_STEP,
   COMBO_WINDOW_SECONDS,
-  FREE_CASE_SECONDS,
+  DAY_JOB_PAY,
+  DAY_JOB_PAY_CHANCE,
+  DAY_JOB_SECONDS,
   GOLDEN_HOUR_LUCK,
   GOLDEN_HOUR_SECONDS,
   PITY_LUCK_LEVELS,
@@ -72,7 +74,9 @@ export type SimEvent =
   | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource }
   | { type: "caseUnlocked"; caseId: string }
   | { type: "upgradeBought"; id: UpgradeId; level: number }
-  | { type: "stageChanged"; stage: number };
+  | { type: "stageChanged"; stage: number }
+  | { type: "dayJobStarted" }
+  | { type: "dayJobDone"; amount: number };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
 
@@ -89,7 +93,8 @@ export interface RunState {
   /** When the combo window started: the last sell, pushed forward by every spin since (the reel
    *  turning is never the player being slow — only buying, keying and selling count). */
   lastSellAt: number;
-  freeCaseTimer: number;
+  /** Seconds into a day-job shift, or null when not working. */
+  dayJob: number | null;
   heat: number;
   lastTier: number;
   stage: number;
@@ -132,7 +137,7 @@ export class Run {
       combo: 0,
       comboHeat: 0,
       lastSellAt: -1e9,
-      freeCaseTimer: 0,
+      dayJob: null,
       heat: 0,
       lastTier: 1,
       stage: 1,
@@ -192,7 +197,6 @@ export class Run {
     if (s.cash < price) return fail("not enough cash");
     s.cash -= price;
     s.bench = { phase: "locked", caseId, free: false };
-    s.freeCaseTimer = 0;
     this.events.push({ type: "caseBought", caseId, free: false });
     return OK;
   }
@@ -298,19 +302,7 @@ export class Run {
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
     s.comboHeat = s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
 
-    // Anti-softlock: broke with nothing on the bench → a free first-tier case.
-    const cheapest = Math.min(...s.unlocked.map(priceOf));
-    if (s.bench.phase === "empty" && s.cash < cheapest) {
-      s.freeCaseTimer += dt;
-      if (s.freeCaseTimer >= FREE_CASE_SECONDS) {
-        s.freeCaseTimer = 0;
-        const caseId = CASES[0]!.id;
-        s.bench = { phase: "locked", caseId, free: true };
-        this.events.push({ type: "caseBought", caseId, free: true });
-      }
-    } else {
-      s.freeCaseTimer = 0;
-    }
+    this.tickDayJob(dt);
 
     s.heat = updateHeat(s.heat, this.revealsThisTick, dt);
     this.revealsThisTick = 0;
@@ -319,6 +311,32 @@ export class Run {
       s.stage = stage;
       this.events.push({ type: "stageChanged", stage });
     }
+  }
+
+  /** Broke with an empty bench and not already working (campaign spec §6.1). */
+  dayJobAvailable(): boolean {
+    const s = this.state;
+    return s.dayJob === null && s.bench.phase === "empty" && s.cash < this.cheapestPrice();
+  }
+
+  startDayJob(): ActionResult {
+    if (this.state.dayJob !== null) return fail("already working");
+    if (!this.dayJobAvailable()) return fail("no day job: you can afford a case or the bench is busy");
+    this.state.dayJob = 0;
+    this.events.push({ type: "dayJobStarted" });
+    return OK;
+  }
+
+  private tickDayJob(dt: number): void {
+    const s = this.state;
+    if (s.dayJob === null) return;
+    s.dayJob += dt;
+    if (s.dayJob < DAY_JOB_SECONDS) return;
+    s.dayJob = null;
+    const amount = this.rng.next() < DAY_JOB_PAY_CHANCE ? DAY_JOB_PAY : 0;
+    s.cash += amount;
+    s.lifetimeEarnings += amount;
+    this.events.push({ type: "dayJobDone", amount });
   }
 
   /** The charms that react to what was just revealed. */

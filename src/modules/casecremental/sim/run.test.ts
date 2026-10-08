@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { priceOf } from "./content/cases";
 import { Run, type SimEvent } from "./run";
-import { FREE_CASE_SECONDS, SPIN_BASE_SECONDS, START_CASH, TEASE_CRAWL } from "./tuning";
+import { SPIN_BASE_SECONDS, START_CASH, TEASE_CRAWL } from "./tuning";
 
 const DT = 1 / 30;
 function tickFor(run: Run, seconds: number) {
@@ -197,21 +197,6 @@ describe("Run", () => {
     expect(run.buyUpgrade("quickHands")).toEqual({ ok: false, reason: "max level" });
     expect(run.state.upgrades.quickHands).toBe(10);
     expect(run.effects().spinSeconds).toBeLessThan(1);
-  });
-
-  it("gives a free case when broke with an empty bench", () => {
-    const run = new Run(1);
-    run.state.cash = 0;
-    tickFor(run, FREE_CASE_SECONDS - 0.5);
-    expect(run.state.bench.phase).toBe("empty");
-    tickFor(run, 1);
-    expect(run.state.bench).toEqual({ phase: "locked", caseId: "bootcamp", free: true });
-  });
-
-  it("does not give free cases to a player who can pay", () => {
-    const run = new Run(1);
-    tickFor(run, FREE_CASE_SECONDS * 2);
-    expect(run.state.bench.phase).toBe("empty");
   });
 
   it("climbs to stage 2 with fast, combo-heavy play", () => {
