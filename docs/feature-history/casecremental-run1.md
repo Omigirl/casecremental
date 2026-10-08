@@ -14,7 +14,7 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   The first M2b had the bot walking over to sell — it read wrong next to the bot's own reel, so it was replaced.
 - **Stage 5 is "Unhinged"** (was "Cyberpsychosis" — it didn't fit the game).
 - **Content is split across the four runs** (user): Run 1 has the bot opening its own cases (Speed ×1 → ×8) and the auto-seller, the tray, 8 of
-  14 charms, multi-open ×2 (plan M2b-C). Later runs bring the bot's own reel, the locker, the auto-buyer grid.
+  14 charms, multi-open ×2 (plan M2b-C). Later runs bring the locker and the auto-buyer grid.
 - **The vault is a last-chance ticket** (user, after the first finale felt "down to earth"): buying it takes
   the screen (UI hidden), the player turns a devilish key by hand, the vault opens like a legendary chest
   (fanfare, golden column, coins, fireworks, five reels landing on the fanfare's beats — the fifth is Vault I's
