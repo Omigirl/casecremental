@@ -3,6 +3,7 @@ import { RUN1_CHARMS } from "./charms";
 import { buyPerk, charmSlots, cloutFor, completeVault, freshMeta, offerCharms, perkCost, pickCharm, setupFor } from "./meta";
 import {
   CATCH_UP_PER_VAULT,
+  CLOUT_DIVISOR,
   PERK_START_CASH,
   START_CASH,
   TRAY_BASE_CAPACITY,
@@ -11,17 +12,20 @@ import {
   VAULT_GROWTH,
 } from "./tuning";
 
+/** Lifetime earnings that pay exactly 10 CLOUT. */
+const TEN_CLOUT = (10 * CLOUT_DIVISOR) ** 2;
+
 describe("prestige meta", () => {
   it("pays CLOUT by the run's earnings", () => {
     expect(cloutFor(0)).toBe(0);
-    expect(cloutFor(10_000)).toBe(10);
-    expect(cloutFor(40_000)).toBeGreaterThan(cloutFor(10_000));
+    expect(cloutFor(TEN_CLOUT)).toBe(10);
+    expect(cloutFor(TEN_CLOUT * 4)).toBeGreaterThan(cloutFor(TEN_CLOUT));
   });
 
   it("completes a vault once per call: CLOUT, the trophy (kept once), the loop, a 3-charm offer", () => {
     const m = freshMeta();
-    completeVault(m, 10_000, "vault1", 42);
-    completeVault(m, 10_000, "vault1", 42);
+    completeVault(m, TEN_CLOUT, "vault1", 42);
+    completeVault(m, TEN_CLOUT, "vault1", 42);
     expect(m.clout).toBe(20);
     expect(m.lastGain).toBe(10);
     expect(m.loops).toBe(2);

@@ -8,7 +8,7 @@ export const START_CASH = 6;
 /** Price and one-time unlock cost per case id, in ladder order. */
 export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: number }>> = {
   bootcamp: { price: 2, unlockCost: 0 },
-  wildwood: { price: 15, unlockCost: 40 },
+  wildwood: { price: 15, unlockCost: 30 },
   bedrock: { price: 150, unlockCost: 1200 },
 };
 
@@ -112,7 +112,7 @@ export const MANIAC_MILSPEC_MULT = 4;
 export const MANIAC_OTHER_MULT = 0.5;
 
 export const TRAY_BASE_CAPACITY = 12;
-export const VAULT_BASE_PRICE = 20_000;
+export const VAULT_BASE_PRICE = 350_000;
 
 /** Broke with an empty bench: a day job (campaign spec §6.1). */
 export const DAY_JOB_SECONDS = 3;
@@ -125,21 +125,21 @@ export const BOT_STEP_SECONDS = { toBench: 1.2, pickUp: 0.4, carry: 1.2, drop: 0
 export const BOT_REVEAL_HOLD = 0.6;
 /** …and a Covert or ★ this long (its reveal — the knife's showcase — plays first). */
 export const BOT_BIG_REVEAL_HOLD = 2.6;
-export const BOT_WAKE_COST = 80;
+export const BOT_WAKE_COST = 22;
 /** Run 1's cap: Speed levels and the speed at the last one. */
 export const BOT_SPEED_LEVELS = 5;
 export const BOT_MAX_SPEED = 8;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Vault Case I: its price grows this much per completed loop; the finale lasts this long. */
-export const VAULT_GROWTH = 6;
+export const VAULT_GROWTH = 4;
 export const FINALE_SECONDS = 20;
 export const VAULT_TROPHY = "vault1";
 
 /** CLOUT = floor(√(lifetime earnings) / this). */
-export const CLOUT_DIVISOR = 10;
+export const CLOUT_DIVISOR = 60;
 /** Each opened vault multiplies every later sale by this (the catch-up boost). */
-export const CATCH_UP_PER_VAULT = 6;
+export const CATCH_UP_PER_VAULT = 3;
 export const CHARM_OFFER_SIZE = 3;
 export const PERK_START_CASH = 20;
 export const TRAY_PER_PERK = 4;

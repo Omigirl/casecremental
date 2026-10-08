@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { BOT_WAKE_COST, DAY_JOB_SECONDS, START_CASH } from "../sim/tuning";
+import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, START_CASH } from "../sim/tuning";
 import { buildView } from "./view";
 
 describe("buildView", () => {
@@ -112,7 +112,7 @@ describe("buildView — M2b", () => {
     const run = new Run(1);
     run.state.over = true;
     const meta = freshMeta();
-    completeVault(meta, 10_000, "vault1", 1);
+    completeVault(meta, (10 * CLOUT_DIVISOR) ** 2, "vault1", 1); // 10 CLOUT
     const v = buildView(run, meta);
     expect(v.over).toBe(true);
     expect(v.prestige).toMatchObject({ clout: 10, gained: 10, loops: 1, slots: 1, picked: [] });
