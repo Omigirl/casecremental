@@ -5,6 +5,7 @@ import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
 import type { TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
+import { scaleTint } from "./tint";
 
 // The room and everything on the table that isn't your bench: the backdrop (wall, back layer,
 // shelves — nudged 1–2 px with the pointer for parallax), the swaying lamp, the workbench, the felt
@@ -98,6 +99,16 @@ export class Room {
   /** The auto-seller powers on when bought (rework spec §1). */
   setSellerOn(on: boolean): void {
     this.seller.tint = on ? 0xffffff : 0xa8a8b8;
+  }
+
+  /**
+   * Darkens the room toward black (blackout / power-up). A container's tint multiplies into its children,
+   * so the bot reel's online/offline tint and the seller's on/off tint are kept and simply darkened with it.
+   */
+  setLight(level: number): void {
+    const tint = scaleTint(0xffffff, 0.15 + 0.85 * level);
+    this.back.tint = tint;
+    this.front.tint = tint;
   }
 
   update(ms: number): void {

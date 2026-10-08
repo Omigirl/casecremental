@@ -6,6 +6,7 @@ import { hdFontSize } from "../pixel/screen";
 import type { PixelViewport } from "../pixel/viewport";
 import { binLight, lampFlicker, makeMotes, stepMotes, type Box, type Mote } from "./ambience";
 import { pixelStyle } from "./font";
+import type { LightLevels } from "../vault/lights";
 
 // The full-resolution layer over the pixel world (spec §2): the lamp's warm light, a vignette, dust
 // drifting in the light, the glow under the case / reveal, the sleeping bot's Z's, the powered-off
@@ -47,6 +48,9 @@ export class HdLayer {
   private readonly zs: Text[] = [];
   private readonly led = new Graphics();
   private readonly flashRect = new Graphics();
+  /** Black over the whole scene: 1 - lights.room (blackout and power-up). */
+  private readonly veil = new Graphics();
+  private lights: LightLevels = { room: 1, lamp: 1, reels: 1, bin: 1, leds: 1 };
   private motes: Mote[] = [];
   private moteBox: Box = { x: 0, y: 0, w: 1, h: 1 };
   private vp: PixelViewport | null = null;
@@ -106,7 +110,8 @@ export class HdLayer {
       this.particles.container,
       this.coins.container,
     );
-    this.overlay.addChild(this.vignette, this.flashRect);
+    this.veil.alpha = 0;
+    this.overlay.addChild(this.veil, this.vignette, this.flashRect);
   }
 
   /** The auto-seller's LED: blinking red on standby, steady green once it is on. */
@@ -130,6 +135,7 @@ export class HdLayer {
     this.vignette.width = screenW;
     this.vignette.height = screenH;
     this.flashRect.clear().rect(0, 0, screenW, screenH).fill({ color: 0xffffff });
+    this.veil.clear().rect(0, 0, screenW, screenH).fill({ color: 0x000000 });
     this.moteBox = { x: (l.lamp.x - l.table.w * 0.4) * k, y: 0, w: l.table.w * 0.8 * k, h: (l.table.y + 50) * k };
     this.motes = makeMotes(MOTES, this.moteBox, Math.random);
     this.dust.children.forEach((s) => (s as Sprite).scale.set(Math.max(0.25, k / 16)));
@@ -163,6 +169,11 @@ export class HdLayer {
     this.binCalling = on;
   }
 
+  /** The blackout and the power-up drive these (rework spec §4). */
+  setLights(l: LightLevels): void {
+    this.lights = l;
+  }
+
   setBotAsleep(on: boolean): void {
     this.asleep = on;
   }
@@ -176,7 +187,7 @@ export class HdLayer {
   update(dt: number): void {
     this.t += dt;
     const flicker = lampFlicker(this.t);
-    this.lamp.alpha = 0.75 * flicker;
+    this.lamp.alpha = 0.75 * flicker * this.lights.lamp;
     stepMotes(this.motes, dt * (this.vp?.scale ?? 1), this.moteBox, this.t);
     this.motes.forEach((m, i) => {
       const s = this.dust.children[i] as Sprite;
@@ -185,11 +196,12 @@ export class HdLayer {
     });
     this.glowSprite.tint = this.glowColor;
     this.glowSprite.alpha += (this.glowTarget * (0.85 + 0.15 * Math.sin(this.t * 5)) - this.glowSprite.alpha) * Math.min(1, dt * 6);
-    this.led.alpha = this.sellerOn ? 1 : Math.sin(this.t * Math.PI) > 0 ? 1 : 0.15;
+    this.led.alpha = (this.sellerOn ? 1 : Math.sin(this.t * Math.PI) > 0 ? 1 : 0.15) * this.lights.leds;
     this.binGlow.tint = this.binCalling ? 0xb8ff8a : 0xffc870;
-    this.binGlow.alpha += (binLight(this.binCalling, this.t) - this.binGlow.alpha) * Math.min(1, dt * 6);
+    this.binGlow.alpha += (binLight(this.binCalling, this.t) * this.lights.bin - this.binGlow.alpha) * Math.min(1, dt * 6);
     this.flashAlpha = Math.max(0, this.flashAlpha - dt * 2.5);
     this.flashRect.alpha = this.flashAlpha;
+    this.veil.alpha = 1 - this.lights.room;
     this.updateZs();
     this.particles.update(dt);
     this.coins.update(dt);
