@@ -5,8 +5,7 @@ plans M2b-A (logic) and M2b-B (on screen). Multi-open ×2 is plan M2b-C.
 
 ## The loop
 Open by hand → wake the bot (it opens its own cases on its own reel with your cash; the auto-seller machine
-sells the ordinary drops and sets the good ones aside in the claim tray) → unlock Wildwood and Bedrock → Vault Case I → a ~20 s hands-off finale → the vault opens on one ★
-(the Vault I trophy) → prestige: CLOUT, pick a charm (3 offered from 8), buy perks → a fresh, boosted Run 1.
+sells the ordinary drops and sets the good ones aside in the claim tray) → unlock Wildwood and Bedrock → Vault Case I → the player turns the devil key → the vault opens like a legendary chest on five reels, the fifth its animated ★ (the Vault I trophy) → blackout → prestige: CLOUT, pick a charm (3 offered from 8), buy perks → a fresh, boosted Run 1.
 
 ## Decisions worth knowing
 - **Roles (rework, user after playing M2b):** the bot opens its own cases on its own reel with your cash; you
@@ -16,8 +15,15 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
 - **Stage 5 is "Unhinged"** (was "Cyberpsychosis" — it didn't fit the game).
 - **Content is split across the four runs** (user): Run 1 has the bot opening its own cases (Speed ×1 → ×8) and the auto-seller, the tray, 8 of
   14 charms, multi-open ×2 (plan M2b-C). Later runs bring the bot's own reel, the locker, the auto-buyer grid.
-- **The finale is a cinematic** (user): nothing in it depends on input, so a player who sits back still sees it.
-  Its intensity is read from the sim's finale timer each frame, so a reload resumes it where it was.
+- **The vault is a last-chance ticket** (user, after the first finale felt "down to earth"): buying it takes
+  the screen (UI hidden), the player turns a devilish key by hand, the vault opens like a legendary chest
+  (fanfare, golden column, coins, fireworks, five reels landing on the fanfare's beats — the fifth is Vault I's
+  own animated ★, "Event Horizon"), then a smooth blackout, the prestige screen over black with its own music,
+  and the next run's lights stutter back on. The opening is a fixed sim timeline, so a reload resumes it.
+  The vault's reels live in their own transparent pixel layer inside the vault scene (the scene's dim would hide
+  them in the main world); the UI fades back 3.4 s into the next run, and the power-up is silent until the lights
+  are on. After a lobby trip the music is re-derived from the sim (musicPlan), so the fanfare resumes in step with
+  the reels.
 - **The day job replaced the free case** (user): broke with an empty bench → a 3 s shift, 90 % +$2.
 - **The prestige screen** waits for the vault's showcase only when the player watched the run end; after a
   reload it is up at once.
