@@ -1,0 +1,32 @@
+{
+  "posterize": 48,
+  "outline": [18, 14, 16],
+  "assets": [
+    { "id": "room-back", "source": "room-back.png", "kind": "static", "targetW": 480, "outline": false },
+    { "id": "room-shelves", "source": "room-shelves.png", "kind": "static", "targetW": 480, "outline": false },
+    { "id": "room-lamp", "source": "room-lamp.png", "kind": "static", "targetH": 40 },
+    { "id": "table", "source": "table.png", "kind": "static", "targetW": 240, "outline": false },
+    { "id": "mat", "source": "mat.png", "kind": "static", "targetW": 64 },
+    { "id": "case-bootcamp", "source": "case-bootcamp.png", "kind": "sheet", "frames": 4, "targetH": 20 },
+    { "id": "case-wildwood", "source": "case-wildwood.png", "kind": "sheet", "frames": 4, "targetH": 20 },
+    { "id": "case-bedrock", "source": "case-bedrock.png", "kind": "sheet", "frames": 4, "targetH": 20 },
+    { "id": "key", "source": "key.png", "kind": "sheet", "frames": 4, "targetH": 10 },
+    { "id": "sell-bin", "source": "sell-bin.png", "kind": "sheet", "frames": 4, "targetH": 24 },
+    { "id": "tray", "source": "tray.png", "kind": "static", "targetW": 100 },
+    { "id": "auto-seller", "source": "auto-seller.png", "kind": "static", "targetH": 30 },
+    { "id": "coin", "source": "coin.png", "kind": "sheet", "frames": 4, "targetH": 8 },
+    { "id": "bot-sleep", "source": "bot-sleep-sheet.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 48, "eyes": false },
+    { "id": "bot-open", "source": "bot-open-sheet-2x4.png", "kind": "sheet", "frames": 8, "rows": 2, "targetH": 48, "eyes": true },
+    { "id": "weapon-rifle", "source": "weapon-rifle.png", "kind": "static", "targetW": 26 },
+    { "id": "weapon-sniper", "source": "weapon-sniper.png", "kind": "static", "targetW": 26 },
+    { "id": "weapon-pistol", "source": "weapon-pistol.png", "kind": "static", "targetW": 18 },
+    { "id": "weapon-heavyPistol", "source": "weapon-heavyPistol.png", "kind": "static", "targetW": 20 },
+    { "id": "weapon-smg", "source": "weapon-smg.png", "kind": "static", "targetW": 22 },
+    { "id": "weapon-shotgun", "source": "weapon-shotgun.png", "kind": "static", "targetW": 26 },
+    { "id": "weapon-mg", "source": "weapon-mg.png", "kind": "static", "targetW": 26 },
+    { "id": "weapon-knife", "source": "weapon-knife.png", "kind": "static", "targetW": 20 },
+    { "id": "ui-frame", "source": "ui-frame.png", "kind": "static", "targetW": 48, "outline": false },
+    { "id": "ui-button", "source": "ui-button.png", "kind": "sheet", "frames": 3, "targetH": 16, "outline": false },
+    { "id": "reel-frame", "source": "reel-frame.png", "kind": "static", "targetW": 48, "outline": false }
+  ]
+}

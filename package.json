@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "art": "node tools/art/build.mjs"
   },
   "//": "Versions are pinned exactly: this is a seed for AI Coder projects, which build offline against a dependency allowlist baked at these versions (see scripts/pack-builder.mjs). Modules bring their own engine deps (three/phaser) when added.",
   "dependencies": {

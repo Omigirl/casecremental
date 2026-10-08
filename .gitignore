@@ -4,3 +4,4 @@ dist/
 *.zip
 .superpowers/
 .npm-cache/
+art/preview/
