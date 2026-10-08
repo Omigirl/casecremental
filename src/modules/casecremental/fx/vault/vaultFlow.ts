@@ -1,9 +1,45 @@
+import type { RunState } from "../../sim/run";
+import { VAULT_OPENING_SECONDS } from "../../sim/tuning";
 import type { AudioEngine } from "../audio/AudioEngine";
+import type { TrackId } from "../audio/sounds";
 import { BLACKOUT_SECONDS, blackoutLevel, LIGHTS_UP_SECONDS, lightCues, lightLevels, type LightLevels } from "./lights";
 
 // The run's end and the next run's start, for the World (rework spec §4): the blackout after the vault, the
 // dark prestige screen with its music, and the workshop powering back up — light levels each frame, the
 // breaker sounds on their cues, and the music handed back to the stage loop once the lights are on.
+
+export interface MusicPlan {
+  /** A named track over the stage loop, or null for the stage loop. */
+  track: TrackId | null;
+  loop: boolean;
+  /** Where a one-shot starts (the fanfare resumes at the opening's time). */
+  offset: number;
+  musicOn: boolean;
+}
+
+/** What should be playing when the scene comes back from the lobby, read from the sim (the music engine
+ *  only remembers where a track started, not where the vault is). */
+export function musicPlan(s: Pick<RunState, "vault" | "over">, poweringUp: boolean): MusicPlan {
+  const plan = (track: TrackId | null, loop = true, offset = 0, musicOn = true): MusicPlan => ({ track, loop, offset, musicOn });
+  const v = s.vault;
+  if (v?.phase === "key") return plan("vault-suspense");
+  if (v?.phase === "opening") return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t) : plan(null, true, 0, false);
+  if (s.over) return plan("prestige");
+  if (poweringUp) return plan(null, true, 0, false); // the PowerCycle turns it on when the lights are up
+  return plan(null);
+}
+
+/** Apply a plan: the track is chosen while the music is still off, so turning it on starts the right one. */
+export function applyMusic(audio: AudioEngine, p: MusicPlan): void {
+  if (!p.musicOn) {
+    audio.setMusicOn(false);
+    audio.setTrack(p.track);
+    return;
+  }
+  audio.setMusicOn(false);
+  audio.setTrack(p.track, { loop: p.loop, offset: p.offset });
+  audio.setMusicOn(true);
+}
 
 const all = (v: number): LightLevels => ({ room: v, lamp: v, reels: v, bin: v, leds: v });
 
@@ -14,6 +50,11 @@ export class PowerCycle {
   private prestigeOn = false;
 
   constructor(private readonly audio: AudioEngine) {}
+
+  /** The lights are still coming up (the music waits for them). */
+  get poweringUp(): boolean {
+    return this.lightsT !== null;
+  }
 
   /** The vault has opened: fade everything to black, then the prestige music. */
   blackout(): void {

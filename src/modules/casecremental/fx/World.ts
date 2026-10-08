@@ -39,7 +39,7 @@ import { crawlSeconds } from "./reel/motion";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 import { VAULT_CUE_TIMES } from "./vault/cues";
 import { StackedReels, stackRects } from "./vault/stackedReels";
-import { PowerCycle } from "./vault/vaultFlow";
+import { applyMusic, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { vaultReelArea, VaultScene } from "./vault/VaultScene";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
@@ -215,6 +215,11 @@ export class World {
     const top = caseById("bedrock");
     drops.forEach((d, i) => this.vaultReels.start(i, top, skinById(d.skinId), this.rng));
     this.vaultReels.visible = true;
+  }
+
+  /** Back from the lobby: the music picks up where the vault (or the power-up) is, not where it was asked for. */
+  resumeMusic(): void {
+    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.poweringUp));
   }
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */

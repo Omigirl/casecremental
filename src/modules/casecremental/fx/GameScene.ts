@@ -66,7 +66,10 @@ export function createGameScene(controller: GameController, audio: AudioEngine, 
     activate() {
       running = true;
       controller.running = true;
-      audio.setMusicOn(true);
+      // the World knows where the vault is (a lobby trip mid-fanfare resumes it, not restarts it); before it
+      // exists, its restore() picks the music
+      if (world) world.resumeMusic();
+      else audio.setMusicOn(true);
       app?.ticker?.start();
     },
     suspend() {
