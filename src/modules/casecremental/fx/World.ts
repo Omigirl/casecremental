@@ -23,7 +23,7 @@ import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
 import { Zoom } from "./juice/zoom";
-import { fitCentre, hintKey, revealLines } from "./labels";
+import { fitCentre, hintKey, revealLines, trayFull } from "./labels";
 import { Bench } from "./pixel/Bench";
 import { BotCardView } from "./pixel/BotCard";
 import { BotSprite } from "./pixel/BotSprite";
@@ -78,6 +78,8 @@ export class World {
   private readonly label = [new Text({ text: "", style: pixelStyle(8, 0xffffff) }), new Text({ text: "", style: pixelStyle(8, 0xffffff) })];
   private labelSpan = { lo: 0, hi: 0 };
   private readonly offline = new Text({ text: "", style: pixelStyle(8, 0x6a6f80) });
+  private readonly trayFullLabel = new Text({ text: "", style: pixelStyle(8, 0xffb020) });
+  private trayBlink = 0;
   private vp: PixelViewport;
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
@@ -129,8 +131,9 @@ export class World {
       this.bot.root,
       this.botCard.root,
     );
-    this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.lifted.root);
-    for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
+    this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.trayFullLabel, this.lifted.root);
+    for (const txt of [this.hint, ...this.label, this.offline, this.trayFullLabel]) txt.anchor.set(0.5, 1);
+    this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
     app.stage.addChild(this.scene, this.hd.overlay);
@@ -219,6 +222,8 @@ export class World {
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
     this.tray.update(run.state.tray, run.setup.trayCapacity);
+    this.trayBlink += realSeconds;
+    this.trayFullLabel.visible = trayFull(run.state, run.setup.trayCapacity) && Math.floor(this.trayBlink * 4) % 2 === 0; // ~2 Hz
     this.room.setSellerOn(run.state.seller.on);
     this.hd.setSellerOn(run.state.seller.on);
     this.room.update(realSeconds * 1000);
@@ -252,6 +257,9 @@ export class World {
   }
 
   destroy(): void {
+    this.tray.cancelDrag(); // a drag left mid-air would leave the card "held" across a lobby trip
+    this.botCard.cancelDrag();
+    this.bench.cancelDrag();
     this.off();
     this.app.stage.removeAllListeners();
     this.hd.destroy();
@@ -362,7 +370,7 @@ export class World {
     this.hd.layout(this.l, this.vp, width, height);
     const k = this.vp.scale;
     const size = hdFontSize(k);
-    for (const txt of [this.hint, ...this.label, this.offline]) txt.style.fontSize = size;
+    for (const txt of [this.hint, ...this.label, this.offline, this.trayFullLabel]) txt.style.fontSize = size;
     const r = this.l.you.reel;
     this.hint.position.set((r.x + r.w / 2) * k, (r.y + r.h + 2) * k);
     // The card's lines wrap to the table and slide along it rather than run under a side panel.
@@ -370,6 +378,8 @@ export class World {
     for (const txt of this.label) Object.assign(txt.style, { wordWrap: true, wordWrapWidth: (tb.w - 4) * k, align: "center" });
     this.labelSpan = { lo: (tb.x + 2) * k, hi: (tb.x + tb.w - 2) * k };
     this.placeLabels();
+    const tr = this.l.tray;
+    this.trayFullLabel.position.set((tr.x + tr.w / 2) * k, (tr.y - 1) * k);
     const br = this.l.bot.reel;
     if (br) this.offline.position.set((br.x + br.w / 2) * k, (br.y + br.h / 2) * k - size / 2);
   }
@@ -387,6 +397,8 @@ export class World {
     this.placeLabels();
     const off = t("station.offline");
     if (this.offline.text !== off) this.offline.text = off;
+    const full = t("float.trayfull");
+    if (this.trayFullLabel.text !== full) this.trayFullLabel.text = full;
   }
 
   private placeLabels(): void {

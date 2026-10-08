@@ -34,3 +34,8 @@ export function fitCentre(want: number, width: number, lo: number, hi: number): 
   if (width >= hi - lo) return (lo + hi) / 2;
   return Math.min(hi - width / 2, Math.max(lo + width / 2, want));
 }
+
+/** The claim tray is full while the auto-seller is on: a card above its threshold has nowhere to go. */
+export function trayFull(state: { seller: { on: boolean }; tray: readonly unknown[] }, capacity: number): boolean {
+  return state.seller.on && state.tray.length >= capacity;
+}

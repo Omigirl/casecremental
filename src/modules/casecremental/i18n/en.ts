@@ -38,6 +38,7 @@ export const EN = {
   "seller.sells": "Sells up to:",
   "seller.speed": "Speed LV {n}",
   "float.nopay": "NO PAY",
+  "float.trayfull": "TRAY FULL",
   "prestige.title": "VAULT I OPENED",
   "prestige.gained": "+{n} CLOUT",
   "prestige.total": "CLOUT: {n}",

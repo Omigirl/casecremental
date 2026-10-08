@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setLang } from "../i18n/index";
 import type { Drop } from "../sim/types";
-import { fitCentre, hintKey, revealLines } from "./labels";
+import { fitCentre, hintKey, revealLines, trayFull } from "./labels";
 
 afterEach(() => setLang("en"));
 
@@ -34,5 +34,14 @@ describe("canvas labels", () => {
     expect(fitCentre(30, 100, 0, 300)).toBe(50); // pushed off the left edge
     expect(fitCentre(290, 100, 0, 300)).toBe(250); // pushed off the right edge
     expect(fitCentre(30, 400, 0, 300)).toBe(150); // wider than the span: centred on it
+  });
+});
+
+describe("trayFull", () => {
+  const drop = DROP;
+  it("is on only while the auto-seller is on and the tray is at capacity", () => {
+    expect(trayFull({ seller: { on: true }, tray: [drop, drop] }, 2)).toBe(true);
+    expect(trayFull({ seller: { on: true }, tray: [drop] }, 2)).toBe(false);
+    expect(trayFull({ seller: { on: false }, tray: [drop, drop] }, 2)).toBe(false);
   });
 });
