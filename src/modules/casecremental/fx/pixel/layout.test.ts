@@ -84,5 +84,6 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     expect(r.x - cw / 2).toBeGreaterThanOrEqual(l.table.x);
     expect(r.x + cw / 2).toBeLessThanOrEqual(l.table.x + l.table.w);
     expect(Math.abs(r.x - l.you.reveal.x)).toBeGreaterThanOrEqual(cw); // the two cards don't overlap
+    expect(r.x).toBeLessThanOrEqual(l.bot.spot.x - 10); // the bot's face stays visible beside it
   });
 });

@@ -126,8 +126,8 @@ export class World {
       this.reel,
       this.botReel,
       this.bench.root,
-      this.botCard.root,
       this.bot.root,
+      this.botCard.root,
     );
     this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
@@ -215,6 +215,7 @@ export class World {
     this.botReel.update(spin ? { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 } : null);
     this.botCard.update(bot.card);
     this.room.setBotOnline(bot.awake);
+    this.botReel.visible = !!this.l.bot.reel && bot.awake;
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
     this.tray.update(run.state.tray, run.setup.trayCapacity);
@@ -355,7 +356,6 @@ export class World {
     this.tray.layout(this.l);
     this.reel.layout(this.l.you.reel);
     if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
-    this.botReel.visible = !!this.l.bot.reel;
     this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
     const k = this.vp.scale;
