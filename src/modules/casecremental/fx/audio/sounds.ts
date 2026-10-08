@@ -9,7 +9,7 @@ export const SOUNDS = {
   "key-turn": { bus: "sfx", gain: 0.8 },
   "lid-creak": { bus: "sfx", gain: 0.6 },
   "reel-tick": { bus: "sfx", gain: 0.35 },
-  "brake-thud": { bus: "sfx", gain: 0.9 },
+  "reel-stop": { bus: "sfx", gain: 0.9 },
   "reveal-chime": { bus: "sfx", gain: 0.7 },
   "covert-impact": { bus: "sfx", gain: 1 },
   "jackpot-swell": { bus: "sfx", gain: 1 },

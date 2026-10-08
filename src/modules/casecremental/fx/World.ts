@@ -146,7 +146,7 @@ export class World {
     this.hd.update(realSeconds);
     this.look.update(realSeconds);
     setTweenTimeScale(scale);
-    this.updateText(b, run.canBrake());
+    this.updateText(b);
 
     const k = this.vp.scale;
     this.lifted.update(this.bench.lifted(), k, realSeconds);
@@ -201,8 +201,8 @@ export class World {
   }
 
   /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
-  private updateText(b: BenchState, canBrake: boolean): void {
-    const key = hintKey(b, canBrake);
+  private updateText(b: BenchState): void {
+    const key = hintKey(b);
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const lines = b.phase === "revealed" ? revealLines(b.drop) : ["", ""];
@@ -240,11 +240,9 @@ export class World {
         this.audio.play("key-turn");
         this.audio.play("lid-creak", { delay: 0.12 });
         break;
-      case "braked":
-        this.shake.add(0.12);
-        this.audio.play("brake-thud", { gain: 0.6 });
-        break;
       case "revealed":
+        this.shake.add(0.12); // the reel lands
+        this.audio.play("reel-stop", { gain: 0.6 });
         this.onReveal(e.drop);
         break;
       case "sold": {

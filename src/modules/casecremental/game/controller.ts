@@ -8,7 +8,6 @@ import { buildView, type GameView } from "./view";
 export type Action =
   | { type: "buyCase"; caseId: string }
   | { type: "insertKey" }
-  | { type: "brake" }
   | { type: "sell" }
   | { type: "unlockCase"; caseId: string }
   | { type: "buyUpgrade"; id: UpgradeId };
@@ -76,8 +75,6 @@ export class GameController {
         return this.run.buyCase(a.caseId);
       case "insertKey":
         return this.run.insertKey();
-      case "brake":
-        return this.run.brake();
       case "sell":
         return this.run.sell();
       case "unlockCase":

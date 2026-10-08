@@ -13,7 +13,7 @@ import { ITEM_SIZE, type Pt, type Rect, type TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
 
 // Your bench: the case on the mat, the key (drag it into the lock), the revealed skin card (drag
-// it into the SELL bin) and the bin. Taps work too; a press anywhere while the reel spins brakes.
+// it into the SELL bin) and the bin. Taps work too.
 // Every change goes through controller.act — the one input path. A dragged item leaves the pixel
 // world and is drawn lifted in the HD layer (lifted()) until it is let go.
 
@@ -119,7 +119,6 @@ export class Bench {
 
   pointerDown(p: Pt): boolean {
     if (this.drag.down(p, this.grabbables())) return true;
-    if (this.phase === "spinning") return this.controller.act({ type: "brake" }).ok;
     if (this.phase === "revealed" && this.l && dist(p, this.l.bin) <= this.l.binR + 2) return this.controller.act({ type: "sell" }).ok;
     return false;
   }

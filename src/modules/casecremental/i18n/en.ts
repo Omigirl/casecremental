@@ -16,7 +16,6 @@ export const EN = {
   "label.level": "LV {n}",
   "hint.buy": "Buy a case",
   "hint.key": "Drag the key",
-  "hint.brake": "Click: brake!",
   "hint.sell": "Drag to sell",
   "settings.title": "SETTINGS",
   "settings.language": "LANGUAGE",

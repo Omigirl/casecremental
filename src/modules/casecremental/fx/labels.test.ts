@@ -14,9 +14,10 @@ describe("canvas labels", () => {
     expect(revealLines(DROP)).toEqual(["ST™ АК-Пиу | Лесные учения", "С завода · $7,50"]);
   });
 
-  it("hints at the next step, and hides the brake hint when braking isn't possible", () => {
-    expect(hintKey({ phase: "empty" }, false)).toBe("hint.buy");
-    expect(hintKey({ phase: "revealed", caseId: "bootcamp", drop: DROP }, false)).toBe("hint.sell");
+  it("hints at the next step and stays quiet while the reel spins", () => {
+    expect(hintKey({ phase: "empty" })).toBe("hint.buy");
+    expect(hintKey({ phase: "spinning", caseId: "bootcamp", drop: DROP, elapsed: 1, fullDuration: 6 })).toBeNull();
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", drop: DROP })).toBe("hint.sell");
   });
 
   it("keeps a centred line inside its span, as near the wanted centre as it fits", () => {

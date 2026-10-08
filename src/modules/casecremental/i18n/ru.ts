@@ -16,7 +16,6 @@ export const RU: Record<StringKey, string> = {
   "label.level": "УР {n}",
   "hint.buy": "Купи кейс",
   "hint.key": "Тащи ключ",
-  "hint.brake": "Жми: тормоз!",
   "hint.sell": "Тащи на продажу",
   "settings.title": "НАСТРОЙКИ",
   "settings.language": "ЯЗЫК",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { priceOf } from "./content/cases";
 import { Run, type SimEvent } from "./run";
-import { BRAKE_SECONDS, FREE_CASE_SECONDS, START_CASH } from "./tuning";
+import { FREE_CASE_SECONDS, SPIN_BASE_SECONDS, START_CASH } from "./tuning";
 
 const DT = 1 / 30;
 function tickFor(run: Run, seconds: number) {
@@ -10,7 +10,7 @@ function tickFor(run: Run, seconds: number) {
 function revealOne(run: Run, caseId = "bootcamp") {
   expect(run.buyCase(caseId).ok).toBe(true);
   expect(run.insertKey().ok).toBe(true);
-  tickFor(run, 6.1);
+  tickFor(run, SPIN_BASE_SECONDS + 0.1);
   const b = run.state.bench;
   if (b.phase !== "revealed") throw new Error(`expected revealed, got ${b.phase}`);
   return b.drop;
@@ -65,7 +65,7 @@ describe("Run", () => {
     const b = run.state.bench;
     expect(b.phase).toBe("spinning");
     if (b.phase === "spinning") {
-      expect(b.fullDuration).toBe(6);
+      expect(b.fullDuration).toBe(SPIN_BASE_SECONDS);
       expect(b.drop.caseId).toBe("bootcamp");
     }
   });
@@ -74,27 +74,22 @@ describe("Run", () => {
     const run = new Run(1);
     run.buyCase("bootcamp");
     run.insertKey();
-    tickFor(run, 5.9);
+    tickFor(run, SPIN_BASE_SECONDS - 0.1);
     expect(run.state.bench.phase).toBe("spinning");
     tickFor(run, 0.2);
     expect(run.state.bench.phase).toBe("revealed");
     expect(types(run.drainEvents())).toEqual(["caseBought", "spinStarted", "revealed"]);
   });
 
-  it("brakes only after 25% of the spin, once, and stops BRAKE_SECONDS later", () => {
+  it("always runs the full spin - there is no brake; Quick Hands is what makes it faster", () => {
     const run = new Run(1);
+    expect("brake" in run).toBe(false);
     run.buyCase("bootcamp");
     run.insertKey();
-    tickFor(run, 1);
-    expect(run.canBrake()).toBe(false);
-    expect(run.brake()).toEqual({ ok: false, reason: "too early to brake" });
-    tickFor(run, 0.6);
-    expect(run.canBrake()).toBe(true);
-    expect(run.brake().ok).toBe(true);
-    expect(run.brake()).toEqual({ ok: false, reason: "already braking" });
-    tickFor(run, BRAKE_SECONDS + 0.05);
+    tickFor(run, SPIN_BASE_SECONDS - 0.1);
+    expect(run.state.bench.phase).toBe("spinning");
+    tickFor(run, 0.2);
     expect(run.state.bench.phase).toBe("revealed");
-    expect(run.brake()).toEqual({ ok: false, reason: "nothing is spinning" });
   });
 
   it("sells once, paying value × appraiser × combo", () => {
@@ -111,12 +106,11 @@ describe("Run", () => {
   it("grows the combo for quick sells and drops it after the window", () => {
     const run = new Run(3);
     run.state.cash = 1000;
+    run.state.upgrades.quickHands = 5;
     for (let i = 0; i < 3; i++) {
       run.buyCase("bootcamp");
       run.insertKey();
-      tickFor(run, 1.6);
-      run.brake();
-      tickFor(run, 0.4);
+      tickFor(run, run.effects().spinSeconds + 0.05);
       run.sell();
     }
     expect(run.state.combo).toBe(3);
@@ -162,13 +156,12 @@ describe("Run", () => {
   it("climbs to stage 2 with fast, combo-heavy play", () => {
     const run = new Run(4);
     run.state.cash = 1e6;
+    run.state.upgrades.quickHands = 5;
     const seen: SimEvent[] = [];
     for (let i = 0; i < 25; i++) {
       run.buyCase("bootcamp");
       run.insertKey();
-      tickFor(run, 1.6);
-      run.brake();
-      tickFor(run, 0.4);
+      tickFor(run, run.effects().spinSeconds + 0.05);
       run.sell();
       seen.push(...run.drainEvents());
     }
@@ -185,12 +178,11 @@ describe("Run", () => {
 
 describe("Run intensity after a pause (review fix)", () => {
   function fastCycles(run: Run, n: number) {
+    run.state.upgrades.quickHands = 5;
     for (let i = 0; i < n; i++) {
       run.buyCase("bootcamp");
       run.insertKey();
-      tickFor(run, 1.6);
-      run.brake();
-      tickFor(run, 0.4);
+      tickFor(run, run.effects().spinSeconds + 0.05);
       run.sell();
     }
   }

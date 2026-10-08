@@ -9,14 +9,14 @@ import { wearOf } from "../sim/wear";
 // Text on the canvas, built from state in the current language every frame — so switching the
 // language mid-run (reel spinning, card up) updates it at once (Review Focus 2).
 
-export function hintKey(b: Bench, canBrake: boolean): StringKey | null {
+export function hintKey(b: Bench): StringKey | null {
   switch (b.phase) {
     case "empty":
       return "hint.buy";
     case "locked":
       return "hint.key";
     case "spinning":
-      return canBrake ? "hint.brake" : null;
+      return null;
     case "revealed":
       return "hint.sell";
   }

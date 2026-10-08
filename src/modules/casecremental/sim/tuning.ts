@@ -57,14 +57,10 @@ export const WEAR_TABLE: ReadonlyArray<{
 export const STATTRAK_CHANCE = 0.1;
 export const STATTRAK_MULT = 2;
 
-export const SPIN_BASE_SECONDS = 6;
+export const SPIN_BASE_SECONDS = 3;
 export const SPIN_MIN_SECONDS = 0.6;
 /** Each Quick Hands level multiplies the spin duration by this. */
 export const QUICK_HANDS_FACTOR = 0.8;
-/** The brake works once this fraction of the full spin has passed. */
-export const BRAKE_AFTER_FRACTION = 0.25;
-/** How long the reel takes to stop once braked. */
-export const BRAKE_SECONDS = 0.35;
 
 export const APPRAISER_PER_LEVEL = 0.25;
 

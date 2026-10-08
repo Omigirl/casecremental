@@ -35,7 +35,6 @@ export interface GameView {
   stage: number;
   stageName: string;
   phase: Bench["phase"];
-  canBrake: boolean;
   cases: CaseView[];
   upgrades: UpgradeView[];
   nextGoal:
@@ -80,7 +79,6 @@ export function buildView(run: Run): GameView {
     stage: s.stage,
     stageName: STAGE_NAMES[s.stage - 1] ?? "",
     phase: s.bench.phase,
-    canBrake: run.canBrake(),
     cases,
     upgrades,
     nextGoal: nextGoal(s.cash, cases, upgrades),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { QUICK_HANDS_FACTOR, SPIN_BASE_SECONDS } from "./tuning";
 import { effectsOf, upgradeCost, UPGRADE_IDS } from "./upgrades";
 
 const zero = { luck: 0, appraiser: 0, quickHands: 0 };
@@ -21,14 +22,14 @@ describe("upgradeCost", () => {
 
 describe("effectsOf", () => {
   it("starts at the base values", () => {
-    expect(effectsOf(zero)).toEqual({ luckLevel: 0, sellMult: 1, spinSeconds: 6 });
+    expect(effectsOf(zero)).toEqual({ luckLevel: 0, sellMult: 1, spinSeconds: SPIN_BASE_SECONDS });
   });
 
   it("applies each upgrade", () => {
     const e = effectsOf({ luck: 3, appraiser: 2, quickHands: 1 });
     expect(e.luckLevel).toBe(3);
     expect(e.sellMult).toBeCloseTo(1.5);
-    expect(e.spinSeconds).toBeCloseTo(4.8);
+    expect(e.spinSeconds).toBeCloseTo(SPIN_BASE_SECONDS * QUICK_HANDS_FACTOR);
   });
 
   it("never spins faster than the minimum", () => {

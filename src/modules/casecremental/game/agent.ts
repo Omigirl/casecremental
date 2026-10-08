@@ -29,7 +29,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         upgrades: { ...s.upgrades },
         bench:
           b.phase === "spinning"
-            ? { phase: b.phase, caseId: b.caseId, elapsed: b.elapsed, endsAt: b.endsAt, braking: b.brakedAt !== null }
+            ? { phase: b.phase, caseId: b.caseId, elapsed: b.elapsed, fullDuration: b.fullDuration }
             : b.phase === "revealed"
               ? {
                   phase: b.phase,
@@ -46,7 +46,6 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
     actions: {
       buyCase: (args: Args) => run({ type: "buyCase", caseId: String(args?.caseId ?? "") }),
       insertKey: () => run({ type: "insertKey" }),
-      brake: () => run({ type: "brake" }),
       sell: () => run({ type: "sell" }),
       unlockCase: (args: Args) => run({ type: "unlockCase", caseId: String(args?.caseId ?? "") }),
       buyUpgrade: async (args: Args) => {
@@ -59,7 +58,6 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
     describeActions: {
       buyCase: "Buy a case onto the empty bench: { caseId: bootcamp|wildwood|bedrock }.",
       insertKey: "Turn the key of the case on the bench; the reel starts spinning.",
-      brake: "Slam the brakes on the spinning reel (works after 25% of the spin).",
       sell: "Sell the revealed skin.",
       unlockCase: "Unlock the next case in the ladder: { caseId }.",
       buyUpgrade: "Buy one level: { id: luck|appraiser|quickHands }.",

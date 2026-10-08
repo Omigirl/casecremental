@@ -3,8 +3,6 @@ import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
 import {
-  BRAKE_AFTER_FRACTION,
-  BRAKE_SECONDS,
   COMBO_CAP,
   COMBO_HEAT_DECAY_SECONDS,
   COMBO_STEP,
@@ -27,17 +25,14 @@ export type Bench =
       caseId: string;
       drop: Drop;
       elapsed: number;
+      /** The reel always runs this long (Quick Hands shortens it); there is no brake. */
       fullDuration: number;
-      /** When the reel stops: fullDuration, or sooner once braked. */
-      endsAt: number;
-      brakedAt: number | null;
     }
   | { phase: "revealed"; caseId: string; drop: Drop };
 
 export type SimEvent =
   | { type: "caseBought"; caseId: string; free: boolean }
   | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number }
-  | { type: "braked"; at: number; endsAt: number }
   | { type: "revealed"; drop: Drop }
   | { type: "sold"; drop: Drop; amount: number; combo: number }
   | { type: "caseUnlocked"; caseId: string }
@@ -114,15 +109,6 @@ export class Run {
     return intensityLevel(this.state.heat, this.state.lastTier, this.state.comboHeat);
   }
 
-  canBrake(): boolean {
-    const b = this.state.bench;
-    return (
-      b.phase === "spinning" &&
-      b.brakedAt === null &&
-      b.elapsed >= b.fullDuration * BRAKE_AFTER_FRACTION
-    );
-  }
-
   buyCase(caseId: string): ActionResult {
     const s = this.state;
     if (s.bench.phase !== "empty") return fail("bench is busy");
@@ -155,23 +141,10 @@ export class Run {
       drop,
       elapsed: 0,
       fullDuration: fx.spinSeconds,
-      endsAt: fx.spinSeconds,
-      brakedAt: null,
     };
     s.lastTier = c.tier;
     s.opened++;
     this.events.push({ type: "spinStarted", caseId: c.id, drop, fullDuration: fx.spinSeconds });
-    return OK;
-  }
-
-  brake(): ActionResult {
-    const b = this.state.bench;
-    if (b.phase !== "spinning") return fail("nothing is spinning");
-    if (b.brakedAt !== null) return fail("already braking");
-    if (b.elapsed < b.fullDuration * BRAKE_AFTER_FRACTION) return fail("too early to brake");
-    b.brakedAt = b.elapsed;
-    b.endsAt = Math.min(b.endsAt, b.elapsed + BRAKE_SECONDS);
-    this.events.push({ type: "braked", at: b.elapsed, endsAt: b.endsAt });
     return OK;
   }
 
@@ -221,7 +194,7 @@ export class Run {
     const b = s.bench;
     if (b.phase === "spinning") {
       b.elapsed += dt;
-      if (b.elapsed >= b.endsAt) {
+      if (b.elapsed >= b.fullDuration) {
         s.bench = { phase: "revealed", caseId: b.caseId, drop: b.drop };
         this.revealsThisTick++;
         this.events.push({ type: "revealed", drop: b.drop });

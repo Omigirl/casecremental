@@ -1,20 +1,18 @@
 import { CASES, priceOf, unlockCostOf } from "./content/cases";
 import { Run } from "./run";
-import { BRAKE_AFTER_FRACTION } from "./tuning";
 import { UPGRADE_IDS, upgradeCost, type UpgradeId } from "./upgrades";
 
 // A greedy player at human speed, used by the pacing test to check how fast a run unfolds.
-// It brakes every spin, sells everything, unlocks the next case as soon as it can afford it plus
+// It waits out every spin, sells everything, unlocks the next case as soon as it can afford it plus
 // one case, and buys the cheapest upgrade when it costs at most a quarter of its cash.
 
 export interface BotTimings {
   buy: number;
   key: number;
-  brakeReaction: number;
   sell: number;
 }
 
-export const HUMAN: BotTimings = { buy: 0.3, key: 0.4, brakeReaction: 0.15, sell: 0.5 };
+export const HUMAN: BotTimings = { buy: 0.3, key: 0.4, sell: 0.5 };
 
 export interface PacingReport {
   caseUnlockedAt: Record<string, number>;
@@ -45,9 +43,7 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     } else if (b.phase === "locked") {
       run.insertKey();
       busyUntil = s.time + timings.key;
-    } else if (b.phase === "spinning") {
-      if (b.elapsed >= b.fullDuration * BRAKE_AFTER_FRACTION + timings.brakeReaction) run.brake();
-    } else {
+    } else if (b.phase === "empty") {
       spend(run);
       const target = [...s.unlocked].reverse().find((id) => priceOf(id) <= s.cash);
       if (target && run.buyCase(target).ok) busyUntil = s.time + timings.buy;
