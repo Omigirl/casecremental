@@ -1,4 +1,4 @@
-import { botSpeed, botSpeedCost, BOT_STEP_SECONDS, freshBot, revealHold, sellsAt, type BotState } from "./botSeller";
+import { botCaseFor, botSpeedCost, botSpinSeconds, freshBot, type BotState, type CardSpot } from "./botOpener";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity, type CharmId } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import { intensityLevel, nextStage, STAGE_NAMES, updateHeat } from "./intensity";
@@ -24,6 +24,7 @@ import {
   VAULT_TROPHY,
 } from "./tuning";
 import type { Drop, RarityId } from "./types";
+export type { CardSpot } from "./botOpener";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
@@ -45,7 +46,7 @@ export type Bench =
     }
   | { phase: "revealed"; caseId: string; drop: Drop };
 
-export type SaleSource = "bench" | "tray" | "bot";
+export type SaleSource = "bench" | "bot" | "tray" | "seller";
 
 /** What the prestige meta hands a new run (M2b spec §8). */
 export interface RunSetup {
@@ -83,7 +84,7 @@ export type SimEvent =
   | { type: "caseBought"; caseId: string; free: boolean }
   | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number; tease: Tease | null }
   | { type: "revealed"; drop: Drop }
-  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource }
+  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | null }
   | { type: "caseUnlocked"; caseId: string }
   | { type: "upgradeBought"; id: UpgradeId; level: number }
   | { type: "stageChanged"; stage: number }
@@ -92,8 +93,8 @@ export type SimEvent =
   | { type: "stored"; drop: Drop }
   | { type: "botWoke" }
   | { type: "botUpgraded"; level: number }
-  | { type: "botPickedUp"; drop: Drop; dest: "bin" | "tray" }
-  | { type: "botWaiting" }
+  | { type: "botSpinStarted"; caseId: string; drop: Drop; duration: number }
+  | { type: "botRevealed"; drop: Drop }
   | { type: "vaultBought"; price: number }
   | { type: "vaultOpened"; trophy: string; drop: Drop; lifetimeEarnings: number }
   /** Emitted by the controller when a new run begins. */
@@ -129,11 +130,11 @@ export interface RunState {
   goldenHourUntil: number;
   /** Ricochet: free cases waiting for the bench. */
   freeCases: string[];
-  /** Drops the bot set aside for the player to claim (above its threshold). */
+  /** Drops the auto-seller set aside for the player to claim (above its threshold). */
   tray: Drop[];
   bot: BotState;
-  /** The player is dragging the revealed card: the bot leaves it alone (M2b spec §3). */
-  held: boolean;
+  /** The card the player is dragging, if any: machines leave it alone. */
+  held: CardSpot | null;
   /** Seconds into the vault finale, or null. */
   finale: number | null;
   /** The vault has opened: the run is over. */
@@ -183,7 +184,7 @@ export class Run {
       freeCases: [],
       tray: [],
       bot: freshBot(this.setup.botAwake),
-      held: false,
+      held: null,
       finale: null,
       over: false,
     };
@@ -261,6 +262,21 @@ export class Run {
     this.forcedFake = true;
   }
 
+  /** Roll one case's drop with Luck, Pity, the Golden Hour and the charms; counts the open. */
+  private rollFor(caseId: string): Drop {
+    const s = this.state;
+    const c = caseById(caseId);
+    s.opened++;
+    const luck = this.effects().luckLevel + this.setup.luckBonus + s.pity * PITY_LUCK_LEVELS;
+    const drop = rollDrop(c, priceOf(c.id), luck, this.rng, s.nextDropId++, this.forcedRarity, {
+      luckMult: s.time < s.goldenHourUntil ? GOLDEN_HOUR_LUCK : 1,
+      statTrakChance: charmStatTrakChance(this.setup.charms),
+      minRarity: charmMinRarity(this.setup.charms, s.opened),
+    });
+    this.forcedRarity = null;
+    return drop;
+  }
+
   insertKey(): ActionResult {
     if (this.locked()) return fail("the vault is open");
     const s = this.state;
@@ -268,14 +284,7 @@ export class Run {
     if (b.phase !== "locked") return fail("no locked case on the bench");
     const c = caseById(b.caseId);
     const fx = this.effects();
-    const opened = s.opened + 1;
-    const luck = fx.luckLevel + this.setup.luckBonus + s.pity * PITY_LUCK_LEVELS;
-    const drop = rollDrop(c, priceOf(c.id), luck, this.rng, s.nextDropId++, this.forcedRarity, {
-      luckMult: s.time < s.goldenHourUntil ? GOLDEN_HOUR_LUCK : 1,
-      statTrakChance: charmStatTrakChance(this.setup.charms),
-      minRarity: charmMinRarity(this.setup.charms, opened),
-    });
-    this.forcedRarity = null;
+    const drop = this.rollFor(c.id);
     const topTier = Math.max(...s.unlocked.map((id) => caseById(id).tier));
     const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
     this.forcedFake = false;
@@ -283,7 +292,6 @@ export class Run {
     s.lastSellAt += fullDuration; // the spin (tease crawl included) never counts against the combo
     s.bench = { phase: "spinning", caseId: c.id, drop, elapsed: 0, fullDuration, tease };
     s.lastTier = c.tier;
-    s.opened++;
     this.events.push({ type: "spinStarted", caseId: c.id, drop, fullDuration, tease });
     return OK;
   }
@@ -298,8 +306,8 @@ export class Run {
     s.cash += amount;
     s.lifetimeEarnings += amount;
     s.bench = { phase: "empty" };
-    s.held = false;
-    this.events.push({ type: "sold", drop: b.drop, amount, combo: s.combo, source: "bench" });
+    s.held = null;
+    this.events.push({ type: "sold", drop: b.drop, amount, combo: s.combo, source: "bench", from: "bench" });
     return OK;
   }
 
@@ -340,7 +348,7 @@ export class Run {
       b.elapsed += dt;
       if (b.elapsed >= b.fullDuration) {
         s.bench = { phase: "revealed", caseId: b.caseId, drop: b.drop };
-        this.onReveal(b.drop);
+        this.onReveal(b.drop, "bench");
         this.revealsThisTick++;
         this.events.push({ type: "revealed", drop: b.drop });
       }
@@ -449,14 +457,34 @@ export class Run {
     return OK;
   }
 
-  /** The player picks the revealed card up (true) or lets go of it (false). */
-  setHeld(held: boolean): ActionResult {
-    this.state.held = held && this.state.bench.phase === "revealed";
+  /** The player picks a waiting card up (bench or bot) or lets go (null): machines leave a held card alone. */
+  setHeld(spot: CardSpot | null): ActionResult {
+    const s = this.state;
+    const waiting = spot === "bench" ? s.bench.phase === "revealed" : spot === "bot" ? s.bot.card !== null : true;
+    s.held = waiting ? spot : null;
     return OK;
   }
 
-  setBotThreshold(rarity: RarityId): ActionResult {
-    this.state.bot.threshold = rarity;
+  /** The case the bot opens (null = the dearest you can afford). */
+  setBotCase(caseId: string | null): ActionResult {
+    if (caseId !== null && !CASES.some((c) => c.id === caseId)) return fail(`unknown case: ${caseId}`);
+    this.state.bot.caseChoice = caseId;
+    return OK;
+  }
+
+  /** Sell the bot's card by hand (feeds the combo). */
+  sellBotCard(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
+    const s = this.state;
+    const d = s.bot.card;
+    if (!d) return fail("the bot has nothing to sell");
+    this.bumpCombo();
+    const amount = this.payout(d, true);
+    s.cash += amount;
+    s.lifetimeEarnings += amount;
+    s.bot.card = null;
+    if (s.held === "bot") s.held = null;
+    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bot", from: "bot" });
     return OK;
   }
 
@@ -471,84 +499,35 @@ export class Run {
     const amount = this.payout(d, true);
     s.cash += amount;
     s.lifetimeEarnings += amount;
-    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "tray" });
+    this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "tray", from: null });
     return OK;
   }
 
-  /** The bot's job loop (M2b spec §3). */
+  /** The bot's own reel (rework spec §1): finish a spin into its card, or start the next one. */
   private tickBot(dt: number): void {
     const s = this.state;
     const bot = s.bot;
     if (!bot.awake) return;
-    const speed = botSpeed(bot.speedLevel);
-    if (!bot.job) {
-      const b = s.bench;
-      if (b.phase === "revealed" && !s.held && s.time - s.revealedAt >= revealHold(b.drop.rarity, speed))
-        bot.job = { step: "toBench", t: 0, drop: null, dest: null };
+    if (bot.spin) {
+      bot.spin.elapsed += dt;
+      if (bot.spin.elapsed < bot.spin.duration) return;
+      const d = bot.spin.drop;
+      bot.spin = null;
+      bot.card = d;
+      bot.cardAt = s.time;
+      this.onReveal(d, "bot");
+      this.revealsThisTick++;
+      this.events.push({ type: "botRevealed", drop: d });
       return;
     }
-    const job = bot.job;
-    // the card is grabbed or gone before the bot has it: it turns back
-    if ((job.step === "toBench" || job.step === "wait" || job.step === "pickUp") && (s.held || s.bench.phase !== "revealed")) {
-      Object.assign(job, { step: "back", t: 0, dest: null });
-      return;
-    }
-    if (job.step === "wait") {
-      if (s.bench.phase !== "revealed") Object.assign(job, { step: "back", t: 0 });
-      else if (s.tray.length < this.setup.trayCapacity) Object.assign(job, { step: "pickUp", t: 0 });
-      return;
-    }
-    job.t += dt * speed;
-    if (job.t < BOT_STEP_SECONDS[job.step]) return;
-    job.t = 0;
-    switch (job.step) {
-      case "toBench": {
-        const b = s.bench;
-        if (b.phase !== "revealed") {
-          job.step = "back";
-          break;
-        }
-        job.dest = sellsAt(bot.threshold, b.drop.rarity) ? "bin" : "tray";
-        if (job.dest === "tray" && s.tray.length >= this.setup.trayCapacity) {
-          job.step = "wait";
-          this.events.push({ type: "botWaiting" });
-        } else job.step = "pickUp";
-        break;
-      }
-      case "pickUp": {
-        const b = s.bench;
-        if (b.phase !== "revealed") {
-          job.step = "back";
-          break;
-        }
-        job.drop = b.drop;
-        s.bench = { phase: "empty" };
-        this.events.push({ type: "botPickedUp", drop: b.drop, dest: job.dest! });
-        job.step = "carry";
-        break;
-      }
-      case "carry":
-        job.step = "drop";
-        break;
-      case "drop": {
-        const d = job.drop!;
-        if (job.dest === "bin") {
-          const amount = this.payout(d, false);
-          s.cash += amount;
-          s.lifetimeEarnings += amount;
-          this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bot" });
-        } else {
-          s.tray.push(d);
-          this.events.push({ type: "stored", drop: d });
-        }
-        job.drop = null;
-        job.step = "back";
-        break;
-      }
-      case "back":
-        bot.job = null;
-        break;
-    }
+    if (bot.card || this.locked()) return;
+    const caseId = botCaseFor(bot.caseChoice, s.unlocked, s.cash, (id) => this.casePrice(id));
+    if (!caseId) return;
+    s.cash -= this.casePrice(caseId);
+    const drop = this.rollFor(caseId);
+    const duration = botSpinSeconds(bot.speedLevel);
+    bot.spin = { caseId, drop, elapsed: 0, duration };
+    this.events.push({ type: "botSpinStarted", caseId, drop, duration });
   }
 
   private tickDayJob(dt: number): void {
@@ -564,11 +543,11 @@ export class Run {
   }
 
   /** The charms that react to what was just revealed. */
-  private onReveal(d: Drop): void {
+  private onReveal(d: Drop, spot: CardSpot): void {
     const s = this.state;
     const charms = this.setup.charms;
-    s.revealedAt = s.time;
-    s.held = false;
+    if (spot === "bench") s.revealedAt = s.time;
+    if (s.held === spot) s.held = null;
     if (charms.includes("pityJar")) s.pity = d.rarity === "milspec" ? s.pity + 1 : isBigRarity(d.rarity) ? 0 : s.pity;
     if (charms.includes("ricochet") && d.rarity === "covert") s.freeCases.push(d.caseId);
     if (charms.includes("goldRush") && d.rarity === "gold") s.goldenHourUntil = s.time + GOLDEN_HOUR_SECONDS;

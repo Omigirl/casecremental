@@ -119,12 +119,9 @@ export const DAY_JOB_SECONDS = 3;
 export const DAY_JOB_PAY = 2;
 export const DAY_JOB_PAY_CHANCE = 0.9;
 
-/** The bot as a seller (M2b spec §3): seconds per step at speed ×1. */
-export const BOT_STEP_SECONDS = { toBench: 1.2, pickUp: 0.4, carry: 1.2, drop: 0.3, back: 1.0 } as const;
-/** A revealed card is left alone this long (÷ speed) before the bot comes for it… */
-export const BOT_REVEAL_HOLD = 0.6;
-/** …and a Covert or ★ this long (its reveal — the knife's showcase — plays first). */
-export const BOT_BIG_REVEAL_HOLD = 2.6;
+/** The bot as an opener (rework spec §1). */
+/** The bot opens its own cases (rework spec §1): one spin on its reel takes this long at Speed ×1. */
+export const BOT_SPIN_SECONDS = 4;
 export const BOT_WAKE_COST = 22;
 /** Run 1's cap: Speed levels and the speed at the last one. */
 export const BOT_SPEED_LEVELS = 5;

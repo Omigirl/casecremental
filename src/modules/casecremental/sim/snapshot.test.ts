@@ -7,13 +7,15 @@ const tickFor = (run: Run, s: number) => {
 };
 
 describe("run snapshots", () => {
-  it("restores a run mid-way — the bot carrying a card — and continues identically", () => {
+  it("restores a run mid-way — the bot mid-spin, your card waiting — and continues identically", () => {
     const a = new Run(5, { ...DEFAULT_SETUP, botAwake: true, charms: ["doubleTap"] });
     a.state.cash = 1e6;
     a.buyCase("bootcamp");
     a.insertKey();
-    for (let i = 0; i < 600 && a.state.bot.job?.step !== "carry"; i++) a.tick(DT); // revealed, picked up, in hand
-    expect(a.state.bot.job?.drop).not.toBeNull();
+    for (let i = 0; i < 900 && !(a.state.bot.card && a.state.bench.phase === "revealed"); i++) a.tick(DT);
+    a.sellBotCard();
+    a.tick(DT); // the bot starts its next spin
+    expect(a.state.bot.spin).not.toBeNull();
     const snap = JSON.parse(JSON.stringify(a.snapshot())) as ReturnType<Run["snapshot"]>;
     const b = Run.fromSnapshot(snap);
     expect(b.state).toEqual(a.state);
@@ -21,6 +23,8 @@ describe("run snapshots", () => {
     for (const r of [a, b]) {
       r.drainEvents();
       tickFor(r, 5);
+      r.sell();
+      r.sellBotCard();
       r.buyCase("bootcamp");
       r.insertKey();
       tickFor(r, 4);
