@@ -14,7 +14,7 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   sells it up to its threshold (no combo) or sets it aside in the claim tray. Hand sales are the only combo.
   The first M2b had the bot walking over to sell — it read wrong next to the bot's own reel, so it was replaced.
 - **Stage 5 is "Unhinged"** (was "Cyberpsychosis" — it didn't fit the game).
-- **Content is split across the four runs** (user): Run 1 has the bot as seller (Speed ×1 → ×8), the tray, 8 of
+- **Content is split across the four runs** (user): Run 1 has the bot opening its own cases (Speed ×1 → ×8) and the auto-seller, the tray, 8 of
   14 charms, multi-open ×2 (plan M2b-C). Later runs bring the bot's own reel, the locker, the auto-buyer grid.
 - **The finale is a cinematic** (user): nothing in it depends on input, so a player who sits back still sees it.
   Its intensity is read from the sim's finale timer each frame, so a reload resumes it where it was.
