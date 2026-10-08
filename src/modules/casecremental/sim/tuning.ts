@@ -112,7 +112,7 @@ export const MANIAC_MILSPEC_MULT = 4;
 export const MANIAC_OTHER_MULT = 0.5;
 
 export const TRAY_BASE_CAPACITY = 12;
-export const VAULT_BASE_PRICE = 350_000;
+export const VAULT_BASE_PRICE = 1_000_000;
 
 /** Broke with an empty bench: a day job (campaign spec §6.1). */
 export const DAY_JOB_SECONDS = 3;
@@ -134,7 +134,7 @@ export const FINALE_SECONDS = 20;
 export const VAULT_TROPHY = "vault1";
 
 /** CLOUT = floor(√(lifetime earnings) / this). */
-export const CLOUT_DIVISOR = 60;
+export const CLOUT_DIVISOR = 105;
 /** Each opened vault multiplies every later sale by this (the catch-up boost). */
 export const CATCH_UP_PER_VAULT = 3;
 export const CHARM_OFFER_SIZE = 3;

@@ -40,6 +40,12 @@ describe("pacing — the whole of Run 1 and a boosted second run", () => {
     expect(med((r) => r.botAwakeAt)).toBeLessThan(150);
   });
 
+  it("buys the auto-seller at about 3–5 minutes", () => {
+    const t = med((r) => r.sellerAt);
+    expect(t).toBeGreaterThan(150);
+    expect(t).toBeLessThan(330);
+  });
+
   it("buys Vault Case I at 6–10 minutes", () => {
     const t = med((r) => r.vaultAt);
     expect(t).toBeGreaterThan(360);
