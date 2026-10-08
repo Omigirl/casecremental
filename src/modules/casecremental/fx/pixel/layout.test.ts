@@ -4,6 +4,13 @@ import { hdFontSize } from "./screen";
 import { pixelViewport } from "./viewport";
 
 const SIZES: Array<[number, number]> = [
+  // narrow landscape: 4:3 tablets, 5:4 monitors, near-square windows (final review)
+  [1024, 768],
+  [1280, 1024],
+  [2732, 2048],
+  [1000, 1000],
+  [1312, 1080],
+  [900, 860],
   [1920, 1080],
   [1280, 720],
   [3440, 1440],
