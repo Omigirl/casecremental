@@ -2,7 +2,21 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { UPGRADE_IDS } from "../sim/upgrades";
 import { budgetFor, fitsBudget } from "./budgets";
-import { CONTENT_KEYS, caseName, rarityName, skinName, stageName, upgradeName, weaponName } from "./content";
+import { RUN1_CHARMS } from "../sim/charms";
+import { PERK_IDS } from "../sim/meta";
+import {
+  CONTENT_KEYS,
+  caseName,
+  charmDesc,
+  charmName,
+  perkDesc,
+  perkName,
+  rarityName,
+  skinName,
+  stageName,
+  upgradeName,
+  weaponName,
+} from "./content";
 import { setLang } from "./index";
 
 afterEach(() => setLang("en"));
@@ -27,6 +41,21 @@ describe("content names", () => {
     expect(rarityName("covert")).toBe("Тайное");
     expect(skinName("bc_woodland")).toBe("Лесные учения");
     expect(stageName(2)).toBe("Навеселе");
+  });
+
+  it("names every Run 1 charm and perk, and the vault, in both languages", () => {
+    for (const lang of ["en", "ru"] as const) {
+      setLang(lang);
+      for (const id of RUN1_CHARMS) {
+        expect(charmName(id)).not.toBe("");
+        expect(charmDesc(id)).not.toBe("");
+      }
+      for (const id of PERK_IDS) {
+        expect(perkName(id)).not.toBe("");
+        expect(perkDesc(id)).not.toBe("");
+      }
+      expect(caseName("vault1")).not.toBe("");
+    }
   });
 
   it.each(CONTENT_KEYS())("%s fits its budget in both languages", (key, en, ru) => {

@@ -1,3 +1,5 @@
+import type { CharmId } from "../sim/charms";
+import type { PerkId } from "../sim/meta";
 import type { RarityId, WeaponId, WearId } from "../sim/types";
 import type { UpgradeId } from "../sim/upgrades";
 import { getLang } from "./index";
@@ -10,6 +12,7 @@ const CASES: Record<string, Pair> = {
   bootcamp: { en: "Boot Camp", ru: "Учебка" },
   wildwood: { en: "Wildwood", ru: "Дебри" },
   bedrock: { en: "Bedrock", ru: "Монолит" },
+  vault1: { en: "Vault Case I", ru: "Сейф-кейс I" },
 };
 
 const WEAPONS: Record<WeaponId, Pair> = {
@@ -87,6 +90,52 @@ const UPGRADES: Record<UpgradeId, { name: Pair; desc: Pair }> = {
   quickHands: { name: { en: "Quick Hands", ru: "Ловкие руки" }, desc: { en: "Faster reel", ru: "Быстрее рулетка" } },
 };
 
+const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
+  luckySeven: {
+    name: { en: "Lucky Seven", ru: "Счастливая семёрка" },
+    desc: { en: "Every 7th case: Classified+", ru: "Каждый 7-й: засекреч. и выше" },
+  },
+  rustBucket: {
+    name: { en: "Rust Bucket", ru: "Ржавое ведро" },
+    desc: { en: "Battle-Scarred pays like FN", ru: "Закалённое платит как новое" },
+  },
+  pityJar: {
+    name: { en: "Pity Jar", ru: "Банка жалости" },
+    desc: { en: "+1% Luck per Mil-Spec in a row", ru: "+1% удачи за армейское подряд" },
+  },
+  doubleTap: {
+    name: { en: "Double Tap", ru: "Дабл-тап" },
+    desc: { en: "StatTrak drops 3x as often", ru: "StatTrak в 3 раза чаще" },
+  },
+  ricochet: {
+    name: { en: "Ricochet", ru: "Рикошет" },
+    desc: { en: "A Covert gives a free case", ru: "Тайное даёт кейс бесплатно" },
+  },
+  goldRush: {
+    name: { en: "Gold Rush", ru: "Золотая лихорадка" },
+    desc: { en: "★ pays x10 + a golden hour", ru: "★ платит x10 + золотой час" },
+  },
+  insider: {
+    name: { en: "Insider", ru: "Инсайдер" },
+    desc: { en: "Cases cost 30% less", ru: "Кейсы на 30% дешевле" },
+  },
+  milSpecManiac: {
+    name: { en: "Mil-Spec Maniac", ru: "Армейский маньяк" },
+    desc: { en: "Mil-Spec x4, the rest x0.5", ru: "Армейское x4, прочее x0,5" },
+  },
+};
+
+const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
+  startCash: {
+    name: { en: "Starting Cash", ru: "Стартовый капитал" },
+    desc: { en: "+$20 at the start of a run", ru: "+$20 в начале забега" },
+  },
+  luck: { name: { en: "Four-Leaf", ru: "Клевер" }, desc: { en: "+1 Luck level every run", ru: "+1 уровень удачи в забеге" } },
+  charmSlot: { name: { en: "Charm Slot", ru: "Слот талисмана" }, desc: { en: "Carry 2 charms", ru: "Носить 2 талисмана" } },
+  botAwake: { name: { en: "Early Bird", ru: "Ранняя пташка" }, desc: { en: "The bot starts awake", ru: "Бот просыпается сразу" } },
+  biggerTray: { name: { en: "Bigger Tray", ru: "Большой лоток" }, desc: { en: "+4 claim tray slots", ru: "+4 места в лотке" } },
+};
+
 const STAGES: Pair[] = [
   { en: "Sober", ru: "Трезвый" },
   { en: "Buzzed", ru: "Навеселе" },
@@ -103,6 +152,10 @@ export const wearName = (w: WearId): string => pick(WEARS[w]);
 export const upgradeName = (id: UpgradeId): string => pick(UPGRADES[id]?.name);
 export const upgradeDesc = (id: UpgradeId): string => pick(UPGRADES[id]?.desc);
 export const stageName = (stage: number): string => pick(STAGES[stage - 1]);
+export const charmName = (id: CharmId): string => pick(CHARMS[id]?.name);
+export const charmDesc = (id: CharmId): string => pick(CHARMS[id]?.desc);
+export const perkName = (id: PerkId): string => pick(PERKS[id]?.name);
+export const perkDesc = (id: PerkId): string => pick(PERKS[id]?.desc);
 
 /** Every content name with its budget key, for the budget test. */
 export function CONTENT_KEYS(): Array<[string, string, string]> {
@@ -118,6 +171,14 @@ export function CONTENT_KEYS(): Array<[string, string, string]> {
   for (const [k, u] of Object.entries(UPGRADES)) {
     rows.push(["upgrade.name." + k, u.name.en, u.name.ru]);
     rows.push(["upgrade.desc." + k, u.desc.en, u.desc.ru]);
+  }
+  for (const [k, c] of Object.entries(CHARMS)) {
+    rows.push(["charm.name." + k, c.name.en, c.name.ru]);
+    rows.push(["charm.desc." + k, c.desc.en, c.desc.ru]);
+  }
+  for (const [k, p] of Object.entries(PERKS)) {
+    rows.push(["perk.name." + k, p.name.en, p.name.ru]);
+    rows.push(["perk.desc." + k, p.desc.en, p.desc.ru]);
   }
   STAGES.forEach((p, i) => rows.push(["stage." + (i + 1), p.en, p.ru]));
   return rows;
