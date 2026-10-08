@@ -106,7 +106,6 @@ export class World {
     app.stage.on("pointerdown", (e: FederatedPointerEvent) => void this.bench.pointerDown(this.worldPt(e)));
     app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
       this.bench.pointerMove(this.worldPt(e));
-      this.room.parallax(Math.min(1, Math.max(0, e.global.x / Math.max(1, this.screen.w))));
     });
     app.stage.on("pointerup", (e: FederatedPointerEvent) => this.bench.pointerUp(this.worldPt(e)));
     app.stage.on("pointerupoutside", (e: FederatedPointerEvent) => this.bench.pointerUp(this.worldPt(e)));

@@ -13,10 +13,13 @@ import { stripFrameCss } from "./pixelFrame";
 
 type Act = (a: Action) => void;
 
+/** The closed case is ~20 px tall; its sprite cell keeps headroom for the opening lid, cropped off here. */
+const CASE_ICON_ROWS = 22;
+
 function CaseIcon({ c }: { c: CaseView }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const k = Math.max(1, Math.floor(scale / 2));
-  const css = stripFrameCss(spriteIndex().get(`case-${c.id}`), 0, k);
+  const css = stripFrameCss(spriteIndex().get(`case-${c.id}`), 0, k, CASE_ICON_ROWS);
   const style = css ?? { width: 13 * k, height: 10 * k, background: c.color, boxShadow: `0 0 0 ${k}px #120e10` };
   return <div style={{ ...style, flex: "none", opacity: c.unlocked ? 1 : 0.4 }} />;
 }

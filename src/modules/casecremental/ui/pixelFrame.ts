@@ -26,15 +26,22 @@ export function frameCss(url: string | null, scale: number): CSSProperties {
 export const uiSpriteUrl = (id: string): string | null => spriteIndex().get(id)?.url ?? null;
 
 /** One frame of a sprite strip as CSS background (the case icons on the shelf). */
-export function stripFrameCss(entry: { meta: SpriteMeta; url: string } | undefined, frame: number, scale: number): CSSProperties | null {
+/** `rows`: show only that many rows ending at the ground line (drops the headroom above the art). */
+export function stripFrameCss(
+  entry: { meta: SpriteMeta; url: string } | undefined,
+  frame: number,
+  scale: number,
+  rows?: number,
+): CSSProperties | null {
   if (!entry) return null;
   const { meta, url } = entry;
+  const top = rows ? Math.max(0, meta.ground + 1 - rows) : 0;
   return {
     width: meta.frameW * scale,
-    height: meta.frameH * scale,
+    height: (rows ?? meta.frameH) * scale,
     backgroundImage: `url("${url}")`,
     backgroundSize: `${meta.frames * meta.frameW * scale}px ${meta.frameH * scale}px`,
-    backgroundPosition: `${-frame * meta.frameW * scale}px 0`,
+    backgroundPosition: top ? `${-frame * meta.frameW * scale}px ${-top * scale}px` : `${-frame * meta.frameW * scale}px 0`,
     imageRendering: "pixelated",
   };
 }

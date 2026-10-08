@@ -33,7 +33,7 @@ Changes agreed during the M2a review: campaign spec `2026-10-08-casecremental-ca
   `useAnimatedNumber` rounds to whole numbers.
 - **No brake** (user: it made Quick Hands pointless). The reel always runs its full spin; base 3 s keeps
   the pacing targets.
-- **Teasing spin** (`sim/tease.ts`). A red or a knife always teases — the last two cards crawl
+- **Teasing spin** (`sim/tease.ts`). A red or a knife always teases — the last ~six cards wind down slowly
   (`fx/reel/motion.ts`) and the camera leans toward the reel — by rarity × how close the case is to the
   player's top unlocked one. 1 in 40 ordinary drops fake it with a decoy beside the winner, stopped a
   sliver short or crept a sliver past (`fx/reel/strip.ts`). Decided in the sim with the drop, so the reel

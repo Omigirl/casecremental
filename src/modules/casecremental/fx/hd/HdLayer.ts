@@ -68,8 +68,8 @@ export class HdLayer {
     });
     const vignette = radial(256, [
       [0, "rgba(0,0,0,0)"],
-      [0.6, "rgba(0,0,0,0.15)"],
-      [1, "rgba(0,0,0,0.8)"],
+      [0.7, "rgba(0,0,0,0.1)"],
+      [1, "rgba(0,0,0,0.55)"],
     ]);
     const soft = radial(64, [
       [0, "rgba(255,255,255,1)"],

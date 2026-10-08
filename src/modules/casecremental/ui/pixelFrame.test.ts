@@ -25,4 +25,10 @@ describe("pixel frames", () => {
     });
     expect(stripFrameCss(undefined, 0, 3)).toBeNull();
   });
+
+  it("crops a frame to the rows just above its ground line (icons line up with their text)", () => {
+    const meta = { id: "case", frames: 4, frameW: 26, frameH: 34, ground: 32, eyes: null };
+    // rows 11..32 of the 34-row cell: the case, without the headroom kept for the opening lid
+    expect(stripFrameCss({ meta, url: "/c.png" }, 0, 2, 22)).toMatchObject({ width: 52, height: 44, backgroundPosition: "0px -22px" });
+  });
 });

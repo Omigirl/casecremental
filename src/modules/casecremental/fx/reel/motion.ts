@@ -12,8 +12,8 @@ export interface ReelMotion {
   crawl: number;
 }
 
-/** The share of the path (≈ the last two cards) left for the crawl. */
-export const CRAWL_SHARE = 0.05;
+/** The share of the path (≈ the last six cards) left for the crawl: a heavy wheel winding down, not a drag. */
+export const CRAWL_SHARE = 0.15;
 /** A tease also crawls through this share of the normal spin, not just its extra time. */
 const CRAWL_OF_SPIN = 0.25;
 

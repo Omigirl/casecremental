@@ -11,6 +11,9 @@ import type { SpriteLibrary } from "./sprites";
 // mat, the claim tray, the powered-off auto-seller and the sleeping bot with its dark reel (spec §3).
 
 const WALL = 0x1b1418;
+/** Depth: the far wall darkest, the shelves a step nearer — the room reads deeper than the art alone. */
+const BACK_TINT = 0x6a6470;
+const SHELF_TINT = 0x8e8894;
 const WOOD = 0x5a3a22;
 const WOOD_DARK = 0x3a2416;
 const FELT = 0x1f4d3a;
@@ -37,13 +40,15 @@ export class Room {
     const optional = (id: string) => (lib.has(id) ? new Sprite(lib.get(id, { w: 1, h: 1 }).frames[0]) : null);
     this.backdrop = optional("room-back");
     this.shelves = optional("room-shelves");
+    if (this.backdrop) this.backdrop.tint = BACK_TINT;
+    if (this.shelves) this.shelves.tint = SHELF_TINT;
     this.lamp = new Animated(new Actor(lib.get("room-lamp", { w: 16, h: 40 })), ANIMS.lampSway);
     const table = lib.has("table") ? lib.get("table", { w: 1, h: 1 }).frames[0]! : null;
     this.tableTop = table ? new TilingSprite({ texture: table, width: 1, height: table.height }) : null;
     this.mat = optional("mat");
     this.tray = new Sprite(lib.get("tray", { w: 100, h: 18 }).frames[0]);
     this.seller = new Sprite(lib.get("auto-seller", { w: 24, h: 30 }).frames[0]);
-    this.seller.tint = 0x666677; // powered off until M2b
+    this.seller.tint = 0xa8a8b8; // powered off until M2b — dimmed, but still readable
     this.bot = new Animated(new Actor(lib.get("bot-sleep", { w: 40, h: 48, frames: 4 })), ANIMS.botSleep);
     this.botReel = new NineSliceSprite({ texture: reelFrame.frames[0]!, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
     this.botReel.tint = 0x444455;
@@ -56,17 +61,18 @@ export class Room {
     this.l = l;
     const t = l.table;
     this.wall.clear().rect(0, 0, l.worldW, l.worldH).fill({ color: WALL });
-    this.lamp.actor.place(l.lamp.x, 40);
+    this.lamp.actor.place(l.lamp.x, l.you.reel.y - 1); // the shade hangs just above the reels, not between them
     const topH = this.tableTop ? this.tableTop.height : 6;
+    // the table is drawn edge to edge, under the side panels; props keep to l.table
     if (this.tableTop) {
-      this.tableTop.position.set(t.x, t.y);
-      this.tableTop.width = t.w;
+      this.tableTop.position.set(0, t.y);
+      this.tableTop.width = l.worldW;
     }
     this.tableBody
       .clear()
-      .rect(t.x, t.y, t.w, topH)
+      .rect(0, t.y, l.worldW, topH)
       .fill({ color: WOOD })
-      .rect(t.x, t.y + topH, t.w, t.h - topH)
+      .rect(0, t.y + topH, l.worldW, l.worldH - t.y - topH)
       .fill({ color: WOOD_DARK });
     const m = l.you.mat;
     if (this.mat) this.mat.position.set(Math.round(m.x + (m.w - this.mat.width) / 2), m.y + m.h - this.mat.height);
@@ -83,16 +89,8 @@ export class Room {
       this.botReel.width = l.bot.reel.w;
       this.botReel.height = l.bot.reel.h;
     }
-    this.parallax(0.5);
-  }
-
-  /** Back layers follow the pointer by a pixel or two (0 = left edge, 1 = right edge). */
-  parallax(pointer01: number): void {
-    const l = this.l;
-    if (!l) return;
-    const shift = (max: number) => Math.round((pointer01 - 0.5) * 2 * max);
-    if (this.backdrop) this.backdrop.position.set(Math.round((l.worldW - this.backdrop.width) / 2) + shift(1), 0);
-    if (this.shelves) this.shelves.position.set(Math.round((l.worldW - this.shelves.width) / 2) + shift(2), 0);
+    if (this.backdrop) this.backdrop.position.set(Math.round((l.worldW - this.backdrop.width) / 2), 0);
+    if (this.shelves) this.shelves.position.set(Math.round((l.worldW - this.shelves.width) / 2), 6);
   }
 
   update(ms: number): void {

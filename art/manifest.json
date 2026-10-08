@@ -3,7 +3,7 @@
   "outline": [18, 14, 16],
   "assets": [
     { "id": "room-back", "source": "room-back.png", "kind": "static", "targetW": 480, "outline": false },
-    { "id": "room-shelves", "source": "room-shelves.png", "kind": "static", "targetW": 480, "outline": false },
+    { "id": "room-shelves", "source": "room-shelves.png", "kind": "static", "targetW": 320, "outline": false },
     { "id": "room-lamp", "source": "room-lamp.png", "kind": "static", "targetH": 40 },
     { "id": "table", "source": "table.png", "kind": "static", "targetW": 240, "outline": false },
     { "id": "mat", "source": "mat.png", "kind": "static", "targetW": 64 },
