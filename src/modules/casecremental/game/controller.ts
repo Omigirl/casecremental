@@ -28,6 +28,7 @@ export type Action =
   | { type: "holdCard"; spot: CardSpot | null }
   | { type: "startDayJob" }
   | { type: "buyVault" }
+  | { type: "turnVaultKey" }
   | { type: "buyPerk"; id: PerkId }
   | { type: "pickCharm"; id: CharmId }
   | { type: "startNextRun" };
@@ -170,10 +171,13 @@ export class GameController {
         return run.startDayJob();
       case "buyVault":
         return run.buyVault();
+      case "turnVaultKey":
+        return run.turnVaultKey();
       case "buyPerk":
-        return run.state.over ? buyPerk(this.meta, a.id) : { ok: false, reason: "perks are bought between runs" };
+        if (!run.state.over) return { ok: false, reason: "perks are bought between runs" };
+        return this.emitOnOk(buyPerk(this.meta, a.id), { type: "perkBought" });
       case "pickCharm":
-        return pickCharm(this.meta, a.id);
+        return this.emitOnOk(pickCharm(this.meta, a.id), { type: "charmPicked" });
       case "startNextRun":
         return this.startNextRun();
     }
@@ -197,6 +201,11 @@ export class GameController {
       }
       this.emit(e);
     }
+  }
+
+  private emitOnOk(r: ActionResult, e: SimEvent): ActionResult {
+    if (r.ok) this.emit(e);
+    return r;
   }
 
   private emit(e: SimEvent): void {

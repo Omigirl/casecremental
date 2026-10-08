@@ -128,9 +128,14 @@ export const BOT_SPEED_LEVELS = 5;
 export const BOT_MAX_SPEED = 8;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
-/** Vault Case I: its price grows this much per completed loop; the finale lasts this long. */
+/** Vault Case I: its price grows this much per completed loop. */
 export const VAULT_GROWTH = 4;
-export const FINALE_SECONDS = 20;
+/** Vault Case I (rework spec §4): after the key turns, five reels land at these seconds (on the fanfare's
+ *  beats); the scene ends here; each reel pays this share of the vault's price, rarer each time. */
+export const VAULT_LAND_TIMES = [6, 9, 12, 15, 19] as const;
+export const VAULT_OPENING_SECONDS = 24;
+export const VAULT_REEL_SHARES = [0.03, 0.06, 0.08, 0.13, 0.3] as const;
+export const VAULT_REEL_RARITIES = ["classified", "covert", "covert", "gold", "gold"] as const;
 export const VAULT_TROPHY = "vault1";
 
 /** CLOUT = floor(√(lifetime earnings) / this). */

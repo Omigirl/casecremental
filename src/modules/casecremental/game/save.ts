@@ -38,7 +38,7 @@ function normalize(d: SaveData): SaveData {
   const setup = { ...DEFAULT_SETUP, ...d.run.setup };
   if (!Array.isArray(setup.charms)) setup.charms = [];
   // nobody is holding a card after a reload
-  return { ...d, meta, run: { ...d.run, setup, state: { ...d.run.state, held: null } } };
+  return { ...d, meta, run: { ...d.run, setup, state: { ...d.run.state, held: null, vault: d.run.state.vault ?? null } } };
 }
 
 function isSave(d: unknown): d is SaveData {

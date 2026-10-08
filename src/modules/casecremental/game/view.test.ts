@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, SELLER_COST, START_CASH } from "../sim/tuning";
+import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, SELLER_COST, START_CASH, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import { buildView } from "./view";
 
 describe("buildView", () => {
@@ -120,18 +120,19 @@ describe("buildView — M2b", () => {
     expect(v.dayJob.progress).toBeCloseTo(0.5, 1);
   });
 
-  it("makes the vault the goal once every case is unlocked, and shows the finale", () => {
+  it("makes the vault the goal once every case is unlocked, and shows the key and the opening", () => {
     const run = new Run(1);
     run.state.unlocked = CASES.map((c) => c.id);
     run.state.cash = DEFAULT_SETUP.vaultPrice / 2;
     let v = buildView(run);
-    expect(v.vault).toEqual({ shown: true, price: DEFAULT_SETUP.vaultPrice, canBuy: false });
+    expect(v.vault).toEqual({ shown: true, price: DEFAULT_SETUP.vaultPrice, canBuy: false, phase: null, progress: 0 });
     expect(v.nextGoal).toEqual({ kind: "vault", progress: 0.5 });
     run.state.cash = DEFAULT_SETUP.vaultPrice;
     run.buyVault();
-    run.tick(5);
-    v = buildView(run);
-    expect(v.finale).toBeCloseTo(0.25);
+    expect(buildView(run).vault.phase).toBe("key");
+    run.turnVaultKey();
+    run.tick(VAULT_OPENING_SECONDS / 4);
+    expect(buildView(run).opening).toBeCloseTo(0.25, 1);
   });
 
   it("shows the prestige screen once the run is over", () => {

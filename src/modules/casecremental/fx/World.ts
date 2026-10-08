@@ -8,7 +8,7 @@ import { STAGE_NAMES } from "../sim/intensity";
 import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
 import { createRng } from "../sim/rng";
 import type { Bench as BenchState, SimEvent } from "../sim/run";
-import { FINALE_SECONDS } from "../sim/tuning";
+import { VAULT_OPENING_SECONDS } from "../sim/tuning";
 import type { Drop, SkinDef } from "../sim/types";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { comboPitch } from "./audio/schedule";
@@ -289,7 +289,9 @@ export class World {
   /** The vault's finale, read from the sim each frame (a reload picks it up where it is). Returns the
    *  reel's motion while it spins for the show. */
   private updateFinale(dt: number): ReelMotion | null {
-    const f = this.controller.run.state.finale;
+    // replaced in Task 5
+    const vs = this.controller.run.state.vault;
+    const f = vs?.phase === "opening" ? vs.t : null;
     if (f === null) {
       if (this.finalePhase !== "none") {
         this.finalePhase = "none";
@@ -299,7 +301,7 @@ export class World {
       }
       return null;
     }
-    const knobs = finaleKnobs(f / FINALE_SECONDS);
+    const knobs = finaleKnobs(f / VAULT_OPENING_SECONDS);
     if (knobs.phase !== this.finalePhase) {
       this.finalePhase = knobs.phase;
       if (knobs.phase === "build") {

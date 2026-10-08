@@ -90,7 +90,17 @@ const bedrock: CaseDef = {
 
 export const CASES: readonly CaseDef[] = [bootcamp, wildwood, bedrock];
 
-const SKINS = new Map(CASES.flatMap((c) => c.skins.map((s) => [s.id, s] as const)));
+/** Vault Case I's legendary (rework spec §4): an animated texture — a flowing aurora — plus the knife's turn. */
+export const VAULT_LEGEND: SkinDef = skin(
+  "vault1_legend",
+  "Event Horizon",
+  "knife",
+  "gold",
+  p("lava", ["#12002a", "#5b2bd6", "#ff3fb4", "#ffd34d", "#fffbe0"], 7, 401),
+  { pattern: "flow", weapon: "flip", frames: 16, fps: 8 },
+);
+
+const SKINS = new Map([...CASES.flatMap((c) => c.skins.map((s) => [s.id, s] as const)), [VAULT_LEGEND.id, VAULT_LEGEND] as const]);
 
 export function caseById(id: string): CaseDef {
   const c = CASES.find((x) => x.id === id);

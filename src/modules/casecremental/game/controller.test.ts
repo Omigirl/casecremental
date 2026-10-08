@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { freshMeta } from "../sim/meta";
 import { Run, type SimEvent } from "../sim/run";
-import { FINALE_SECONDS } from "../sim/tuning";
+import { VAULT_OPENING_SECONDS } from "../sim/tuning";
 import { GameController, MAX_FRAME_SECONDS } from "./controller";
 import { SaveSlot } from "./save";
 
@@ -61,7 +61,8 @@ function openVault(c: GameController) {
   c.run.state.unlocked = CASES.map((x) => x.id);
   c.run.state.cash = 1e9;
   expect(c.act({ type: "buyVault" }).ok).toBe(true);
-  for (let t = 0; t < FINALE_SECONDS + 1; t += 0.2) c.step(0.2);
+  c.act({ type: "turnVaultKey" });
+  for (let t = 0; t < VAULT_OPENING_SECONDS + 1; t += 0.2) c.step(0.2);
 }
 
 describe("GameController — the campaign", () => {
@@ -111,6 +112,19 @@ describe("GameController — the campaign", () => {
     expect(events).toContain("runStarted");
     expect(c.act({ type: "startNextRun" })).toEqual({ ok: false, reason: "the run is still going" });
     expect(c.meta.loops).toBe(1);
+  });
+
+  it("emits sounds' events for picking a charm and buying a perk", () => {
+    const c = new GameController(1);
+    const events: string[] = [];
+    c.onEvent((e) => events.push(e.type));
+    openVault(c);
+    c.step(1);
+    expect(c.act({ type: "pickCharm", id: c.meta.offer![0]! }).ok).toBe(true);
+    c.meta.clout = 50;
+    expect(c.act({ type: "buyPerk", id: "botAwake" }).ok).toBe(true);
+    expect(events).toContain("charmPicked");
+    expect(events).toContain("perkBought");
   });
 
   it("refuses perks during a run", () => {

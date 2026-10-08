@@ -32,14 +32,18 @@ describe("run snapshots", () => {
     expect(b.state).toEqual(a.state);
   });
 
-  it("restores a finale in progress", () => {
+  it("restores a vault waiting for its key, and one mid-opening (Review Focus 1)", () => {
     const a = new Run(2);
     a.state.unlocked = ["bootcamp", "wildwood", "bedrock"];
     a.state.cash = 1e9;
     a.buyVault();
+    const waiting = Run.fromSnapshot(JSON.parse(JSON.stringify(a.snapshot())));
+    expect(waiting.state.vault).toEqual({ phase: "key" });
+    expect(waiting.state.cash).toBe(a.state.cash); // charged once
+    a.turnVaultKey();
     tickFor(a, 7);
     const b = Run.fromSnapshot(a.snapshot());
-    tickFor(b, 14);
+    tickFor(b, 20);
     expect(b.state.over).toBe(true);
   });
 });

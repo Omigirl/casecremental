@@ -5,7 +5,7 @@ import { CASES, unlockCostOf } from "../sim/content/cases";
 import { STAGE_NAMES } from "../sim/intensity";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
-import { BOT_WAKE_COST, DAY_JOB_SECONDS, FINALE_SECONDS, PERK_COSTS, SELLER_COST, UPGRADE_COSTS } from "../sim/tuning";
+import { BOT_WAKE_COST, DAY_JOB_SECONDS, PERK_COSTS, SELLER_COST, UPGRADE_COSTS, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import type { Drop, RarityId } from "../sim/types";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCost, type UpgradeId } from "../sim/upgrades";
 
@@ -102,9 +102,9 @@ export interface GameView {
   seller: SellerView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
-  vault: { shown: boolean; price: number; canBuy: boolean };
-  /** Finale progress 0–1, or null. */
-  finale: number | null;
+  vault: { shown: boolean; price: number; canBuy: boolean; phase: "key" | "opening" | null; progress: number };
+  /** The vault opening's progress 0–1, or null. */
+  opening: number | null;
   over: boolean;
   prestige: PrestigeView | null;
 }
@@ -178,6 +178,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     shown: run.vaultShown(),
     price: run.setup.vaultPrice,
     canBuy: run.vaultShown() && benchFree && s.cash >= run.setup.vaultPrice && !run.locked(),
+    phase: s.vault?.phase ?? null,
+    progress: s.vault?.phase === "opening" ? Math.min(1, s.vault.t / VAULT_OPENING_SECONDS) : 0,
   };
   const prestige: PrestigeView | null = s.over
     ? {
@@ -208,7 +210,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     tray,
     dayJob,
     vault,
-    finale: s.finale === null ? null : Math.min(1, s.finale / FINALE_SECONDS),
+    opening: s.vault?.phase === "opening" ? Math.min(1, s.vault.t / VAULT_OPENING_SECONDS) : null,
     over: s.over,
     prestige,
   };

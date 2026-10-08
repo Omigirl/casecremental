@@ -39,6 +39,7 @@ const SKINS: Record<string, Pair> = {
   bc_hunter: { en: "Blaze Hunter", ru: "Огненный охотник" },
   bc_commander: { en: "Commander's Pride", ru: "Гордость командира" },
   bc_warlord: { en: "Warlord", ru: "Военачальник" },
+  vault1_legend: { en: "Event Horizon", ru: "Горизонт событий" },
   bc_knife: { en: "Field Marshal", ru: "Фельдмаршал" },
   ww_fern: { en: "Fernlight", ru: "Папоротник" },
   ww_bark: { en: "Old Bark", ru: "Старая кора" },

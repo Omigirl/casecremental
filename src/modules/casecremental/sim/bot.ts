@@ -45,6 +45,7 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
   let fullFor = 0;
 
   while (run.state.time < seconds && !run.state.over) {
+    if (run.state.vault?.phase === "key") run.turnVaultKey();
     run.tick(DT);
     const s = run.state;
     for (const e of run.drainEvents()) {

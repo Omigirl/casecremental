@@ -41,7 +41,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         },
         seller: { ...s.seller },
         dayJob: s.dayJob,
-        finale: s.finale,
+        vault: s.vault?.phase ?? null,
         over: s.over,
         meta: { clout: c.meta.clout, loops: c.meta.loops, offer: c.meta.offer, picked: c.meta.picked },
         bench:
@@ -84,6 +84,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       },
       startDayJob: () => run({ type: "startDayJob" }),
       buyVault: () => run({ type: "buyVault" }),
+      turnVaultKey: () => run({ type: "turnVaultKey" }),
       buyPerk: async (args: Args) => {
         const id = String(args?.id ?? "");
         if (!PERK_IDS.includes(id as PerkId)) throw new Error(`unknown perk "${id}"; valid: ${PERK_IDS.join(", ")}`);
@@ -107,7 +108,8 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       buySellerSpeed: "Buy one auto-seller Speed level.",
       setSellerThreshold: "The rarest drop the auto-seller sells: { rarity: milspec|restricted|classified|covert|gold }.",
       startDayJob: "Broke with an empty bench: take a ~3 s day job.",
-      buyVault: "Buy Vault Case I (all cases unlocked); its finale ends the run.",
+      buyVault: "Buy Vault Case I (all cases unlocked); then turn its key, and the opening ends the run.",
+      turnVaultKey: "Turn the devil key in Vault Case I's lock (opens it).",
       buyPerk: "Between runs: buy a perk with CLOUT: { id: startCash|luck|charmSlot|botAwake|biggerTray }.",
       pickCharm: "Between runs: toggle an offered charm for the next run: { id }.",
       startNextRun: "Between runs: start the next run.",

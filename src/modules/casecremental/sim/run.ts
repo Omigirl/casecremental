@@ -1,7 +1,7 @@
 import { freshSeller, sellerHold, sellerSpeedCost, sellsAt, type SellerState } from "./autoSeller";
 import { botCaseFor, botSpeedCost, botSpinSeconds, freshBot, type BotState, type CardSpot } from "./botOpener";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity, type CharmId } from "./charms";
-import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
+import { CASES, VAULT_LEGEND, caseById, priceOf, unlockCostOf } from "./content/cases";
 import { intensityLevel, nextStage, STAGE_NAMES, updateHeat } from "./intensity";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
@@ -15,7 +15,6 @@ import {
   DAY_JOB_PAY,
   DAY_JOB_PAY_CHANCE,
   DAY_JOB_SECONDS,
-  FINALE_SECONDS,
   GOLDEN_HOUR_LUCK,
   GOLDEN_HOUR_SECONDS,
   PITY_LUCK_LEVELS,
@@ -23,6 +22,10 @@ import {
   START_CASH,
   TRAY_BASE_CAPACITY,
   VAULT_BASE_PRICE,
+  VAULT_LAND_TIMES,
+  VAULT_OPENING_SECONDS,
+  VAULT_REEL_RARITIES,
+  VAULT_REEL_SHARES,
   VAULT_TROPHY,
 } from "./tuning";
 import type { Drop, RarityId } from "./types";
@@ -47,6 +50,8 @@ export type Bench =
       tease: Tease | null;
     }
   | { phase: "revealed"; caseId: string; drop: Drop };
+
+export type VaultState = { phase: "key" } | { phase: "opening"; t: number; drops: Drop[]; landed: number };
 
 export type SaleSource = "bench" | "bot" | "tray" | "seller";
 
@@ -100,9 +105,14 @@ export type SimEvent =
   | { type: "botSpinStarted"; caseId: string; drop: Drop; duration: number }
   | { type: "botRevealed"; drop: Drop }
   | { type: "vaultBought"; price: number }
+  | { type: "vaultKeyTurned"; drops: Drop[] }
+  | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
   | { type: "vaultOpened"; trophy: string; drop: Drop; lifetimeEarnings: number }
   /** Emitted by the controller when a new run begins. */
-  | { type: "runStarted" };
+  | { type: "runStarted" }
+  /** Emitted by the controller (prestige screen). */
+  | { type: "charmPicked" }
+  | { type: "perkBought" };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
 
@@ -140,8 +150,8 @@ export interface RunState {
   seller: SellerState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
-  /** Seconds into the vault finale, or null. */
-  finale: number | null;
+  /** Vault Case I is out (rework spec §4), or null. */
+  vault: VaultState | null;
   /** The vault has opened: the run is over. */
   over: boolean;
 }
@@ -191,7 +201,7 @@ export class Run {
       bot: freshBot(this.setup.botAwake),
       seller: freshSeller(),
       held: null,
-      finale: null,
+      vault: null,
       over: false,
     };
   }
@@ -373,7 +383,7 @@ export class Run {
     this.tickBot(dt);
     this.tickSeller();
     this.tickDayJob(dt);
-    this.tickFinale(dt);
+    this.tickVault(dt);
 
     s.heat = updateHeat(s.heat, this.revealsThisTick, dt);
     this.revealsThisTick = 0;
@@ -399,9 +409,9 @@ export class Run {
     return OK;
   }
 
-  /** The vault is open (finale running) or the run has ended: nothing else can be done. */
+  /** The vault is out (waiting for its key, or opening) or the run has ended: nothing else can be done. */
   locked(): boolean {
-    return this.state.finale !== null || this.state.over;
+    return this.state.vault !== null || this.state.over;
   }
 
   vaultShown(): boolean {
@@ -415,29 +425,69 @@ export class Run {
     if (s.bench.phase !== "empty") return fail("bench is busy");
     if (s.cash < this.setup.vaultPrice) return fail("not enough cash");
     s.cash -= this.setup.vaultPrice;
-    s.finale = 0;
+    // the bot's waiting card and its spin in flight are cashed in as machine sales; then it freezes
+    for (const d of [s.bot.card, s.bot.spin?.drop]) {
+      if (!d) continue;
+      const amount = this.payout(d, false);
+      s.cash += amount;
+      s.lifetimeEarnings += amount;
+      this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from: "bot" });
+    }
+    s.bot.card = null;
+    s.bot.spin = null;
+    if (s.held === "bot") s.held = null;
+    s.vault = { phase: "key" };
     this.events.push({ type: "vaultBought", price: this.setup.vaultPrice });
-    // the finale is the top stage from its first frame to the end (M2b spec §7)
+    // the vault holds the top stage from the purchase the top stage from its first frame to the end (M2b spec §7)
     s.stage = STAGE_NAMES.length;
     this.events.push({ type: "stageChanged", stage: s.stage });
     return OK;
   }
 
-  private tickFinale(dt: number): void {
+  /** The player turns the devil key: five drops are rolled and the opening timeline starts. */
+  turnVaultKey(): ActionResult {
     const s = this.state;
-    if (s.finale === null) return;
-    s.finale += dt;
-    if (s.finale < FINALE_SECONDS) return;
+    if (!s.vault) return fail("no vault to open");
+    if (s.vault.phase !== "key") return fail("the key has turned");
+    const top = CASES[CASES.length - 1]!;
+    const drops = VAULT_REEL_RARITIES.map((rarity, i) => {
+      const d = rollDrop(top, priceOf(top.id), 0, this.rng, s.nextDropId++, rarity);
+      const value = this.setup.vaultPrice * VAULT_REEL_SHARES[i]!;
+      return i === VAULT_REEL_RARITIES.length - 1 ? { ...d, skinId: VAULT_LEGEND.id, caseId: "vault1", value } : { ...d, value };
+    });
+    s.vault = { phase: "opening", t: 0, drops, landed: 0 };
+    this.events.push({ type: "vaultKeyTurned", drops });
+    return OK;
+  }
+
+  /** The vault's opening timeline: each reel lands (and pays) at its time; then the run ends. */
+  private tickVault(dt: number): void {
+    const s = this.state;
+    const v = s.vault;
+    if (v?.phase !== "opening") return;
+    v.t += dt;
+    while (v.landed < v.drops.length && v.t >= VAULT_LAND_TIMES[v.landed]!) {
+      const drop = v.drops[v.landed]!;
+      s.cash += drop.value;
+      s.lifetimeEarnings += drop.value;
+      this.events.push({ type: "vaultReelLanded", index: v.landed, drop, amount: drop.value });
+      v.landed++;
+    }
+    if (v.t < VAULT_OPENING_SECONDS) return;
     for (const d of s.tray) {
       const amount = this.payout(d, false);
       s.cash += amount;
       s.lifetimeEarnings += amount;
     }
     s.tray = [];
+    s.vault = null;
     s.over = true;
-    const top = CASES[CASES.length - 1]!;
-    const drop = rollDrop(top, priceOf(top.id), 0, this.rng, s.nextDropId++, "gold");
-    this.events.push({ type: "vaultOpened", trophy: VAULT_TROPHY, drop, lifetimeEarnings: s.lifetimeEarnings });
+    this.events.push({
+      type: "vaultOpened",
+      trophy: VAULT_TROPHY,
+      drop: v.drops[v.drops.length - 1]!,
+      lifetimeEarnings: s.lifetimeEarnings,
+    });
   }
 
   wakeBot(): ActionResult {
@@ -572,7 +622,7 @@ export class Run {
   private tickBot(dt: number): void {
     const s = this.state;
     const bot = s.bot;
-    if (!bot.awake) return;
+    if (!bot.awake || s.vault !== null) return;
     if (bot.spin) {
       bot.spin.elapsed += dt;
       if (bot.spin.elapsed < bot.spin.duration) return;

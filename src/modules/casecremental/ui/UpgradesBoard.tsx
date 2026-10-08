@@ -34,7 +34,7 @@ function UpgradeRow({ u, act }: { u: UpgradeView; act: Act }): ReactNode {
 function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
   const b = view.bot;
   const lang = getLang();
-  const open = view.finale === null && !view.over;
+  const open = view.vault.phase === null && !view.over;
   const unlocked = view.cases.filter((c) => c.unlocked).map((c) => c.id);
   if (!b.awake)
     return (
@@ -74,7 +74,7 @@ function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
 function SellerPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
   const s = view.seller;
   const lang = getLang();
-  const open = view.finale === null && !view.over;
+  const open = view.vault.phase === null && !view.over;
   if (!s.on)
     return (
       <div className="cc-row">
