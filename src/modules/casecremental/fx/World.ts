@@ -25,6 +25,7 @@ import { TimeScale } from "./juice/timeScale";
 import { Zoom } from "./juice/zoom";
 import { fitCentre, hintKey, revealLines } from "./labels";
 import { Bench } from "./pixel/Bench";
+import { BotCardView } from "./pixel/BotCard";
 import { BotSprite } from "./pixel/BotSprite";
 import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
@@ -56,6 +57,8 @@ export class World {
   private readonly bench: Bench;
   private readonly reel: Reel;
   private readonly bot: BotSprite;
+  private readonly botReel: Reel;
+  private readonly botCard: BotCardView;
   private readonly tray: TrayView;
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
@@ -75,7 +78,6 @@ export class World {
   private readonly label = [new Text({ text: "", style: pixelStyle(8, 0xffffff) }), new Text({ text: "", style: pixelStyle(8, 0xffffff) })];
   private labelSpan = { lo: 0, hi: 0 };
   private readonly offline = new Text({ text: "", style: pixelStyle(8, 0x6a6f80) });
-  private readonly botText = new Text({ text: "", style: pixelStyle(8, 0xffd34d) });
   private vp: PixelViewport;
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
@@ -112,12 +114,23 @@ export class World {
     this.bench = new Bench(lib, skins, controller, bake);
     this.tray = new TrayView(skins, controller, bake);
     this.reel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
+    this.botReel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { gain: 0.35, rate: 1.2 }));
     this.bot = new BotSprite(lib);
+    this.botCard = new BotCardView(skins, controller, bake);
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.knifeFlight = new KnifeFlight(this.hd.root);
-    this.pixel.world.addChild(this.room.back, this.room.front, this.tray.root, this.reel, this.bench.root, this.bot.root);
-    this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.botText, this.lifted.root);
-    for (const txt of [this.hint, ...this.label, this.offline, this.botText]) txt.anchor.set(0.5, 0);
+    this.pixel.world.addChild(
+      this.room.back,
+      this.room.front,
+      this.tray.root,
+      this.reel,
+      this.botReel,
+      this.bench.root,
+      this.botCard.root,
+      this.bot.root,
+    );
+    this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.lifted.root);
+    for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
     app.stage.addChild(this.scene, this.hd.overlay);
@@ -128,11 +141,13 @@ export class World {
     app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
       const p = this.worldPt(e);
       this.tray.pointerMove(p);
+      this.botCard.pointerMove(p);
       this.bench.pointerMove(p);
     });
     const up = (e: FederatedPointerEvent) => {
       const p = this.worldPt(e);
       this.tray.pointerUp(p);
+      this.botCard.pointerUp(p);
       this.bench.pointerUp(p);
     };
     app.stage.on("pointerup", up);
@@ -144,11 +159,14 @@ export class World {
     this.applyLayout();
     const first = caseById("bootcamp");
     this.reel.start(first, this.rng.pick(first.skins), this.rng);
+    this.botReel.start(first, this.rng.pick(first.skins), this.rng);
     this.restore();
   }
 
   /** Redraw a run already in progress (the scene is rebuilt after a trip to the lobby). */
   private restore(): void {
+    const sp = this.controller.run.state.bot.spin;
+    if (sp) this.botReel.start(caseById(sp.caseId), skinById(sp.drop.skinId), this.rng);
     const plan = restorePlan(this.controller.run.state);
     if (plan.caseId) this.bench.showCase(plan.caseId, false);
     if (plan.spinning) {
@@ -175,6 +193,7 @@ export class World {
     if (width !== this.screen.w || height !== this.screen.h) {
       this.bench.cancelDrag(); // Review Focus 3: a resize or rotation mid-drag cancels it
       this.tray.cancelDrag();
+      this.botCard.cancelDrag();
       this.vp = pixelViewport(width, height);
       this.l = tableLayout(this.vp);
       this.applyLayout();
@@ -192,6 +211,11 @@ export class World {
     this.bench.update(gameMs, b);
     const bot = run.state.bot;
     this.bot.update(gameMs, bot);
+    const spin = bot.spin;
+    this.botReel.update(spin ? { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 } : null);
+    this.botCard.update(bot.card);
+    this.room.setBotOnline(bot.awake);
+    this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
     this.tray.update(run.state.tray, run.setup.trayCapacity);
     this.room.update(realSeconds * 1000);
@@ -203,7 +227,7 @@ export class World {
     this.hd.setBinCalling(b.phase === "revealed");
 
     const k = this.vp.scale;
-    this.lifted.update(this.tray.lifted() ?? this.bench.lifted(), k, realSeconds);
+    this.lifted.update(this.tray.lifted() ?? this.botCard.lifted() ?? this.bench.lifted(), k, realSeconds);
     this.knifeFlight.update(realSeconds);
     // camera: shake in whole px, zoom around the reveal card
     const s = this.shake.update(realSeconds);
@@ -230,6 +254,7 @@ export class World {
     this.hd.destroy();
     this.bench.destroy();
     this.tray.destroy();
+    this.botCard.destroy();
     this.rain.clear();
     this.pixel.destroy();
     this.scene.destroy({ children: true });
@@ -246,7 +271,7 @@ export class World {
       return;
     }
     const p = this.worldPt(e);
-    if (!this.tray.pointerDown(p)) void this.bench.pointerDown(p);
+    if (!this.tray.pointerDown(p) && !this.botCard.pointerDown(p)) void this.bench.pointerDown(p);
   }
 
   /** The vault's finale, read from the sim each frame (a reload picks it up where it is). Returns the
@@ -329,10 +354,13 @@ export class World {
     this.bot.layout(this.l);
     this.tray.layout(this.l);
     this.reel.layout(this.l.you.reel);
+    if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
+    this.botReel.visible = !!this.l.bot.reel;
+    this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
     const k = this.vp.scale;
     const size = hdFontSize(k);
-    for (const txt of [this.hint, ...this.label, this.offline, this.botText]) txt.style.fontSize = size;
+    for (const txt of [this.hint, ...this.label, this.offline]) txt.style.fontSize = size;
     const r = this.l.you.reel;
     this.hint.position.set((r.x + r.w / 2) * k, (r.y + r.h + 2) * k);
     // The card's lines wrap to the table and slide along it rather than run under a side panel.
@@ -341,7 +369,6 @@ export class World {
     this.labelSpan = { lo: (tb.x + 2) * k, hi: (tb.x + tb.w - 2) * k };
     this.placeLabels();
     const br = this.l.bot.reel;
-    this.offline.visible = !!br;
     if (br) this.offline.position.set((br.x + br.w / 2) * k, (br.y + br.h / 2) * k - size / 2);
   }
 
@@ -358,14 +385,6 @@ export class World {
     this.placeLabels();
     const off = t("station.offline");
     if (this.offline.text !== off) this.offline.text = off;
-    const bot = this.controller.run.state.bot;
-    const waiting = bot.job?.step === "wait" ? t("bot.waiting") : "";
-    if (this.botText.text !== waiting) this.botText.text = waiting;
-    if (waiting) {
-      const h = this.bot.head();
-      const k = this.vp.scale;
-      this.botText.position.set(h.x * k, h.y * k - this.botText.height);
-    }
   }
 
   private placeLabels(): void {
@@ -401,17 +420,25 @@ export class World {
         break;
       case "sold": {
         // only a bench sale clears the card; the bot's and the tray's sales burst coins from the bin
-        const fromBench = e.source === "bench";
-        const at = this.screenPt(fromBench ? this.bench.revealCentre() : this.l.bin);
+        const fromBench = e.from === "bench";
+        const src =
+          fromBench && e.source === "bench"
+            ? this.bench.revealCentre()
+            : e.source === "bot"
+              ? this.botCard.centre()
+              : e.source === "seller"
+                ? this.l.seller
+                : this.l.bin;
+        const at = this.screenPt(src);
         if (fromBench) this.knifeFlight.cancel();
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
         if (fromBench) this.hd.setGlow(null);
-        this.audio.play("cash-register");
+        this.audio.play(e.source === "seller" ? "seller-sell" : "cash-register");
         this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
         if (e.amount >= 100) this.audio.play("coin-cascade", { delay: 0.1 });
-        if (fromBench) this.bench.clearReveal(true);
-        else this.bench.swallow();
+        if (fromBench) this.bench.clearReveal(e.source === "bench"); // a machine sale just clears the card
+        if (e.source === "tray" || e.source === "bot") this.bench.swallow();
         break;
       }
       case "botWoke":
@@ -423,9 +450,17 @@ export class World {
       case "botUpgraded":
         this.audio.play("bot-servo", { rate: 1.2 });
         break;
-      case "botWaiting":
-        this.audio.play("bot-beep", { rate: 0.8 });
+      case "botSpinStarted":
+        this.bot.open();
+        this.botReel.start(caseById(e.caseId), skinById(e.drop.skinId), this.rng);
+        this.audio.play("bot-reel-spin");
         break;
+      case "botRevealed": {
+        const at = this.screenPt(this.botCard.centre());
+        this.hd.particles.burst(at, RARITY_INFO[e.drop.rarity].color, 18, 160 * (this.vp.scale / 6));
+        this.audio.play("reveal-chime", { gain: 0.5, rate: 2 ** (RARITY_ORDER.indexOf(e.drop.rarity) / 6) });
+        break;
+      }
       case "dayJobDone": {
         const tb = this.l.table;
         const at = this.screenPt({ x: tb.x + tb.w / 2, y: tb.y + 12 });
@@ -433,19 +468,18 @@ export class World {
         if (e.amount > 0) this.audio.play("coin-clink");
         break;
       }
-      case "botPickedUp":
-        this.audio.play("bot-servo", { rate: 1.1 });
-        this.bench.cancelDrag();
-        this.knifeFlight.cancel();
-        this.bench.clearReveal(false);
-        this.hd.setGlow(null);
-        break;
       case "stored":
-        this.audio.play("coin-clink", { rate: 0.8 });
+        if (e.from === "bench") {
+          this.knifeFlight.cancel();
+          this.bench.clearReveal(false);
+          this.hd.setGlow(null);
+        }
+        this.audio.play("tray-store");
         break;
       case "vaultBought":
         this.bench.cancelDrag();
         this.tray.cancelDrag();
+        this.botCard.cancelDrag();
         this.hd.flash(0xffd700, 0.5);
         this.audio.play("jackpot-swell");
         break;
@@ -466,6 +500,7 @@ export class World {
       case "runStarted":
         this.bench.cancelDrag();
         this.tray.cancelDrag();
+        this.botCard.cancelDrag();
         this.knifeFlight.cancel();
         this.bench.clearReveal(false);
         this.bench.hideCase();

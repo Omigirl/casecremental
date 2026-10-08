@@ -94,6 +94,16 @@ export const ANIMS = {
     { frame: 7, ms: 160, eyes: "happy" },
     { frame: 0, ms: 200 },
   ],
+  botOpen: [
+    { frame: 1, ms: 90 },
+    { frame: 2, ms: 80 },
+    { frame: 3, ms: 80, dy: -1 },
+    { frame: 4, ms: 90, dy: -2 },
+    { frame: 5, ms: 90, dy: -1 },
+    { frame: 6, ms: 80 },
+    { frame: 7, ms: 120, eyes: "happy" },
+    { frame: 0, ms: 120 },
+  ],
   botFrenzy: [
     { frame: 4, ms: 60, dx: 1 },
     { frame: 5, ms: 60, dx: -1, eyes: "happy" },
@@ -126,6 +136,7 @@ export const ANIM_SPRITE: Record<AnimId, string> = {
   botSleep: "bot-sleep",
   botIdle: "bot-open",
   botWake: "bot-open",
+  botOpen: "bot-open",
   botFrenzy: "bot-open",
   lampSway: "room-lamp",
 };

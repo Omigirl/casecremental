@@ -90,6 +90,11 @@ export class Room {
     if (this.shelves) this.shelves.position.set(Math.round((l.worldW - this.shelves.width) / 2), 6);
   }
 
+  /** The bot's reel window lights up once the bot is awake (its reel is online). */
+  setBotOnline(on: boolean): void {
+    this.botReel.tint = on ? 0xffffff : 0x444455;
+  }
+
   update(ms: number): void {
     this.lamp.update(ms);
   }

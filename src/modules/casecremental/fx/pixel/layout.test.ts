@@ -77,4 +77,12 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     expect(card.y).toBeGreaterThanOrEqual(l.you.reel.y + l.you.reel.h);
     expect(card.y + card.h).toBeLessThanOrEqual(l.you.mat.y + 4);
   });
+  it.each(SIZES)("puts the bot's card on the table, clear of your reveal card, at %ix%i", (w, h) => {
+    const l = tableLayout(pixelViewport(w, h));
+    const r = l.bot.reveal;
+    const { w: cw } = ITEM_SIZE.reveal;
+    expect(r.x - cw / 2).toBeGreaterThanOrEqual(l.table.x);
+    expect(r.x + cw / 2).toBeLessThanOrEqual(l.table.x + l.table.w);
+    expect(Math.abs(r.x - l.you.reveal.x)).toBeGreaterThanOrEqual(cw); // the two cards don't overlap
+  });
 });
