@@ -66,9 +66,13 @@ share one size and one baseline.
 - `SkinTextures.frames(skin)` returns the baked loop (one frame for a static skin); `texture(skin)` stays as
   "frame 0" so existing callers keep working. Baked once per skin, cached, destroyed with the library.
 - A small `SkinPlayer` swaps a sprite's texture by elapsed time at the skin's `fps`.
-- **Where it plays:** the **reveal card**, and the **winning reel card once the reel has stopped**. Cards
-  scrolling past during a spin show frame 0 — a moving finish must never make a spin hard to read. Later:
-  locker and claim tray (M2b/M3) use the same player.
+- **Where it plays:** only the **reveal card**, the one the player drags (user: the knife must not turn on
+  the reel). Reel cards always show frame 0. Later: locker and claim tray (M2b/M3) use the same player.
+- **The ★ knife's entrance** (user, "more pizzazz"): the moment the card comes up, the knife leaves it — in
+  the HD layer it rises ~1 card-height, grows to ~2×, spins two turns and flips edge-on twice (2.5D), then
+  arcs back into the card (~1.2 s, real time, so it plays through the ★ slow-mo) with a clink, sparks and a
+  small shake. Meanwhile the card is empty and can't be picked up; afterwards the knife spins in the card's
+  loop at 5 fps. Selling or a resize mid-flight ends it at once.
 
 ## 6. Demo in M2a
 

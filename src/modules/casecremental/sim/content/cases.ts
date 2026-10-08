@@ -15,7 +15,7 @@ const skin = (id: string, name: string, weapon: WeaponId, rarity: RarityId, patt
 });
 
 /** The ★ knives are rare: they shimmer and spin. Everything else in cases 1–3 stays still. */
-const KNIFE_MOTION: SkinMotion = { pattern: "shimmer", weapon: "flip" };
+const KNIFE_MOTION: SkinMotion = { pattern: "shimmer", weapon: "flip", fps: 5 };
 
 const p = (kind: PatternSpec["kind"], palette: string[], scale: number, seed: number): PatternSpec => ({ kind, palette, scale, seed });
 

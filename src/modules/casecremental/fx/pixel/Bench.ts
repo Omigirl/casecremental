@@ -9,7 +9,7 @@ import type { SkinTextures } from "../skins/pixelSkin";
 import { Actor } from "./Actor";
 import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
-import { DragTracker, type Grabbable } from "./drag";
+import { cardGrabbable, DragTracker, type Grabbable } from "./drag";
 import { ITEM_SIZE, type Pt, type Rect, type TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
 
@@ -31,6 +31,9 @@ export class Bench {
   /** The reveal card, baked once per frame of the skin's loop (one frame for a still skin). */
   private cardFrames: Texture[] = [];
   private cardPlayer: SkinPlayer<Texture> | null = null;
+  /** The card without its art, shown while a ★ knife is out of it. */
+  private cardEmpty: Texture | null = null;
+  private knifeFlying = false;
   private readonly drag = new DragTracker();
   private keyAtLock = 0;
   private l: TableLayout | null = null;
@@ -112,15 +115,35 @@ export class Bench {
       face.destroy({ children: true });
       return baked;
     });
+    this.cardEmpty?.destroy(true);
+    const empty = new Container();
+    empty.addChild(frame.clone());
+    this.cardEmpty = this.bake(empty);
+    empty.destroy({ children: true });
     frame.destroy();
+    this.knifeFlying = false;
     this.cardPlayer = new SkinPlayer(this.cardFrames, this.skins.fps(skin));
     this.card.texture = this.cardPlayer.frame;
     this.card.visible = true;
     this.homeItems();
   }
 
+  /** The ★ knife has left the card: show it empty, and keep it from being picked up until the knife lands. */
+  beginKnifeFlight(): void {
+    this.knifeFlying = true;
+    if (this.cardEmpty) this.card.texture = this.cardEmpty;
+  }
+
+  /** The knife is back in the card: it spins there from its first frame. */
+  endKnifeFlight(): void {
+    this.knifeFlying = false;
+    this.cardPlayer?.reset();
+    if (this.cardPlayer && this.card.visible) this.card.texture = this.cardPlayer.frame;
+  }
+
   /** The card leaves; if it was sold the bin swallows it. */
   clearReveal(sold: boolean): void {
+    this.knifeFlying = false;
     this.card.visible = false;
     this.hideCase();
     if (sold) this.bin.play(ANIMS.binSwallow);
@@ -181,14 +204,14 @@ export class Bench {
     for (const c of this.cases.values()) if (c.actor.visible) c.update(ms);
     this.key.update(ms);
     this.bin.update(ms);
-    if (this.card.visible && this.cardPlayer?.moving) this.card.texture = this.cardPlayer.advance(ms);
+    if (this.card.visible && !this.knifeFlying && this.cardPlayer?.moving) this.card.texture = this.cardPlayer.advance(ms);
     this.key.actor.alpha = b.phase === "locked" || this.keyAtLock > 0 ? 1 : 0.45;
   }
 
   private grabbables(): Grabbable[] {
     const out: Grabbable[] = [];
     if (this.phase === "locked" && this.keyAtLock <= 0) out.push({ id: "key", rect: this.key.actor.box() });
-    if (this.phase === "revealed" && this.card.visible) out.push({ id: "card", rect: this.cardRect() });
+    if (cardGrabbable(this.phase, this.card.visible, this.knifeFlying)) out.push({ id: "card", rect: this.cardRect() });
     return out;
   }
 
@@ -202,6 +225,8 @@ export class Bench {
     for (const t of this.cardFrames) t.destroy(true);
     this.cardFrames = [];
     this.cardPlayer = null;
+    this.cardEmpty?.destroy(true);
+    this.cardEmpty = null;
   }
 
   private homeItems(): void {

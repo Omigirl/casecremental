@@ -1,11 +1,10 @@
-import { Container, Graphics, NineSliceSprite, Sprite, type Texture } from "pixi.js";
+import { Container, Graphics, NineSliceSprite, Sprite } from "pixi.js";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Rng } from "../../sim/rng";
 import type { Tease } from "../../sim/tease";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import { reelFraction, type ReelMotion } from "../reel/motion";
 import { buildStrip, landingJitter, WIN_INDEX } from "../reel/strip";
-import { SkinPlayer } from "../skins/player";
 import type { SkinTextures } from "../skins/pixelSkin";
 import type { Rect } from "./layout";
 import type { SpriteSet } from "./sprites";
@@ -45,8 +44,6 @@ export class Reel extends Container {
   private jitter = 0;
   private fraction = 0;
   private lastIndex = -1;
-  /** The winning card's loop, played once the reel has stopped (null: a still skin). */
-  private winner: { art: Sprite; player: SkinPlayer<Texture> } | null = null;
 
   constructor(
     frameSet: SpriteSet,
@@ -92,15 +89,12 @@ export class Reel extends Container {
     this.place(0, false);
   }
 
-  /** While spinning: move the strip (every card shows frame 0). Stopped: play the winner's loop. */
-  update(motion: ReelMotion | null, ms = 0): void {
-    if (motion) {
-      this.fraction = reelFraction(motion);
-      this.place(this.fraction, true);
-      this.winner?.player.reset();
-      return;
-    }
-    if (this.winner) this.winner.art.texture = this.winner.player.advance(ms);
+  /** Move the strip while spinning. Cards always show a skin's still frame — animated skins play only on
+   *  the reveal card the player drags (user). */
+  update(motion: ReelMotion | null): void {
+    if (!motion) return;
+    this.fraction = reelFraction(motion);
+    this.place(this.fraction, true);
   }
 
   private place(f: number, sound: boolean): void {
@@ -114,16 +108,11 @@ export class Reel extends Container {
 
   private rebuild(): void {
     for (const child of this.strip.removeChildren()) child.destroy({ children: true });
-    this.winner = null;
     const h = this.rect.h - 6;
     this.items.forEach((skin, i) => {
       const card = makeCard(this.skins, skin, CARD_W - GAP, h);
       card.position.set(i * CARD_W + GAP / 2, 3);
       this.strip.addChild(card);
-      if (i !== WIN_INDEX) return;
-      const frames = this.skins.frames(skin);
-      const player = new SkinPlayer(frames, this.skins.fps(skin));
-      if (player.moving) this.winner = { art: card.art, player };
     });
   }
 }

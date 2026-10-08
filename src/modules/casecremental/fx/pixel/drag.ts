@@ -73,3 +73,7 @@ export class DragTracker {
     return a ? { kind: "cancel", id: a.id } : { kind: "none" };
   }
 }
+
+/** The revealed card can be picked up once it is up and, for a ★ knife, once the knife has landed back in it. */
+export const cardGrabbable = (phase: string, cardVisible: boolean, knifeFlying: boolean): boolean =>
+  phase === "revealed" && cardVisible && !knifeFlying;

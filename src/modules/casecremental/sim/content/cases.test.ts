@@ -39,6 +39,6 @@ describe("cases", () => {
 
   it("every ★ knife shimmers and flips; every other skin in cases 1–3 is still", () => {
     for (const c of CASES)
-      for (const s of c.skins) expect(s.motion).toEqual(s.rarity === "gold" ? { pattern: "shimmer", weapon: "flip" } : undefined);
+      for (const s of c.skins) expect(s.motion).toEqual(s.rarity === "gold" ? { pattern: "shimmer", weapon: "flip", fps: 5 } : undefined);
   });
 });

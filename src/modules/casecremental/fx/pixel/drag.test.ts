@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DragTracker } from "./drag";
+import { cardGrabbable, DragTracker } from "./drag";
 
 const KEY = { id: "key", rect: { x: 10, y: 10, w: 10, h: 6 } };
 const CARD = { id: "card", rect: { x: 40, y: 10, w: 44, h: 30 } };
@@ -37,5 +37,14 @@ describe("DragTracker", () => {
     expect(d.cancel()).toEqual({ kind: "cancel", id: "card" });
     expect(d.position).toBeNull();
     expect(d.up({ x: 90, y: 60 })).toEqual({ kind: "none" });
+  });
+});
+
+describe("cardGrabbable", () => {
+  it("lets the card be dragged only once it is up and its knife has landed back in it", () => {
+    expect(cardGrabbable("revealed", true, false)).toBe(true);
+    expect(cardGrabbable("revealed", true, true)).toBe(false); // the ★ knife is still in the air
+    expect(cardGrabbable("revealed", false, false)).toBe(false);
+    expect(cardGrabbable("spinning", true, false)).toBe(false);
   });
 });

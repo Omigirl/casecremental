@@ -7,12 +7,13 @@ import { formatCash } from "../sim/format";
 import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
 import { createRng } from "../sim/rng";
 import type { Bench as BenchState, SimEvent } from "../sim/run";
-import type { Drop } from "../sim/types";
+import type { Drop, SkinDef } from "../sim/types";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { comboPitch } from "./audio/schedule";
 import { loadPixelFont, pixelStyle } from "./hd/font";
 import { HdLayer } from "./hd/HdLayer";
 import { setTweenTimeScale } from "./hd/tween";
+import { KnifeFlight } from "./hd/knifeFlight";
 import { Lifted } from "./hd/Lifted";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
@@ -53,6 +54,7 @@ export class World {
   private readonly time = new TimeScale();
   private readonly zoom = new Zoom();
   private readonly lifted = new Lifted();
+  private knifeFlight!: KnifeFlight;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
@@ -94,6 +96,7 @@ export class World {
     });
     this.reel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
+    this.knifeFlight = new KnifeFlight(this.hd.root);
     this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
     this.hd.root.addChild(this.hint, ...this.label, this.offline, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
@@ -154,7 +157,7 @@ export class World {
     const run = this.controller.run;
     const b = run.state.bench;
     const crawl = b.phase === "spinning" ? crawlSeconds(b.tease, b.fullDuration) : 0;
-    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null, gameMs);
+    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null);
     if (b.phase === "spinning" && b.tease && !this.leaned && b.elapsed >= b.fullDuration - crawl) {
       this.leaned = true; // a red or a knife is crawling in (or a fake one): lean in toward the reel
       this.zoom.punch(1 + TEASE_ZOOM * b.tease.strength, b.fullDuration - b.elapsed);
@@ -169,6 +172,7 @@ export class World {
 
     const k = this.vp.scale;
     this.lifted.update(this.bench.lifted(), k, realSeconds);
+    this.knifeFlight.update(realSeconds);
     // camera: shake in whole px, zoom around the reveal card
     const s = this.shake.update(realSeconds);
     const z = this.zoom.update(realSeconds);
@@ -207,6 +211,11 @@ export class World {
   }
 
   private applyLayout(): void {
+    // the screen changed: a knife in the air goes straight back into its card
+    if (this.knifeFlight?.flying) {
+      this.knifeFlight.cancel();
+      this.bench.endKnifeFlight();
+    }
     const { width, height } = this.app.screen;
     this.screen = { w: width, h: height };
     this.pixel.resize(this.vp);
@@ -276,6 +285,7 @@ export class World {
         this.onReveal(e.drop);
         break;
       case "sold": {
+        this.knifeFlight.cancel();
         const at = this.screenPt(this.bench.revealCentre());
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
@@ -301,10 +311,12 @@ export class World {
   }
 
   private onReveal(d: Drop): void {
-    this.bench.showReveal(skinById(d.skinId), d);
+    const skin = skinById(d.skinId);
+    this.bench.showReveal(skin, d);
     const at = this.screenPt(this.bench.revealCentre());
     const color = RARITY_INFO[d.rarity].color;
     const v = this.vp.scale / 6; // spark speeds were tuned at scale 6 (1080p)
+    if (skin.motion?.weapon === "flip") this.launchKnife(skin, at, v);
     this.hd.setGlow(color);
     this.audio.play("reveal-chime", { rate: 2 ** (RARITY_ORDER.indexOf(d.rarity) / 6) });
     switch (d.rarity) {
@@ -336,5 +348,17 @@ export class World {
         this.hd.particles.burst(at, color, 220, 520 * v);
         break;
     }
+  }
+
+  /** The ★ knife leaves the card, flies (2.5D: spin, flip, grow) and lands back in it. */
+  private launchKnife(skin: SkinDef, at: Pt, v: number): void {
+    const k = this.vp.scale;
+    this.bench.beginKnifeFlight();
+    this.knifeFlight.start(this.skins.frames(skin)[0]!, at, k, 34 * k, () => {
+      this.bench.endKnifeFlight();
+      this.shake.add(0.3);
+      this.audio.play("coin-clink", { rate: 0.75 });
+      this.hd.particles.burst(at, 0xffd700, 50, 260 * v);
+    });
   }
 }
