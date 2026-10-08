@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - New dependencies, exact versions: `@fontsource/press-start-2p@5.3.0`, `gsap@3.15.0`. No other new runtime or dev dependencies (art tools use only Node built-ins).
-- Pixel world: height ≥ 180 world px on landscape; integer scale only; textures `scaleMode: "nearest"`; **pixel sprites are never scaled or rotated at runtime**.
+- Pixel world: height ≥ 180 world px on landscape; integer scale only; textures `scaleMode: "nearest"`; **pixel sprites are never scaled or rotated inside the pixel world**. User-approved 2.5D exceptions (Task 14): the camera zoom on big moments (whole scene, back to exactly 1 at rest) and the dragged item lifted into the HD layer (scaled, leaning).
 - v2 recipe: smooth area downscale → hard alpha (≥ 128) → posterize each channel in steps of **48** → 1 px outline **`#120e10`**; characters **48 px** tall.
 - Code eyes: 2×3 px blocks `#6fffe8` on a 5×5 visor patch `#0d1418`; states `open | half | closed | happy`; both eyes on one level per frame.
 - All on-screen text uses **Press Start 2P**, bundled (no requests to Google Fonts or any non-platform host). Sizes are multiples of 8 px.
@@ -77,7 +77,9 @@ src/modules/casecremental/
   fx/audio/schedule.ts       variants, jitter, combo pitch, bar timing (pure)
   fx/audio/sounds.ts         sound catalogue + file index
   fx/audio/AudioEngine.ts    buses, limiter, ducking, music crossfade, silent fallback
-  fx/World.ts                (rewritten) orchestrates layers, input, events
+  fx/juice/zoom.ts           camera push-in (pure)
+  fx/hd/lean.ts, Lifted.ts   dragged item lifted into the HD layer, leaning (2.5D)
+  fx/World.ts                (rewritten) orchestrates layers, camera, input, events
   ui/prefs.ts                language + volumes (local storage, safe)
   ui/pixelFrame.ts, styles.ts, hooks.ts, parts.tsx   9-slice frames, stylesheet, hooks, shared parts
   ui/Hud.tsx, UpgradesBoard.tsx, CaseShelf.tsx, Drawer.tsx, Settings.tsx, GamePanel.tsx
@@ -5889,7 +5891,7 @@ Run: `git rm src/modules/casecremental/fx/audio.ts`
 - [ ] **Step 11: Run the tests, typecheck and build**
 
 Run: `npx vitest run src/modules/casecremental && npm run typecheck && npm run build`
-Expected: all PASS; typecheck clean; build succeeds. The game is silent until Task 14 adds the files — that is the designed fallback.
+Expected: all PASS; typecheck clean; build succeeds. The game is silent until Task 15 adds the files — that is the designed fallback.
 
 - [ ] **Step 12: Commit**
 
@@ -5903,7 +5905,590 @@ Claude-Session: https://claude.ai/code/session_014wBjrnrMGCKsQtzVj5GDC3"
 
 ---
 
-### Task 14: Generate the sounds and the stage music with ElevenLabs
+### Task 14: Camera zoom and lifted 2.5D drag
+
+The user's call (2026-10-08): big moments **zoom**, and dragged items **lean** — "2.5D is fine". The camera (shake + zoom) moves the whole scene — pixel view and HD layer — around the reveal card; pixels are slightly uneven only while zoomed and exact at rest. A dragged key or card leaves the pixel world and is drawn **lifted** in the HD layer: 15 % larger at the world scale, gliding with the pointer (not in pixel steps), leaning into the drag, with a soft shadow; on release it drops back into the grid.
+
+**Files:**
+- Create: `fx/juice/zoom.ts`, `fx/hd/lean.ts`, `fx/hd/Lifted.ts`
+- Modify: `fx/pixel/drag.ts` (+ test: `exactPosition`), `fx/hd/HdLayer.ts` (`overlay` outside the zoom), `fx/pixel/Bench.ts` (baked card sprite, `lifted()`, `destroy()`), `fx/World.ts` (camera, lifted item, pointer through the camera)
+- Test: `fx/juice/zoom.test.ts`, `fx/hd/lean.test.ts`
+
+**Interfaces:**
+- Consumes: `DragTracker` (Task 9), `HdLayer` (Task 10), `Bench`, `World` (Task 11), `ITEM_SIZE` (Task 6).
+- Produces:
+  - `class Zoom { punch(amount, holdSeconds); level: number; update(dt): number }` — rests at exactly 1
+  - `MAX_LEAN = 0.3`, `class Lean { reset(x); update(x, dt): number }`
+  - `interface LiftInfo { id: string; texture: Texture; center: Pt }`, `class Lifted { root: Container; update(info: LiftInfo | null, scale, dt) }`
+  - `DragTracker.exactPosition: Pt | null`; `HdLayer.overlay: Container`; `new Bench(lib, skins, controller, bake: (c: Container) => Texture)`, `Bench.lifted(): LiftInfo | null`, `Bench.destroy()`
+
+- [ ] **Step 1: Write the failing tests**
+
+`fx/juice/zoom.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { Zoom } from "./zoom";
+
+const run = (z: Zoom, seconds: number) => {
+  let v = z.level;
+  for (let t = 0; t < seconds; t += 1 / 60) v = z.update(1 / 60);
+  return v;
+};
+
+describe("Zoom", () => {
+  it("rests at exactly 1", () => {
+    expect(run(new Zoom(), 1)).toBe(1);
+  });
+
+  it("snaps in, holds, then eases back to exactly 1", () => {
+    const z = new Zoom();
+    z.punch(1.3, 2);
+    expect(run(z, 0.5)).toBeGreaterThan(1.28);
+    expect(run(z, 1)).toBeGreaterThan(1.28);
+    expect(run(z, 4)).toBe(1);
+  });
+
+  it("keeps the bigger of two punches", () => {
+    const z = new Zoom();
+    z.punch(1.3, 1);
+    z.punch(1.08, 0.2);
+    expect(run(z, 0.5)).toBeGreaterThan(1.25);
+  });
+});
+```
+
+`fx/hd/lean.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { Lean, MAX_LEAN } from "./lean";
+
+describe("Lean", () => {
+  it("tilts into a fast drag, never past the limit, and settles when it stops", () => {
+    const l = new Lean();
+    l.reset(0);
+    let x = 0;
+    let a = 0;
+    for (let i = 0; i < 30; i++) a = l.update((x += 40), 1 / 60); // 2400 px/s to the right
+    expect(a).toBeGreaterThan(0.2);
+    expect(a).toBeLessThanOrEqual(MAX_LEAN);
+    for (let i = 0; i < 60; i++) a = l.update(x, 1 / 60);
+    expect(Math.abs(a)).toBeLessThan(0.01);
+  });
+
+  it("leans the other way when dragged left", () => {
+    const l = new Lean();
+    l.reset(500);
+    let x = 500;
+    let a = 0;
+    for (let i = 0; i < 20; i++) a = l.update((x -= 20), 1 / 60);
+    expect(a).toBeLessThan(0);
+  });
+});
+```
+
+and extend `fx/pixel/drag.test.ts`:
+
+```diff
+--- a/src/modules/casecremental/fx/pixel/drag.test.ts
++++ b/src/modules/casecremental/fx/pixel/drag.test.ts
+@@ -25,6 +25,8 @@ describe("DragTracker", () => {
+     d.down({ x: 12, y: 12 }, [KEY]);
+     d.move({ x: 30.6, y: 40.2 });
+     expect(d.position).toEqual({ x: 29, y: 38 });
++    expect(d.exactPosition!.x).toBeCloseTo(28.6);
++    expect(d.exactPosition!.y).toBeCloseTo(38.2);
+     expect(d.up({ x: 31, y: 40 })).toEqual({ kind: "drop", id: "key", at: { x: 31, y: 40 } });
+   });
+ 
+```
+
+- [ ] **Step 2: Run them to verify they fail**
+
+Run: `npx vitest run src/modules/casecremental/fx/juice/zoom.test.ts src/modules/casecremental/fx/hd/lean.test.ts src/modules/casecremental/fx/pixel/drag.test.ts`
+Expected: FAIL — cannot resolve `./zoom`, `./lean`; `exactPosition` is undefined.
+
+- [ ] **Step 3: Write `fx/juice/zoom.ts`**
+
+```ts
+// Camera push-in for big moments (★ slow-mo, a Covert punch, stage-ups): the whole scene — pixel
+// world and HD layer — scales around the reveal. The user wants the zoom ("2.5D is fine"): pixels go
+// slightly uneven while it lasts and are exact again at rest. Real time, so slow-mo doesn't slow it.
+
+export class Zoom {
+  private value = 1;
+  private target = 1;
+  private hold = 0;
+
+  /** Push in to `amount` (e.g. 1.3) and stay there for `holdSeconds`, then ease back out. */
+  punch(amount: number, holdSeconds: number): void {
+    this.target = Math.max(this.target, amount);
+    this.hold = Math.max(this.hold, holdSeconds);
+  }
+
+  get level(): number {
+    return this.value;
+  }
+
+  update(dt: number): number {
+    if (this.hold > 0) this.hold -= dt;
+    else this.target = 1;
+    const rate = this.value < this.target ? 10 : 3; // snap in, ease out
+    this.value += (this.target - this.value) * Math.min(1, dt * rate);
+    if (this.target === 1 && Math.abs(this.value - 1) < 0.001) this.value = 1;
+    return this.value;
+  }
+}
+```
+
+- [ ] **Step 4: Write `fx/hd/lean.ts`**
+
+```ts
+// How far a dragged item tilts: it leans into the drag in proportion to its (smoothed) speed, at
+// most MAX_LEAN, and settles upright when it stops — the 2.5D "picked up" feel.
+
+export const MAX_LEAN = 0.3; // radians
+
+export class Lean {
+  private vx = 0;
+  private angle = 0;
+  private last: number | null = null;
+
+  reset(x: number): void {
+    this.last = x;
+    this.vx = 0;
+    this.angle = 0;
+  }
+
+  /** x in screen px, dt in seconds → rotation in radians (positive = clockwise, moving right). */
+  update(x: number, dt: number): number {
+    if (dt <= 0) return this.angle;
+    const v = this.last === null ? 0 : (x - this.last) / dt;
+    this.last = x;
+    this.vx += (v - this.vx) * Math.min(1, dt * 12);
+    const want = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, this.vx * 0.0005));
+    this.angle += (want - this.angle) * Math.min(1, dt * 14);
+    return this.angle;
+  }
+}
+```
+
+- [ ] **Step 5: Write `fx/hd/Lifted.ts`**
+
+```ts
+import { Container, Sprite, type Texture } from "pixi.js";
+import type { Pt } from "../pixel/layout";
+import { Lean } from "./lean";
+
+// A dragged item lifted out of the pixel world into the HD layer (2.5D): drawn a bit larger at the
+// world scale, moving smoothly with the pointer, leaning into the drag, with a soft shadow below.
+
+export interface LiftInfo {
+  id: string;
+  texture: Texture;
+  /** Centre in world px (fractional — the lifted item moves smoothly). */
+  center: Pt;
+}
+
+const LIFT = 1.15;
+
+export class Lifted {
+  readonly root = new Container();
+  private readonly shadow = new Sprite();
+  private readonly item = new Sprite();
+  private readonly lean = new Lean();
+  private id: string | null = null;
+
+  constructor() {
+    this.shadow.anchor.set(0.5);
+    this.item.anchor.set(0.5);
+    this.shadow.tint = 0x000000;
+    this.shadow.alpha = 0.35;
+    this.root.visible = false;
+    this.root.addChild(this.shadow, this.item);
+  }
+
+  update(info: LiftInfo | null, scale: number, dt: number): void {
+    if (!info) {
+      this.root.visible = false;
+      this.id = null;
+      return;
+    }
+    const x = info.center.x * scale;
+    const y = info.center.y * scale;
+    if (info.id !== this.id) {
+      this.id = info.id;
+      this.lean.reset(x);
+    }
+    const angle = this.lean.update(x, dt);
+    this.item.texture = this.shadow.texture = info.texture;
+    this.item.position.set(x, y - 2 * scale);
+    this.item.scale.set(scale * LIFT);
+    this.item.rotation = angle;
+    this.shadow.position.set(x + scale, y + 3 * scale);
+    this.shadow.scale.set(scale * LIFT * 0.95);
+    this.shadow.rotation = angle;
+    this.root.visible = true;
+  }
+}
+```
+
+- [ ] **Step 6: Keep the unrounded drag position in `fx/pixel/drag.ts`**
+
+```diff
+--- a/src/modules/casecremental/fx/pixel/drag.ts
++++ b/src/modules/casecremental/fx/pixel/drag.ts
+@@ -22,7 +22,7 @@ export const TAP_SLOP = 2;
+ const hit = (r: Rect, p: Pt) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
+ 
+ export class DragTracker {
+-  private active: { id: string; start: Pt; grab: Pt; moved: number; pos: Pt } | null = null;
++  private active: { id: string; start: Pt; grab: Pt; moved: number; exact: Pt } | null = null;
+ 
+   get dragging(): string | null {
+     return this.active?.id ?? null;
+@@ -30,14 +30,20 @@ export class DragTracker {
+ 
+   /** Where the dragged item's top-left goes, in whole world px. */
+   get position(): Pt | null {
+-    return this.active ? { ...this.active.pos } : null;
++    const a = this.active;
++    return a ? { x: Math.round(a.exact.x), y: Math.round(a.exact.y) } : null;
++  }
++
++  /** The same, unrounded — for an item lifted into the HD layer, which moves smoothly. */
++  get exactPosition(): Pt | null {
++    return this.active ? { ...this.active.exact } : null;
+   }
+ 
+   /** Grab the first item under the pointer (items are in priority order). */
+   down(p: Pt, items: readonly Grabbable[]): string | null {
+     const item = items.find((i) => hit(i.rect, p));
+     if (!item) return null;
+-    this.active = { id: item.id, start: p, grab: { x: p.x - item.rect.x, y: p.y - item.rect.y }, moved: 0, pos: { x: item.rect.x, y: item.rect.y } };
++    this.active = { id: item.id, start: p, grab: { x: p.x - item.rect.x, y: p.y - item.rect.y }, moved: 0, exact: { x: item.rect.x, y: item.rect.y } };
+     return item.id;
+   }
+ 
+@@ -45,7 +51,7 @@ export class DragTracker {
+     const a = this.active;
+     if (!a) return;
+     a.moved = Math.max(a.moved, Math.hypot(p.x - a.start.x, p.y - a.start.y));
+-    a.pos = { x: Math.round(p.x - a.grab.x), y: Math.round(p.y - a.grab.y) };
++    a.exact = { x: p.x - a.grab.x, y: p.y - a.grab.y };
+   }
+ 
+   up(p: Pt): DragEnd {
+```
+
+- [ ] **Step 7: Vignette and flash outside the zoom — `fx/hd/HdLayer.ts`**
+
+```diff
+--- a/src/modules/casecremental/fx/hd/HdLayer.ts
++++ b/src/modules/casecremental/fx/hd/HdLayer.ts
+@@ -32,6 +32,8 @@ function radial(size: number, stops: Array<[number, string]>): Texture {
+ 
+ export class HdLayer {
+   readonly root = new Container();
++  /** Vignette and flash: over everything, outside the camera zoom. */
++  readonly overlay = new Container();
+   readonly particles: Particles;
+   readonly coins: Coins;
+   private readonly textures: Texture[];
+@@ -78,7 +80,8 @@ export class HdLayer {
+     this.particles = new Particles(dot);
+     this.coins = new Coins(coinFrames);
+     this.flashRect.alpha = 0;
+-    this.root.addChild(this.lamp, this.glowSprite, this.dust, ...this.zs, this.led, this.particles.container, this.coins.container, this.vignette, this.flashRect);
++    this.root.addChild(this.lamp, this.glowSprite, this.dust, ...this.zs, this.led, this.particles.container, this.coins.container);
++    this.overlay.addChild(this.vignette, this.flashRect);
+   }
+ 
+   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
+@@ -147,6 +150,7 @@ export class HdLayer {
+   destroy(): void {
+     this.coins.destroy();
+     this.root.destroy({ children: true });
++    this.overlay.destroy({ children: true });
+     for (const t of this.textures) t.destroy(true);
+   }
+ 
+```
+
+- [ ] **Step 8: The held item lifts out of the pixel world — `fx/pixel/Bench.ts`**
+
+```diff
+--- a/src/modules/casecremental/fx/pixel/Bench.ts
++++ b/src/modules/casecremental/fx/pixel/Bench.ts
+@@ -1,8 +1,9 @@
+-import { Container, Graphics, Sprite } from "pixi.js";
++import { Container, Graphics, Sprite, type Texture } from "pixi.js";
+ import type { GameController } from "../../game/controller";
+ import { RARITY_INFO } from "../../sim/rarity";
+ import type { Bench as BenchState } from "../../sim/run";
+ import type { Drop, SkinDef } from "../../sim/types";
++import type { LiftInfo } from "../hd/Lifted";
+ import type { SkinTextures } from "../skins/pixelSkin";
+ import { Actor } from "./Actor";
+ import { Animated } from "./Animated";
+@@ -13,7 +14,8 @@ import type { SpriteLibrary } from "./sprites";
+ 
+ // Your bench: the case on the mat, the key (drag it into the lock), the revealed skin card (drag
+ // it into the SELL bin) and the bin. Taps work too; a press anywhere while the reel spins brakes.
+-// Every change goes through controller.act — the one input path.
++// Every change goes through controller.act — the one input path. A dragged item leaves the pixel
++// world and is drawn lifted in the HD layer (lifted()) until it is let go.
+ 
+ const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
+ const inside = (r: Rect, p: Pt) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
+@@ -24,7 +26,8 @@ export class Bench {
+   private caseId: string | null = null;
+   private readonly key: Animated;
+   private readonly bin: Animated;
+-  private readonly card = new Container();
++  private readonly card = new Sprite();
++  private cardTexture: Texture | null = null;
+   private readonly drag = new DragTracker();
+   private keyAtLock = 0;
+   private l: TableLayout | null = null;
+@@ -34,6 +37,8 @@ export class Bench {
+     private readonly lib: SpriteLibrary,
+     private readonly skins: SkinTextures,
+     private readonly controller: GameController,
++    /** Renders a container into a 1:1 nearest-sampled texture (the reveal card). */
++    private readonly bake: (c: Container) => Texture,
+   ) {
+     this.key = new Animated(new Actor(lib.get("key", { w: 20, h: 24, frames: 4 })), ANIMS.keyIdle);
+     this.bin = new Animated(new Actor(lib.get("sell-bin", { w: 26, h: 38, frames: 4 })), ANIMS.binIdle);
+@@ -84,7 +89,6 @@ export class Bench {
+   }
+ 
+   showReveal(skin: SkinDef, drop: Drop): void {
+-    for (const child of this.card.removeChildren()) child.destroy({ children: true });
+     const { w, h } = ITEM_SIZE.reveal;
+     const color = RARITY_INFO[drop.rarity].color;
+     const frame = new Graphics()
+@@ -93,8 +97,13 @@ export class Bench {
+       .rect(2, 2, w - 4, h - 4).fill({ color: 0x15161d });
+     const art = new Sprite(this.skins.texture(skin));
+     art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - art.height) / 2));
+-    this.card.addChild(frame, art);
+-    if (drop.statTrak) this.card.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
++    const face = new Container();
++    face.addChild(frame, art);
++    if (drop.statTrak) face.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
++    this.cardTexture?.destroy(true);
++    this.cardTexture = this.bake(face);
++    face.destroy({ children: true });
++    this.card.texture = this.cardTexture;
+     this.card.visible = true;
+     this.homeItems();
+   }
+@@ -131,6 +140,20 @@ export class Bench {
+     this.homeItems();
+   }
+ 
++  /** The item being dragged, for the HD layer to draw lifted (null when nothing is held). */
++  lifted(): LiftInfo | null {
++    const p = this.drag.exactPosition;
++    const id = this.drag.dragging;
++    if (!p || !id) return null;
++    if (id === "key") {
++      const m = this.key.actor.meta;
++      return { id, texture: this.key.actor.set.frames[0]!, center: { x: p.x + m.frameW / 2, y: p.y + m.frameH / 2 } };
++    }
++    if (!this.cardTexture) return null;
++    const { w, h } = ITEM_SIZE.reveal;
++    return { id, texture: this.cardTexture, center: { x: p.x + w / 2, y: p.y + h / 2 } };
++  }
++
+   /** The viewport changed under a drag: the item goes home and nothing fires. */
+   cancelDrag(): void {
+     this.drag.cancel();
+@@ -142,12 +165,9 @@ export class Bench {
+     if (this.keyAtLock > 0 && (this.keyAtLock -= ms) <= 0) this.homeItems();
+     this.key.setIdle(b.phase === "locked" ? ANIMS.keyReady : ANIMS.keyIdle);
+     this.bin.setIdle(b.phase === "revealed" ? ANIMS.binHungry : ANIMS.binIdle);
+-    const pos = this.drag.position;
+-    if (pos && this.drag.dragging === "key") {
+-      const m = this.key.actor.meta;
+-      this.key.actor.place(pos.x + Math.floor(m.frameW / 2), pos.y + m.ground);
+-    }
+-    if (pos && this.drag.dragging === "card") this.card.position.set(pos.x, pos.y);
++    // the held item is drawn lifted in the HD layer instead
++    this.key.actor.visible = this.drag.dragging !== "key";
++    this.card.alpha = this.drag.dragging === "card" ? 0 : 1;
+     for (const c of this.cases.values()) if (c.actor.visible) c.update(ms);
+     this.key.update(ms);
+     this.bin.update(ms);
+@@ -167,6 +187,11 @@ export class Bench {
+     return { x: r.x - w / 2, y: r.y - h / 2, w, h };
+   }
+ 
++  destroy(): void {
++    this.cardTexture?.destroy(true);
++    this.cardTexture = null;
++  }
++
+   private homeItems(): void {
+     const l = this.l;
+     if (!l) return;
+```
+
+- [ ] **Step 9: Camera and lifted item in `fx/World.ts`**
+
+```diff
+--- a/src/modules/casecremental/fx/World.ts
++++ b/src/modules/casecremental/fx/World.ts
+@@ -12,16 +12,18 @@ import { comboPitch } from "./audio/schedule";
+ import { loadPixelFont, pixelStyle } from "./hd/font";
+ import { HdLayer } from "./hd/HdLayer";
+ import { setTweenTimeScale } from "./hd/tween";
++import { Lifted } from "./hd/Lifted";
+ import { Shake } from "./juice/shake";
+ import { StageLook } from "./juice/stageLook";
+ import { TimeScale } from "./juice/timeScale";
++import { Zoom } from "./juice/zoom";
+ import { hintKey, revealLines } from "./labels";
+ import { Bench } from "./pixel/Bench";
+ import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
+ import { PixelLayer } from "./pixel/PixelLayer";
+ import { Reel } from "./pixel/Reel";
+ import { Room } from "./pixel/Room";
+-import { hdFontSize, toWorld } from "./pixel/screen";
++import { hdFontSize } from "./pixel/screen";
+ import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
+ import { pixelViewport, type PixelViewport } from "./pixel/viewport";
+ import { restorePlan } from "./restore";
+@@ -29,8 +31,9 @@ import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
+ 
+ // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
+ // rendered small and scaled up by a whole number, and the HD layer over it (light, dust, glow,
+-// sparks, coins, text). Sim events drive the juice: sparks, coins, sound, shake, hit-stop on
+-// Covert, slow-mo + flash on ★, and the look of the intensity stage.
++// sparks, coins, text). Sim events drive the juice: sparks, coins, sound, shake, hit-stop and a
++// zoom punch on Covert, slow-mo + push-in + flash on ★, and the look of the intensity stage. The
++// camera (shake + zoom) moves the whole scene around the reveal; vignette and flash stay put.
+ 
+ export class World {
+   private readonly scene = new Container();
+@@ -42,6 +45,8 @@ export class World {
+   private readonly look: StageLook;
+   private readonly shake = new Shake(Math.random, 3);
+   private readonly time = new TimeScale();
++  private readonly zoom = new Zoom();
++  private readonly lifted = new Lifted();
+   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
+   private readonly rng = createRng(0x5eed);
+   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
+@@ -68,15 +73,19 @@ export class World {
+     private readonly skins: SkinTextures,
+   ) {
+     this.room = new Room(lib);
+-    this.bench = new Bench(lib, skins, controller);
++    this.bench = new Bench(lib, skins, controller, (c) => {
++      const tex = app.renderer.generateTexture({ target: c, resolution: 1 });
++      tex.source.scaleMode = "nearest";
++      return tex;
++    });
+     this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
+     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
+     this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
+-    this.hd.root.addChild(this.hint, ...this.label, this.offline);
++    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.lifted.root);
+     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
+     this.scene.addChild(this.pixel.view, this.hd.root);
+     this.look = new StageLook(this.scene);
+-    app.stage.addChild(this.scene);
++    app.stage.addChild(this.scene, this.hd.overlay);
+ 
+     app.stage.eventMode = "static";
+     app.stage.hitArea = app.screen;
+@@ -139,9 +148,14 @@ export class World {
+     this.updateText(b, run.canBrake());
+ 
+     const k = this.vp.scale;
++    this.lifted.update(this.bench.lifted(), k, realSeconds);
++    // camera: shake in whole px, zoom around the reveal card
+     const s = this.shake.update(realSeconds);
+-    this.pixel.setOffset(s.x * k, s.y * k);
+-    this.hd.root.position.set(Math.round(s.x * k), Math.round(s.y * k));
++    const z = this.zoom.update(realSeconds);
++    const focus = this.screenPt(this.bench.revealCentre());
++    this.scene.pivot.set(focus.x, focus.y);
++    this.scene.position.set(focus.x + Math.round(s.x * k), focus.y + Math.round(s.y * k));
++    this.scene.scale.set(z);
+     this.pixel.render(this.app.renderer);
+   }
+ 
+@@ -149,14 +163,17 @@ export class World {
+     this.off();
+     this.app.stage.removeAllListeners();
+     this.hd.destroy();
++    this.bench.destroy();
+     this.pixel.destroy();
+     this.scene.destroy({ children: true });
+     this.skins.destroy();
+     this.lib.destroy();
+   }
+ 
++  /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
+   private worldPt(e: FederatedPointerEvent): Pt {
+-    return toWorld(this.vp, e.global.x, e.global.y);
++    const p = this.pixel.view.toLocal(e.global);
++    return { x: p.x, y: p.y };
+   }
+ 
+   private applyLayout(): void {
+@@ -233,6 +250,7 @@ export class World {
+         this.audio.setStage(e.stage);
+         if (e.stage > this.lastStage) {
+           this.shake.add(0.3);
++          this.zoom.punch(1.06, 0.25);
+           this.hd.flash(0xff7ad9, 0.35);
+           this.audio.play("stage-whoosh");
+         }
+@@ -261,6 +279,7 @@ export class World {
+         break;
+       case "covert":
+         this.time.hitStop(0.08);
++        this.zoom.punch(1.1, 0.15);
+         this.shake.add(0.55);
+         this.audio.play("covert-impact");
+         this.audio.duck(1.2);
+@@ -268,6 +287,7 @@ export class World {
+         break;
+       case "gold":
+         this.time.slowMo(0.2, 2.2, 0.7);
++        this.zoom.punch(1.3, 1.8);
+         this.shake.add(0.8);
+         this.hd.flash(0xffd700, 0.7);
+         this.audio.play("jackpot-swell");
+```
+
+- [ ] **Step 10: Run the tests, typecheck and build**
+
+Run: `npx vitest run src/modules/casecremental && npm run typecheck && npm run build`
+Expected: all PASS; typecheck clean; build succeeds.
+
+- [ ] **Browser check**
+
+`npm run dev` (the user signs in as guest). Drag the key and the card slowly and fast: they lift, glide, lean into the motion and settle upright; drop them home and they snap back into the pixel grid; a resize mid-drag still cancels. Force a Covert and a ★ (agent API or repeated opens): Covert punches in briefly; ★ pushes in ~30 % around the card during the slow-mo and eases back to exactly 1 (pixels square again); the vignette and flash never move with the camera.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add -A src/modules/casecremental
+git commit -m "feat(fx): camera zoom on big moments and lifted 2.5D drag
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014wBjrnrMGCKsQtzVj5GDC3"
+```
+
+---
+
+### Task 15: Generate the sounds and the stage music with ElevenLabs
 
 **Files:**
 - Modify: `art/manifest.json` (add the `audio` list — the generation prompt of every sound)
@@ -6011,7 +6596,7 @@ Claude-Session: https://claude.ai/code/session_014wBjrnrMGCKsQtzVj5GDC3"
 
 ---
 
-### Task 15: Feature history and the full verification pass
+### Task 16: Feature history and the full verification pass
 
 **Files:**
 - Create: `docs/feature-history/casecremental-look.md`
@@ -6030,7 +6615,9 @@ Spec: docs/superpowers/specs/2026-10-08-casecremental-m2a-look-design.md · Plan
 - **Two layers.** The pixel world (room, table, props, reel, bot) renders at 180 px tall into a render
   texture and is shown at an integer scale with nearest sampling; light, dust, glow, sparks, coins and
   text are an HD layer on top. The user wanted hi-bit pixel *assets* with smooth modern *effects*.
-- **Pixel sprites never scale or rotate at runtime.** Motion = drawn frames + whole-pixel nudges with
+- **Pixel sprites never scale or rotate inside the pixel world.** Two 2.5D exceptions the user asked
+  for: the camera zooms the whole scene on big moments (Covert punch, ★ push-in), and a dragged item
+  is lifted into the HD layer where it glides, leans and casts a shadow. Motion = drawn frames + whole-pixel nudges with
   per-frame timing (`fx/pixel/anims.ts`). Characters bob in head/body/legs bands; the head band is cut
   one row taller to hide the seam (the user saw a "neck cut" in an early demo).
 - **Art pipeline, "v2 recipe".** ChatGPT sources → `npm run art`: area downscale, hard alpha, posterize
@@ -6081,8 +6668,8 @@ Expected: typecheck clean; all tests PASS; build succeeds; `npm run art` rebuild
 2. A full loop works by drag and by taps: buy → key → spin → brake → card → sell; coins fly to the cash, which springs.
 3. Resize or rotate mid-drag → the item returns home and nothing fires (Review Focus 3).
 4. EN ↔ RU mid-spin and with a card up → everything switches, numbers use the comma in RU (Review Focus 2).
-5. Every object moves: lamp, dust, bot breathing + z's, key glint, bin bob, case idle, seller LED.
-6. Stage 2 (Buzzed): colour and bloom rise, the music crossfades on a bar line; Covert → hit-stop + impact; ★ → slow-mo + gold flash + jackpot.
+5. Every object moves: lamp, dust, bot breathing + z's, key glint, bin bob, case idle, seller LED; a dragged key or card lifts, glides and leans.
+6. Stage 2 (Buzzed): colour and bloom rise, the music crossfades on a bar line; Covert → hit-stop + zoom punch + impact; ★ → slow-mo + ~30 % push-in + gold flash + jackpot, then back to exactly 1.
 7. Console has no errors; Network shows no font or asset requests outside the game's own host.
 8. Rename one built sprite temporarily (e.g. `key.png` → `key.bak`) → the game starts with a magenta key (Review Focus 1); rename it back.
 9. In DevTools, block `*.mp3` → the game runs silently (Review Focus 4).

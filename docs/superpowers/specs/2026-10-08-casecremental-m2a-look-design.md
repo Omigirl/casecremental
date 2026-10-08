@@ -23,10 +23,11 @@ Two layers, both in the Pixi scene:
 
 | Layer | What | How |
 |---|---|---|
-| **Pixel world** | room, table, mat, cases, key, bins, bot, machines, reel cards, coins on the table | drawn at low resolution into a render texture, scaled up by an **integer** factor with nearest-neighbour sampling. Sprites are never scaled or rotated at runtime. |
+| **Pixel world** | room, table, mat, cases, key, bins, bot, machines, reel cards, coins on the table | drawn at low resolution into a render texture, scaled up by an **integer** factor with nearest-neighbour sampling. Sprites are never scaled or rotated inside the pixel world (2.5D exceptions below). |
 | **HD layer** | lamp light, vignette, dust, glows, eye glow, bloom, particles, coin bursts, screen flash/shake, motion trails, big text pops | full resolution over the pixel world; smooth, 60 fps |
 
 - **World size:** height 180 px; scale = largest integer with `180 × scale ≤ viewport height` (×6 at 1080p, ×4 at 720p); width = `ceil(viewport width / scale)` so the world fills the screen without letterboxing. Layout is computed in world pixels.
+- **2.5D exceptions (user decision, 2026-10-08):** the **camera zoom** scales the whole scene (pixel view + HD layer) around the reveal on big moments — a punch on Covert, a ~30 % push-in during the ★ slow-mo — and returns to exactly 1; a **dragged item is lifted** into the HD layer, drawn 15 % larger, gliding with the pointer, leaning into the drag with a soft shadow, and drops back into the pixel grid on release.
 - **React UI** (side panels, HUD, settings) sits on top as DOM, drawn with pixel-art 9-slice frames (`image-rendering: pixelated`) and Press Start 2P, positioned in world-pixel units × scale so it lines up with the pixel world.
 - The existing `sim/`, `game/` and controller stay unchanged; `fx/` is reorganised into `fx/pixel/` and `fx/hd/`.
 
@@ -101,7 +102,7 @@ Committed, unit-tested scripts that turn a source into game-ready sprites:
 **Pixel sprites:**
 - Motion comes from **drawn frames** plus **whole-pixel in-betweens** (parts or the whole sprite nudged by 1–2 px between drawn frames), as in demo v8.
 - **Per-frame timing** (each frame has its own duration); anticipation, holds, squash on landing.
-- No runtime scaling or rotation. Characters split into head / body / legs bands may bob 1 px out of step; the head band is drawn one row taller to hide seams.
+- No scaling or rotation inside the pixel world (the camera zoom and lifted items, §2, are the exceptions). Characters split into head / body / legs bands may bob 1 px out of step; the head band is drawn one row taller to hide seams.
 - **Code-drawn eyes** on dark visor patches: 2×3 blocks; states open / half / closed / happy (^ ^); blink every 2–5 s; look toward the action.
 
 **HD layer and UI:** GSAP timelines with shared presets (pop, squash-land, anticipate-then-act, overshoot, spring).
