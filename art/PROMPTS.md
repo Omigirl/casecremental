@@ -9,6 +9,9 @@ wired in; background removal with `birefnet-v2-bg-removal` if the background is 
 **Shared style line** (append to every prompt):
 > Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, warm brass and worn blue-grey metal, dark outlines, rich limited palette, soft warm light from above. Transparent background, no text, no labels, no drop shadow on the background.
 
+**No art for the UI and the weapons:** panels, buttons and the reel window are drawn in code, and weapons are
+code-drawn silhouettes that the skin patterns are painted onto.
+
 **Shape matters, the canvas doesn't.** The art build crops every image to the drawn object and scales it to the
 game's size, so the **object's own proportions** must match the "Shape" column; empty transparent space around it is
 fine. Pick ChatGPT's **landscape** canvas for wide objects and every sprite sheet, **portrait** for tall ones, square
@@ -35,10 +38,6 @@ otherwise.
 | `coin.png` | sheet, 4 frames, each square | Sprite sheet, 1 row × 4 frames: a gold coin spinning (face, three-quarter, edge, three-quarter). |
 | `bot-sleep-sheet.png` | sheet, 4 frames, each ~5:6 | Using the reference robot as the exact character: sprite sheet, 1 row × 4 frames, the robot **asleep sitting slumped**, visor dark, antenna light off — a slow breathing cycle (body rises 1–2 px and falls). Same 3/4 view facing right, same size every frame. |
 | `bot-open-sheet-2x4.png` | — | (already made) |
-| `weapon-<id>.png` (8 files: rifle, sniper, pistol, heavyPistol, smg, shotgun, mg, knife) | long and thin: rifle / sniper / shotgun / mg ~2.6:1, smg ~2.2:1, pistol / heavyPistol ~2:1, knife ~2.5:1 | A single side-view **<weapon>** in **neutral greyscale shading only** (no colour — a pattern will be painted onto it), clean silhouette, facing right, centered, about <ratio> times longer than tall. For knife: a curved karambit-style knife. |
-| `ui-frame.png` | square | A square 9-slice panel frame: dark walnut wood with brass corners and a thin brass inner border, flat dark interior, 48×48 look. |
-| `ui-button.png` | sheet, 3 frames, each ~3:1 | Sprite sheet, 1 row × 3 frames of the same rectangular brass button (about 3 times wider than tall) with a dark inset: 1) normal, 2) hover (brighter), 3) pressed (pushed in). |
-| `reel-frame.png` | square | A square 9-slice frame for a slot window: dark metal with brass rivets at the corners, flat black interior. |
 
 ---
 
@@ -129,70 +128,4 @@ Sprite sheet, 1 row × 4 frames of the same gold coin spinning, each frame about
 
 ```text
 Using the attached robot as the exact same character (same body, colours and proportions): sprite sheet, 1 row × 4 frames of the robot asleep, sitting slumped, visor dark, antenna light off, in a slow breathing cycle — its body rises 1 to 2 pixels and falls back across the frames. Same 3/4 view facing right, each frame a little taller than wide. The frames sit side by side in one row, evenly spaced, with clear empty transparent space between them (they must not touch or overlap). Every frame is the same object at the same size, standing on the same baseline. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, warm brass and worn blue-grey metal, dark outlines, rich limited palette, soft warm light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-rifle.png` (landscape canvas)
-
-```text
-A single side-view assault rifle, facing right, centered, about 2.6 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-sniper.png` (landscape canvas)
-
-```text
-A single side-view bolt-action sniper rifle with a scope, facing right, centered, about 2.6 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-pistol.png` (landscape canvas)
-
-```text
-A single side-view compact pistol, facing right, centered, about 2 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-heavyPistol.png` (landscape canvas)
-
-```text
-A single side-view heavy large-calibre pistol with a long slide, facing right, centered, about 2 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-smg.png` (landscape canvas)
-
-```text
-A single side-view compact submachine gun, facing right, centered, about 2.2 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-shotgun.png` (landscape canvas)
-
-```text
-A single side-view pump-action shotgun, facing right, centered, about 2.6 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-mg.png` (landscape canvas)
-
-```text
-A single side-view light machine gun with a box magazine and a bipod folded under the barrel, facing right, centered, about 2.6 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `weapon-knife.png` (landscape canvas)
-
-```text
-A single side-view curved karambit-style knife with a finger ring, blade pointing right, centered, about 2.5 times longer than tall, in neutral greyscale shading only — no colour at all, a pattern will be painted onto it later. Clean, readable silhouette. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, dark outlines, soft light from above. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `ui-frame.png` (square canvas)
-
-```text
-A square panel frame for a game UI, designed to be 9-sliced: dark walnut wood with brass corner pieces and a thin brass inner border, all four sides identical in thickness, flat plain dark interior with no detail. Straight-on, perfectly square. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, warm brass, dark outlines, rich limited palette. Transparent background outside the frame, no text, no labels, no drop shadow.
-```
-
-### `ui-button.png` (landscape canvas)
-
-```text
-Sprite sheet, 1 row × 3 frames of the same rectangular brass game button with a dark inset in the middle, each button about 3 times wider than tall, straight-on. Frame 1: normal. Frame 2: hover, slightly brighter brass. Frame 3: pressed, pushed in with the highlight on the bottom edge. The middle stays plain (text is added in the game). The frames sit side by side in one row, evenly spaced, with clear empty transparent space between them (they must not touch or overlap). Every frame is the same object at the same size, standing on the same baseline. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, warm brass, dark outlines, rich limited palette. Transparent background, no text, no labels, no drop shadow on the background.
-```
-
-### `reel-frame.png` (square canvas)
-
-```text
-A square frame for a slot-machine window, designed to be 9-sliced: dark gunmetal with brass rivets at the four corners, all four sides identical in thickness, flat plain black interior. Straight-on, perfectly square. Same art style as the attached reference robot: high-detail hi-bit pixel art, crisp pixels, worn blue-grey metal, warm brass, dark outlines, rich limited palette. Transparent background outside the frame, no text, no labels, no drop shadow.
 ```

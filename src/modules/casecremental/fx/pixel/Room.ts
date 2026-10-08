@@ -1,4 +1,5 @@
 import { Container, Graphics, NineSliceSprite, Sprite, TilingSprite } from "pixi.js";
+import type { SpriteSet } from "./sprites";
 import { Actor } from "./Actor";
 import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
@@ -31,7 +32,7 @@ export class Room {
   private readonly botReel: NineSliceSprite;
   private l: TableLayout | null = null;
 
-  constructor(lib: SpriteLibrary) {
+  constructor(lib: SpriteLibrary, reelFrame: SpriteSet) {
     // big backgrounds fall back to flat colour, not a placeholder checkerboard
     const optional = (id: string) => (lib.has(id) ? new Sprite(lib.get(id, { w: 1, h: 1 }).frames[0]) : null);
     this.backdrop = optional("room-back");
@@ -44,8 +45,7 @@ export class Room {
     this.seller = new Sprite(lib.get("auto-seller", { w: 24, h: 30 }).frames[0]);
     this.seller.tint = 0x666677; // powered off until M2b
     this.bot = new Animated(new Actor(lib.get("bot-sleep", { w: 40, h: 48, frames: 4 })), ANIMS.botSleep);
-    const reelFrame = lib.get("reel-frame", { w: 48, h: 24 }).frames[0]!;
-    this.botReel = new NineSliceSprite({ texture: reelFrame, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
+    this.botReel = new NineSliceSprite({ texture: reelFrame.frames[0]!, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
     this.botReel.tint = 0x444455;
     for (const s of [this.wall, this.backdrop, this.shelves, this.lamp.actor, this.botReel]) if (s) this.back.addChild(s);
     for (const s of [this.tableBody, this.tableTop, this.matFallback, this.mat, this.tray, this.seller, this.bot.actor])

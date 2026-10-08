@@ -16,18 +16,7 @@
     { "id": "auto-seller", "source": "auto-seller.png", "kind": "static", "targetH": 30 },
     { "id": "coin", "source": "coin.png", "kind": "sheet", "frames": 4, "targetH": 8 },
     { "id": "bot-sleep", "source": "bot-sleep-sheet.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 48, "eyes": false },
-    { "id": "bot-open", "source": "bot-open-sheet-2x4.png", "kind": "sheet", "frames": 8, "rows": 2, "targetH": 48, "eyes": true },
-    { "id": "weapon-rifle", "source": "weapon-rifle.png", "kind": "static", "targetW": 26 },
-    { "id": "weapon-sniper", "source": "weapon-sniper.png", "kind": "static", "targetW": 26 },
-    { "id": "weapon-pistol", "source": "weapon-pistol.png", "kind": "static", "targetW": 18 },
-    { "id": "weapon-heavyPistol", "source": "weapon-heavyPistol.png", "kind": "static", "targetW": 20 },
-    { "id": "weapon-smg", "source": "weapon-smg.png", "kind": "static", "targetW": 22 },
-    { "id": "weapon-shotgun", "source": "weapon-shotgun.png", "kind": "static", "targetW": 26 },
-    { "id": "weapon-mg", "source": "weapon-mg.png", "kind": "static", "targetW": 26 },
-    { "id": "weapon-knife", "source": "weapon-knife.png", "kind": "static", "targetW": 20 },
-    { "id": "ui-frame", "source": "ui-frame.png", "kind": "static", "targetW": 48, "outline": false },
-    { "id": "ui-button", "source": "ui-button.png", "kind": "sheet", "frames": 3, "targetH": 16, "outline": false },
-    { "id": "reel-frame", "source": "reel-frame.png", "kind": "static", "targetW": 48, "outline": false }
+    { "id": "bot-open", "source": "bot-open-sheet-2x4.png", "kind": "sheet", "frames": 8, "rows": 2, "targetH": 48, "eyes": true }
   ],
   "audio": [
     {"id":"case-latch","kind":"sfx","variants":2,"duration":0.6,"prompt":"A sturdy plastic weapon case set down on a wooden workbench, its metal latch snapping shut. Crisp, close-miked, tactile foley for a cozy, well-made desktop game; clean and dry; no music, no voice; not retro, not 8-bit, not chiptune."},

@@ -18,6 +18,10 @@ Changes agreed during the M2a review: campaign spec `2026-10-08-casecremental-ca
   and the vignette stay put.
 - **Art pipeline, "v2 recipe".** ChatGPT sources → `npm run art`: area downscale, hard alpha, posterize
   step 48, 1 px #120e10 outline; characters 48 px. The user picked v2 over smoother/lower-res variants.
+- **No art for the UI chrome or the weapons** (user, after the review): panels and buttons use the pixel-bevel
+  CSS fallback, the reel window is drawn in code (`fx/pixel/drawn.ts`), and weapons stay code-drawn
+  silhouettes that the skin patterns are painted onto. The optional art hooks for them remain in the code.
+  `art/manifest.json` lists 15 assets.
 - **Code eyes.** The painted eyes are erased in the pipeline and redrawn in code (2×3 blocks on a 5×5
   visor patch, level, open/half/closed/happy, blinking) — the user preferred them to painted eyes.
 - **Press Start 2P everywhere, bundled** (the embedded game may only reach platform hosts). Monospace,

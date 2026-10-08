@@ -20,6 +20,7 @@ import { TimeScale } from "./juice/timeScale";
 import { Zoom } from "./juice/zoom";
 import { fitCentre, hintKey, revealLines } from "./labels";
 import { Bench } from "./pixel/Bench";
+import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
 import { Reel } from "./pixel/Reel";
@@ -62,6 +63,8 @@ export class World {
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
   private lastStage = 1;
+  /** The reel windows are drawn in code (no art). */
+  private readonly reelFrame = reelFrameSet();
   /** The camera has leaned in on this spin's tease crawl. */
   private leaned = false;
   /** Where the camera pushes in, gliding between the reel (during a tease) and the reveal card. */
@@ -83,15 +86,13 @@ export class World {
     private readonly lib: SpriteLibrary,
     private readonly skins: SkinTextures,
   ) {
-    this.room = new Room(lib);
+    this.room = new Room(lib, this.reelFrame);
     this.bench = new Bench(lib, skins, controller, (c) => {
       const tex = app.renderer.generateTexture({ target: c, resolution: 1 });
       tex.source.scaleMode = "nearest";
       return tex;
     });
-    this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () =>
-      audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }),
-    );
+    this.reel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
     this.hd.root.addChild(this.hint, ...this.label, this.offline, this.lifted.root);
@@ -196,6 +197,7 @@ export class World {
     this.scene.destroy({ children: true });
     this.skins.destroy();
     this.lib.destroy();
+    this.reelFrame.frames[0]!.destroy(true);
   }
 
   /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
