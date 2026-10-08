@@ -67,8 +67,18 @@ export function weaponPose(kind: SkinMotion["weapon"], t: number): Pose {
 
 const mix = (c: Rgb, to: number, k: number): Rgb => [c[0] + (to - c[0]) * k, c[1] + (to - c[1]) * k, c[2] + (to - c[2]) * k];
 
-/** The finish at (u, v) ∈ [0,1)² of the weapon at loop phase t. */
-export function finishAt(spec: PatternSpec, pal: readonly Rgb[], kind: SkinMotion["pattern"], u: number, v: number, t: number): Rgb {
+/** The finish at (u, v) ∈ [0,1)² of the weapon at loop phase t. `sweep` (0–1) is where the pixel sits along
+ *  the frame's diagonal on screen — the shimmer crosses the screen, not the weapon, so a turning knife
+ *  still catches it left to right. */
+export function finishAt(
+  spec: PatternSpec,
+  pal: readonly Rgb[],
+  kind: SkinMotion["pattern"],
+  u: number,
+  v: number,
+  t: number,
+  sweep = (u + 0.4 * v) / 1.4,
+): Rgb {
   let uu = u;
   let vv = v;
   if (kind === "flow") {
@@ -82,9 +92,10 @@ export function finishAt(spec: PatternSpec, pal: readonly Rgb[], kind: SkinMotio
     c = [c[0] * f, c[1] * f, c[2] * f];
   }
   if (kind === "shimmer") {
-    // a bright diagonal band that enters off the left edge and leaves off the right
-    const d = Math.abs(u + 0.4 * v - (-0.3 + 2 * t));
-    if (d < 0.08) c = mix(c, 255, 0.75 * (1 - d / 0.08));
+    // a bright diagonal band sweeping the middle of the frame, where the weapon always is (a thin, turning
+    // knife included); it starts over at the left each loop, like a fresh glint
+    const d = Math.abs(sweep - (0.2 + 0.6 * t));
+    if (d < 0.12) c = mix(c, 255, 0.75 * (1 - d / 0.12));
   }
   if (kind === "sparkle") {
     for (let i = 0; i < SPARKLES; i++) {
@@ -146,7 +157,8 @@ export function renderSkinFrame(skin: SkinDef, t: number, w = SKIN_W, h = SKIN_H
         const [px, py] = local(x, y);
         const lum = Math.max(0, 200 - Math.floor(py) * 10); // the same top-lit shading as the still skins
         const k = 0.35 + 0.9 * (lum / 255);
-        const c = finishAt(skin.pattern, pal, motion.pattern, px / w, py / h, phase);
+        const sweep = (x + 0.5 + 0.4 * (y + 0.5)) / (size.w + 0.4 * size.h);
+        const c = finishAt(skin.pattern, pal, motion.pattern, px / w, py / h, phase, sweep);
         data.set([c[0] * k, c[1] * k, c[2] * k, 255], i);
       } else if (fill(x - 1, y) || fill(x + 1, y) || fill(x, y - 1) || fill(x, y + 1)) data.set([...OUTLINE, 255], i);
     }
@@ -156,7 +168,7 @@ export function renderSkinFrame(skin: SkinDef, t: number, w = SKIN_W, h = SKIN_H
     if (onWeapon && data[i + 3] === 0) return;
     data.set([...c, 255], i);
   };
-  if (pose.bolt) {
+  if (motion.weapon === "bolt") {
     const by = Math.round(oy + h * 0.3);
     const bx = Math.round(ox + w * 0.55) - pose.bolt;
     for (let x = bx; x < bx + 3; x++) put(x, by, BOLT, true);

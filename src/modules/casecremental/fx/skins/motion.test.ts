@@ -74,4 +74,23 @@ describe("renderSkinFrames", () => {
     for (const m of kinds) expect(same(renderSkinFrame(moving(m), 1), renderSkinFrame(moving(m), 0))).toBe(true);
     expect(same(renderSkinFrame(moving({ weapon: "flip" }, knife), 1), renderSkinFrame(moving({ weapon: "flip" }, knife), 0))).toBe(true);
   });
+
+  it("keeps the bolt on the receiver in every frame and slides it back and forth", () => {
+    const frames = renderSkinFrames(moving({ weapon: "bolt" }));
+    const boltXs = frames.map((f) => {
+      for (let i = 0; i < f.data.length; i += 4)
+        if (f.data[i] === 205 && f.data[i + 1] === 205 && f.data[i + 2] === 215) return (i / 4) % f.w;
+      return -1;
+    });
+    expect(boltXs.every((x) => x >= 0)).toBe(true); // never pops out
+    expect(new Set(boltXs).size).toBeGreaterThan(1); // it slides
+  });
+
+  it("sweeps the knife shimmer across the screen so it catches the blade in most frames", () => {
+    const knifeSkin = CASES[0]!.skins.find((s) => s.rarity === "gold")!;
+    const lit = renderSkinFrames(knifeSkin);
+    const plain = renderSkinFrames(moving({ weapon: "flip" }, knifeSkin));
+    const caught = lit.filter((f, n) => !same(f, plain[n]!)).length;
+    expect(caught).toBeGreaterThanOrEqual(5);
+  });
 });
