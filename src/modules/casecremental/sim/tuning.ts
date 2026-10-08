@@ -100,3 +100,19 @@ export const COMBO_HEAT_DECAY_SECONDS = 15;
 export const STAGE_THRESHOLDS = [0.8, 3, 10, 40] as const;
 /** A stage is kept until intensity falls below its threshold × this. */
 export const STAGE_HYSTERESIS = 0.8;
+
+// ── M2b: charms, the bot, the tray, the day job, the vault, prestige ─────────────────────────────
+
+export const GOLD_RUSH_MULT = 10;
+export const GOLDEN_HOUR_SECONDS = 5;
+export const GOLDEN_HOUR_LUCK = 3;
+/** Pity Jar: Luck levels added per Mil-Spec since the last Covert or ★ (+1 % Luck each). */
+export const PITY_LUCK_LEVELS = 1 / 15;
+export const INSIDER_PRICE_MULT = 0.7;
+export const DOUBLE_TAP_MULT = 3;
+export const LUCKY_SEVEN_EVERY = 7;
+export const MANIAC_MILSPEC_MULT = 4;
+export const MANIAC_OTHER_MULT = 0.5;
+
+export const TRAY_BASE_CAPACITY = 12;
+export const VAULT_BASE_PRICE = 20_000;

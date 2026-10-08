@@ -1,9 +1,22 @@
+import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity, type CharmId } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
 import { rollTease, type Tease } from "./tease";
-import { COMBO_CAP, COMBO_HEAT_DECAY_SECONDS, COMBO_STEP, COMBO_WINDOW_SECONDS, FREE_CASE_SECONDS, START_CASH } from "./tuning";
+import {
+  COMBO_CAP,
+  COMBO_HEAT_DECAY_SECONDS,
+  COMBO_STEP,
+  COMBO_WINDOW_SECONDS,
+  FREE_CASE_SECONDS,
+  GOLDEN_HOUR_LUCK,
+  GOLDEN_HOUR_SECONDS,
+  PITY_LUCK_LEVELS,
+  START_CASH,
+  TRAY_BASE_CAPACITY,
+  VAULT_BASE_PRICE,
+} from "./tuning";
 import type { Drop, RarityId } from "./types";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
 
@@ -26,11 +39,37 @@ export type Bench =
     }
   | { phase: "revealed"; caseId: string; drop: Drop };
 
+export type SaleSource = "bench" | "tray" | "bot";
+
+/** What the prestige meta hands a new run (M2b spec §8). */
+export interface RunSetup {
+  startCash: number;
+  /** Extra Luck levels (meta perk). */
+  luckBonus: number;
+  /** Charms picked on the prestige screen for this run. */
+  charms: CharmId[];
+  botAwake: boolean;
+  trayCapacity: number;
+  /** Catch-up boost: every sale is multiplied by this. */
+  valueBoost: number;
+  vaultPrice: number;
+}
+
+export const DEFAULT_SETUP: RunSetup = {
+  startCash: START_CASH,
+  luckBonus: 0,
+  charms: [],
+  botAwake: false,
+  trayCapacity: TRAY_BASE_CAPACITY,
+  valueBoost: 1,
+  vaultPrice: VAULT_BASE_PRICE,
+};
+
 export type SimEvent =
   | { type: "caseBought"; caseId: string; free: boolean }
   | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number; tease: Tease | null }
   | { type: "revealed"; drop: Drop }
-  | { type: "sold"; drop: Drop; amount: number; combo: number }
+  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource }
   | { type: "caseUnlocked"; caseId: string }
   | { type: "upgradeBought"; id: UpgradeId; level: number }
   | { type: "stageChanged"; stage: number };
@@ -56,6 +95,14 @@ export interface RunState {
   stage: number;
   nextDropId: number;
   opened: number;
+  /** When the card on the bench was revealed. */
+  revealedAt: number;
+  /** Pity Jar: Mil-Specs since the last Covert or ★. */
+  pity: number;
+  /** Gold Rush: the Golden Hour lasts until this time. */
+  goldenHourUntil: number;
+  /** Ricochet: free cases waiting for the bench. */
+  freeCases: string[];
 }
 
 const OK: ActionResult = { ok: true };
@@ -63,17 +110,21 @@ const fail = (reason: string): ActionResult => ({ ok: false, reason });
 
 export class Run {
   readonly state: RunState;
+  readonly seed: number;
+  readonly setup: RunSetup;
   private readonly rng: Rng;
   private events: SimEvent[] = [];
   private revealsThisTick = 0;
   private forcedRarity: RarityId | null = null;
   private forcedFake = false;
 
-  constructor(seed: number) {
+  constructor(seed: number, setup: RunSetup = DEFAULT_SETUP) {
+    this.seed = seed;
+    this.setup = { ...setup, charms: [...setup.charms] };
     this.rng = createRng(seed);
     this.state = {
       time: 0,
-      cash: START_CASH,
+      cash: this.setup.startCash,
       lifetimeEarnings: 0,
       unlocked: [CASES[0]!.id],
       upgrades: { luck: 0, appraiser: 0, quickHands: 0 },
@@ -87,6 +138,10 @@ export class Run {
       stage: 1,
       nextDropId: 1,
       opened: 0,
+      revealedAt: 0,
+      pity: 0,
+      goldenHourUntil: -1,
+      freeCases: [],
     };
   }
 
@@ -108,11 +163,32 @@ export class Run {
     return intensityLevel(this.state.heat, this.state.lastTier, this.state.comboHeat);
   }
 
+  /** A case's price this run (Insider). */
+  casePrice(caseId: string): number {
+    return priceOf(caseId) * charmPriceMult(this.setup.charms);
+  }
+
+  cheapestPrice(): number {
+    return Math.min(...this.state.unlocked.map((id) => this.casePrice(id)));
+  }
+
+  /** What a drop pays: value × Appraiser × charms × catch-up, and × combo when sold by hand. */
+  payout(d: Drop, byHand: boolean): number {
+    const combo = byHand ? this.comboMultiplier() : 1;
+    return d.value * this.effects().sellMult * charmValueMult(this.setup.charms, d) * this.setup.valueBoost * combo;
+  }
+
+  private bumpCombo(): void {
+    const s = this.state;
+    s.combo = s.time - s.lastSellAt <= COMBO_WINDOW_SECONDS ? s.combo + 1 : 1;
+    s.lastSellAt = s.time;
+  }
+
   buyCase(caseId: string): ActionResult {
     const s = this.state;
     if (s.bench.phase !== "empty") return fail("bench is busy");
     if (!s.unlocked.includes(caseId)) return fail(`case ${caseId} is locked`);
-    const price = priceOf(caseId);
+    const price = this.casePrice(caseId);
     if (s.cash < price) return fail("not enough cash");
     s.cash -= price;
     s.bench = { phase: "locked", caseId, free: false };
@@ -139,7 +215,13 @@ export class Run {
     if (b.phase !== "locked") return fail("no locked case on the bench");
     const c = caseById(b.caseId);
     const fx = this.effects();
-    const drop = rollDrop(c, priceOf(c.id), fx.luckLevel, this.rng, s.nextDropId++, this.forcedRarity);
+    const opened = s.opened + 1;
+    const luck = fx.luckLevel + this.setup.luckBonus + s.pity * PITY_LUCK_LEVELS;
+    const drop = rollDrop(c, priceOf(c.id), luck, this.rng, s.nextDropId++, this.forcedRarity, {
+      luckMult: s.time < s.goldenHourUntil ? GOLDEN_HOUR_LUCK : 1,
+      statTrakChance: charmStatTrakChance(this.setup.charms),
+      minRarity: charmMinRarity(this.setup.charms, opened),
+    });
     this.forcedRarity = null;
     const topTier = Math.max(...s.unlocked.map((id) => caseById(id).tier));
     const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
@@ -157,13 +239,12 @@ export class Run {
     const s = this.state;
     const b = s.bench;
     if (b.phase !== "revealed") return fail("nothing to sell");
-    s.combo = s.time - s.lastSellAt <= COMBO_WINDOW_SECONDS ? s.combo + 1 : 1;
-    s.lastSellAt = s.time;
-    const amount = b.drop.value * this.effects().sellMult * this.comboMultiplier();
+    this.bumpCombo();
+    const amount = this.payout(b.drop, true);
     s.cash += amount;
     s.lifetimeEarnings += amount;
     s.bench = { phase: "empty" };
-    this.events.push({ type: "sold", drop: b.drop, amount, combo: s.combo });
+    this.events.push({ type: "sold", drop: b.drop, amount, combo: s.combo, source: "bench" });
     return OK;
   }
 
@@ -201,9 +282,17 @@ export class Run {
       b.elapsed += dt;
       if (b.elapsed >= b.fullDuration) {
         s.bench = { phase: "revealed", caseId: b.caseId, drop: b.drop };
+        this.onReveal(b.drop);
         this.revealsThisTick++;
         this.events.push({ type: "revealed", drop: b.drop });
       }
+    }
+
+    // a Ricochet case takes the bench as soon as it is clear
+    if (s.bench.phase === "empty" && s.freeCases.length > 0) {
+      const caseId = s.freeCases.shift()!;
+      s.bench = { phase: "locked", caseId, free: true };
+      this.events.push({ type: "caseBought", caseId, free: true });
     }
 
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
@@ -230,5 +319,15 @@ export class Run {
       s.stage = stage;
       this.events.push({ type: "stageChanged", stage });
     }
+  }
+
+  /** The charms that react to what was just revealed. */
+  private onReveal(d: Drop): void {
+    const s = this.state;
+    const charms = this.setup.charms;
+    s.revealedAt = s.time;
+    if (charms.includes("pityJar")) s.pity = d.rarity === "milspec" ? s.pity + 1 : isBigRarity(d.rarity) ? 0 : s.pity;
+    if (charms.includes("ricochet") && d.rarity === "covert") s.freeCases.push(d.caseId);
+    if (charms.includes("goldRush") && d.rarity === "gold") s.goldenHourUntil = s.time + GOLDEN_HOUR_SECONDS;
   }
 }

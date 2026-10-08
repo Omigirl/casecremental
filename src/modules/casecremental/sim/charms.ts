@@ -1,0 +1,50 @@
+import { RARITY_ORDER } from "./rarity";
+import {
+  DOUBLE_TAP_MULT,
+  GOLD_RUSH_MULT,
+  INSIDER_PRICE_MULT,
+  LUCKY_SEVEN_EVERY,
+  MANIAC_MILSPEC_MULT,
+  MANIAC_OTHER_MULT,
+  STATTRAK_CHANCE,
+  WEAR_TABLE,
+} from "./tuning";
+import type { Drop, RarityId, WearId } from "./types";
+
+// Charms (base spec §8.1, M2b spec §8): rules that bend a run, picked on the prestige screen for the next
+// run only. Run 1's pool is the eight that work with Run 1's systems; the rest come with later runs.
+
+export type CharmId = "luckySeven" | "rustBucket" | "pityJar" | "doubleTap" | "ricochet" | "goldRush" | "insider" | "milSpecManiac";
+
+export const RUN1_CHARMS: readonly CharmId[] = [
+  "luckySeven",
+  "rustBucket",
+  "pityJar",
+  "doubleTap",
+  "ricochet",
+  "goldRush",
+  "insider",
+  "milSpecManiac",
+];
+
+const wearMult = (id: WearId) => WEAR_TABLE.find((w) => w.id === id)!.mult;
+
+/** The value multiplier a run's charms give one drop. */
+export function charmValueMult(charms: readonly CharmId[], d: Drop): number {
+  let m = 1;
+  if (charms.includes("rustBucket") && d.wear === "BS") m *= wearMult("FN") / wearMult("BS");
+  if (charms.includes("goldRush") && d.rarity === "gold") m *= GOLD_RUSH_MULT;
+  if (charms.includes("milSpecManiac")) m *= d.rarity === "milspec" ? MANIAC_MILSPEC_MULT : MANIAC_OTHER_MULT;
+  return m;
+}
+
+export const charmPriceMult = (charms: readonly CharmId[]): number => (charms.includes("insider") ? INSIDER_PRICE_MULT : 1);
+
+export const charmStatTrakChance = (charms: readonly CharmId[]): number =>
+  STATTRAK_CHANCE * (charms.includes("doubleTap") ? DOUBLE_TAP_MULT : 1);
+
+/** Lucky Seven: every 7th case opened is at least Classified (`opened` counts this one). */
+export const charmMinRarity = (charms: readonly CharmId[], opened: number): RarityId | null =>
+  charms.includes("luckySeven") && opened % LUCKY_SEVEN_EVERY === 0 ? "classified" : null;
+
+export const isBigRarity = (r: RarityId): boolean => RARITY_ORDER.indexOf(r) >= RARITY_ORDER.indexOf("covert");
