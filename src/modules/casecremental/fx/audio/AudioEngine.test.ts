@@ -13,7 +13,8 @@ const URLS = {
 
 /** Just enough of an AudioContext to count what starts. */
 function fakeContext(state: AudioContextState = "running", failDecode: (url: string) => boolean = () => false) {
-  const started: Array<{ url: string; rate: number; loop: boolean }> = [];
+  const started: Array<{ url: string; rate: number; loop: boolean; when: number; offset: number | undefined }> = [];
+  const stops: Array<{ url: string; when: number | undefined }> = [];
   const param = () => ({ value: 1, setTargetAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {}, setValueAtTime() {} });
   const node = () => ({ gain: param(), connect: (n: unknown) => n });
   const ctx = {
@@ -28,20 +29,20 @@ function fakeContext(state: AudioContextState = "running", failDecode: (url: str
         loop: false,
         playbackRate: param(),
         connect: (n: unknown) => n,
-        start: () => started.push({ url: s.buffer!.url, rate: s.playbackRate.value, loop: s.loop }),
-        stop() {},
+        start: (when = 0, offset?: number) => started.push({ url: s.buffer!.url, rate: s.playbackRate.value, loop: s.loop, when, offset }),
+        stop: (when?: number) => void stops.push({ url: s.buffer!.url, when }),
       };
       return s;
     },
     decodeAudioData: async (data: ArrayBuffer) => {
       const url = new TextDecoder().decode(data);
       if (failDecode(url)) throw new DOMException("EncodingError");
-      return { url };
+      return { url, duration: 10 };
     },
     resume: async () => {},
     close: async () => {},
   };
-  return { ctx: ctx as unknown as Ctx, started };
+  return { ctx: ctx as unknown as Ctx, started, stops };
 }
 
 const deps = (ctx: Ctx | null, random = () => 0.5): AudioDeps => ({
@@ -56,6 +57,69 @@ describe("indexAudio", () => {
     expect(files.sfx.get("reel-tick")).toEqual(["tick1", "tick2"]);
     expect([...files.music.keys()]).toEqual([1, 2]);
     expect(files.sfx.size).toBe(2);
+  });
+});
+
+const TRACKS = {
+  ...URLS,
+  "/a/vault-suspense.mp3": "susp",
+  "/a/vault-fanfare-1.mp3": "fan1",
+  "/a/vault-fanfare-2.mp3": "fan2",
+  "/a/prestige.mp3": "pres",
+  "/a/vault-rumble-1.mp3": "rumble",
+};
+
+describe("indexAudio tracks", () => {
+  it("indexes the vault and prestige tracks", () => {
+    const files = indexAudio({
+      "/a/vault-suspense.mp3": "s",
+      "/a/vault-fanfare-1.mp3": "f1",
+      "/a/vault-fanfare-2.mp3": "f2",
+      "/a/prestige.mp3": "p",
+      "/a/music-1.mp3": "m1",
+    });
+    expect(files.tracks.get("vault-suspense")).toBe("s");
+    expect(files.tracks.get("vault-fanfare")).toBe("f1");
+    expect(files.tracks.get("prestige")).toBe("p");
+    expect(files.music.get(1)).toBe("m1");
+  });
+});
+
+describe("AudioEngine tracks and caps", () => {
+  it("a track takes over from the stage loop, starts at an offset, and hands back", async () => {
+    const { ctx, started, stops } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    expect(started.filter((s) => s.loop).map((s) => s.url)).toEqual(["m1"]);
+    a.setTrack("vault-fanfare", { loop: false, offset: 4 });
+    const fan = started.find((s) => s.url === "fan1")!;
+    expect(fan.loop).toBe(false);
+    expect(fan.offset).toBe(4);
+    expect(stops.some((s) => s.url === "m1")).toBe(true); // the stage loop fades out
+    a.setTrack("vault-suspense");
+    expect(started.find((s) => s.url === "susp")!.loop).toBe(true);
+    expect(stops.some((s) => s.url === "fan1")).toBe(true);
+    a.setTrack("prestige");
+    expect(started.find((s) => s.url === "pres")!.loop).toBe(true);
+    const before = started.filter((s) => s.url === "m1").length;
+    a.setTrack(null);
+    expect(stops.some((s) => s.url === "pres")).toBe(true);
+    expect(started.filter((s) => s.url === "m1")).toHaveLength(before + 1); // the stage loop is back
+  });
+
+  it("stops a capped sound at start + maxSeconds, and leaves an uncapped one alone", async () => {
+    const { ctx, started, stops } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.unlock();
+    await a.ready;
+    a.play("vault-rumble", { delay: 1 });
+    a.play("reel-tick");
+    const rumble = started.find((s) => s.url === "rumble")!;
+    const stop = stops.find((s) => s.url === "rumble")!;
+    expect(stop.when).toBeCloseTo(rumble.when + 3.5);
+    expect(stops.some((s) => s.url.startsWith("tick"))).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import { barSeconds, crossfade, jitter, musicFor, nextBar, pickVariant } from "./schedule";
-import { indexAudio, SOUNDS, type AudioFiles, type SoundId } from "./sounds";
+import { indexAudio, maxSecondsOf, SOUNDS, type AudioFiles, type SoundId, type TrackId } from "./sounds";
 
 // The mixer (spec §9): music / SFX / UI buses into a limiter, music that swaps on bar lines when the
 // stage changes and ducks under big reveals, per-play pitch and level jitter. Audio unlocks on the
@@ -57,6 +57,18 @@ interface Loop {
   gain: GainNode;
 }
 
+interface WantTrack {
+  id: TrackId;
+  loop: boolean;
+  offset: number;
+}
+
+interface PlayingTrack {
+  want: WantTrack;
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+}
+
 export class AudioEngine {
   private ctx: Ctx | null = null;
   private buses: { music: GainNode; sfx: GainNode; ui: GainNode; duck: GainNode } | null = null;
@@ -67,6 +79,8 @@ export class AudioEngine {
   private loop: Loop | null = null;
   private loopStartedAt = 0;
   private wantStage = 1;
+  private track: PlayingTrack | null = null;
+  private wantTrack: WantTrack | null = null;
   /** Off until the game scene activates: a click in the lobby unlocks audio, never the music. */
   private musicOn = false;
   /** Resolves when every file has loaded (or failed to). */
@@ -140,7 +154,15 @@ export class AudioEngine {
       const g = ctx.createGain();
       g.gain.value = SOUNDS[id].gain * gain;
       src.connect(g).connect(SOUNDS[id].bus === "ui" ? b.ui : b.sfx);
-      src.start(ctx.currentTime + delay);
+      const at = ctx.currentTime + delay;
+      src.start(at);
+      const cap = maxSecondsOf(id);
+      if (cap !== undefined) {
+        const end = at + cap;
+        g.gain.setValueAtTime(g.gain.value, Math.max(at, end - 0.15));
+        g.gain.linearRampToValueAtTime(0, end);
+        src.stop(end);
+      }
     } catch {
       // a node failed to start: skip this one sound
     }
@@ -166,12 +188,23 @@ export class AudioEngine {
   /** The scene was suspended (lobby) or resumed. */
   setMusicOn(on: boolean): void {
     this.musicOn = on;
-    if (!on) this.stopLoop(0.3);
-    else this.updateMusic();
+    if (!on) {
+      this.stopLoop(0.3);
+      this.stopTrack(0.3);
+    } else this.updateMusic();
+  }
+
+  /** A named track (the vault's suspense and fanfare, the prestige loop) replaces the stage loop; null
+   *  hands back to it. A one-shot can start part-way (a reload mid-fanfare). */
+  setTrack(id: TrackId | null, opts: { loop?: boolean; offset?: number } = {}): void {
+    if ((this.wantTrack?.id ?? null) === id && id !== "vault-fanfare") return;
+    this.wantTrack = id ? { id, loop: opts.loop ?? true, offset: opts.offset ?? 0 } : null;
+    this.updateMusic();
   }
 
   dispose(): void {
     this.stopLoop(0);
+    this.stopTrack(0);
     void this.ctx?.close().catch(() => {});
     this.ctx = null;
     this.buses = null;
@@ -201,7 +234,7 @@ export class AudioEngine {
   }
 
   private async preload(): Promise<void> {
-    const urls = [...this.files.music.values(), ...[...this.files.sfx.values()].flat()];
+    const urls = [...this.files.music.values(), ...this.files.tracks.values(), ...[...this.files.sfx.values()].flat()];
     await Promise.all(urls.map((u) => this.loadBuffer(u)));
     this.updateMusic();
   }
@@ -224,6 +257,12 @@ export class AudioEngine {
     const ctx = this.ctx;
     const b = this.buses;
     if (!ctx || !b || !this.musicOn) return;
+    if (this.wantTrack) {
+      this.stopLoop(0.6);
+      if (this.track?.want !== this.wantTrack) this.startTrack(this.wantTrack);
+      return;
+    }
+    this.stopTrack(0.6);
     const stage = musicFor(this.wantStage, [...this.files.music.keys()]);
     if (stage === null || this.loop?.stage === stage) return;
     const buffer = this.buffers.get(this.files.music.get(stage)!);
@@ -262,6 +301,44 @@ export class AudioEngine {
     try {
       l.gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.01, fade / 3));
       l.source.stop(ctx.currentTime + fade + 0.05);
+    } catch {
+      // already stopped
+    }
+  }
+
+  private startTrack(want: WantTrack): void {
+    const ctx = this.ctx;
+    const b = this.buses;
+    const url = this.files.tracks.get(want.id);
+    const buffer = url ? this.buffers.get(url) : null;
+    if (!ctx || !b || !buffer) return; // not decoded yet — preload() calls again when it is
+    this.stopTrack(0.3);
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = want.loop;
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+      gain.gain.value = 0;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(1, now + 0.3);
+      source.connect(gain).connect(b.music);
+      const length = buffer.duration > 0 ? buffer.duration : 0;
+      source.start(now, length ? want.offset % length : 0);
+      this.track = { want, source, gain };
+    } catch {
+      // music is optional
+    }
+  }
+
+  private stopTrack(fade: number): void {
+    const t = this.track;
+    const ctx = this.ctx;
+    this.track = null;
+    if (!t || !ctx) return;
+    try {
+      t.gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.01, fade / 3));
+      t.source.stop(ctx.currentTime + fade + 0.05);
     } catch {
       // already stopped
     }
