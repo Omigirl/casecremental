@@ -71,6 +71,14 @@ export const DEFAULT_SETUP: RunSetup = {
   vaultPrice: VAULT_BASE_PRICE,
 };
 
+/** Everything needed to rebuild a run exactly (the local save, M2b spec §9). */
+export interface RunSnapshot {
+  seed: number;
+  rng: number;
+  setup: RunSetup;
+  state: RunState;
+}
+
 export type SimEvent =
   | { type: "caseBought"; caseId: string; free: boolean }
   | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number; tease: Tease | null }
@@ -141,10 +149,14 @@ export class Run {
   private forcedRarity: RarityId | null = null;
   private forcedFake = false;
 
-  constructor(seed: number, setup: RunSetup = DEFAULT_SETUP) {
+  constructor(seed: number, setup: RunSetup = DEFAULT_SETUP, resume?: RunSnapshot) {
     this.seed = seed;
     this.setup = { ...setup, charms: [...setup.charms] };
-    this.rng = createRng(seed);
+    this.rng = createRng(seed, resume?.rng);
+    if (resume) {
+      this.state = structuredClone(resume.state);
+      return;
+    }
     this.state = {
       time: 0,
       cash: this.setup.startCash,
@@ -170,6 +182,14 @@ export class Run {
       finale: null,
       over: false,
     };
+  }
+
+  static fromSnapshot(snap: RunSnapshot): Run {
+    return new Run(snap.seed, snap.setup, snap);
+  }
+
+  snapshot(): RunSnapshot {
+    return { seed: this.seed, rng: this.rng.state(), setup: structuredClone(this.setup), state: structuredClone(this.state) };
   }
 
   drainEvents(): SimEvent[] {
