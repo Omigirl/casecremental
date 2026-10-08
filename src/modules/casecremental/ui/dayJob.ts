@@ -1,7 +1,7 @@
 import type { GameView } from "../game/view";
 
-// The day job's button while Plan M2b-B has not drawn the real one: shown when broke with an empty bench
-// (campaign spec §6.1) and while the shift runs, so a broke player is never stuck.
+// The day job's button (campaign spec §6.1): shown when broke with an empty bench and while the shift
+// runs, so a broke player is never stuck.
 
 export function dayJobButton(view: GameView): { enabled: boolean; progress: number } | null {
   const j = view.dayJob;

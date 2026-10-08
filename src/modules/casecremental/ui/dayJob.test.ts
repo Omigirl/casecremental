@@ -4,7 +4,7 @@ import { DAY_JOB_SECONDS } from "../sim/tuning";
 import { buildView } from "../game/view";
 import { dayJobButton } from "./dayJob";
 
-describe("the temporary day-job button (until Plan M2b-B draws it)", () => {
+describe("the day-job button", () => {
   it("shows only when broke with an empty bench, and while working", () => {
     const run = new Run(1);
     expect(dayJobButton(buildView(run))).toBeNull();

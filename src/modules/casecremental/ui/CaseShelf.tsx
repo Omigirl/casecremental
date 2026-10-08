@@ -6,7 +6,7 @@ import { caseName } from "../i18n/content";
 import { getLang, t } from "../i18n/index";
 import { formatCash } from "../sim/format";
 import { dayJobButton } from "./dayJob";
-import { PxButton, UiEnvContext } from "./parts";
+import { Bar, PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
 
 // The Case shelf (right panel, or a drawer tab on phones): each case with its pixel box, BUY at
@@ -47,16 +47,16 @@ function CaseRow({ c, act }: { c: CaseView; act: Act }): ReactNode {
   );
 }
 
-/** Temporary (Plan M2b-B draws the real one): broke with an empty bench → a ~3 s day job. */
+/** Broke with an empty bench → a ~3 s day job: 90 % +$2, 10 % nothing (campaign spec §6.1). */
 function DayJobRow({ view, act }: { view: GameView; act: Act }): ReactNode {
   const b = dayJobButton(view);
   if (!b) return null;
   return (
     <div className="cc-row">
       <PxButton disabled={!b.enabled} onClick={() => act({ type: "startDayJob" })}>
-        DAY JOB
-        <span className="cc-btn-sub">{b.enabled ? "+$2" : `${Math.round(b.progress * 100)}%`}</span>
+        {t("btn.dayjob")}
       </PxButton>
+      {b.enabled ? null : <Bar progress={b.progress} />}
     </div>
   );
 }
