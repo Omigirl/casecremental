@@ -7,7 +7,8 @@ import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
 import { createRng } from "../sim/rng";
 import type { Bench as BenchState, SimEvent } from "../sim/run";
 import type { Drop } from "../sim/types";
-import { Sfx } from "./audio";
+import type { AudioEngine } from "./audio/AudioEngine";
+import { comboPitch } from "./audio/schedule";
 import { loadPixelFont, pixelStyle } from "./hd/font";
 import { HdLayer } from "./hd/HdLayer";
 import { setTweenTimeScale } from "./hd/tween";
@@ -41,7 +42,6 @@ export class World {
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
   private readonly time = new TimeScale();
-  private readonly sfx = new Sfx();
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
@@ -53,24 +53,24 @@ export class World {
   private screen = { w: 0, h: 0 };
   private lastStage = 1;
   private readonly off: () => void;
-  private readonly unlockAudio = () => this.sfx.unlock();
 
-  static async create(app: Application, controller: GameController): Promise<World> {
+  static async create(app: Application, controller: GameController, audio: AudioEngine): Promise<World> {
     await loadPixelFont();
     const lib = await SpriteLibrary.load();
     const bases = await loadWeaponBases(spriteIndex());
-    return new World(app, controller, lib, new SkinTextures(bases));
+    return new World(app, controller, audio, lib, new SkinTextures(bases));
   }
 
   private constructor(
     private readonly app: Application,
     private readonly controller: GameController,
+    private readonly audio: AudioEngine,
     private readonly lib: SpriteLibrary,
     private readonly skins: SkinTextures,
   ) {
     this.room = new Room(lib);
     this.bench = new Bench(lib, skins, controller);
-    this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () => this.sfx.tick(controller.run.state.combo));
+    this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
     this.hd.root.addChild(this.hint, ...this.label, this.offline);
@@ -88,7 +88,6 @@ export class World {
     });
     app.stage.on("pointerup", (e: FederatedPointerEvent) => this.bench.pointerUp(this.worldPt(e)));
     app.stage.on("pointerupoutside", (e: FederatedPointerEvent) => this.bench.pointerUp(this.worldPt(e)));
-    window.addEventListener("pointerdown", this.unlockAudio);
     this.off = controller.onEvent((e) => this.onEvent(e));
 
     this.vp = pixelViewport(app.screen.width, app.screen.height);
@@ -112,6 +111,7 @@ export class World {
       this.hd.setGlow(RARITY_INFO[plan.revealed.rarity].color);
     }
     this.look.setStage(plan.stage);
+    this.audio.setStage(plan.stage);
     this.lastStage = plan.stage;
   }
 
@@ -148,14 +148,12 @@ export class World {
 
   destroy(): void {
     this.off();
-    window.removeEventListener("pointerdown", this.unlockAudio);
     this.app.stage.removeAllListeners();
     this.hd.destroy();
     this.pixel.destroy();
     this.scene.destroy({ children: true });
     this.skins.destroy();
     this.lib.destroy();
-    this.sfx.dispose();
   }
 
   private worldPt(e: FederatedPointerEvent): Pt {
@@ -217,16 +215,17 @@ export class World {
     switch (e.type) {
       case "caseBought":
         this.bench.showCase(e.caseId, true);
-        this.sfx.click();
+        this.audio.play("case-latch");
         break;
       case "spinStarted":
         this.bench.openCase();
         this.reel.start(caseById(e.caseId), skinById(e.drop.skinId), this.rng);
-        this.sfx.click();
+        this.audio.play("key-turn");
+        this.audio.play("lid-creak", { delay: 0.12 });
         break;
       case "braked":
         this.shake.add(0.12);
-        this.sfx.thump(0.35);
+        this.audio.play("brake-thud", { gain: 0.6 });
         break;
       case "revealed":
         this.onReveal(e.drop);
@@ -236,20 +235,19 @@ export class World {
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
         this.hd.setGlow(null);
-        this.sfx.coin(e.combo);
+        this.audio.play("cash-register");
+        this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
+        if (e.amount >= 100) this.audio.play("coin-cascade", { delay: 0.1 });
         this.bench.clearReveal(true);
         break;
       }
-      case "caseUnlocked":
-      case "upgradeBought":
-        this.sfx.click();
-        break;
       case "stageChanged":
         this.look.setStage(e.stage);
+        this.audio.setStage(e.stage);
         if (e.stage > this.lastStage) {
           this.shake.add(0.3);
           this.hd.flash(0xff7ad9, 0.35);
-          this.sfx.stageUp();
+          this.audio.play("stage-whoosh");
         }
         this.lastStage = e.stage;
         break;
@@ -262,7 +260,7 @@ export class World {
     const color = RARITY_INFO[d.rarity].color;
     const v = this.vp.scale / 6; // spark speeds were tuned at scale 6 (1080p)
     this.hd.setGlow(color);
-    this.sfx.reveal(RARITY_ORDER.indexOf(d.rarity));
+    this.audio.play("reveal-chime", { rate: 2 ** (RARITY_ORDER.indexOf(d.rarity) / 6) });
     switch (d.rarity) {
       case "milspec":
         this.hd.particles.burst(at, color, 10, 140 * v);
@@ -277,14 +275,16 @@ export class World {
       case "covert":
         this.time.hitStop(0.08);
         this.shake.add(0.55);
-        this.sfx.thump(1);
+        this.audio.play("covert-impact");
+        this.audio.duck(1.2);
         this.hd.particles.burst(at, color, 90, 420 * v);
         break;
       case "gold":
         this.time.slowMo(0.2, 2.2, 0.7);
         this.shake.add(0.8);
         this.hd.flash(0xffd700, 0.7);
-        this.sfx.jackpot();
+        this.audio.play("jackpot-swell");
+        this.audio.duck(2.6, 0.2);
         this.hd.particles.burst(at, color, 220, 520 * v);
         break;
     }

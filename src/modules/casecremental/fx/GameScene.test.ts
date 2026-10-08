@@ -48,6 +48,8 @@ vi.mock("pixi.js", () => ({ Application: fake.FakeApplication }));
 vi.mock("./World", () => ({ World: fake.FakeWorld }));
 
 const { createGameScene } = await import("./GameScene");
+const { AudioEngine } = await import("./audio/AudioEngine");
+const silent = () => new AudioEngine({}, { createContext: () => null, load: async () => new ArrayBuffer(0), random: Math.random });
 
 describe("GameScene mount / destroy", () => {
   beforeEach(() => {
@@ -59,7 +61,7 @@ describe("GameScene mount / destroy", () => {
 
   it("mounts a World once Pixi is ready", async () => {
     const controller = new GameController(1);
-    const scene = createGameScene(controller);
+    const scene = createGameScene(controller, silent());
     const host = { appendChild: vi.fn() };
     scene.mount({ host: host as unknown as HTMLElement });
     fake.apps[0]!.resolveInit();
@@ -71,7 +73,7 @@ describe("GameScene mount / destroy", () => {
 
   it("survives destroy during init and tears the app down once init finishes", async () => {
     const controller = new GameController(1);
-    const scene = createGameScene(controller);
+    const scene = createGameScene(controller, silent());
     const host = { appendChild: vi.fn() };
     scene.mount({ host: host as unknown as HTMLElement });
     const pending = scene.ready?.();

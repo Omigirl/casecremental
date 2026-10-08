@@ -10,9 +10,11 @@ export interface UiEnv {
   scale: number;
   /** The ui-button art was sliced and applied (CSS variables on the root). */
   skinnedButtons: boolean;
+  /** Button press sound. */
+  click: () => void;
 }
 
-export const UiEnvContext = createContext<UiEnv>({ scale: 1, skinnedButtons: false });
+export const UiEnvContext = createContext<UiEnv>({ scale: 1, skinnedButtons: false, click: () => {} });
 
 export function PxButton(props: { onClick?: () => void; disabled?: boolean; on?: boolean; children: ReactNode; style?: CSSProperties; title?: string }): ReactNode {
   const env = useContext(UiEnvContext);
@@ -29,6 +31,7 @@ export function PxButton(props: { onClick?: () => void; disabled?: boolean; on?:
       style={props.style}
       onClick={() => {
         if (ref.current) springElement(ref.current);
+        env.click();
         props.onClick?.();
       }}
     >

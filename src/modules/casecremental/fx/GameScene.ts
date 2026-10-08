@@ -1,13 +1,14 @@
 import { Application, type Ticker } from "pixi.js";
 import type { EngineScene, SceneMountContext } from "@idosgames/module-sdk";
 import type { GameController } from "../game/controller";
+import type { AudioEngine } from "./audio/AudioEngine";
 import { canvasResolution } from "./pixel/screen";
 import { World } from "./World";
 
 // The Pixi scene the host's Mode Router drives: created on mount, ticking only while active
 // (suspend stops the ticker), destroyed for good on destroy.
 
-export function createGameScene(controller: GameController): EngineScene {
+export function createGameScene(controller: GameController, audio: AudioEngine): EngineScene {
   let app: Application | null = null;
   let world: World | null = null;
   let ready: Promise<void> = Promise.resolve();
@@ -41,7 +42,7 @@ export function createGameScene(controller: GameController): EngineScene {
           resolution: canvasResolution(window.devicePixelRatio),
         })
         // sprites, skins and the pixel font load before the first frame
-        .then(() => (app === a ? World.create(a, controller) : null))
+        .then(() => (app === a ? World.create(a, controller, audio) : null))
         .then((w) => {
           if (app !== a) {
             // destroyed (or remounted) while loading: tear down now that it is safe
@@ -64,11 +65,13 @@ export function createGameScene(controller: GameController): EngineScene {
     activate() {
       running = true;
       controller.running = true;
+      audio.setMusicOn(true);
       app?.ticker?.start();
     },
     suspend() {
       running = false;
       controller.running = false;
+      audio.setMusicOn(false);
       app?.ticker?.stop();
     },
     destroy() {

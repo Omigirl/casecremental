@@ -1,4 +1,5 @@
 import { useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import type { AudioEngine } from "../fx/audio/AudioEngine";
 import type { GameController } from "../game/controller";
 import { CaseShelf } from "./CaseShelf";
 import { Drawer } from "./Drawer";
@@ -15,7 +16,7 @@ import { useGameView } from "./useGameView";
 // top, Upgrades board left and Case shelf right (or a drawer on phones), Settings on demand. The
 // layer lets pointer events through to the canvas; only the panels take them.
 
-export function makeGamePanel(controller: GameController): ComponentType {
+export function makeGamePanel(controller: GameController, audio: AudioEngine): ComponentType {
   const act = (a: Parameters<GameController["act"]>[0]) => void controller.act(a);
   return function GamePanel(): ReactNode {
     const view = useGameView(controller);
@@ -36,8 +37,11 @@ export function makeGamePanel(controller: GameController): ComponentType {
         <style>{UI_CSS}</style>
         <div style={{ position: "absolute", inset: 0, background: `hsla(${tint.hue}, 100%, 55%, ${tint.alpha})`, mixBlendMode: "screen", transition: "background .4s" }} />
         {ui ? (
-          <UiEnvContext.Provider value={{ scale, skinnedButtons: !!buttons && buttons.length >= 3 }}>
-            <Hud view={view} hudH={ui.l.hudH} onSettings={() => setSettings(true)} />
+          <UiEnvContext.Provider value={{ scale, skinnedButtons: !!buttons && buttons.length >= 3, click: () => audio.play("ui-click") }}>
+            <Hud view={view} hudH={ui.l.hudH} onSettings={() => {
+              audio.play("panel-open");
+              setSettings(true);
+            }} />
             {ui.l.panelL ? (
               <Panel rect={ui.l.panelL}>
                 <UpgradesBoard view={view} act={act} />
