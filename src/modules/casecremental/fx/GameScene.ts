@@ -1,6 +1,7 @@
 import { Application, type Ticker } from "pixi.js";
 import type { EngineScene, SceneMountContext } from "@idosgames/module-sdk";
 import type { GameController } from "../game/controller";
+import { canvasResolution } from "./pixel/screen";
 import { World } from "./World";
 
 // The Pixi scene the host's Mode Router drives: created on mount, ticking only while active
@@ -34,9 +35,10 @@ export function createGameScene(controller: GameController): EngineScene {
         .init({
           resizeTo: host,
           background: "#07080c",
-          antialias: true,
+          // pixel art: no smoothing, and a whole device-pixel ratio so every world pixel stays square
+          antialias: false,
           autoDensity: true,
-          resolution: Math.min(window.devicePixelRatio || 1, 2),
+          resolution: canvasResolution(window.devicePixelRatio),
         })
         .then(() => {
           if (app !== a) {
