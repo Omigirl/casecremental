@@ -68,4 +68,13 @@ describe("the bot's path along the table front", () => {
     expect(t.x).toBe(st.tray);
     expect(t.pxPerSec).toBeGreaterThan(0);
   });
+
+  it.each(SIZES)("carries a card a visible way from the bench to the tray at %ix%i (final review)", (w, h) => {
+    const l = tableLayout(pixelViewport(w, h));
+    const st = botStations(l);
+    expect(st.tray).toBeGreaterThan(st.bench);
+    if (!l.portrait) expect(st.tray - st.bench).toBeGreaterThanOrEqual(20);
+    expect(st.tray).toBeGreaterThanOrEqual(l.tray.x);
+    expect(st.tray).toBeLessThanOrEqual(l.tray.x + l.tray.w);
+  });
 });

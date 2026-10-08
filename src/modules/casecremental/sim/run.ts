@@ -1,7 +1,7 @@
 import { botSpeed, botSpeedCost, BOT_STEP_SECONDS, freshBot, revealHold, sellsAt, type BotState } from "./botSeller";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity, type CharmId } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
-import { intensityLevel, nextStage, updateHeat } from "./intensity";
+import { intensityLevel, nextStage, STAGE_NAMES, updateHeat } from "./intensity";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
 import { rollTease, type Tease } from "./tease";
@@ -362,7 +362,7 @@ export class Run {
 
     s.heat = updateHeat(s.heat, this.revealsThisTick, dt);
     this.revealsThisTick = 0;
-    const stage = nextStage(s.stage, this.intensity());
+    const stage = this.locked() ? s.stage : nextStage(s.stage, this.intensity());
     if (stage !== s.stage) {
       s.stage = stage;
       this.events.push({ type: "stageChanged", stage });
@@ -402,6 +402,9 @@ export class Run {
     s.cash -= this.setup.vaultPrice;
     s.finale = 0;
     this.events.push({ type: "vaultBought", price: this.setup.vaultPrice });
+    // the finale is the top stage from its first frame to the end (M2b spec §7)
+    s.stage = STAGE_NAMES.length;
+    this.events.push({ type: "stageChanged", stage: s.stage });
     return OK;
   }
 

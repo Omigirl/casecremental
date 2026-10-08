@@ -2,7 +2,8 @@ import { BOT_STEP_SECONDS, type BotJob } from "../../sim/botSeller";
 import type { TableLayout } from "./layout";
 
 // Where the bot walks (M2b spec §3): one line along the table front — its station (home), just right of
-// your mat (the bench), beside the SELL bin, and the middle of the claim tray. Each leg is walked in the
+// your mat (the bench), beside the SELL bin, and the claim tray's far end (so a card it sets aside is
+// visibly carried there, not dropped where it was picked up). Each leg is walked in the
 // sim's time for that step, so the bot arrives as the sim's step ends.
 
 export interface BotStations {
@@ -23,7 +24,7 @@ export function botStations(l: TableLayout): BotStations {
     home: clampX(l.bot.spot.x),
     bench: clampX(l.you.mat.x + l.you.mat.w + 12),
     bin: clampX(l.bin.x - 18),
-    tray: clampX(l.tray.x + l.tray.w / 2),
+    tray: clampX(l.tray.x + l.tray.w - 10),
   };
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CASES } from "./content/cases";
+import { STAGE_NAMES } from "./intensity";
 import { DEFAULT_SETUP, Run } from "./run";
 import { FINALE_SECONDS, VAULT_TROPHY } from "./tuning";
 
@@ -81,5 +82,20 @@ describe("Vault Case I", () => {
     expect(run.buyVault().ok).toBe(true);
     tickFor(run, 1);
     expect(run.state.bench.phase).toBe("empty");
+  });
+
+  it("holds the top stage through the whole finale, from any stage (final review)", () => {
+    for (const from of [1, 2, 3, 4]) {
+      const run = new Run(1);
+      allUnlocked(run);
+      run.state.cash = 1e9;
+      run.state.stage = from;
+      run.buyVault();
+      expect(run.state.stage).toBe(STAGE_NAMES.length);
+      expect(run.drainEvents()).toContainEqual({ type: "stageChanged", stage: STAGE_NAMES.length });
+      tickFor(run, FINALE_SECONDS + 1);
+      expect(run.state.stage).toBe(STAGE_NAMES.length);
+      expect(run.drainEvents().filter((e) => e.type === "stageChanged")).toHaveLength(0);
+    }
   });
 });
