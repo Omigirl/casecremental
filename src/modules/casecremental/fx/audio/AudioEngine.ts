@@ -85,6 +85,7 @@ export class AudioEngine {
   private musicOn = false;
   /** Resolves when every file has loaded (or failed to). */
   ready: Promise<void> = Promise.resolve();
+  private readonly readyListeners = new Set<() => void>();
 
   constructor(
     urls: Record<string, string> = FILES,
@@ -108,6 +109,12 @@ export class AudioEngine {
       this.ctx = null;
       this.buses = null;
     }
+  }
+
+  /** Fires each time the files have finished decoding (the sound can play now); returns the unsubscribe. */
+  onReady(cb: () => void): () => void {
+    this.readyListeners.add(cb);
+    return () => void this.readyListeners.delete(cb);
   }
 
   setVolumes(music: number, sfx: number): void {
@@ -237,6 +244,7 @@ export class AudioEngine {
     const urls = [...this.files.music.values(), ...this.files.tracks.values(), ...[...this.files.sfx.values()].flat()];
     await Promise.all(urls.map((u) => this.loadBuffer(u)));
     this.updateMusic();
+    for (const cb of [...this.readyListeners]) cb();
   }
 
   private async loadBuffer(url: string): Promise<AudioBuffer | null> {

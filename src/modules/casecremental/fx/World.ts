@@ -39,7 +39,7 @@ import { crawlSeconds } from "./reel/motion";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 import { VAULT_CUE_TIMES } from "./vault/cues";
 import { StackedReels, stackRects } from "./vault/stackedReels";
-import { applyMusic, musicPlan, PowerCycle } from "./vault/vaultFlow";
+import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { vaultReelArea, VaultScene } from "./vault/VaultScene";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
@@ -75,6 +75,7 @@ export class World {
   private readonly vaultPixel = new PixelLayer();
   private readonly vaultReels: StackedReels;
   private readonly power: PowerCycle;
+  private readonly unbindMusic: () => void;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
@@ -146,6 +147,12 @@ export class World {
     this.vaultReels.visible = false;
     this.vault.reelSlot.addChild(this.vaultPixel.view);
     this.power = new PowerCycle(audio);
+    this.unbindMusic = bindMusicResync(
+      audio,
+      document,
+      () => controller.running,
+      () => this.resumeMusic(),
+    );
     app.stage.addChild(this.scene, this.vault.root, this.hd.overlay);
 
     app.stage.eventMode = "static";
@@ -295,6 +302,7 @@ export class World {
   }
 
   destroy(): void {
+    this.unbindMusic();
     this.tray.cancelDrag(); // a drag left mid-air would leave the card "held" across a lobby trip
     this.botCard.cancelDrag();
     this.bench.cancelDrag();

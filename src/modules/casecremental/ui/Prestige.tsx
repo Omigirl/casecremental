@@ -13,7 +13,7 @@ import { charmChoices } from "./prestigeRules";
 
 type Act = (a: Action) => void;
 
-export function Prestige({ p, act }: { p: PrestigeView; act: Act }): ReactNode {
+export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; onSettings: () => void }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -35,7 +35,17 @@ export function Prestige({ p, act }: { p: PrestigeView; act: Act }): ReactNode {
           ...frameCss(uiSpriteUrl("ui-frame"), scale),
         }}
       >
-        <div className="cc-title">{t("prestige.title")}</div>
+        <div className="cc-row-line">
+          <div className="cc-title">{t("prestige.title")}</div>
+          {/* the HUD is gone here, and this screen waits with its own music: mute or switch language from it */}
+          <PxButton
+            onClick={onSettings}
+            title={t("hud.settings")}
+            style={{ fontFamily: "system-ui, sans-serif", fontSize: "calc(var(--fs) * 1.5)", lineHeight: 1 }}
+          >
+            ⚙
+          </PxButton>
+        </div>
         <div className="cc-row-line">
           <span className="cc-gold">{t("prestige.gained", { n: p.gained })}</span>
           <span className="cc-dim">{t("prestige.total", { n: p.clout })}</span>

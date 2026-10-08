@@ -217,3 +217,24 @@ describe("AudioEngine", () => {
     expect(() => a.unlock()).not.toThrow();
   });
 });
+
+describe("AudioEngine.onReady", () => {
+  it("fires once the files have decoded after unlock, and stops after unsubscribe", async () => {
+    const { ctx } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    let n = 0;
+    const off = a.onReady(() => n++);
+    a.unlock();
+    expect(n).toBe(0); // still decoding
+    await a.ready;
+    expect(n).toBe(1);
+    off();
+    a.dispose();
+    const b = new AudioEngine(TRACKS, deps(fakeContext().ctx));
+    let m = 0;
+    b.onReady(() => m++)();
+    b.unlock();
+    await b.ready;
+    expect(m).toBe(0);
+  });
+});

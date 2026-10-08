@@ -44,6 +44,10 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
     const buttons = useButtonImages();
     const [settings, setSettings] = useState(false);
     const [soundBoard, setSoundBoard] = useState(false);
+    const openSettings = () => {
+      audio.play("panel-open");
+      setSettings(true);
+    };
     const tint = comboTint(view.combo);
     const prestigeShown = useDelayedFlag(view.prestige !== null, prestigeDelayMs);
     // the vault takes the screen (rework spec §4): the HUD, the panels and the drawer fade away until the next run
@@ -83,14 +87,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                   pointerEvents: "none",
                 }}
               >
-                <Hud
-                  view={view}
-                  hudH={ui.l.hudH}
-                  onSettings={() => {
-                    audio.play("panel-open");
-                    setSettings(true);
-                  }}
-                />
+                <Hud view={view} hudH={ui.l.hudH} onSettings={openSettings} />
                 {ui.l.panelL ? (
                   <Panel rect={ui.l.panelL}>
                     <UpgradesBoard view={view} act={act} />
@@ -104,6 +101,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 {ui.vp.portrait ? <Drawer view={view} act={act} top={ui.vp.areaH} /> : null}
               </div>
             </div>
+            {prestigeShown && view.prestige ? <Prestige p={view.prestige} act={act} onSettings={openSettings} /> : null}
             {settings ? (
               <Settings
                 onClose={() => setSettings(false)}
@@ -118,7 +116,6 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 }
               />
             ) : null}
-            {prestigeShown && view.prestige ? <Prestige p={view.prestige} act={act} /> : null}
             {import.meta.env.DEV && soundBoard ? (
               <SoundBoard
                 audio={audio}

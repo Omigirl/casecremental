@@ -41,6 +41,28 @@ export function applyMusic(audio: AudioEngine, p: MusicPlan): void {
   audio.setMusicOn(true);
 }
 
+/** Re-apply the music from the sim when the audio finishes decoding after a reload's first gesture, and when a
+ *  hidden tab comes back (the sim paused, the audio kept playing). Not while the scene is suspended. */
+export function bindMusicResync(
+  audio: Pick<AudioEngine, "onReady">,
+  doc: Pick<Document, "addEventListener" | "removeEventListener" | "visibilityState">,
+  running: () => boolean,
+  resume: () => void,
+): () => void {
+  const go = () => {
+    if (running()) resume();
+  };
+  const onVisible = () => {
+    if (doc.visibilityState === "visible") go();
+  };
+  const off = audio.onReady(go);
+  doc.addEventListener("visibilitychange", onVisible);
+  return () => {
+    off();
+    doc.removeEventListener("visibilitychange", onVisible);
+  };
+}
+
 const all = (v: number): LightLevels => ({ room: v, lamp: v, reels: v, bin: v, leds: v });
 
 export class PowerCycle {
