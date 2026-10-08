@@ -100,6 +100,23 @@ describe("Run", () => {
     expect(run.state.combo).toBe(2);
   });
 
+  it("keeps the combo at human pace with no Quick Hands: the spin itself never counts against the window", () => {
+    const run = new Run(1);
+    run.state.cash = 1000;
+    revealOne(run);
+    run.sell();
+    for (let i = 0; i < 5; i++) {
+      tickFor(run, 0.5); // reach for the next case
+      run.buyCase("bootcamp");
+      tickFor(run, 0.7); // drag the key
+      run.insertKey();
+      spinOut(run);
+      tickFor(run, 0.7); // see it, drag it to the bin
+      run.sell();
+    }
+    expect(run.state.combo).toBe(6);
+  });
+
   it("insertKey rolls the drop and spins; a second key is refused", () => {
     const run = new Run(1);
     expect(run.insertKey().ok).toBe(false);

@@ -47,6 +47,8 @@ export interface RunState {
   combo: number;
   /** The combo's share of intensity: jumps up with the combo, fades smoothly after it breaks. */
   comboHeat: number;
+  /** When the combo window started: the last sell, pushed forward by every spin since (the reel
+   *  turning is never the player being slow — only buying, keying and selling count). */
   lastSellAt: number;
   freeCaseTimer: number;
   heat: number;
@@ -143,7 +145,7 @@ export class Run {
     const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
     this.forcedFake = false;
     const fullDuration = fx.spinSeconds + (tease?.extraSeconds ?? 0);
-    s.lastSellAt += tease?.extraSeconds ?? 0; // the crawl never costs the combo
+    s.lastSellAt += fullDuration; // the spin (tease crawl included) never counts against the combo
     s.bench = { phase: "spinning", caseId: c.id, drop, elapsed: 0, fullDuration, tease };
     s.lastTier = c.tier;
     s.opened++;

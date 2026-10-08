@@ -10,9 +10,11 @@ export interface BotTimings {
   buy: number;
   key: number;
   sell: number;
+  /** Seeing the card land before reaching for it. */
+  reveal: number;
 }
 
-export const HUMAN: BotTimings = { buy: 0.3, key: 0.4, sell: 0.5 };
+export const HUMAN: BotTimings = { buy: 0.3, key: 0.4, sell: 0.5, reveal: 0.25 };
 
 export interface PacingReport {
   caseUnlockedAt: Record<string, number>;
@@ -32,6 +34,7 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     for (const e of run.drainEvents()) {
       if (e.type === "caseUnlocked") report.caseUnlockedAt[e.caseId] ??= run.state.time;
       if (e.type === "stageChanged") report.stageReachedAt[e.stage] ??= run.state.time;
+      if (e.type === "revealed") busyUntil = Math.max(busyUntil, run.state.time + timings.reveal);
     }
     const s = run.state;
     if (s.time < busyUntil) continue;
