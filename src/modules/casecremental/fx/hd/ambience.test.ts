@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lampFlicker, makeMotes, stepMotes } from "./ambience";
+import { binLight, lampFlicker, makeMotes, stepMotes } from "./ambience";
 
 describe("ambience", () => {
   it("keeps the lamp between 0.78 and 1 and actually flickers", () => {
@@ -21,5 +21,14 @@ describe("ambience", () => {
       expect(m.y).toBeGreaterThanOrEqual(box.y);
       expect(m.y).toBeLessThanOrEqual(box.y + box.h);
     }
+  });
+
+  it("keeps the sell bin findable, and calls for the card while one waits", () => {
+    const idle = Array.from({ length: 400 }, (_, i) => binLight(false, i * 0.05));
+    const calling = Array.from({ length: 400 }, (_, i) => binLight(true, i * 0.05));
+    expect(Math.min(...idle)).toBeGreaterThanOrEqual(0.2); // a work light, always on
+    expect(Math.max(...idle)).toBeLessThan(Math.min(...calling)); // waiting is always brighter
+    expect(Math.max(...calling) - Math.min(...calling)).toBeGreaterThan(0.2); // and it pulses
+    expect(Math.max(...calling)).toBeLessThanOrEqual(1);
   });
 });

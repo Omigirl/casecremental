@@ -166,6 +166,7 @@ export class World {
     this.look.update(realSeconds);
     setTweenTimeScale(scale);
     this.updateText(b);
+    this.hd.setBinCalling(b.phase === "revealed");
 
     const k = this.vp.scale;
     this.lifted.update(this.bench.lifted(), k, realSeconds);

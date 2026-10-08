@@ -46,3 +46,8 @@ export function stepMotes(motes: Mote[], dt: number, box: Box, t: number): void 
     if (m.x > box.x + box.w) m.x -= box.w;
   }
 }
+
+/** The sell bin's light: a faint warm work light, pulsing brighter while a card waits to be sold. */
+export function binLight(waiting: boolean, t: number): number {
+  return waiting ? 0.65 + 0.25 * Math.sin(t * 4) : 0.28 + 0.04 * Math.sin(t * 1.3);
+}

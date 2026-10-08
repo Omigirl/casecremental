@@ -4,7 +4,7 @@ import { Particles } from "../juice/particles";
 import type { Pt, TableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { PixelViewport } from "../pixel/viewport";
-import { lampFlicker, makeMotes, stepMotes, type Box, type Mote } from "./ambience";
+import { binLight, lampFlicker, makeMotes, stepMotes, type Box, type Mote } from "./ambience";
 import { pixelStyle } from "./font";
 
 // The full-resolution layer over the pixel world (spec §2): the lamp's warm light, a vignette, dust
@@ -41,6 +41,9 @@ export class HdLayer {
   private readonly vignette: Sprite;
   private readonly dust = new Container();
   private readonly glowSprite: Sprite;
+  /** Keeps the sell bin findable in the dark bottom corner; brighter while a card waits. */
+  private readonly binGlow: Sprite;
+  private binCalling = false;
   private readonly zs: Text[] = [];
   private readonly led = new Graphics();
   private readonly flashRect = new Graphics();
@@ -81,6 +84,7 @@ export class HdLayer {
 
     this.lamp = new Sprite({ texture: cone, anchor: { x: 0.5, y: 0 }, blendMode: "add" });
     this.glowSprite = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0 });
+    this.binGlow = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0 });
     this.vignette = new Sprite(vignette);
     for (let i = 0; i < MOTES; i++) this.dust.addChild(new Sprite({ texture: dot, anchor: 0.5, tint: 0xffe2b0 }));
     for (let i = 0; i < 3; i++) {
@@ -91,7 +95,16 @@ export class HdLayer {
     this.particles = new Particles(dot);
     this.coins = new Coins(coinFrames);
     this.flashRect.alpha = 0;
-    this.root.addChild(this.lamp, this.glowSprite, this.dust, ...this.zs, this.led, this.particles.container, this.coins.container);
+    this.root.addChild(
+      this.lamp,
+      this.binGlow,
+      this.glowSprite,
+      this.dust,
+      ...this.zs,
+      this.led,
+      this.particles.container,
+      this.coins.container,
+    );
     this.overlay.addChild(this.vignette, this.flashRect);
   }
 
@@ -110,6 +123,8 @@ export class HdLayer {
     this.dust.children.forEach((s) => (s as Sprite).scale.set(Math.max(0.25, k / 16)));
     this.glowSprite.position.set(l.you.reveal.x * k, l.you.reveal.y * k);
     this.glowSprite.width = this.glowSprite.height = 70 * k;
+    this.binGlow.position.set(l.bin.x * k, (l.bin.y - 4) * k);
+    this.binGlow.width = this.binGlow.height = l.binR * 5 * k;
     for (const z of this.zs) z.style.fontSize = hdFontSize(k);
     this.led
       .clear()
@@ -129,6 +144,11 @@ export class HdLayer {
   flash(color: number, strength = 0.8): void {
     this.flashRect.tint = color;
     this.flashAlpha = Math.max(this.flashAlpha, strength);
+  }
+
+  /** A card is up and waiting to be sold: the bin's light calls for it. */
+  setBinCalling(on: boolean): void {
+    this.binCalling = on;
   }
 
   setBotAsleep(on: boolean): void {
@@ -154,6 +174,8 @@ export class HdLayer {
     this.glowSprite.tint = this.glowColor;
     this.glowSprite.alpha += (this.glowTarget * (0.85 + 0.15 * Math.sin(this.t * 5)) - this.glowSprite.alpha) * Math.min(1, dt * 6);
     this.led.alpha = Math.sin(this.t * Math.PI) > 0 ? 1 : 0.15;
+    this.binGlow.tint = this.binCalling ? 0xb8ff8a : 0xffc870;
+    this.binGlow.alpha += (binLight(this.binCalling, this.t) - this.binGlow.alpha) * Math.min(1, dt * 6);
     this.flashAlpha = Math.max(0, this.flashAlpha - dt * 2.5);
     this.flashRect.alpha = this.flashAlpha;
     this.updateZs();
