@@ -1,4 +1,4 @@
-import type { Point } from "../layout";
+import type { Pt as Point } from "../pixel/layout";
 
 // Trauma-based screen shake: events add trauma (0..1), the offset grows with trauma² and the
 // trauma decays linearly — small hits barely move, big ones rattle.

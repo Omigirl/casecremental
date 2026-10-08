@@ -29,6 +29,9 @@ const fake = vi.hoisted(() => {
     }
   }
   class FakeWorld {
+    static async create(): Promise<FakeWorld> {
+      return new FakeWorld();
+    }
     constructor() {
       worlds.push(this);
     }

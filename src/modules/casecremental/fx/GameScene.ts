@@ -40,15 +40,18 @@ export function createGameScene(controller: GameController): EngineScene {
           autoDensity: true,
           resolution: canvasResolution(window.devicePixelRatio),
         })
-        .then(() => {
+        // sprites, skins and the pixel font load before the first frame
+        .then(() => (app === a ? World.create(a, controller) : null))
+        .then((w) => {
           if (app !== a) {
-            // destroyed (or remounted) while init was running: tear down now that it is safe
+            // destroyed (or remounted) while loading: tear down now that it is safe
+            w?.destroy();
             a.destroy(true);
             return;
           }
           appReady = true;
           host.appendChild(a.canvas);
-          world = new World(a, controller);
+          world = w;
           a.ticker.add(tick);
           if (!running) a.ticker.stop();
           controller.mounted = true;
