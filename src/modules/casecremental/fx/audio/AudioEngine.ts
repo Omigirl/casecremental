@@ -67,7 +67,8 @@ export class AudioEngine {
   private loop: Loop | null = null;
   private loopStartedAt = 0;
   private wantStage = 1;
-  private musicOn = true;
+  /** Off until the game scene activates: a click in the lobby unlocks audio, never the music. */
+  private musicOn = false;
   /** Resolves when every file has loaded (or failed to). */
   ready: Promise<void> = Promise.resolve();
 

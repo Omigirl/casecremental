@@ -95,10 +95,21 @@ describe("AudioEngine", () => {
   it("starts the stage loop and falls back to the nearest lower stage", async () => {
     const { ctx, started } = fakeContext();
     const a = new AudioEngine(URLS, deps(ctx));
+    a.setMusicOn(true);
     a.setStage(4);
     a.unlock();
     await a.ready;
     expect(started.filter((s) => s.loop).map((s) => s.url)).toEqual(["m2"]);
+  });
+
+  it("keeps the music off until the game scene turns it on (a click in the lobby unlocks audio, not music)", async () => {
+    const { ctx, started } = fakeContext();
+    const a = new AudioEngine(URLS, deps(ctx));
+    a.unlock();
+    await a.ready;
+    expect(started.filter((s) => s.loop)).toHaveLength(0);
+    a.setMusicOn(true);
+    expect(started.filter((s) => s.loop).map((s) => s.url)).toEqual(["m1"]);
   });
 
   it("stays silent without an AudioContext (Review Focus 4)", () => {
