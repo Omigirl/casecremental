@@ -16,8 +16,14 @@ describe("audio manifest", () => {
     }
   });
 
-  it("has the Sober and Buzzed loops at the shared tempo", () => {
-    expect(music.map((a) => a.stage)).toEqual([1, 2]);
-    for (const a of music) expect(a.prompt).toContain("120 BPM");
+  it("has the five stage loops at the shared tempo, and the named tracks", () => {
+    const stageLoops = music.filter((a) => a.stage !== undefined);
+    expect(stageLoops.map((a) => a.stage)).toEqual([1, 2, 3, 4, 5]);
+    for (const a of stageLoops) expect(a.prompt, a.id).toContain("120 BPM");
+    for (const id of ["vault-suspense", "vault-fanfare", "prestige"]) {
+      const track = music.find((a) => a.id === id);
+      expect(track, id).toBeDefined();
+      expect(track?.stage, id).toBeUndefined();
+    }
   });
 });

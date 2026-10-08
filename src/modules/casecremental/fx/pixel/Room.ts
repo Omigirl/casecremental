@@ -48,7 +48,7 @@ export class Room {
     this.mat = optional("mat");
     this.tray = new Sprite(lib.get("tray", { w: 100, h: 18 }).frames[0]);
     this.seller = new Sprite(lib.get("auto-seller", { w: 24, h: 30 }).frames[0]);
-    this.seller.tint = 0xa8a8b8; // powered off until M2b — dimmed, but still readable
+    this.seller.tint = 0xa8a8b8; // dimmed until bought
     this.botReel = new NineSliceSprite({ texture: reelFrame.frames[0]!, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
     this.botReel.tint = 0x444455;
     for (const s of [this.wall, this.backdrop, this.shelves, this.lamp.actor, this.botReel]) if (s) this.back.addChild(s);
@@ -93,6 +93,11 @@ export class Room {
   /** The bot's reel window lights up once the bot is awake (its reel is online). */
   setBotOnline(on: boolean): void {
     this.botReel.tint = on ? 0xffffff : 0x444455;
+  }
+
+  /** The auto-seller powers on when bought (rework spec §1). */
+  setSellerOn(on: boolean): void {
+    this.seller.tint = on ? 0xffffff : 0xa8a8b8;
   }
 
   update(ms: number): void {

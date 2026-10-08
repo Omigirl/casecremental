@@ -219,6 +219,8 @@ export class World {
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
     this.tray.update(run.state.tray, run.setup.trayCapacity);
+    this.room.setSellerOn(run.state.seller.on);
+    this.hd.setSellerOn(run.state.seller.on);
     this.room.update(realSeconds * 1000);
     this.hd.update(realSeconds);
     this.rain.update(realSeconds, 300 * this.vp.scale);
@@ -444,8 +446,17 @@ export class World {
       case "botWoke":
         this.bot.wake();
         this.hd.flash(0xffd28a, 0.15); // the station's lamp flickers on
-        this.audio.play("bot-servo");
-        this.audio.play("bot-beep", { delay: 0.35 });
+        this.audio.play("bot-wake");
+        break;
+      case "sellerBought":
+        this.hd.flash(0x3ddc84, 0.2);
+        this.audio.play("seller-power-on");
+        break;
+      case "sellerUpgraded":
+        this.audio.play("seller-power-on", { rate: 1.3, gain: 0.5 });
+        break;
+      case "dayJobStarted":
+        this.audio.play("dayjob-work");
         break;
       case "botUpgraded":
         this.audio.play("bot-servo", { rate: 1.2 });
@@ -465,7 +476,7 @@ export class World {
         const tb = this.l.table;
         const at = this.screenPt({ x: tb.x + tb.w / 2, y: tb.y + 12 });
         this.hd.coins.floatText(at, e.amount > 0 ? `+${formatCash(e.amount, getLang())}` : t("float.nopay"));
-        if (e.amount > 0) this.audio.play("coin-clink");
+        this.audio.play(e.amount > 0 ? "dayjob-pay" : "dayjob-nopay");
         break;
       }
       case "stored":
@@ -514,7 +525,7 @@ export class World {
           this.shake.add(0.3);
           this.zoom.punch(1.06, 0.25);
           this.hd.flash(0xff7ad9, 0.35);
-          this.audio.play("stage-whoosh");
+          this.audio.play("stage-up");
         }
         this.lastStage = e.stage;
         break;

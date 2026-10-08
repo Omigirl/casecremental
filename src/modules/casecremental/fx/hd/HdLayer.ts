@@ -56,6 +56,7 @@ export class HdLayer {
   private glowTarget = 0;
   private asleep = true;
   private flashAlpha = 0;
+  private sellerOn = false;
 
   constructor(coinFrames: readonly Texture[]) {
     const cone = canvasTexture(256, 256, (g) => {
@@ -108,6 +109,17 @@ export class HdLayer {
     this.overlay.addChild(this.vignette, this.flashRect);
   }
 
+  /** The auto-seller's LED: blinking red on standby, steady green once it is on. */
+  setSellerOn(on: boolean): void {
+    if (on === this.sellerOn) return;
+    this.sellerOn = on;
+    const k = this.vp?.scale ?? 1;
+    this.led
+      .clear()
+      .circle(0, 0, Math.max(1.5, k * 0.6))
+      .fill({ color: on ? 0x3ddc84 : 0xff3b30 });
+  }
+
   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
     this.l = l;
     this.vp = vp;
@@ -129,7 +141,7 @@ export class HdLayer {
     this.led
       .clear()
       .circle(0, 0, Math.max(1.5, k * 0.6))
-      .fill({ color: 0xff3b30 });
+      .fill({ color: this.sellerOn ? 0x3ddc84 : 0xff3b30 });
     this.led.position.set(l.seller.x * k, (l.seller.y - 26) * k);
     this.coins.setScale(k, hdFontSize(k, 16));
   }
@@ -173,7 +185,7 @@ export class HdLayer {
     });
     this.glowSprite.tint = this.glowColor;
     this.glowSprite.alpha += (this.glowTarget * (0.85 + 0.15 * Math.sin(this.t * 5)) - this.glowSprite.alpha) * Math.min(1, dt * 6);
-    this.led.alpha = Math.sin(this.t * Math.PI) > 0 ? 1 : 0.15;
+    this.led.alpha = this.sellerOn ? 1 : Math.sin(this.t * Math.PI) > 0 ? 1 : 0.15;
     this.binGlow.tint = this.binCalling ? 0xb8ff8a : 0xffc870;
     this.binGlow.alpha += (binLight(this.binCalling, this.t) - this.binGlow.alpha) * Math.min(1, dt * 6);
     this.flashAlpha = Math.max(0, this.flashAlpha - dt * 2.5);
