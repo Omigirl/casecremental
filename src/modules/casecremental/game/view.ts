@@ -1,5 +1,6 @@
 import { CASES, priceOf, unlockCostOf } from "../sim/content/cases";
 import { STAGE_NAMES } from "../sim/intensity";
+import { freshMeta, type MetaState } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
 import { UPGRADE_COSTS } from "../sim/tuning";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCost, type UpgradeId } from "../sim/upgrades";
@@ -43,7 +44,8 @@ export interface GameView {
     | null;
 }
 
-export function buildView(run: Run): GameView {
+export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
+  void meta;
   const s = run.state;
   const benchFree = s.bench.phase === "empty";
   const cases = CASES.map((c, i): CaseView => {

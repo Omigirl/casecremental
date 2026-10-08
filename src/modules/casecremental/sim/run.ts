@@ -95,7 +95,9 @@ export type SimEvent =
   | { type: "botPickedUp"; drop: Drop; dest: "bin" | "tray" }
   | { type: "botWaiting" }
   | { type: "vaultBought"; price: number }
-  | { type: "vaultOpened"; trophy: string; drop: Drop; lifetimeEarnings: number };
+  | { type: "vaultOpened"; trophy: string; drop: Drop; lifetimeEarnings: number }
+  /** Emitted by the controller when a new run begins. */
+  | { type: "runStarted" };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
 

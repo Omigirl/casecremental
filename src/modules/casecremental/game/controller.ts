@@ -1,45 +1,72 @@
+import type { CharmId } from "../sim/charms";
+import { buyPerk, completeVault, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
 import { Run, type ActionResult, type SimEvent } from "../sim/run";
+import type { RarityId } from "../sim/types";
 import type { UpgradeId } from "../sim/upgrades";
+import { SAVE_VERSION, type SaveSlot } from "./save";
 import { buildView, type GameView } from "./view";
 
-// Owns the run. The scene calls step() every frame; the player, the React panel and the agent all
-// change the game through act() — the one input path.
+// Owns the campaign: the prestige meta and the current run. The scene calls step() every frame; the
+// player, the React panel and the agent all change the game through act() — the one input path. After a
+// vault the meta is paid once; startNextRun swaps in a fresh run built from the meta. Everything is saved
+// to the slot about once a second and after every successful action.
 
 export type Action =
   | { type: "buyCase"; caseId: string }
   | { type: "insertKey" }
   | { type: "sell" }
   | { type: "unlockCase"; caseId: string }
-  | { type: "buyUpgrade"; id: UpgradeId };
+  | { type: "buyUpgrade"; id: UpgradeId }
+  | { type: "claim"; index: number }
+  | { type: "wakeBot" }
+  | { type: "buyBotSpeed" }
+  | { type: "setBotThreshold"; rarity: RarityId }
+  | { type: "startDayJob" }
+  | { type: "buyVault" }
+  | { type: "buyPerk"; id: PerkId }
+  | { type: "pickCharm"; id: CharmId }
+  | { type: "startNextRun" };
 
 export const SIM_STEP = 1 / 30;
 /** A frame longer than this (tab was hidden, debugger pause) is clamped. */
 export const MAX_FRAME_SECONDS = 0.25;
 const VIEW_REFRESH_SECONDS = 0.1;
+const AUTOSAVE_SECONDS = 1;
 
 export class GameController {
-  readonly run: Run;
+  readonly meta: MetaState;
   /** Set each frame by the scene: 0 = hit-stop, <1 = slow-mo. */
   timeScale = 1;
   mounted = false;
   running = false;
 
+  private current: Run;
   private acc = 0;
   private viewAge = 0;
+  private saveAge = 0;
   private view: GameView;
   private readonly eventListeners = new Set<(e: SimEvent) => void>();
   private readonly viewListeners = new Set<() => void>();
 
-  constructor(seed: number = Date.now() >>> 0) {
-    this.run = new Run(seed);
-    this.view = buildView(this.run);
+  constructor(
+    seed: number = Date.now() >>> 0,
+    private readonly slot: SaveSlot | null = null,
+  ) {
+    const saved = slot?.load() ?? null;
+    this.meta = saved ? saved.meta : freshMeta();
+    this.current = saved ? Run.fromSnapshot(saved.run) : new Run(seed);
+    this.view = buildView(this.current, this.meta);
+  }
+
+  get run(): Run {
+    return this.current;
   }
 
   step(realSeconds: number): void {
     const frame = Math.min(Math.max(realSeconds, 0), MAX_FRAME_SECONDS);
     this.acc += frame * this.timeScale;
     while (this.acc >= SIM_STEP) {
-      this.run.tick(SIM_STEP);
+      this.current.tick(SIM_STEP);
       this.acc -= SIM_STEP;
     }
     this.flush();
@@ -48,13 +75,28 @@ export class GameController {
       this.viewAge = 0;
       this.refreshView();
     }
+    this.saveAge += frame;
+    if (this.saveAge >= AUTOSAVE_SECONDS) {
+      this.saveAge = 0;
+      this.save();
+    }
   }
 
   act(action: Action): ActionResult {
     const r = this.dispatch(action);
     this.flush();
+    if (r.ok) this.save();
     this.refreshView();
     return r;
+  }
+
+  /** Dev: forget the save and start a fresh campaign. */
+  resetProgress(seed: number = Date.now() >>> 0): void {
+    this.slot?.clear();
+    Object.assign(this.meta, freshMeta());
+    this.current = new Run(seed);
+    this.emit({ type: "runStarted" });
+    this.refreshView();
   }
 
   onEvent(listener: (e: SimEvent) => void): () => void {
@@ -70,26 +112,69 @@ export class GameController {
   readonly getView = (): GameView => this.view;
 
   private dispatch(a: Action): ActionResult {
+    const run = this.current;
     switch (a.type) {
       case "buyCase":
-        return this.run.buyCase(a.caseId);
+        return run.buyCase(a.caseId);
       case "insertKey":
-        return this.run.insertKey();
+        return run.insertKey();
       case "sell":
-        return this.run.sell();
+        return run.sell();
       case "unlockCase":
-        return this.run.unlockCase(a.caseId);
+        return run.unlockCase(a.caseId);
       case "buyUpgrade":
-        return this.run.buyUpgrade(a.id);
+        return run.buyUpgrade(a.id);
+      case "claim":
+        return run.claim(a.index);
+      case "wakeBot":
+        return run.wakeBot();
+      case "buyBotSpeed":
+        return run.buyBotSpeed();
+      case "setBotThreshold":
+        return run.setBotThreshold(a.rarity);
+      case "startDayJob":
+        return run.startDayJob();
+      case "buyVault":
+        return run.buyVault();
+      case "buyPerk":
+        return run.state.over ? buyPerk(this.meta, a.id) : { ok: false, reason: "perks are bought between runs" };
+      case "pickCharm":
+        return pickCharm(this.meta, a.id);
+      case "startNextRun":
+        return this.startNextRun();
     }
   }
 
+  private startNextRun(): ActionResult {
+    if (!this.current.state.over) return { ok: false, reason: "the run is still going" };
+    const seed = (this.current.seed + Math.imul(this.meta.loops, 0x9e3779b1)) >>> 0;
+    this.current = new Run(seed, setupFor(this.meta));
+    this.meta.offer = null;
+    this.meta.picked = [];
+    this.emit({ type: "runStarted" });
+    return { ok: true };
+  }
+
   private flush(): void {
-    for (const e of this.run.drainEvents()) for (const l of this.eventListeners) l(e);
+    for (const e of this.current.drainEvents()) {
+      if (e.type === "vaultOpened") {
+        completeVault(this.meta, e.lifetimeEarnings, e.trophy, this.current.seed);
+        this.save();
+      }
+      this.emit(e);
+    }
+  }
+
+  private emit(e: SimEvent): void {
+    for (const l of this.eventListeners) l(e);
+  }
+
+  private save(): void {
+    this.slot?.save({ v: SAVE_VERSION, meta: this.meta, run: this.current.snapshot() });
   }
 
   private refreshView(): void {
-    this.view = buildView(this.run);
+    this.view = buildView(this.current, this.meta);
     for (const l of this.viewListeners) l();
   }
 }
