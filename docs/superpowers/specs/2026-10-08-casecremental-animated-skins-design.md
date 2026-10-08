@@ -45,7 +45,8 @@ Every motion is a function of the loop phase `t ∈ [0, 1)`, so frame `n` is dra
 loop closes (the frame after the last equals the first).
 
 Pattern (the pattern lookup gains `t`; a static pattern ignores it):
-- **flow** — the pattern's coordinates drift along the weapon by one full pattern tile per loop.
+- **flow** — the pattern drifts along a small closed path (a circle of ~8 % of the weapon) once per loop; the
+  procedural patterns don't tile, so a straight drift could not return to its start.
 - **shimmer** — a narrow bright diagonal band crosses the weapon once per loop (mixed toward white,
   outline untouched).
 - **pulse** — the palette brightens and darkens once per loop (a few % either way).
