@@ -22,7 +22,7 @@ export const TAP_SLOP = 2;
 const hit = (r: Rect, p: Pt) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
 
 export class DragTracker {
-  private active: { id: string; start: Pt; grab: Pt; moved: number; pos: Pt } | null = null;
+  private active: { id: string; start: Pt; grab: Pt; moved: number; exact: Pt } | null = null;
 
   get dragging(): string | null {
     return this.active?.id ?? null;
@@ -30,14 +30,20 @@ export class DragTracker {
 
   /** Where the dragged item's top-left goes, in whole world px. */
   get position(): Pt | null {
-    return this.active ? { ...this.active.pos } : null;
+    const a = this.active;
+    return a ? { x: Math.round(a.exact.x), y: Math.round(a.exact.y) } : null;
+  }
+
+  /** The same, unrounded — for an item lifted into the HD layer, which moves smoothly. */
+  get exactPosition(): Pt | null {
+    return this.active ? { ...this.active.exact } : null;
   }
 
   /** Grab the first item under the pointer (items are in priority order). */
   down(p: Pt, items: readonly Grabbable[]): string | null {
     const item = items.find((i) => hit(i.rect, p));
     if (!item) return null;
-    this.active = { id: item.id, start: p, grab: { x: p.x - item.rect.x, y: p.y - item.rect.y }, moved: 0, pos: { x: item.rect.x, y: item.rect.y } };
+    this.active = { id: item.id, start: p, grab: { x: p.x - item.rect.x, y: p.y - item.rect.y }, moved: 0, exact: { x: item.rect.x, y: item.rect.y } };
     return item.id;
   }
 
@@ -45,7 +51,7 @@ export class DragTracker {
     const a = this.active;
     if (!a) return;
     a.moved = Math.max(a.moved, Math.hypot(p.x - a.start.x, p.y - a.start.y));
-    a.pos = { x: Math.round(p.x - a.grab.x), y: Math.round(p.y - a.grab.y) };
+    a.exact = { x: p.x - a.grab.x, y: p.y - a.grab.y };
   }
 
   up(p: Pt): DragEnd {

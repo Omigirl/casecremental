@@ -32,6 +32,8 @@ function radial(size: number, stops: Array<[number, string]>): Texture {
 
 export class HdLayer {
   readonly root = new Container();
+  /** Vignette and flash: over everything, outside the camera zoom. */
+  readonly overlay = new Container();
   readonly particles: Particles;
   readonly coins: Coins;
   private readonly textures: Texture[];
@@ -78,7 +80,8 @@ export class HdLayer {
     this.particles = new Particles(dot);
     this.coins = new Coins(coinFrames);
     this.flashRect.alpha = 0;
-    this.root.addChild(this.lamp, this.glowSprite, this.dust, ...this.zs, this.led, this.particles.container, this.coins.container, this.vignette, this.flashRect);
+    this.root.addChild(this.lamp, this.glowSprite, this.dust, ...this.zs, this.led, this.particles.container, this.coins.container);
+    this.overlay.addChild(this.vignette, this.flashRect);
   }
 
   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
@@ -147,6 +150,7 @@ export class HdLayer {
   destroy(): void {
     this.coins.destroy();
     this.root.destroy({ children: true });
+    this.overlay.destroy({ children: true });
     for (const t of this.textures) t.destroy(true);
   }
 

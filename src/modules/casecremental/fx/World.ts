@@ -12,16 +12,18 @@ import { comboPitch } from "./audio/schedule";
 import { loadPixelFont, pixelStyle } from "./hd/font";
 import { HdLayer } from "./hd/HdLayer";
 import { setTweenTimeScale } from "./hd/tween";
+import { Lifted } from "./hd/Lifted";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
+import { Zoom } from "./juice/zoom";
 import { fitCentre, hintKey, revealLines } from "./labels";
 import { Bench } from "./pixel/Bench";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
 import { Reel } from "./pixel/Reel";
 import { Room } from "./pixel/Room";
-import { hdFontSize, toWorld } from "./pixel/screen";
+import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
@@ -29,8 +31,9 @@ import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
 // rendered small and scaled up by a whole number, and the HD layer over it (light, dust, glow,
-// sparks, coins, text). Sim events drive the juice: sparks, coins, sound, shake, hit-stop on
-// Covert, slow-mo + flash on ★, and the look of the intensity stage.
+// sparks, coins, text). Sim events drive the juice: sparks, coins, sound, shake, hit-stop and a
+// zoom punch on Covert, slow-mo + push-in + flash on ★, and the look of the intensity stage. The
+// camera (shake + zoom) moves the whole scene around the reveal; vignette and flash stay put.
 
 export class World {
   private readonly scene = new Container();
@@ -42,6 +45,8 @@ export class World {
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
   private readonly time = new TimeScale();
+  private readonly zoom = new Zoom();
+  private readonly lifted = new Lifted();
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
@@ -69,15 +74,19 @@ export class World {
     private readonly skins: SkinTextures,
   ) {
     this.room = new Room(lib);
-    this.bench = new Bench(lib, skins, controller);
+    this.bench = new Bench(lib, skins, controller, (c) => {
+      const tex = app.renderer.generateTexture({ target: c, resolution: 1 });
+      tex.source.scaleMode = "nearest";
+      return tex;
+    });
     this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
-    this.hd.root.addChild(this.hint, ...this.label, this.offline);
+    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
-    app.stage.addChild(this.scene);
+    app.stage.addChild(this.scene, this.hd.overlay);
 
     app.stage.eventMode = "static";
     app.stage.hitArea = app.screen;
@@ -140,9 +149,14 @@ export class World {
     this.updateText(b, run.canBrake());
 
     const k = this.vp.scale;
+    this.lifted.update(this.bench.lifted(), k, realSeconds);
+    // camera: shake in whole px, zoom around the reveal card
     const s = this.shake.update(realSeconds);
-    this.pixel.setOffset(s.x * k, s.y * k);
-    this.hd.root.position.set(Math.round(s.x * k), Math.round(s.y * k));
+    const z = this.zoom.update(realSeconds);
+    const focus = this.screenPt(this.bench.revealCentre());
+    this.scene.pivot.set(focus.x, focus.y);
+    this.scene.position.set(focus.x + Math.round(s.x * k), focus.y + Math.round(s.y * k));
+    this.scene.scale.set(z);
     this.pixel.render(this.app.renderer);
   }
 
@@ -150,14 +164,17 @@ export class World {
     this.off();
     this.app.stage.removeAllListeners();
     this.hd.destroy();
+    this.bench.destroy();
     this.pixel.destroy();
     this.scene.destroy({ children: true });
     this.skins.destroy();
     this.lib.destroy();
   }
 
+  /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
   private worldPt(e: FederatedPointerEvent): Pt {
-    return toWorld(this.vp, e.global.x, e.global.y);
+    const p = this.pixel.view.toLocal(e.global);
+    return { x: p.x, y: p.y };
   }
 
   private applyLayout(): void {
@@ -246,6 +263,7 @@ export class World {
         this.audio.setStage(e.stage);
         if (e.stage > this.lastStage) {
           this.shake.add(0.3);
+          this.zoom.punch(1.06, 0.25);
           this.hd.flash(0xff7ad9, 0.35);
           this.audio.play("stage-whoosh");
         }
@@ -274,6 +292,7 @@ export class World {
         break;
       case "covert":
         this.time.hitStop(0.08);
+        this.zoom.punch(1.1, 0.15);
         this.shake.add(0.55);
         this.audio.play("covert-impact");
         this.audio.duck(1.2);
@@ -281,6 +300,7 @@ export class World {
         break;
       case "gold":
         this.time.slowMo(0.2, 2.2, 0.7);
+        this.zoom.punch(1.3, 1.8);
         this.shake.add(0.8);
         this.hd.flash(0xffd700, 0.7);
         this.audio.play("jackpot-swell");

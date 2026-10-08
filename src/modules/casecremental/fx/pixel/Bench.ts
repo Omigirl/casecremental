@@ -1,8 +1,9 @@
-import { Container, Graphics, Sprite } from "pixi.js";
+import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import type { GameController } from "../../game/controller";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Bench as BenchState } from "../../sim/run";
 import type { Drop, SkinDef } from "../../sim/types";
+import type { LiftInfo } from "../hd/Lifted";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { Actor } from "./Actor";
 import { Animated } from "./Animated";
@@ -13,7 +14,8 @@ import type { SpriteLibrary } from "./sprites";
 
 // Your bench: the case on the mat, the key (drag it into the lock), the revealed skin card (drag
 // it into the SELL bin) and the bin. Taps work too; a press anywhere while the reel spins brakes.
-// Every change goes through controller.act — the one input path.
+// Every change goes through controller.act — the one input path. A dragged item leaves the pixel
+// world and is drawn lifted in the HD layer (lifted()) until it is let go.
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 const inside = (r: Rect, p: Pt) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
@@ -24,7 +26,8 @@ export class Bench {
   private caseId: string | null = null;
   private readonly key: Animated;
   private readonly bin: Animated;
-  private readonly card = new Container();
+  private readonly card = new Sprite();
+  private cardTexture: Texture | null = null;
   private readonly drag = new DragTracker();
   private keyAtLock = 0;
   private l: TableLayout | null = null;
@@ -34,6 +37,8 @@ export class Bench {
     private readonly lib: SpriteLibrary,
     private readonly skins: SkinTextures,
     private readonly controller: GameController,
+    /** Renders a container into a 1:1 nearest-sampled texture (the reveal card). */
+    private readonly bake: (c: Container) => Texture,
   ) {
     this.key = new Animated(new Actor(lib.get("key", { w: 20, h: 24, frames: 4 })), ANIMS.keyIdle);
     this.bin = new Animated(new Actor(lib.get("sell-bin", { w: 26, h: 38, frames: 4 })), ANIMS.binIdle);
@@ -84,7 +89,6 @@ export class Bench {
   }
 
   showReveal(skin: SkinDef, drop: Drop): void {
-    for (const child of this.card.removeChildren()) child.destroy({ children: true });
     const { w, h } = ITEM_SIZE.reveal;
     const color = RARITY_INFO[drop.rarity].color;
     const frame = new Graphics()
@@ -93,8 +97,13 @@ export class Bench {
       .rect(2, 2, w - 4, h - 4).fill({ color: 0x15161d });
     const art = new Sprite(this.skins.texture(skin));
     art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - art.height) / 2));
-    this.card.addChild(frame, art);
-    if (drop.statTrak) this.card.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
+    const face = new Container();
+    face.addChild(frame, art);
+    if (drop.statTrak) face.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
+    this.cardTexture?.destroy(true);
+    this.cardTexture = this.bake(face);
+    face.destroy({ children: true });
+    this.card.texture = this.cardTexture;
     this.card.visible = true;
     this.homeItems();
   }
@@ -131,6 +140,20 @@ export class Bench {
     this.homeItems();
   }
 
+  /** The item being dragged, for the HD layer to draw lifted (null when nothing is held). */
+  lifted(): LiftInfo | null {
+    const p = this.drag.exactPosition;
+    const id = this.drag.dragging;
+    if (!p || !id) return null;
+    if (id === "key") {
+      const m = this.key.actor.meta;
+      return { id, texture: this.key.actor.set.frames[0]!, center: { x: p.x + m.frameW / 2, y: p.y + m.frameH / 2 } };
+    }
+    if (!this.cardTexture) return null;
+    const { w, h } = ITEM_SIZE.reveal;
+    return { id, texture: this.cardTexture, center: { x: p.x + w / 2, y: p.y + h / 2 } };
+  }
+
   /** The viewport changed under a drag: the item goes home and nothing fires. */
   cancelDrag(): void {
     this.drag.cancel();
@@ -142,12 +165,9 @@ export class Bench {
     if (this.keyAtLock > 0 && (this.keyAtLock -= ms) <= 0) this.homeItems();
     this.key.setIdle(b.phase === "locked" ? ANIMS.keyReady : ANIMS.keyIdle);
     this.bin.setIdle(b.phase === "revealed" ? ANIMS.binHungry : ANIMS.binIdle);
-    const pos = this.drag.position;
-    if (pos && this.drag.dragging === "key") {
-      const m = this.key.actor.meta;
-      this.key.actor.place(pos.x + Math.floor(m.frameW / 2), pos.y + m.ground);
-    }
-    if (pos && this.drag.dragging === "card") this.card.position.set(pos.x, pos.y);
+    // the held item is drawn lifted in the HD layer instead
+    this.key.actor.visible = this.drag.dragging !== "key";
+    this.card.alpha = this.drag.dragging === "card" ? 0 : 1;
     for (const c of this.cases.values()) if (c.actor.visible) c.update(ms);
     this.key.update(ms);
     this.bin.update(ms);
@@ -165,6 +185,11 @@ export class Bench {
     const r = this.revealCentre();
     const { w, h } = ITEM_SIZE.reveal;
     return { x: r.x - w / 2, y: r.y - h / 2, w, h };
+  }
+
+  destroy(): void {
+    this.cardTexture?.destroy(true);
+    this.cardTexture = null;
   }
 
   private homeItems(): void {

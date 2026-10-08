@@ -25,6 +25,8 @@ describe("DragTracker", () => {
     d.down({ x: 12, y: 12 }, [KEY]);
     d.move({ x: 30.6, y: 40.2 });
     expect(d.position).toEqual({ x: 29, y: 38 });
+    expect(d.exactPosition!.x).toBeCloseTo(28.6);
+    expect(d.exactPosition!.y).toBeCloseTo(38.2);
     expect(d.up({ x: 31, y: 40 })).toEqual({ kind: "drop", id: "key", at: { x: 31, y: 40 } });
   });
 
