@@ -285,17 +285,38 @@ export class World {
         this.onReveal(e.drop);
         break;
       case "sold": {
-        this.knifeFlight.cancel();
-        const at = this.screenPt(this.bench.revealCentre());
+        // only a bench sale clears the card; the bot's and the tray's sales burst coins from the bin
+        const fromBench = e.source === "bench";
+        const at = this.screenPt(fromBench ? this.bench.revealCentre() : this.l.bin);
+        if (fromBench) this.knifeFlight.cancel();
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
-        this.hd.setGlow(null);
+        if (fromBench) this.hd.setGlow(null);
         this.audio.play("cash-register");
         this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
         if (e.amount >= 100) this.audio.play("coin-cascade", { delay: 0.1 });
-        this.bench.clearReveal(true);
+        if (fromBench) this.bench.clearReveal(true);
         break;
       }
+      case "botPickedUp":
+        this.knifeFlight.cancel();
+        this.bench.clearReveal(false);
+        this.hd.setGlow(null);
+        break;
+      case "stored":
+        this.audio.play("coin-clink", { rate: 0.8 });
+        break;
+      case "vaultBought":
+        this.hd.flash(0xffd700, 0.5);
+        this.audio.play("jackpot-swell");
+        break;
+      case "runStarted":
+        this.knifeFlight.cancel();
+        this.bench.clearReveal(false);
+        this.bench.hideCase();
+        this.hd.setGlow(null);
+        this.restore(); // the fresh run's stage 1, look and music
+        break;
       case "stageChanged":
         this.look.setStage(e.stage);
         this.audio.setStage(e.stage);

@@ -1,6 +1,7 @@
 import { defineModule, type Module } from "@idosgames/module-sdk";
 import { createAgentApi } from "./game/agent";
 import { GameController } from "./game/controller";
+import { browserSlot } from "./game/save";
 import { AudioEngine } from "./fx/audio/AudioEngine";
 import { Camera } from "./fx/camera";
 import { createGameScene } from "./fx/GameScene";
@@ -29,7 +30,7 @@ export const casecrementalModule: Module = defineModule({
     // browsers start audio only after a user gesture
     window.addEventListener("pointerdown", () => audio.unlock());
     window.addEventListener("keydown", () => audio.unlock());
-    const controller = new GameController();
+    const controller = new GameController(undefined, browserSlot()); // the run and the meta survive a reload
     const camera = new Camera(); // the scene moves it; the overlay follows it
     ctx.registerScene(createGameScene(controller, audio, camera));
     ctx.registerPanel({ id: "game", slot: "overlay", component: makeGamePanel(controller, audio, camera) });
