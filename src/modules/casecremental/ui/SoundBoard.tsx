@@ -18,12 +18,13 @@ export function SoundBoard({
 }: {
   audio: AudioEngine;
   stage: number;
-  onForce: (r: RarityId) => void;
+  /** A rarity for the next drop, or "fake": an ordinary drop with a fake tease. */
+  onForce: (r: RarityId | "fake") => void;
   onClose: () => void;
 }): ReactNode {
   const { scale } = useContext(UiEnvContext);
-  const [armed, setArmed] = useState<RarityId | null>(null);
-  const force = (r: RarityId) => {
+  const [armed, setArmed] = useState<RarityId | "fake" | null>(null);
+  const force = (r: RarityId | "fake") => {
     onForce(r);
     setArmed(r);
   };
@@ -65,6 +66,9 @@ export function SoundBoard({
             </PxButton>
             <PxButton on={armed === "gold"} onClick={() => force("gold")}>
               ★
+            </PxButton>
+            <PxButton on={armed === "fake"} onClick={() => force("fake")}>
+              Fake
             </PxButton>
           </span>
         </div>

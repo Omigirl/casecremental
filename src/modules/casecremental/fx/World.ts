@@ -28,6 +28,7 @@ import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
+import { crawlSeconds } from "./reel/motion";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
@@ -35,6 +36,9 @@ import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 // sparks, coins, text). Sim events drive the juice: sparks, coins, sound, shake, hit-stop and a
 // zoom punch on Covert, slow-mo + push-in + flash on ★, and the look of the intensity stage. The
 // camera (shake + zoom) moves the whole scene around the reveal; vignette and flash stay put.
+
+/** How far a full-strength tease leans the camera in (a ★ in the top case: 1.15×). */
+const TEASE_ZOOM = 0.15;
 
 export class World {
   private readonly scene = new Container();
@@ -58,6 +62,10 @@ export class World {
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
   private lastStage = 1;
+  /** The camera has leaned in on this spin's tease crawl. */
+  private leaned = false;
+  /** Where the camera pushes in, gliding between the reel (during a tease) and the reveal card. */
+  private focus: Pt | null = null;
   private readonly off: () => void;
 
   static async create(app: Application, controller: GameController, audio: AudioEngine, camera: Camera): Promise<World> {
@@ -116,7 +124,8 @@ export class World {
     const plan = restorePlan(this.controller.run.state);
     if (plan.caseId) this.bench.showCase(plan.caseId, false);
     if (plan.spinning) {
-      this.reel.start(caseById(plan.spinning.caseId), skinById(plan.spinning.skinId), this.rng);
+      const b = this.controller.run.state.bench;
+      this.reel.start(caseById(plan.spinning.caseId), skinById(plan.spinning.skinId), this.rng, b.phase === "spinning" ? b.tease : null);
       this.bench.openCase();
     }
     if (plan.revealed) {
@@ -144,7 +153,12 @@ export class World {
     const gameMs = realSeconds * scale * 1000;
     const run = this.controller.run;
     const b = run.state.bench;
-    this.reel.update(b.phase === "spinning" ? b : null);
+    const crawl = b.phase === "spinning" ? crawlSeconds(b.tease, b.fullDuration) : 0;
+    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null);
+    if (b.phase === "spinning" && b.tease && !this.leaned && b.elapsed >= b.fullDuration - crawl) {
+      this.leaned = true; // a red or a knife is crawling in (or a fake one): lean in toward the reel
+      this.zoom.punch(1 + TEASE_ZOOM * b.tease.strength, b.fullDuration - b.elapsed);
+    }
     this.bench.update(gameMs, b);
     this.room.update(realSeconds * 1000);
     this.hd.update(realSeconds);
@@ -157,7 +171,15 @@ export class World {
     // camera: shake in whole px, zoom around the reveal card
     const s = this.shake.update(realSeconds);
     const z = this.zoom.update(realSeconds);
-    const focus = this.screenPt(this.bench.revealCentre());
+    const r = this.l.you.reel;
+    const target = this.screenPt(
+      b.phase === "spinning" && this.leaned ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : this.bench.revealCentre(),
+    );
+    const glide = Math.min(1, realSeconds * 6);
+    this.focus = this.focus
+      ? { x: this.focus.x + (target.x - this.focus.x) * glide, y: this.focus.y + (target.y - this.focus.y) * glide }
+      : target;
+    const focus = this.focus;
     this.scene.pivot.set(focus.x, focus.y);
     this.scene.position.set(focus.x + Math.round(s.x * k), focus.y + Math.round(s.y * k));
     this.scene.scale.set(z);
@@ -241,7 +263,8 @@ export class World {
         break;
       case "spinStarted":
         this.bench.openCase();
-        this.reel.start(caseById(e.caseId), skinById(e.drop.skinId), this.rng);
+        this.reel.start(caseById(e.caseId), skinById(e.drop.skinId), this.rng, e.tease);
+        this.leaned = false;
         this.audio.play("key-turn");
         this.audio.play("lid-creak", { delay: 0.12 });
         break;

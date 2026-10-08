@@ -2,6 +2,7 @@ import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
+import { rollTease, type Tease } from "./tease";
 import { COMBO_CAP, COMBO_HEAT_DECAY_SECONDS, COMBO_STEP, COMBO_WINDOW_SECONDS, FREE_CASE_SECONDS, START_CASH } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
@@ -20,12 +21,14 @@ export type Bench =
       elapsed: number;
       /** The reel always runs this long (Quick Hands shortens it); there is no brake. */
       fullDuration: number;
+      /** A red or a knife on its way (or a fake one): the crawl is part of fullDuration. */
+      tease: Tease | null;
     }
   | { phase: "revealed"; caseId: string; drop: Drop };
 
 export type SimEvent =
   | { type: "caseBought"; caseId: string; free: boolean }
-  | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number }
+  | { type: "spinStarted"; caseId: string; drop: Drop; fullDuration: number; tease: Tease | null }
   | { type: "revealed"; drop: Drop }
   | { type: "sold"; drop: Drop; amount: number; combo: number }
   | { type: "caseUnlocked"; caseId: string }
@@ -62,6 +65,7 @@ export class Run {
   private events: SimEvent[] = [];
   private revealsThisTick = 0;
   private forcedRarity: RarityId | null = null;
+  private forcedFake = false;
 
   constructor(seed: number) {
     this.rng = createRng(seed);
@@ -118,6 +122,13 @@ export class Run {
   /** Dev board only: the next opened case drops this rarity. */
   forceNextRarity(rarity: RarityId | null): void {
     this.forcedRarity = rarity;
+    this.forcedFake = false;
+  }
+
+  /** Dev board only: the next opened case drops an ordinary skin with a fake tease. */
+  forceFakeTease(): void {
+    this.forcedRarity = "milspec";
+    this.forcedFake = true;
   }
 
   insertKey(): ActionResult {
@@ -128,16 +139,15 @@ export class Run {
     const fx = this.effects();
     const drop = rollDrop(c, priceOf(c.id), fx.luckLevel, this.rng, s.nextDropId++, this.forcedRarity);
     this.forcedRarity = null;
-    s.bench = {
-      phase: "spinning",
-      caseId: c.id,
-      drop,
-      elapsed: 0,
-      fullDuration: fx.spinSeconds,
-    };
+    const topTier = Math.max(...s.unlocked.map((id) => caseById(id).tier));
+    const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
+    this.forcedFake = false;
+    const fullDuration = fx.spinSeconds + (tease?.extraSeconds ?? 0);
+    s.lastSellAt += tease?.extraSeconds ?? 0; // the crawl never costs the combo
+    s.bench = { phase: "spinning", caseId: c.id, drop, elapsed: 0, fullDuration, tease };
     s.lastTier = c.tier;
     s.opened++;
-    this.events.push({ type: "spinStarted", caseId: c.id, drop, fullDuration: fx.spinSeconds });
+    this.events.push({ type: "spinStarted", caseId: c.id, drop, fullDuration, tease });
     return OK;
   }
 

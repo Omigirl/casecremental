@@ -60,6 +60,17 @@ export const SPIN_MIN_SECONDS = 0.6;
 /** Each Quick Hands level multiplies the spin duration by this. */
 export const QUICK_HANDS_FACTOR = 0.8;
 
+/** Teasing spin: how much a red or a knife on its way slows the reel's last stretch, by rarity… */
+export const TEASE_RARITY: Readonly<Partial<Record<RarityId, number>>> = { covert: 0.6, gold: 1 };
+/** …and by how far below the player's top unlocked case it is (0 = the top case, then 1, 2+ below). */
+export const TEASE_PROGRESS: readonly number[] = [1, 0.3, 0.1];
+/** Extra crawl at full strength, as a share of the spin time (so Quick Hands shortens it too). */
+export const TEASE_CRAWL = 0.8;
+/** An ordinary drop sometimes gets a fake tease: a red or a knife lands right next to it. */
+export const FAKE_TEASE_CHANCE = 1 / 40;
+/** Share of fake teases whose decoy is a knife rather than a red. */
+export const FAKE_TEASE_GOLD_SHARE = 0.25;
+
 export const APPRAISER_PER_LEVEL = 0.25;
 
 export const UPGRADE_COSTS = {

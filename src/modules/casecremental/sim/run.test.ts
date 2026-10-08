@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { priceOf } from "./content/cases";
 import { Run, type SimEvent } from "./run";
-import { FREE_CASE_SECONDS, SPIN_BASE_SECONDS, START_CASH } from "./tuning";
+import { FREE_CASE_SECONDS, SPIN_BASE_SECONDS, START_CASH, TEASE_CRAWL } from "./tuning";
 
 const DT = 1 / 30;
 function tickFor(run: Run, seconds: number) {
@@ -10,12 +10,18 @@ function tickFor(run: Run, seconds: number) {
 function revealOne(run: Run, caseId = "bootcamp") {
   expect(run.buyCase(caseId).ok).toBe(true);
   expect(run.insertKey().ok).toBe(true);
-  tickFor(run, SPIN_BASE_SECONDS + 0.1);
+  const spin = run.state.bench;
+  tickFor(run, (spin.phase === "spinning" ? spin.fullDuration : 0) + 0.1); // a tease stretches the spin
   const b = run.state.bench;
   if (b.phase !== "revealed") throw new Error(`expected revealed, got ${b.phase}`);
   return b.drop;
 }
 const types = (events: SimEvent[]) => events.map((e) => e.type);
+/** Tick until the spinning reel lands, tease crawl included. */
+function spinOut(run: Run) {
+  const b = run.state.bench;
+  tickFor(run, (b.phase === "spinning" ? b.fullDuration : 0) + 0.05);
+}
 
 describe("Run", () => {
   it("starts with cash, the first case unlocked and an empty bench", () => {
@@ -54,6 +60,44 @@ describe("Run", () => {
       return d.rarity;
     });
     expect(rest.filter((r) => r === "covert" || r === "gold").length).toBeLessThan(5);
+  });
+
+  it("a knife on its way stretches the spin by the tease crawl and says so", () => {
+    const run = new Run(1);
+    run.forceNextRarity("gold");
+    run.buyCase("bootcamp");
+    run.insertKey();
+    const b = run.state.bench;
+    if (b.phase !== "spinning") throw new Error("expected spinning");
+    expect(b.tease).toEqual({ strength: 1, fake: null, extraSeconds: TEASE_CRAWL * SPIN_BASE_SECONDS });
+    expect(b.fullDuration).toBeCloseTo(SPIN_BASE_SECONDS * (1 + TEASE_CRAWL));
+    const started = run.drainEvents().find((e) => e.type === "spinStarted");
+    expect(started && started.type === "spinStarted" && started.tease).toEqual(b.tease);
+  });
+
+  it("the dev board can force a fake tease: an ordinary drop with a decoy beside it", () => {
+    const run = new Run(1);
+    run.forceFakeTease();
+    run.buyCase("bootcamp");
+    run.insertKey();
+    const b = run.state.bench;
+    if (b.phase !== "spinning") throw new Error("expected spinning");
+    expect(b.drop.rarity).toBe("milspec");
+    expect(b.tease?.fake).not.toBeNull();
+    spinOut(run);
+    expect(run.state.bench.phase).toBe("revealed");
+  });
+
+  it("a tease never costs the combo: its crawl doesn't count against the combo window", () => {
+    const run = new Run(1);
+    run.state.cash = 1000;
+    revealOne(run);
+    run.sell();
+    expect(run.state.combo).toBe(1);
+    run.forceNextRarity("gold"); // a full tease: SPIN_BASE × (1 + TEASE_CRAWL) ≈ 5.4 s, past the 4 s window
+    revealOne(run);
+    run.sell();
+    expect(run.state.combo).toBe(2);
   });
 
   it("insertKey rolls the drop and spins; a second key is refused", () => {
@@ -110,7 +154,7 @@ describe("Run", () => {
     for (let i = 0; i < 3; i++) {
       run.buyCase("bootcamp");
       run.insertKey();
-      tickFor(run, run.effects().spinSeconds + 0.05);
+      spinOut(run);
       run.sell();
     }
     expect(run.state.combo).toBe(3);
@@ -161,7 +205,7 @@ describe("Run", () => {
     for (let i = 0; i < 25; i++) {
       run.buyCase("bootcamp");
       run.insertKey();
-      tickFor(run, run.effects().spinSeconds + 0.05);
+      spinOut(run);
       run.sell();
       seen.push(...run.drainEvents());
     }
@@ -182,7 +226,7 @@ describe("Run intensity after a pause (review fix)", () => {
     for (let i = 0; i < n; i++) {
       run.buyCase("bootcamp");
       run.insertKey();
-      tickFor(run, run.effects().spinSeconds + 0.05);
+      spinOut(run);
       run.sell();
     }
   }

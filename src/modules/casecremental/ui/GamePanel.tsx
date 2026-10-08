@@ -91,7 +91,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
               <SoundBoard
                 audio={audio}
                 stage={view.stage}
-                onForce={(r) => controller.run.forceNextRarity(r)}
+                onForce={(r) => (r === "fake" ? controller.run.forceFakeTease() : controller.run.forceNextRarity(r))}
                 onClose={() => setSoundBoard(false)}
               />
             ) : null}

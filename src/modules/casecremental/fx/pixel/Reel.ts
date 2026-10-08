@@ -1,9 +1,10 @@
 import { Container, Graphics, NineSliceSprite, Sprite } from "pixi.js";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Rng } from "../../sim/rng";
+import type { Tease } from "../../sim/tease";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import { reelFraction, type ReelMotion } from "../reel/motion";
-import { buildStrip, WIN_INDEX } from "../reel/strip";
+import { buildStrip, landingJitter, WIN_INDEX } from "../reel/strip";
 import type { SkinTextures } from "../skins/pixelSkin";
 import type { Rect } from "./layout";
 import type { SpriteSet } from "./sprites";
@@ -77,10 +78,11 @@ export class Reel extends Container {
     this.place(this.fraction, false);
   }
 
-  /** A new spin: a fresh strip that ends on `winner`. */
-  start(c: CaseDef, winner: SkinDef, rng: Rng): void {
-    this.items = buildStrip(c, winner, rng);
-    this.jitter = (rng.next() - 0.5) * 0.7;
+  /** A new spin: a fresh strip that ends on `winner` (a fake tease plants its decoy beside it). */
+  start(c: CaseDef, winner: SkinDef, rng: Rng, tease: Tease | null = null): void {
+    const side = tease?.fake ? (rng.next() < 0.5 ? "short" : "over") : null;
+    this.items = buildStrip(c, winner, rng, tease?.fake && side ? { rarity: tease.fake, side } : null);
+    this.jitter = landingJitter(side, rng);
     this.fraction = 0;
     this.lastIndex = -1;
     this.rebuild();
