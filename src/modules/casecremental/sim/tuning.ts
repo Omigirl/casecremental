@@ -130,3 +130,8 @@ export const BOT_WAKE_COST = 80;
 export const BOT_SPEED_LEVELS = 5;
 export const BOT_MAX_SPEED = 8;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
+
+/** Vault Case I: its price grows this much per completed loop; the finale lasts this long. */
+export const VAULT_GROWTH = 6;
+export const FINALE_SECONDS = 20;
+export const VAULT_TROPHY = "vault1";

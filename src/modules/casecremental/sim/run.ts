@@ -14,12 +14,14 @@ import {
   DAY_JOB_PAY,
   DAY_JOB_PAY_CHANCE,
   DAY_JOB_SECONDS,
+  FINALE_SECONDS,
   GOLDEN_HOUR_LUCK,
   GOLDEN_HOUR_SECONDS,
   PITY_LUCK_LEVELS,
   START_CASH,
   TRAY_BASE_CAPACITY,
   VAULT_BASE_PRICE,
+  VAULT_TROPHY,
 } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
@@ -83,7 +85,9 @@ export type SimEvent =
   | { type: "botWoke" }
   | { type: "botUpgraded"; level: number }
   | { type: "botPickedUp"; drop: Drop; dest: "bin" | "tray" }
-  | { type: "botWaiting" };
+  | { type: "botWaiting" }
+  | { type: "vaultBought"; price: number }
+  | { type: "vaultOpened"; trophy: string; drop: Drop; lifetimeEarnings: number };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
 
@@ -118,6 +122,10 @@ export interface RunState {
   /** Drops the bot set aside for the player to claim (above its threshold). */
   tray: Drop[];
   bot: BotState;
+  /** Seconds into the vault finale, or null. */
+  finale: number | null;
+  /** The vault has opened: the run is over. */
+  over: boolean;
 }
 
 const OK: ActionResult = { ok: true };
@@ -159,6 +167,8 @@ export class Run {
       freeCases: [],
       tray: [],
       bot: freshBot(this.setup.botAwake),
+      finale: null,
+      over: false,
     };
   }
 
@@ -202,6 +212,7 @@ export class Run {
   }
 
   buyCase(caseId: string): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     if (s.bench.phase !== "empty") return fail("bench is busy");
     if (!s.unlocked.includes(caseId)) return fail(`case ${caseId} is locked`);
@@ -226,6 +237,7 @@ export class Run {
   }
 
   insertKey(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     const b = s.bench;
     if (b.phase !== "locked") return fail("no locked case on the bench");
@@ -252,6 +264,7 @@ export class Run {
   }
 
   sell(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     const b = s.bench;
     if (b.phase !== "revealed") return fail("nothing to sell");
@@ -265,6 +278,7 @@ export class Run {
   }
 
   unlockCase(caseId: string): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     const index = CASES.findIndex((c) => c.id === caseId);
     if (index < 0) return fail(`unknown case: ${caseId}`);
@@ -279,6 +293,7 @@ export class Run {
   }
 
   buyUpgrade(id: UpgradeId): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     const cost = upgradeCost(id, s.upgrades[id]);
     if (cost === null) return fail("max level");
@@ -292,6 +307,7 @@ export class Run {
   tick(dt: number): void {
     const s = this.state;
     s.time += dt;
+    if (s.over) return;
 
     const b = s.bench;
     if (b.phase === "spinning") {
@@ -316,6 +332,7 @@ export class Run {
 
     this.tickBot(dt);
     this.tickDayJob(dt);
+    this.tickFinale(dt);
 
     s.heat = updateHeat(s.heat, this.revealsThisTick, dt);
     this.revealsThisTick = 0;
@@ -333,6 +350,7 @@ export class Run {
   }
 
   startDayJob(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     if (this.state.dayJob !== null) return fail("already working");
     if (!this.dayJobAvailable()) return fail("no day job: you can afford a case or the bench is busy");
     this.state.dayJob = 0;
@@ -340,7 +358,46 @@ export class Run {
     return OK;
   }
 
+  /** The vault is open (finale running) or the run has ended: nothing else can be done. */
+  locked(): boolean {
+    return this.state.finale !== null || this.state.over;
+  }
+
+  vaultShown(): boolean {
+    return CASES.every((c) => this.state.unlocked.includes(c.id));
+  }
+
+  buyVault(): ActionResult {
+    const s = this.state;
+    if (this.locked()) return fail("the vault is open");
+    if (!this.vaultShown()) return fail("unlock every case first");
+    if (s.bench.phase !== "empty") return fail("bench is busy");
+    if (s.cash < this.setup.vaultPrice) return fail("not enough cash");
+    s.cash -= this.setup.vaultPrice;
+    s.finale = 0;
+    this.events.push({ type: "vaultBought", price: this.setup.vaultPrice });
+    return OK;
+  }
+
+  private tickFinale(dt: number): void {
+    const s = this.state;
+    if (s.finale === null) return;
+    s.finale += dt;
+    if (s.finale < FINALE_SECONDS) return;
+    for (const d of s.tray) {
+      const amount = this.payout(d, false);
+      s.cash += amount;
+      s.lifetimeEarnings += amount;
+    }
+    s.tray = [];
+    s.over = true;
+    const top = CASES[CASES.length - 1]!;
+    const drop = rollDrop(top, priceOf(top.id), 0, this.rng, s.nextDropId++, "gold");
+    this.events.push({ type: "vaultOpened", trophy: VAULT_TROPHY, drop, lifetimeEarnings: s.lifetimeEarnings });
+  }
+
   wakeBot(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     if (s.bot.awake) return fail("the bot is already awake");
     if (s.cash < BOT_WAKE_COST) return fail("not enough cash");
@@ -351,6 +408,7 @@ export class Run {
   }
 
   buyBotSpeed(): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     if (!s.bot.awake) return fail("wake the bot first");
     const cost = botSpeedCost(s.bot.speedLevel);
@@ -369,6 +427,7 @@ export class Run {
 
   /** Sell a tray item by hand (feeds the combo). */
   claim(index: number): ActionResult {
+    if (this.locked()) return fail("the vault is open");
     const s = this.state;
     const d = s.tray[index];
     if (!d) return fail("nothing in that tray slot");
