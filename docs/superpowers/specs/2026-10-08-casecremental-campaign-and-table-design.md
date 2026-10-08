@@ -90,7 +90,11 @@ In addition to base spec §10.3: current run number, chosen charms for the next 
 |---|---|
 | M1 (done) | Core loop, cases 1–3, juice, stages 1–2 |
 | **M2a** | Look & layout, art + animation pipeline, fonts, EN/RU, audio — see `2026-10-08-casecremental-m2a-look-design.md` |
-| M2b | Run 1 complete: auto-seller + claim tray, Vault Case I + finale, prestige screen (local), multi-open ×5 |
+| M2b | Run 1 complete: auto-seller + claim tray, Vault Case I + finale, prestige screen (local), multi-open ×5, **Day job** (§6.1) |
 | M3 | Runs 2–3: the bot, locker + trade-ups, auto-buyer grid, cases 4–7, charms on prestige |
 | M4 | Run 4 + The Last Case, evolutions, stages 3–5 polish, server meta (CLOUT, trophies, leaderboard), Solana |
 | M5 | Ship: balance across 4 runs, deploy |
+
+### 6.1 Day job (agreed 2026-10-08, for M2b)
+
+Replaces the base spec's anti-softlock (a free Boot Camp case every 10 s when broke). When cash is below the cheapest unlocked case and the bench is empty, a **DAY JOB** button (RU «Подработка») appears where the hint sits. A click starts a short shift (~3 s, progress bar + small pixel animation), then rolls: **90 % → +$2** (coins, "+$2.00" float), **10 % → $0** ("NO PAY" stamp, a sad sound, a small shake). The shift time is the cost, so spam-clicking can't erase the 10 %; it pays at most one Boot Camp case, so it can't be farmed. Open for the M2b brainstorm: the exact shift length, the animation, and whether the payout scales with the cheapest unlocked case.
