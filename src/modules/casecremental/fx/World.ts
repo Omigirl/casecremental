@@ -1,20 +1,24 @@
-import { Container, Text, type Application, type FederatedPointerEvent } from "pixi.js";
+import { Container, Text, type Application, type FederatedPointerEvent, type Texture } from "pixi.js";
 import type { GameController } from "../game/controller";
 import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
-import { caseById, skinById } from "../sim/content/cases";
+import { CASES, caseById, skinById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
+import { STAGE_NAMES } from "../sim/intensity";
 import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
 import { createRng } from "../sim/rng";
 import type { Bench as BenchState, SimEvent } from "../sim/run";
+import { FINALE_SECONDS } from "../sim/tuning";
 import type { Drop, SkinDef } from "../sim/types";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { comboPitch } from "./audio/schedule";
+import { FINALE_COLORS, FINALE_SPIN_SECONDS, finaleKnobs } from "./finale";
 import { loadPixelFont, pixelStyle } from "./hd/font";
 import { HdLayer } from "./hd/HdLayer";
 import { setTweenTimeScale } from "./hd/tween";
 import { KnifeFlight } from "./hd/knifeFlight";
 import { Lifted } from "./hd/Lifted";
+import { CaseRain } from "./hd/rain";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
@@ -32,7 +36,7 @@ import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
-import { crawlSeconds } from "./reel/motion";
+import { crawlSeconds, type ReelMotion } from "./reel/motion";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
@@ -59,6 +63,12 @@ export class World {
   private readonly zoom = new Zoom();
   private readonly lifted = new Lifted();
   private knifeFlight!: KnifeFlight;
+  private readonly rain = new CaseRain();
+  private readonly caseTextures = new Map<string, Texture>();
+  private finalePhase: "none" | "build" | "silence" = "none";
+  private finaleRain = 0;
+  private finaleFlash = 0;
+  private finaleSpin = 0;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
@@ -106,7 +116,7 @@ export class World {
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.knifeFlight = new KnifeFlight(this.hd.root);
     this.pixel.world.addChild(this.room.back, this.room.front, this.tray.root, this.reel, this.bench.root, this.bot.root);
-    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.botText, this.lifted.root);
+    this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.botText, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline, this.botText]) txt.anchor.set(0.5, 0);
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
@@ -173,7 +183,8 @@ export class World {
     const run = this.controller.run;
     const b = run.state.bench;
     const crawl = b.phase === "spinning" ? crawlSeconds(b.tease, b.fullDuration) : 0;
-    this.reel.update(b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null);
+    const finaleReel = this.updateFinale(realSeconds);
+    this.reel.update(finaleReel ?? (b.phase === "spinning" ? { elapsed: b.elapsed, fullDuration: b.fullDuration, crawl } : null));
     if (b.phase === "spinning" && b.tease && !this.leaned && b.elapsed >= b.fullDuration - crawl) {
       this.leaned = true; // a red or a knife is crawling in (or a fake one): lean in toward the reel
       this.zoom.punch(1 + TEASE_ZOOM * b.tease.strength, b.fullDuration - b.elapsed);
@@ -185,6 +196,7 @@ export class World {
     this.tray.update(run.state.tray, run.setup.trayCapacity);
     this.room.update(realSeconds * 1000);
     this.hd.update(realSeconds);
+    this.rain.update(realSeconds, 300 * this.vp.scale);
     this.look.update(realSeconds);
     setTweenTimeScale(scale);
     this.updateText(b);
@@ -218,6 +230,7 @@ export class World {
     this.hd.destroy();
     this.bench.destroy();
     this.tray.destroy();
+    this.rain.clear();
     this.pixel.destroy();
     this.scene.destroy({ children: true });
     this.skins.destroy();
@@ -226,8 +239,74 @@ export class World {
   }
 
   private pointerDown(e: FederatedPointerEvent): void {
+    if (this.controller.run.locked()) {
+      // the finale is hands-off: a click only adds sparks
+      const at = this.hd.root.toLocal(e.global);
+      this.hd.particles.burst({ x: at.x, y: at.y }, this.rng.pick(FINALE_COLORS), 14, 220 * (this.vp.scale / 6));
+      return;
+    }
     const p = this.worldPt(e);
     if (!this.tray.pointerDown(p)) void this.bench.pointerDown(p);
+  }
+
+  /** The vault's finale, read from the sim each frame (a reload picks it up where it is). Returns the
+   *  reel's motion while it spins for the show. */
+  private updateFinale(dt: number): ReelMotion | null {
+    const f = this.controller.run.state.finale;
+    if (f === null) {
+      if (this.finalePhase !== "none") {
+        this.finalePhase = "none";
+        this.bot.setFrenzy(false);
+        this.rain.clear();
+        this.audio.setMusicOn(true);
+      }
+      return null;
+    }
+    const knobs = finaleKnobs(f / FINALE_SECONDS);
+    if (knobs.phase !== this.finalePhase) {
+      this.finalePhase = knobs.phase;
+      if (knobs.phase === "build") {
+        const top = STAGE_NAMES.length;
+        this.look.setStage(top);
+        this.audio.setStage(top);
+        this.lastStage = top;
+        this.bot.setFrenzy(true);
+      } else {
+        this.audio.setMusicOn(false); // silence before the vault opens
+        this.bot.setFrenzy(false);
+        this.hd.setGlow(null);
+      }
+    }
+    if (knobs.phase !== "build") return null;
+    const k = this.vp.scale;
+    const tb = this.l.table;
+    this.shake.add(knobs.shakePerSecond * dt);
+    for (this.finaleRain += knobs.rainPerSecond * dt; this.finaleRain >= 1; this.finaleRain -= 1) {
+      const floor = (tb.y + 12 + this.rng.next() * (tb.h - 30)) * k;
+      this.rain.spawn(this.caseTexture(this.rng.pick(CASES).id), (tb.x + this.rng.next() * tb.w) * k, floor, k, () => this.rng.next());
+    }
+    this.finaleFlash += dt;
+    if (this.finaleFlash >= knobs.flashEvery) {
+      this.finaleFlash = 0;
+      this.hd.flash(this.rng.pick(FINALE_COLORS), 0.2 + 0.3 * knobs.intensity);
+    }
+    this.finaleSpin -= dt;
+    if (this.finaleSpin <= 0) {
+      this.finaleSpin = FINALE_SPIN_SECONDS;
+      const c = this.rng.pick(CASES);
+      this.reel.start(c, this.rng.pick(c.skins), this.rng);
+      this.audio.play("reel-stop", { gain: 0.4 });
+    }
+    return { elapsed: FINALE_SPIN_SECONDS - this.finaleSpin, fullDuration: FINALE_SPIN_SECONDS, crawl: 0 };
+  }
+
+  private caseTexture(id: string): Texture {
+    let tex = this.caseTextures.get(id);
+    if (!tex) {
+      tex = this.lib.get(`case-${id}`, { w: 26, h: 34, frames: 4 }).frames[0]!;
+      this.caseTextures.set(id, tex);
+    }
+    return tex;
   }
 
   /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
@@ -268,7 +347,7 @@ export class World {
 
   /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
   private updateText(b: BenchState): void {
-    const key = hintKey(b);
+    const key = this.controller.run.locked() ? null : hintKey(b); // no "Buy a case" during the finale or after the run
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const lines = b.phase === "revealed" ? revealLines(b.drop) : ["", ""];
@@ -370,6 +449,20 @@ export class World {
         this.hd.flash(0xffd700, 0.5);
         this.audio.play("jackpot-swell");
         break;
+      case "vaultOpened": {
+        // the vault opens on one legendary drop, shown with the b-roll showcase: the Vault I ★ trophy
+        const skin = skinById(e.drop.skinId);
+        this.bench.showReveal(skin, e.drop);
+        const at = this.screenPt(this.bench.revealCentre());
+        const v = this.vp.scale / 6;
+        this.hd.setGlow(RARITY_INFO.gold.color);
+        this.hd.flash(0xffd700, 0.8);
+        this.shake.add(0.6);
+        this.audio.play("jackpot-swell");
+        this.hd.particles.burst(at, 0xffd700, 160, 420 * v);
+        if (skin.motion?.weapon === "flip") this.launchKnife(skin, at, v);
+        break;
+      }
       case "runStarted":
         this.bench.cancelDrag();
         this.tray.cancelDrag();

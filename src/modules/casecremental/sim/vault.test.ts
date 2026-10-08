@@ -67,4 +67,19 @@ describe("Vault Case I", () => {
     tickFor(run, 5);
     expect(run.drainEvents()).toHaveLength(0); // an ended run stays still
   });
+
+  it("never drops a Ricochet case on the bench during the finale (review minor)", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, charms: ["ricochet"] });
+    allUnlocked(run);
+    run.state.cash = 1e9;
+    run.forceNextRarity("covert");
+    run.buyCase("bootcamp");
+    run.insertKey();
+    for (let i = 0; i < 900 && run.state.bench.phase !== "revealed"; i++) run.tick(DT);
+    expect(run.sell().ok).toBe(true);
+    expect(run.state.freeCases).toEqual(["bootcamp"]); // queued, not yet on the bench
+    expect(run.buyVault().ok).toBe(true);
+    tickFor(run, 1);
+    expect(run.state.bench.phase).toBe("empty");
+  });
 });

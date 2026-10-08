@@ -347,7 +347,7 @@ export class Run {
     }
 
     // a Ricochet case takes the bench as soon as it is clear
-    if (s.bench.phase === "empty" && s.freeCases.length > 0) {
+    if (s.bench.phase === "empty" && s.freeCases.length > 0 && !this.locked()) {
       const caseId = s.freeCases.shift()!;
       s.bench = { phase: "locked", caseId, free: true };
       this.events.push({ type: "caseBought", caseId, free: true });
