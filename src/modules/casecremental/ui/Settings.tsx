@@ -8,7 +8,7 @@ import { useLang, usePrefs } from "./hooks";
 
 // Settings: language (EN / RU, remembered) and the music and sound volumes.
 
-export function Settings({ onClose }: { onClose: () => void }): ReactNode {
+export function Settings({ onClose, onSoundBoard }: { onClose: () => void; onSoundBoard?: () => void }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const prefs = usePrefs();
   const lang = useLang();
@@ -39,6 +39,7 @@ export function Settings({ onClose }: { onClose: () => void }): ReactNode {
         </div>
         {slider(t("settings.music"), prefs.music, (music) => setPrefs({ music }))}
         {slider(t("settings.sfx"), prefs.sfx, (sfx) => setPrefs({ sfx }))}
+        {onSoundBoard ? <PxButton onClick={onSoundBoard}>SOUND BOARD (DEV)</PxButton> : null}
         <PxButton onClick={onClose}>{t("settings.close")}</PxButton>
       </div>
     </div>

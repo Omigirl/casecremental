@@ -98,17 +98,34 @@ export class AudioEngine {
     if (!urls?.length) return;
     const v = pickVariant(urls.length, this.last.get(id) ?? -1, this.deps.random);
     this.last.set(id, v);
-    const buffer = this.buffers.get(urls[v]!);
-    if (!buffer) return;
+    const j = jitter(this.deps.random);
+    this.start(id, urls[v]!, j.rate * (opts.rate ?? 1), j.gain * (opts.gain ?? 1), opts.delay ?? 0);
+  }
+
+  /** How many generated files a sound has (the dev sound board lists them). */
+  variantCount(id: SoundId): number {
+    return this.files.sfx.get(id)?.length ?? 0;
+  }
+
+  /** One exact variant, no jitter — for auditioning in the dev sound board. */
+  playVariant(id: SoundId, n: number): void {
+    const url = this.files.sfx.get(id)?.[n];
+    if (url && this.ctx?.state === "running") this.start(id, url, 1, 1, 0);
+  }
+
+  private start(id: SoundId, url: string, rate: number, gain: number, delay: number): void {
+    const ctx = this.ctx;
+    const b = this.buses;
+    const buffer = this.buffers.get(url);
+    if (!ctx || !b || !buffer) return;
     try {
-      const j = jitter(this.deps.random);
       const src = ctx.createBufferSource();
       src.buffer = buffer;
-      src.playbackRate.value = j.rate * (opts.rate ?? 1);
+      src.playbackRate.value = rate;
       const g = ctx.createGain();
-      g.gain.value = SOUNDS[id].gain * j.gain * (opts.gain ?? 1);
+      g.gain.value = SOUNDS[id].gain * gain;
       src.connect(g).connect(SOUNDS[id].bus === "ui" ? b.ui : b.sfx);
-      src.start(ctx.currentTime + (opts.delay ?? 0));
+      src.start(ctx.currentTime + delay);
     } catch {
       // a node failed to start: skip this one sound
     }

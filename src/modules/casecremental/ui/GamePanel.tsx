@@ -8,6 +8,7 @@ import { Hud } from "./Hud";
 import { comboTint } from "./juice";
 import { Panel, UiEnvContext } from "./parts";
 import { Settings } from "./Settings";
+import { SoundBoard } from "./SoundBoard";
 import { UI_CSS } from "./styles";
 import { UpgradesBoard } from "./UpgradesBoard";
 import { useGameView } from "./useGameView";
@@ -25,6 +26,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine): C
     const ui = usePixelUi(root);
     const buttons = useButtonImages();
     const [settings, setSettings] = useState(false);
+    const [soundBoard, setSoundBoard] = useState(false);
     const tint = comboTint(view.combo);
     const scale = ui?.vp.scale ?? 1;
     const vars = {
@@ -53,7 +55,13 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine): C
               </Panel>
             ) : null}
             {ui.vp.portrait ? <Drawer view={view} act={act} top={ui.vp.areaH} /> : null}
-            {settings ? <Settings onClose={() => setSettings(false)} /> : null}
+            {settings ? (
+              <Settings
+                onClose={() => setSettings(false)}
+                onSoundBoard={import.meta.env.DEV ? () => (setSettings(false), setSoundBoard(true)) : undefined}
+              />
+            ) : null}
+            {import.meta.env.DEV && soundBoard ? <SoundBoard audio={audio} stage={view.stage} onClose={() => setSoundBoard(false)} /> : null}
           </UiEnvContext.Provider>
         ) : null}
       </div>
