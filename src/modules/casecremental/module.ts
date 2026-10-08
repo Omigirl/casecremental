@@ -2,6 +2,7 @@ import { defineModule, type Module } from "@idosgames/module-sdk";
 import { createAgentApi } from "./game/agent";
 import { GameController } from "./game/controller";
 import { AudioEngine } from "./fx/audio/AudioEngine";
+import { Camera } from "./fx/camera";
 import { createGameScene } from "./fx/GameScene";
 import { makeGamePanel } from "./ui/GamePanel";
 import { getPrefs, initPrefs, onPrefsChange } from "./ui/prefs";
@@ -29,8 +30,9 @@ export const casecrementalModule: Module = defineModule({
     window.addEventListener("pointerdown", () => audio.unlock());
     window.addEventListener("keydown", () => audio.unlock());
     const controller = new GameController();
-    ctx.registerScene(createGameScene(controller, audio));
-    ctx.registerPanel({ id: "game", slot: "overlay", component: makeGamePanel(controller, audio) });
+    const camera = new Camera(); // the scene moves it; the overlay follows it
+    ctx.registerScene(createGameScene(controller, audio, camera));
+    ctx.registerPanel({ id: "game", slot: "overlay", component: makeGamePanel(controller, audio, camera) });
     ctx.registerRoute({ id: "casecremental", label: "Casecremental", icon: "📦" });
     ctx.exposeToAgent(createAgentApi(controller));
   },

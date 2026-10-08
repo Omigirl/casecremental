@@ -1,5 +1,6 @@
 import { Container, Text, type Application, type FederatedPointerEvent } from "pixi.js";
 import type { GameController } from "../game/controller";
+import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
 import { caseById, skinById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
@@ -59,17 +60,18 @@ export class World {
   private lastStage = 1;
   private readonly off: () => void;
 
-  static async create(app: Application, controller: GameController, audio: AudioEngine): Promise<World> {
+  static async create(app: Application, controller: GameController, audio: AudioEngine, camera: Camera): Promise<World> {
     await loadPixelFont();
     const lib = await SpriteLibrary.load();
     const bases = await loadWeaponBases(spriteIndex());
-    return new World(app, controller, audio, lib, new SkinTextures(bases));
+    return new World(app, controller, audio, camera, lib, new SkinTextures(bases));
   }
 
   private constructor(
     private readonly app: Application,
     private readonly controller: GameController,
     private readonly audio: AudioEngine,
+    private readonly camera: Camera,
     private readonly lib: SpriteLibrary,
     private readonly skins: SkinTextures,
   ) {
@@ -79,7 +81,9 @@ export class World {
       tex.source.scaleMode = "nearest";
       return tex;
     });
-    this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
+    this.reel = new Reel(lib.get("reel-frame", { w: 48, h: 24 }), skins, () =>
+      audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }),
+    );
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root);
     this.hd.root.addChild(this.hint, ...this.label, this.offline, this.lifted.root);
@@ -157,6 +161,7 @@ export class World {
     this.scene.pivot.set(focus.x, focus.y);
     this.scene.position.set(focus.x + Math.round(s.x * k), focus.y + Math.round(s.y * k));
     this.scene.scale.set(z);
+    this.camera.set({ focusX: focus.x, focusY: focus.y, dx: Math.round(s.x * k), dy: Math.round(s.y * k), zoom: z }); // the UI overlay follows
     this.pixel.render(this.app.renderer);
   }
 
