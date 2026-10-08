@@ -5,6 +5,21 @@ export type WearId = "FN" | "MW" | "FT" | "WW" | "BS";
 export type WeaponId = "rifle" | "sniper" | "pistol" | "heavyPistol" | "smg" | "shotgun" | "mg" | "knife";
 export type PatternKind = "camo" | "digital" | "tiger" | "leaves" | "bark" | "moss" | "marble" | "granite" | "crystal" | "lava";
 
+/** A moving finish (spec: animated skins §4). */
+export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle";
+/** A moving weapon: the code-drawn silhouette is transformed before it is rasterised. */
+export type WeaponMotion = "bob" | "recoil" | "bolt" | "flip";
+
+/** Presentation only — the sim never reads it. */
+export interface SkinMotion {
+  pattern?: PatternMotion;
+  weapon?: WeaponMotion;
+  /** Frames in the loop (default 8). */
+  frames?: number;
+  /** Playback speed (default 8). */
+  fps?: number;
+}
+
 export interface PatternSpec {
   kind: PatternKind;
   /** '#rrggbb' colors, darkest first. */
@@ -21,6 +36,8 @@ export interface SkinDef {
   weapon: WeaponId;
   rarity: RarityId;
   pattern: PatternSpec;
+  /** Optional animation, baked into a short loop of pixel frames. */
+  motion?: SkinMotion;
 }
 
 export interface CaseDef {
