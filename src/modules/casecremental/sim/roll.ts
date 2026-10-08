@@ -1,6 +1,6 @@
 import { RARITY_ORDER, rarityWeights } from "./rarity";
 import type { Rng } from "./rng";
-import { RARITY_VALUE_MULT, STATTRAK_CHANCE, STATTRAK_MULT } from "./tuning";
+import { CASE_VALUE_MULT, RARITY_VALUE_MULT, STATTRAK_CHANCE, STATTRAK_MULT } from "./tuning";
 import type { CaseDef, Drop, RarityId } from "./types";
 import { wearOf } from "./wear";
 
@@ -13,6 +13,9 @@ export function pickRarity(weights: Record<RarityId, number>, roll: number): Rar
   }
   return RARITY_ORDER[RARITY_ORDER.length - 1]!;
 }
+
+/** A skin's value as a multiple of its case price: the base table, with the case's own changes. */
+export const valueMultOf = (caseId: string, rarity: RarityId): number => CASE_VALUE_MULT[caseId]?.[rarity] ?? RARITY_VALUE_MULT[rarity];
 
 /** Rolls one case: rarity (luck-adjusted), skin, float/wear, StatTrak, base value. */
 export function rollDrop(
@@ -29,6 +32,6 @@ export function rollDrop(
   const float = rng.next();
   const wear = wearOf(float);
   const statTrak = rng.next() < STATTRAK_CHANCE;
-  const value = price * RARITY_VALUE_MULT[rarity] * wear.mult * (statTrak ? STATTRAK_MULT : 1);
+  const value = price * valueMultOf(c.id, rarity) * wear.mult * (statTrak ? STATTRAK_MULT : 1);
   return { id, caseId: c.id, skinId: skin.id, rarity, float, wear: wear.id, statTrak, value };
 }

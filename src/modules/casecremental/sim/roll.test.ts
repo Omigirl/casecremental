@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { caseById } from "./content/cases";
 import { createRng } from "./rng";
-import { pickRarity, rollDrop } from "./roll";
+import { pickRarity, rollDrop, valueMultOf } from "./roll";
 import { rarityWeights } from "./rarity";
 import type { RarityId } from "./types";
 
@@ -66,5 +66,26 @@ describe("rollDrop", () => {
     let st = 0;
     for (let i = 0; i < 20_000; i++) if (rollDrop(bootcamp, 2, 0, rng, i).statTrak) st++;
     expect(st / 20_000).toBeCloseTo(0.1, 1);
+  });
+
+  it("Boot Camp jump-starts a run: richer Mil-Specs, a smaller knife, a higher average", () => {
+    const avg = (caseId: string, rarity?: RarityId) => {
+      const rng = createRng(9);
+      const c = caseById(caseId);
+      let sum = 0;
+      let n = 0;
+      for (let i = 0; i < 100_000; i++) {
+        const d = rollDrop(c, 1, 0, rng, i);
+        if (rarity && d.rarity !== rarity) continue;
+        sum += d.value;
+        n++;
+      }
+      return sum / n;
+    };
+    expect(valueMultOf("bootcamp", "milspec")).toBe(0.95);
+    expect(valueMultOf("bootcamp", "gold")).toBe(120);
+    expect(valueMultOf("wildwood", "gold")).toBe(200); // later cases keep the base table
+    expect(avg("bootcamp", "milspec")).toBeGreaterThan(0.85); // per $1 of price, was ~0.53
+    expect(avg("bootcamp")).toBeGreaterThan(avg("wildwood")); // a little more on average than the base table
   });
 });

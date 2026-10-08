@@ -31,6 +31,12 @@ export const RARITY_VALUE_MULT: Readonly<Record<RarityId, number>> = {
   gold: 200,
 };
 
+/** Per-case changes to RARITY_VALUE_MULT. Boot Camp jump-starts a run: its Mil-Specs nearly pay the
+ *  case back and its knife is smaller, for a slightly higher average than the base table. */
+export const CASE_VALUE_MULT: Readonly<Record<string, Partial<Record<RarityId, number>>>> = {
+  bootcamp: { milspec: 0.95, gold: 120 },
+};
+
 /** Each Luck level multiplies the weight of every rarity above Mil-Spec by (1 + this). */
 export const LUCK_PER_LEVEL = 0.15;
 
