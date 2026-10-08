@@ -12,6 +12,7 @@ import { Bar, PxButton, UiEnvContext } from "./parts";
 // spec §9.2) and the settings button. Height = the layout's HUD band.
 
 function goalName(goal: NonNullable<GameView["nextGoal"]>): string {
+  if (goal.kind === "vault") return "VAULT"; // M2b-B localises it
   return goal.kind === "unlock" ? caseName(goal.caseId) : `${upgradeName(goal.upgradeId)} ${t("label.level", { n: goal.level })}`;
 }
 
