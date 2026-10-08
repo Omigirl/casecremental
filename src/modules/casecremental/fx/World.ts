@@ -299,6 +299,7 @@ export class World {
         break;
       }
       case "botPickedUp":
+        this.bench.cancelDrag();
         this.knifeFlight.cancel();
         this.bench.clearReveal(false);
         this.hd.setGlow(null);
@@ -311,6 +312,7 @@ export class World {
         this.audio.play("jackpot-swell");
         break;
       case "runStarted":
+        this.bench.cancelDrag();
         this.knifeFlight.cancel();
         this.bench.clearReveal(false);
         this.bench.hideCase();

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
-import type { SimEvent } from "../sim/run";
+import { freshMeta } from "../sim/meta";
+import { Run, type SimEvent } from "../sim/run";
 import { FINALE_SECONDS } from "../sim/tuning";
 import { GameController, MAX_FRAME_SECONDS } from "./controller";
 import { SaveSlot } from "./save";
@@ -127,6 +128,18 @@ describe("GameController — the campaign", () => {
     c.resetProgress(2);
     expect(c.meta.clout).toBe(0);
     expect(new GameController(3, slot).meta.clout).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it("starts fresh instead of crashing on a save that passes the check but cannot run", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const slot = memorySlot();
+    const run = new Run(1).snapshot();
+    run.state.unlocked = ["nope"];
+    slot.save({ v: 1, meta: freshMeta(), run });
+    let c: GameController | null = null;
+    expect(() => (c = new GameController(1, slot))).not.toThrow();
+    expect(c!.run.state.unlocked).toEqual(["bootcamp"]);
     vi.restoreAllMocks();
   });
 });

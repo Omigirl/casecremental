@@ -21,6 +21,7 @@ export type Action =
   | { type: "wakeBot" }
   | { type: "buyBotSpeed" }
   | { type: "setBotThreshold"; rarity: RarityId }
+  | { type: "holdCard"; held: boolean }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "buyPerk"; id: PerkId }
@@ -52,10 +53,24 @@ export class GameController {
     seed: number = Date.now() >>> 0,
     private readonly slot: SaveSlot | null = null,
   ) {
-    const saved = slot?.load() ?? null;
-    this.meta = saved ? saved.meta : freshMeta();
-    this.current = saved ? Run.fromSnapshot(saved.run) : new Run(seed);
+    const restored = GameController.restore(slot);
+    this.meta = restored?.meta ?? freshMeta();
+    this.current = restored?.run ?? new Run(seed);
     this.view = buildView(this.current, this.meta);
+  }
+
+  /** The saved campaign, or null — a save that loads but cannot run starts fresh (M2b spec §9). */
+  private static restore(slot: SaveSlot | null): { meta: MetaState; run: Run } | null {
+    const saved = slot?.load() ?? null;
+    if (!saved) return null;
+    try {
+      const run = Run.fromSnapshot(saved.run);
+      buildView(run, saved.meta); // reads every case, price and upgrade the run refers to
+      return { meta: saved.meta, run };
+    } catch (err) {
+      console.warn("[casecremental] the saved game could not be restored — starting fresh", err);
+      return null;
+    }
   }
 
   get run(): Run {
@@ -132,6 +147,8 @@ export class GameController {
         return run.buyBotSpeed();
       case "setBotThreshold":
         return run.setBotThreshold(a.rarity);
+      case "holdCard":
+        return run.setHeld(a.held);
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":

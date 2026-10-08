@@ -5,6 +5,7 @@ import type { CaseView, GameView } from "../game/view";
 import { caseName } from "../i18n/content";
 import { getLang, t } from "../i18n/index";
 import { formatCash } from "../sim/format";
+import { dayJobButton } from "./dayJob";
 import { PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
 
@@ -46,6 +47,20 @@ function CaseRow({ c, act }: { c: CaseView; act: Act }): ReactNode {
   );
 }
 
+/** Temporary (Plan M2b-B draws the real one): broke with an empty bench → a ~3 s day job. */
+function DayJobRow({ view, act }: { view: GameView; act: Act }): ReactNode {
+  const b = dayJobButton(view);
+  if (!b) return null;
+  return (
+    <div className="cc-row">
+      <PxButton disabled={!b.enabled} onClick={() => act({ type: "startDayJob" })}>
+        DAY JOB
+        <span className="cc-btn-sub">{b.enabled ? "+$2" : `${Math.round(b.progress * 100)}%`}</span>
+      </PxButton>
+    </div>
+  );
+}
+
 export function CaseShelf({ view, act, title = true }: { view: GameView; act: Act; title?: boolean }): ReactNode {
   return (
     <>
@@ -54,6 +69,7 @@ export function CaseShelf({ view, act, title = true }: { view: GameView; act: Ac
         {view.cases.map((c) => (
           <CaseRow key={c.id} c={c} act={act} />
         ))}
+        <DayJobRow view={view} act={act} />
       </div>
     </>
   );

@@ -1,5 +1,5 @@
-import type { MetaState } from "../sim/meta";
-import type { RunSnapshot } from "../sim/run";
+import { freshMeta, type MetaState } from "../sim/meta";
+import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
 
 // The local save (M2b spec §9): the meta and the run in progress under one localStorage key, versioned.
 // A save that is missing, broken or from another version never stops the game — it is dropped with a
@@ -19,6 +19,27 @@ export type SaveStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const isNum = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
 
+const BENCH_PHASES = ["empty", "locked", "spinning", "revealed"];
+
+/** A bench the run and the World can both work with. */
+function isBench(b: unknown): boolean {
+  if (!isObj(b) || typeof b.phase !== "string" || !BENCH_PHASES.includes(b.phase)) return false;
+  if (b.phase === "empty") return true;
+  if (typeof b.caseId !== "string") return false;
+  if (b.phase === "spinning") return isObj(b.drop) && isNum(b.elapsed) && isNum(b.fullDuration);
+  return b.phase === "revealed" ? isObj(b.drop) : true;
+}
+
+/** Fills in what an older or partial save leaves out (a perk or setup field added later). */
+function normalize(d: SaveData): SaveData {
+  const fresh = freshMeta();
+  const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks } };
+  const setup = { ...DEFAULT_SETUP, ...d.run.setup };
+  if (!Array.isArray(setup.charms)) setup.charms = [];
+  // nobody is holding a card after a reload
+  return { ...d, meta, run: { ...d.run, setup, state: { ...d.run.state, held: false } } };
+}
+
 function isSave(d: unknown): d is SaveData {
   if (!isObj(d) || d.v !== SAVE_VERSION || !isObj(d.meta) || !isObj(d.run)) return false;
   const m = d.meta;
@@ -26,7 +47,7 @@ function isSave(d: unknown): d is SaveData {
   if (!isNum(m.clout) || !isObj(m.perks) || !Array.isArray(m.trophies) || !isNum(m.loops) || !Array.isArray(m.picked)) return false;
   if (!isNum(r.seed) || !isNum(r.rng) || !isObj(r.setup) || !isObj(r.state)) return false;
   const s = r.state;
-  return isNum(s.cash) && isNum(s.time) && isObj(s.bench) && Array.isArray(s.tray) && isObj(s.bot) && Array.isArray(s.unlocked);
+  return isNum(s.cash) && isNum(s.time) && isBench(s.bench) && Array.isArray(s.tray) && isObj(s.bot) && Array.isArray(s.unlocked);
 }
 
 export const encodeSave = (data: SaveData): string => JSON.stringify(data);
@@ -35,7 +56,7 @@ export function decodeSave(raw: string | null): SaveData | null {
   if (raw === null) return null;
   try {
     const d: unknown = JSON.parse(raw);
-    if (isSave(d)) return d;
+    if (isSave(d)) return normalize(d);
   } catch {
     // fall through to the warning
   }

@@ -132,6 +132,8 @@ export interface RunState {
   /** Drops the bot set aside for the player to claim (above its threshold). */
   tray: Drop[];
   bot: BotState;
+  /** The player is dragging the revealed card: the bot leaves it alone (M2b spec §3). */
+  held: boolean;
   /** Seconds into the vault finale, or null. */
   finale: number | null;
   /** The vault has opened: the run is over. */
@@ -181,6 +183,7 @@ export class Run {
       freeCases: [],
       tray: [],
       bot: freshBot(this.setup.botAwake),
+      held: false,
       finale: null,
       over: false,
     };
@@ -295,6 +298,7 @@ export class Run {
     s.cash += amount;
     s.lifetimeEarnings += amount;
     s.bench = { phase: "empty" };
+    s.held = false;
     this.events.push({ type: "sold", drop: b.drop, amount, combo: s.combo, source: "bench" });
     return OK;
   }
@@ -442,6 +446,12 @@ export class Run {
     return OK;
   }
 
+  /** The player picks the revealed card up (true) or lets go of it (false). */
+  setHeld(held: boolean): ActionResult {
+    this.state.held = held && this.state.bench.phase === "revealed";
+    return OK;
+  }
+
   setBotThreshold(rarity: RarityId): ActionResult {
     this.state.bot.threshold = rarity;
     return OK;
@@ -470,11 +480,16 @@ export class Run {
     const speed = botSpeed(bot.speedLevel);
     if (!bot.job) {
       const b = s.bench;
-      if (b.phase === "revealed" && s.time - s.revealedAt >= revealHold(b.drop.rarity, speed))
+      if (b.phase === "revealed" && !s.held && s.time - s.revealedAt >= revealHold(b.drop.rarity, speed))
         bot.job = { step: "toBench", t: 0, drop: null, dest: null };
       return;
     }
     const job = bot.job;
+    // the card is grabbed or gone before the bot has it: it turns back
+    if ((job.step === "toBench" || job.step === "wait" || job.step === "pickUp") && (s.held || s.bench.phase !== "revealed")) {
+      Object.assign(job, { step: "back", t: 0, dest: null });
+      return;
+    }
     if (job.step === "wait") {
       if (s.bench.phase !== "revealed") Object.assign(job, { step: "back", t: 0 });
       else if (s.tray.length < this.setup.trayCapacity) Object.assign(job, { step: "pickUp", t: 0 });
@@ -550,6 +565,7 @@ export class Run {
     const s = this.state;
     const charms = this.setup.charms;
     s.revealedAt = s.time;
+    s.held = false;
     if (charms.includes("pityJar")) s.pity = d.rarity === "milspec" ? s.pity + 1 : isBigRarity(d.rarity) ? 0 : s.pity;
     if (charms.includes("ricochet") && d.rarity === "covert") s.freeCases.push(d.caseId);
     if (charms.includes("goldRush") && d.rarity === "gold") s.goldenHourUntil = s.time + GOLDEN_HOUR_SECONDS;

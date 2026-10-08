@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { freshMeta } from "../sim/meta";
-import { Run } from "../sim/run";
+import { DEFAULT_SETUP, Run } from "../sim/run";
 import { decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
 
 afterEach(() => vi.restoreAllMocks());
@@ -58,5 +58,29 @@ describe("the local save", () => {
     expect(broken.load()).toBeNull();
     expect(() => broken.clear()).not.toThrow();
     expect(new SaveSlot(null).load()).toBeNull();
+  });
+
+  it("fills in what an older or partial save leaves out, so nothing turns into NaN or crashes", () => {
+    const d = data() as unknown as { meta: { perks: Record<string, number> }; run: { setup: unknown; state: Record<string, unknown> } };
+    delete d.meta.perks.luck;
+    d.run.setup = {};
+    d.run.state.held = true;
+    const loaded = decodeSave(JSON.stringify(d))!;
+    expect(loaded.meta.perks.luck).toBe(0);
+    expect(loaded.run.setup).toEqual(DEFAULT_SETUP);
+    expect(loaded.run.state.held).toBe(false); // nobody is holding a card after a reload
+  });
+
+  it("drops a save whose bench it cannot draw", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bad = (bench: unknown) => {
+      const d = data() as unknown as { run: { state: Record<string, unknown> } };
+      d.run.state.bench = bench;
+      return decodeSave(JSON.stringify(d));
+    };
+    expect(bad({ phase: "locked" })).toBeNull();
+    expect(bad({ phase: "weird", caseId: "bootcamp" })).toBeNull();
+    expect(bad({ phase: "revealed", caseId: "bootcamp" })).toBeNull();
+    expect(bad({ phase: "empty" })).not.toBeNull();
   });
 });

@@ -131,4 +131,20 @@ describe("the bot as a seller", () => {
     tickFor(run, 2.6 + (S.toBench + S.pickUp + S.carry + S.drop) / 8 + 0.2);
     expect(run.drainEvents().find((e) => e.type === "sold")).toMatchObject({ source: "bot" });
   });
+
+  it("turns back when the player grabs the card, and comes again once it is let go (spec §3)", () => {
+    const run = awake();
+    reveal(run, "milspec");
+    tickFor(run, BOT_REVEAL_HOLD + 0.5); // on its way
+    expect(run.state.bot.job?.step).toBe("toBench");
+    run.setHeld(true);
+    tickFor(run, 6);
+    expect(run.state.bench.phase).toBe("revealed");
+    expect(run.state.bot.job).toBeNull();
+    expect(run.drainEvents().map((e) => e.type)).not.toContain("botPickedUp");
+    run.setHeld(false);
+    tickFor(run, 6);
+    expect(run.state.bench.phase).toBe("empty");
+    expect(run.drainEvents().find((e) => e.type === "sold")).toMatchObject({ source: "bot" });
+  });
 });
