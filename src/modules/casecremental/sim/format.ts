@@ -7,7 +7,12 @@ const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "D
 /** 2 / 1 / 0 decimals so the number keeps three significant digits. */
 const threeDigits = (x: number): string => x.toFixed(x < 10 ? 2 : x < 100 ? 1 : 0);
 
-export function formatCash(n: number): string {
+export function formatCash(n: number, lang: "en" | "ru" = "en"): string {
+  const text = formatCashEn(n);
+  return lang === "ru" ? text.replace(/(\d)\.(\d)/, "$1,$2") : text;
+}
+
+function formatCashEn(n: number): string {
   if (!Number.isFinite(n)) return n > 0 ? "$∞" : n < 0 ? "-$∞" : "$0.00";
   const a = Math.abs(n);
   const sign = n < 0 && a >= 0.005 ? "-" : "";

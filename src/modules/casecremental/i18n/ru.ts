@@ -1,0 +1,27 @@
+import type { StringKey } from "./en";
+
+export const RU: Record<StringKey, string> = {
+  "hud.combo": "КОМБО x{mult}",
+  "hud.next": "ДАЛЕЕ: {name}",
+  "hud.settings": "НАСТРОЙКИ",
+  "panel.upgrades": "УЛУЧШЕНИЯ",
+  "panel.cases": "КЕЙСЫ",
+  "tab.you": "ТЫ",
+  "tab.bot": "БОТ",
+  "tab.machines": "МАШИНЫ",
+  "tab.locked": "ЗАКРЫТО",
+  "btn.buy": "КУПИТЬ",
+  "btn.unlock": "ОТКРЫТЬ",
+  "btn.max": "МАКС",
+  "label.level": "УР {n}",
+  "hint.buy": "Купи кейс",
+  "hint.key": "Тащи ключ",
+  "hint.brake": "Жми: тормоз!",
+  "hint.sell": "Тащи на продажу",
+  "settings.title": "НАСТРОЙКИ",
+  "settings.language": "ЯЗЫК",
+  "settings.music": "МУЗЫКА",
+  "settings.sfx": "ЗВУКИ",
+  "settings.close": "ЗАКРЫТЬ",
+  "station.offline": "ВЫКЛЮЧЕН",
+};

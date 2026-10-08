@@ -43,3 +43,13 @@ describe("formatCash at rounding boundaries (deferred minor fix)", () => {
     expect(formatCash(-0.006)).toBe("-$0.01");
   });
 });
+describe("formatCash in Russian", () => {
+  it.each([
+    [12_345, "$12,3K"],
+    [1.5, "$1,50"],
+    [999, "$999"],
+    [2.5e9, "$2,50B"],
+  ])("formats %s as %s", (n, text) => {
+    expect(formatCash(n, "ru")).toBe(text);
+  });
+});
