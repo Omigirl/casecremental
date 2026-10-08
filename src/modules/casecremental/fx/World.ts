@@ -132,7 +132,8 @@ export class World {
       this.botCard.root,
     );
     this.hd.root.addChild(this.rain.container, this.hint, ...this.label, this.offline, this.trayFullLabel, this.lifted.root);
-    for (const txt of [this.hint, ...this.label, this.offline, this.trayFullLabel]) txt.anchor.set(0.5, 1);
+    for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
+    this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
