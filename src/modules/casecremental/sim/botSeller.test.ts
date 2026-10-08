@@ -147,4 +147,18 @@ describe("the bot as a seller", () => {
     expect(run.state.bench.phase).toBe("empty");
     expect(run.drainEvents().find((e) => e.type === "sold")).toMatchObject({ source: "bot" });
   });
+
+  it("a claim takes the card at its slot even after the bot stores another (Review Focus 2)", () => {
+    const run = awake();
+    reveal(run, "covert");
+    tickFor(run, 10);
+    const first = run.state.tray[0]!;
+    reveal(run, "gold");
+    tickFor(run, 10);
+    expect(run.state.tray).toHaveLength(2);
+    const cash = run.state.cash;
+    run.claim(0);
+    expect(run.state.cash - cash).toBeCloseTo(run.payout(first, false) * 1.02);
+    expect(run.state.tray[0]!.rarity).toBe("gold");
+  });
 });

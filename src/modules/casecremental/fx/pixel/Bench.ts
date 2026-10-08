@@ -1,12 +1,12 @@
-import { Container, Graphics, Sprite, type Texture } from "pixi.js";
+import { Container, Sprite, type Texture } from "pixi.js";
 import type { GameController } from "../../game/controller";
-import { RARITY_INFO } from "../../sim/rarity";
 import type { Bench as BenchState } from "../../sim/run";
 import type { Drop, SkinDef } from "../../sim/types";
 import type { LiftInfo } from "../hd/Lifted";
 import { SkinPlayer } from "../skins/player";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { Actor } from "./Actor";
+import { cardFace } from "./cardFace";
 import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
 import { cardGrabbable, DragTracker, type Grabbable } from "./drag";
@@ -95,32 +95,17 @@ export class Bench {
   }
 
   showReveal(skin: SkinDef, drop: Drop): void {
-    const { w, h } = ITEM_SIZE.reveal;
-    const color = RARITY_INFO[drop.rarity].color;
-    const frame = new Graphics()
-      .rect(0, 0, w, h)
-      .fill({ color: 0x120e10 })
-      .rect(1, 1, w - 2, h - 2)
-      .fill({ color })
-      .rect(2, 2, w - 4, h - 4)
-      .fill({ color: 0x15161d });
     for (const t of this.cardFrames) t.destroy(true);
     this.cardFrames = this.skins.frames(skin).map((tex) => {
-      const art = new Sprite(tex);
-      art.position.set(Math.floor((w - art.width) / 2), Math.floor((h - art.height) / 2));
-      const face = new Container();
-      face.addChild(frame.clone(), art);
-      if (drop.statTrak) face.addChild(new Graphics().rect(3, 3, 4, 2).fill({ color: 0xff8a00 }));
+      const face = cardFace(tex, drop);
       const baked = this.bake(face);
       face.destroy({ children: true });
       return baked;
     });
     this.cardEmpty?.destroy(true);
-    const empty = new Container();
-    empty.addChild(frame.clone());
+    const empty = cardFace(null, drop);
     this.cardEmpty = this.bake(empty);
     empty.destroy({ children: true });
-    frame.destroy();
     this.knifeFlying = false;
     this.cardPlayer = new SkinPlayer(this.cardFrames, this.skins.fps(skin));
     this.card.texture = this.cardPlayer.frame;
@@ -139,6 +124,11 @@ export class Bench {
     this.knifeFlying = false;
     this.cardPlayer?.reset();
     if (this.cardPlayer && this.card.visible) this.card.texture = this.cardPlayer.frame;
+  }
+
+  /** The bin swallows a card the bot or a tray claim sold. */
+  swallow(): void {
+    this.bin.play(ANIMS.binSwallow);
   }
 
   /** The card leaves; if it was sold the bin swallows it. */

@@ -27,6 +27,7 @@ import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
 import { Reel } from "./pixel/Reel";
 import { Room } from "./pixel/Room";
+import { TrayView } from "./pixel/Tray";
 import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
@@ -51,6 +52,7 @@ export class World {
   private readonly bench: Bench;
   private readonly reel: Reel;
   private readonly bot: BotSprite;
+  private readonly tray: TrayView;
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
   private readonly time = new TimeScale();
@@ -92,16 +94,18 @@ export class World {
     private readonly skins: SkinTextures,
   ) {
     this.room = new Room(lib, this.reelFrame);
-    this.bench = new Bench(lib, skins, controller, (c) => {
+    const bake = (c: Container) => {
       const tex = app.renderer.generateTexture({ target: c, resolution: 1 });
       tex.source.scaleMode = "nearest";
       return tex;
-    });
+    };
+    this.bench = new Bench(lib, skins, controller, bake);
+    this.tray = new TrayView(skins, controller, bake);
     this.reel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo) }));
     this.bot = new BotSprite(lib);
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     this.knifeFlight = new KnifeFlight(this.hd.root);
-    this.pixel.world.addChild(this.room.back, this.room.front, this.reel, this.bench.root, this.bot.root);
+    this.pixel.world.addChild(this.room.back, this.room.front, this.tray.root, this.reel, this.bench.root, this.bot.root);
     this.hd.root.addChild(this.hint, ...this.label, this.offline, this.botText, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline, this.botText]) txt.anchor.set(0.5, 0);
     this.scene.addChild(this.pixel.view, this.hd.root);
@@ -110,12 +114,19 @@ export class World {
 
     app.stage.eventMode = "static";
     app.stage.hitArea = app.screen;
-    app.stage.on("pointerdown", (e: FederatedPointerEvent) => void this.bench.pointerDown(this.worldPt(e)));
+    app.stage.on("pointerdown", (e: FederatedPointerEvent) => this.pointerDown(e));
     app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
-      this.bench.pointerMove(this.worldPt(e));
+      const p = this.worldPt(e);
+      this.tray.pointerMove(p);
+      this.bench.pointerMove(p);
     });
-    app.stage.on("pointerup", (e: FederatedPointerEvent) => this.bench.pointerUp(this.worldPt(e)));
-    app.stage.on("pointerupoutside", (e: FederatedPointerEvent) => this.bench.pointerUp(this.worldPt(e)));
+    const up = (e: FederatedPointerEvent) => {
+      const p = this.worldPt(e);
+      this.tray.pointerUp(p);
+      this.bench.pointerUp(p);
+    };
+    app.stage.on("pointerup", up);
+    app.stage.on("pointerupoutside", up);
     this.off = controller.onEvent((e) => this.onEvent(e));
 
     this.vp = pixelViewport(app.screen.width, app.screen.height);
@@ -153,6 +164,7 @@ export class World {
     const { width, height } = this.app.screen;
     if (width !== this.screen.w || height !== this.screen.h) {
       this.bench.cancelDrag(); // Review Focus 3: a resize or rotation mid-drag cancels it
+      this.tray.cancelDrag();
       this.vp = pixelViewport(width, height);
       this.l = tableLayout(this.vp);
       this.applyLayout();
@@ -170,6 +182,7 @@ export class World {
     const bot = run.state.bot;
     this.bot.update(gameMs, bot);
     this.hd.setBotAsleep(!bot.awake);
+    this.tray.update(run.state.tray, run.setup.trayCapacity);
     this.room.update(realSeconds * 1000);
     this.hd.update(realSeconds);
     this.look.update(realSeconds);
@@ -178,7 +191,7 @@ export class World {
     this.hd.setBinCalling(b.phase === "revealed");
 
     const k = this.vp.scale;
-    this.lifted.update(this.bench.lifted(), k, realSeconds);
+    this.lifted.update(this.tray.lifted() ?? this.bench.lifted(), k, realSeconds);
     this.knifeFlight.update(realSeconds);
     // camera: shake in whole px, zoom around the reveal card
     const s = this.shake.update(realSeconds);
@@ -204,11 +217,17 @@ export class World {
     this.app.stage.removeAllListeners();
     this.hd.destroy();
     this.bench.destroy();
+    this.tray.destroy();
     this.pixel.destroy();
     this.scene.destroy({ children: true });
     this.skins.destroy();
     this.lib.destroy();
     this.reelFrame.frames[0]!.destroy(true);
+  }
+
+  private pointerDown(e: FederatedPointerEvent): void {
+    const p = this.worldPt(e);
+    if (!this.tray.pointerDown(p)) void this.bench.pointerDown(p);
   }
 
   /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
@@ -229,6 +248,7 @@ export class World {
     this.room.layout(this.l);
     this.bench.layout(this.l);
     this.bot.layout(this.l);
+    this.tray.layout(this.l);
     this.reel.layout(this.l.you.reel);
     this.hd.layout(this.l, this.vp, width, height);
     const k = this.vp.scale;
@@ -312,6 +332,7 @@ export class World {
         this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
         if (e.amount >= 100) this.audio.play("coin-cascade", { delay: 0.1 });
         if (fromBench) this.bench.clearReveal(true);
+        else this.bench.swallow();
         break;
       }
       case "botWoke":
@@ -344,11 +365,14 @@ export class World {
         this.audio.play("coin-clink", { rate: 0.8 });
         break;
       case "vaultBought":
+        this.bench.cancelDrag();
+        this.tray.cancelDrag();
         this.hd.flash(0xffd700, 0.5);
         this.audio.play("jackpot-swell");
         break;
       case "runStarted":
         this.bench.cancelDrag();
+        this.tray.cancelDrag();
         this.knifeFlight.cancel();
         this.bench.clearReveal(false);
         this.bench.hideCase();
