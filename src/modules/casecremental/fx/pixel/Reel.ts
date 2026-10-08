@@ -5,7 +5,7 @@ import type { Tease } from "../../sim/tease";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import { reelFraction, type ReelMotion } from "../reel/motion";
 import { buildStrip, landingJitter, WIN_INDEX } from "../reel/strip";
-import { frameAt } from "../skins/motion";
+import { SkinPlayer } from "../skins/player";
 import type { SkinTextures } from "../skins/pixelSkin";
 import type { Rect } from "./layout";
 import type { SpriteSet } from "./sprites";
@@ -46,8 +46,7 @@ export class Reel extends Container {
   private fraction = 0;
   private lastIndex = -1;
   /** The winning card's loop, played once the reel has stopped (null: a still skin). */
-  private winner: { art: Sprite; frames: Texture[]; fps: number } | null = null;
-  private settledMs = 0;
+  private winner: { art: Sprite; player: SkinPlayer<Texture> } | null = null;
 
   constructor(
     frameSet: SpriteSet,
@@ -88,7 +87,6 @@ export class Reel extends Container {
     this.items = buildStrip(c, winner, rng, tease?.fake && side ? { rarity: tease.fake, side } : null);
     this.jitter = landingJitter(side, rng);
     this.fraction = 0;
-    this.settledMs = 0;
     this.lastIndex = -1;
     this.rebuild();
     this.place(0, false);
@@ -99,12 +97,10 @@ export class Reel extends Container {
     if (motion) {
       this.fraction = reelFraction(motion);
       this.place(this.fraction, true);
-      this.settledMs = 0;
+      this.winner?.player.reset();
       return;
     }
-    if (!this.winner) return;
-    this.settledMs += ms;
-    this.winner.art.texture = this.winner.frames[frameAt(this.settledMs, this.winner.fps, this.winner.frames.length)]!;
+    if (this.winner) this.winner.art.texture = this.winner.player.advance(ms);
   }
 
   private place(f: number, sound: boolean): void {
@@ -126,7 +122,8 @@ export class Reel extends Container {
       this.strip.addChild(card);
       if (i !== WIN_INDEX) return;
       const frames = this.skins.frames(skin);
-      if (frames.length > 1) this.winner = { art: card.art, frames, fps: this.skins.fps(skin) };
+      const player = new SkinPlayer(frames, this.skins.fps(skin));
+      if (player.moving) this.winner = { art: card.art, player };
     });
   }
 }

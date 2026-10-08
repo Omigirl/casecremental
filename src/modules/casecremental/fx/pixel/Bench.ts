@@ -4,7 +4,7 @@ import { RARITY_INFO } from "../../sim/rarity";
 import type { Bench as BenchState } from "../../sim/run";
 import type { Drop, SkinDef } from "../../sim/types";
 import type { LiftInfo } from "../hd/Lifted";
-import { frameAt } from "../skins/motion";
+import { SkinPlayer } from "../skins/player";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { Actor } from "./Actor";
 import { Animated } from "./Animated";
@@ -30,8 +30,7 @@ export class Bench {
   private readonly card = new Sprite();
   /** The reveal card, baked once per frame of the skin's loop (one frame for a still skin). */
   private cardFrames: Texture[] = [];
-  private cardFps = 8;
-  private cardMs = 0;
+  private cardPlayer: SkinPlayer<Texture> | null = null;
   private readonly drag = new DragTracker();
   private keyAtLock = 0;
   private l: TableLayout | null = null;
@@ -114,9 +113,8 @@ export class Bench {
       return baked;
     });
     frame.destroy();
-    this.cardFps = this.skins.fps(skin);
-    this.cardMs = 0;
-    this.card.texture = this.cardFrames[0]!;
+    this.cardPlayer = new SkinPlayer(this.cardFrames, this.skins.fps(skin));
+    this.card.texture = this.cardPlayer.frame;
     this.card.visible = true;
     this.homeItems();
   }
@@ -183,10 +181,7 @@ export class Bench {
     for (const c of this.cases.values()) if (c.actor.visible) c.update(ms);
     this.key.update(ms);
     this.bin.update(ms);
-    if (this.card.visible && this.cardFrames.length > 1) {
-      this.cardMs += ms;
-      this.card.texture = this.cardFrames[frameAt(this.cardMs, this.cardFps, this.cardFrames.length)]!;
-    }
+    if (this.card.visible && this.cardPlayer?.moving) this.card.texture = this.cardPlayer.advance(ms);
     this.key.actor.alpha = b.phase === "locked" || this.keyAtLock > 0 ? 1 : 0.45;
   }
 
@@ -206,6 +201,7 @@ export class Bench {
   destroy(): void {
     for (const t of this.cardFrames) t.destroy(true);
     this.cardFrames = [];
+    this.cardPlayer = null;
   }
 
   private homeItems(): void {
