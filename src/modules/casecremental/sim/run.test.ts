@@ -40,6 +40,22 @@ describe("Run", () => {
     expect(run.buyCase("bootcamp")).toEqual({ ok: false, reason: "not enough cash" });
   });
 
+  it("a forced rarity (dev board) applies to the next drop only", () => {
+    const run = new Run(1);
+    run.forceNextRarity("gold");
+    expect(revealOne(run).rarity).toBe("gold");
+    run.sell();
+    run.forceNextRarity("covert");
+    expect(revealOne(run).rarity).toBe("covert");
+    run.sell();
+    const rest = Array.from({ length: 5 }, () => {
+      const d = revealOne(run);
+      run.sell();
+      return d.rarity;
+    });
+    expect(rest.filter((r) => r === "covert" || r === "gold").length).toBeLessThan(5);
+  });
+
   it("insertKey rolls the drop and spins; a second key is refused", () => {
     const run = new Run(1);
     expect(run.insertKey().ok).toBe(false);

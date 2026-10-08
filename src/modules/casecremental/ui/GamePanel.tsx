@@ -61,7 +61,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine): C
                 onSoundBoard={import.meta.env.DEV ? () => (setSettings(false), setSoundBoard(true)) : undefined}
               />
             ) : null}
-            {import.meta.env.DEV && soundBoard ? <SoundBoard audio={audio} stage={view.stage} onClose={() => setSoundBoard(false)} /> : null}
+            {import.meta.env.DEV && soundBoard ? <SoundBoard audio={audio} stage={view.stage} onForce={(r) => controller.run.forceNextRarity(r)} onClose={() => setSoundBoard(false)} /> : null}
           </UiEnvContext.Provider>
         ) : null}
       </div>

@@ -12,7 +12,7 @@ import {
   FREE_CASE_SECONDS,
   START_CASH,
 } from "./tuning";
-import type { Drop } from "./types";
+import type { Drop, RarityId } from "./types";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
@@ -73,6 +73,7 @@ export class Run {
   private readonly rng: Rng;
   private events: SimEvent[] = [];
   private revealsThisTick = 0;
+  private forcedRarity: RarityId | null = null;
 
   constructor(seed: number) {
     this.rng = createRng(seed);
@@ -135,13 +136,19 @@ export class Run {
     return OK;
   }
 
+  /** Dev board only: the next opened case drops this rarity. */
+  forceNextRarity(rarity: RarityId | null): void {
+    this.forcedRarity = rarity;
+  }
+
   insertKey(): ActionResult {
     const s = this.state;
     const b = s.bench;
     if (b.phase !== "locked") return fail("no locked case on the bench");
     const c = caseById(b.caseId);
     const fx = this.effects();
-    const drop = rollDrop(c, priceOf(c.id), fx.luckLevel, this.rng, s.nextDropId++);
+    const drop = rollDrop(c, priceOf(c.id), fx.luckLevel, this.rng, s.nextDropId++, this.forcedRarity);
+    this.forcedRarity = null;
     s.bench = {
       phase: "spinning",
       caseId: c.id,

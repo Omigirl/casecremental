@@ -1,15 +1,22 @@
-import { useContext, type ReactNode } from "react";
+import { useContext, useState, type ReactNode } from "react";
 import type { AudioEngine } from "../fx/audio/AudioEngine";
 import { SOUNDS, type SoundId } from "../fx/audio/sounds";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
+import type { RarityId } from "../sim/types";
 import { PxButton, UiEnvContext } from "./parts";
 
 // Dev builds only (Settings shows it when import.meta.env.DEV): every generated sound with one
 // button per variant, played exactly as generated, and the stage loops — for listening through
-// the audio before re-rolling any of it. English only; players never see it.
+// the audio before re-rolling any of it — and a forced next drop, to see the big moments on
+// demand. English only; players never see it.
 
-export function SoundBoard({ audio, stage, onClose }: { audio: AudioEngine; stage: number; onClose: () => void }): ReactNode {
+export function SoundBoard({ audio, stage, onForce, onClose }: { audio: AudioEngine; stage: number; onForce: (r: RarityId) => void; onClose: () => void }): ReactNode {
   const { scale } = useContext(UiEnvContext);
+  const [armed, setArmed] = useState<RarityId | null>(null);
+  const force = (r: RarityId) => {
+    onForce(r);
+    setArmed(r);
+  };
   const close = () => {
     audio.setStage(stage); // back to the game's own loop
     onClose();
@@ -24,6 +31,14 @@ export function SoundBoard({ audio, stage, onClose }: { audio: AudioEngine; stag
             <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(1))}>Sober</PxButton>
             <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(2))}>Buzzed</PxButton>
             <PxButton onClick={() => audio.setMusicOn(false)}>Off</PxButton>
+          </span>
+        </div>
+        <div className="cc-row-line">
+          <span>Next drop</span>
+          <span className="cc-tabs">
+            <PxButton on={armed === "classified"} onClick={() => force("classified")}>Pink</PxButton>
+            <PxButton on={armed === "covert"} onClick={() => force("covert")}>Covert</PxButton>
+            <PxButton on={armed === "gold"} onClick={() => force("gold")}>★</PxButton>
           </span>
         </div>
         {(Object.keys(SOUNDS) as SoundId[]).map((id) => (

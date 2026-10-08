@@ -21,8 +21,10 @@ export function rollDrop(
   luckLevel: number,
   rng: Rng,
   id: number,
+  forced: RarityId | null = null,
 ): Drop {
-  const rarity = pickRarity(rarityWeights(luckLevel), rng.next());
+  const roll = rng.next(); // drawn either way, so a forced drop leaves the rest of the run unchanged
+  const rarity = forced ?? pickRarity(rarityWeights(luckLevel), roll);
   const skin = rng.pick(c.skins.filter((s) => s.rarity === rarity));
   const float = rng.next();
   const wear = wearOf(float);
