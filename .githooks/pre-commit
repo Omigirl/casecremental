@@ -1,8 +1,4 @@
 #!/bin/sh
-# Formats the staged code with Prettier before every commit and re-stages it (.prettierignore keeps
-# the platform's own files out). Enabled by `npm install` (the "prepare" script sets
-# core.hooksPath to .githooks). A partially staged file is staged whole once it is formatted.
-files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.cjs' '*.json' '*.css')
-[ -z "$files" ] && exit 0
-echo "$files" | xargs npx prettier --write --ignore-unknown --log-level warn || exit 1
-echo "$files" | xargs git add
+# Prettier on the staged code before every commit — see tools/hooks/pre-commit.mjs. Enabled by
+# `npm install` (the "prepare" script points core.hooksPath at .githooks).
+exec node tools/hooks/pre-commit.mjs
