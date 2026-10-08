@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setLang } from "../i18n/index";
 import type { Drop } from "../sim/types";
-import { hintKey, revealLines } from "./labels";
+import { fitCentre, hintKey, revealLines } from "./labels";
 
 afterEach(() => setLang("en"));
 
@@ -17,5 +17,12 @@ describe("canvas labels", () => {
   it("hints at the next step, and hides the brake hint when braking isn't possible", () => {
     expect(hintKey({ phase: "empty" }, false)).toBe("hint.buy");
     expect(hintKey({ phase: "revealed", caseId: "bootcamp", drop: DROP }, false)).toBe("hint.sell");
+  });
+
+  it("keeps a centred line inside its span, as near the wanted centre as it fits", () => {
+    expect(fitCentre(100, 40, 0, 300)).toBe(100); // fits where it is
+    expect(fitCentre(30, 100, 0, 300)).toBe(50); // pushed off the left edge
+    expect(fitCentre(290, 100, 0, 300)).toBe(250); // pushed off the right edge
+    expect(fitCentre(30, 400, 0, 300)).toBe(150); // wider than the span: centred on it
   });
 });

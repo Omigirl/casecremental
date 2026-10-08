@@ -14,7 +14,7 @@ import { setTweenTimeScale } from "./hd/tween";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
-import { hintKey, revealLines } from "./labels";
+import { fitCentre, hintKey, revealLines } from "./labels";
 import { Bench } from "./pixel/Bench";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
@@ -46,6 +46,7 @@ export class World {
   private readonly rng = createRng(0x5eed);
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xc8cbd6) });
   private readonly label = [new Text({ text: "", style: pixelStyle(8, 0xffffff) }), new Text({ text: "", style: pixelStyle(8, 0xffffff) })];
+  private labelSpan = { lo: 0, hi: 0 };
   private readonly offline = new Text({ text: "", style: pixelStyle(8, 0x6a6f80) });
   private vp: PixelViewport;
   private l: TableLayout;
@@ -174,9 +175,11 @@ export class World {
     for (const txt of [this.hint, ...this.label, this.offline]) txt.style.fontSize = size;
     const r = this.l.you.reel;
     this.hint.position.set((r.x + r.w / 2) * k, (r.y + r.h + 2) * k);
-    const card = this.l.you.reveal;
-    this.label[0]!.position.set(card.x * k, (card.y + 16) * k);
-    this.label[1]!.position.set(card.x * k, (card.y + 16) * k + size * 1.5);
+    // The card's lines wrap to the table and slide along it rather than run under a side panel.
+    const tb = this.l.table;
+    for (const txt of this.label) Object.assign(txt.style, { wordWrap: true, wordWrapWidth: (tb.w - 4) * k, align: "center" });
+    this.labelSpan = { lo: (tb.x + 2) * k, hi: (tb.x + tb.w - 2) * k };
+    this.placeLabels();
     const br = this.l.bot.reel;
     this.offline.visible = !!br;
     if (br) this.offline.position.set((br.x + br.w / 2) * k, (br.y + br.h / 2) * k - size / 2);
@@ -192,8 +195,18 @@ export class World {
       if (this.label[i]!.text !== text) this.label[i]!.text = text;
     });
     if (b.phase === "revealed") this.label[1]!.style.fill = RARITY_INFO[b.drop.rarity].color;
+    this.placeLabels();
     const off = t("station.offline");
     if (this.offline.text !== off) this.offline.text = off;
+  }
+
+  private placeLabels(): void {
+    const k = this.vp.scale;
+    const card = this.l.you.reveal;
+    const [a, b] = this.label as [Text, Text];
+    const { lo, hi } = this.labelSpan;
+    a.position.set(fitCentre(card.x * k, a.width, lo, hi), (card.y + 16) * k);
+    b.position.set(fitCentre(card.x * k, b.width, lo, hi), a.y + a.height + k);
   }
 
   private screenPt(p: Pt): Pt {

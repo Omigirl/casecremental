@@ -1,0 +1,52 @@
+import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { tableLayout, type TableLayout } from "../fx/pixel/layout";
+import { hdFontSize } from "../fx/pixel/screen";
+import { pixelViewport, type PixelViewport } from "../fx/pixel/viewport";
+import { getLang, onLangChange, type Lang } from "../i18n/index";
+import { getPrefs, onPrefsChange, type Prefs } from "./prefs";
+import { buttonImages } from "./pixelFrame";
+
+/** Re-render on a language switch (strings are read through t() during render). */
+export const useLang = (): Lang => useSyncExternalStore(onLangChange, getLang);
+
+export const usePrefs = (): Prefs => useSyncExternalStore(onPrefsChange, getPrefs);
+
+export interface PixelUi {
+  vp: PixelViewport;
+  l: TableLayout;
+  /** Text size in CSS px (a multiple of 8). */
+  fs: number;
+}
+
+/** The same viewport and table layout the canvas uses, from the overlay's own size. */
+export function usePixelUi(ref: RefObject<HTMLElement | null>): PixelUi | null {
+  const [ui, setUi] = useState<PixelUi | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const { width, height } = el.getBoundingClientRect();
+      if (width < 1 || height < 1) return;
+      const vp = pixelViewport(width, height);
+      setUi({ vp, l: tableLayout(vp), fs: hdFontSize(vp.scale) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return ui;
+}
+
+/** The ui-button sheet sliced into normal / hover / pressed images (null until ready or missing). */
+export function useButtonImages(): string[] | null {
+  const [images, setImages] = useState<string[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void buttonImages().then((imgs) => alive && setImages(imgs));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return images;
+}

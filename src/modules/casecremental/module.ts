@@ -3,6 +3,7 @@ import { createAgentApi } from "./game/agent";
 import { GameController } from "./game/controller";
 import { createGameScene } from "./fx/GameScene";
 import { makeGamePanel } from "./ui/GamePanel";
+import { initPrefs } from "./ui/prefs";
 
 // Casecremental: a Scritchy Scratchy-style incremental where the scratch ticket is a weapon case.
 // One controller for the session; the Pixi scene renders it, the React panel draws HUD and shop,
@@ -17,6 +18,7 @@ export const casecrementalModule: Module = defineModule({
     engine: "dom",
   },
   setup(ctx) {
+    initPrefs(); // language (remembered, else the browser's) and volumes
     const controller = new GameController();
     ctx.registerScene(createGameScene(controller));
     ctx.registerPanel({ id: "game", slot: "overlay", component: makeGamePanel(controller) });

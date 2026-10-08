@@ -33,13 +33,17 @@ export const ITEM_SIZE = {
   reveal: { w: 44, h: 30 },
 } as const;
 
+/** World px a side panel loses to chrome across its width: the frame (6 + 6), the panel padding
+ *  (1 + 1), the row padding (1 + 1) and the button padding (1 + 1) — ui/styles.ts, ui/parts.tsx. */
+export const PANEL_CHROME = 18;
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const r = Math.round;
 
 export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portrait">): TableLayout {
   const W = vp.worldW, H = vp.worldH, hudH = 18;
   if (!vp.portrait) {
-    const P = clamp(r(W * 0.19), 56, 96);
+    const P = clamp(r(W * 0.19), 64, 96);
     const table: Rect = { x: P + 4, y: 64, w: W - 2 * P - 8, h: H - 66 };
     const half = r(table.w * 0.5);
     const matW = clamp(r(table.w * 0.3), 48, 72), matCx = r(table.x + table.w * 0.28);
@@ -50,7 +54,7 @@ export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portr
       panelR: { x: W - P, y: hudH, w: P, h: H - hudH },
       table,
       lamp: { x: r(table.x + table.w / 2), y: 0 },
-      you: { reel: { x: table.x + 4, y: 22, w: half - 8, h: 26 }, mat, caseSpot: { x: matCx, y: 112 }, keyHome: { x: mat.x - 12, y: 100 }, reveal: { x: matCx, y: 72 } },
+      you: { reel: { x: table.x + 4, y: 22, w: half - 8, h: 26 }, mat, caseSpot: { x: matCx, y: 112 }, keyHome: { x: Math.max(mat.x - 12, table.x + 6), y: 100 }, reveal: { x: matCx, y: 72 } },
       bot: { reel: { x: table.x + half + 4, y: 22, w: table.w - half - 8, h: 26 }, spot: { x: r(table.x + table.w * 0.74), y: 118 } },
       tray: { x: r(table.x + table.w * 0.27), y: H - 26, w: r(table.w * 0.46), h: 18 },
       seller: { x: table.x + 16, y: H - 6 },

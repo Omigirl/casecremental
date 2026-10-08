@@ -28,3 +28,9 @@ export function revealLines(d: Drop): [string, string] {
   const st = d.statTrak ? "ST™ " : "";
   return [`${st}${weaponName(skin.weapon)} | ${skinName(skin.id)}`, `${wearName(wearOf(d.float).id)} · ${formatCash(d.value, getLang())}`];
 }
+
+/** The centre for a line `width` wide that wants to sit at `want` but must stay within [lo, hi]. */
+export function fitCentre(want: number, width: number, lo: number, hi: number): number {
+  if (width >= hi - lo) return (lo + hi) / 2;
+  return Math.min(hi - width / 2, Math.max(lo + width / 2, want));
+}
