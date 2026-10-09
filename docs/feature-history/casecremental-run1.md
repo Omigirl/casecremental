@@ -30,6 +30,13 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   and shrink to fit their label boxes. The beam layout (`fx/vault/beams.ts`) is solved and sweep-tested over
   ~50 screen sizes: beam ends always past the edge, rewards and labels never overlapping one another or the
   total. The UI fades back 3.4 s into the next run.
+- **The vault is chaos on purpose** (user: "no space on screen which is not moving"): the fanfare is a 174 BPM
+  drum-and-bass drop (the chiptune and spare takes are in `art/source/audio/`; a take that faded from 6 s was
+  replaced — check a generated track's level per second, not just its length). Everything pulses off one beat clock
+  from the impact (`fx/vault/beat.ts`): beat-locked shake and zoom, a swaying striped backdrop, full-screen rain,
+  edge sparks, 14 kick explosions (`VAULT_CUES.fireworks`). Rewards, labels and the total sit outside the cameras
+  so they stay readable. Photosensitivity is a hard rule: at most 3 full-screen flashes a second, and every
+  light that throbs on the beat changes by less than 0.1 (`BEAT_LIGHT_AMPLITUDES`, tested).
 - **ElevenLabs sound effects need `duration_seconds` passed through a flow node's model parameters** — the
   plain generate-in-flow call drops it and returns whole seconds, which is why the first batch came back short.
 - **The day job replaced the free case** (user): broke with an empty bench → a 3 s shift, 90 % +$2.
