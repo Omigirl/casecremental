@@ -1,7 +1,7 @@
 # Casecremental — Run 1 complete (M2b)
 
 What a full Run 1 is and the calls behind it. Spec: `docs/superpowers/specs/2026-10-08-casecremental-m2b-run1-design.md`;
-plans M2b-A (logic) and M2b-B (on screen). Multi-open ×2 is plan M2b-C.
+plans M2b-A (logic) and M2b-B (on screen). Rework plans M2b-C1 (roles), C2 (the vault) and C3 (multi-open ×2).
 
 ## The loop
 Open by hand → wake the bot (it opens its own cases on its own reel with your cash; the auto-seller machine
@@ -25,8 +25,14 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   are on. After a lobby trip the music is re-derived from the sim (musicPlan), so the fanfare resumes in step with
   the reels.
 - **The day job replaced the free case** (user): broke with an empty bench → a 3 s shift, 90 % +$2.
-- **The prestige screen** waits for the vault's showcase only when the player watched the run end; after a
-  reload it is up at once.
+- **The prestige screen** waits for the blackout only when the player watched the run end; after a reload it is
+  up at once, over black. It has its own ⚙ (the HUD is hidden there), so the music can be muted.
+- **Multi-open ×2** (Run 1 cap; spec §5): one BUY opens up to two cases — only as many as you can afford, so it
+  never locks you out of BUY or the day job. Each reel lands its own drop and tease; the reel window is tall while
+  they spin and snaps back to compact when they land (re-laying a reel rebuilds its strip, so no glide). The cards
+  sit side by side and are sold, held or taken by the auto-seller one by one (each hand sale feeds the combo); the
+  big reveal effects play once, for the best card, and the label shows the best waiting card. No "Drag to sell"
+  hint over two cards — it covered their tops. Saves went to version 3 (a version-2 save is migrated).
 - **Tuning (pacing tests, medians of 5 greedy players):** bot awake ~2.2 min (132 s), auto-seller ~2.7 min
   (162 s), first vault ~8.1 min (487 s, VAULT_BASE_PRICE $1M), a boosted second run unlocks everything in
   ~67 s and vaults again at ~375 s. A first vault pays ~13–15 CLOUT (CLOUT_DIVISOR 105). Wildwood's unlock

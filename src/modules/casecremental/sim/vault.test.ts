@@ -115,7 +115,7 @@ describe("Vault Case I", () => {
     expect(run.state.bot.spin).toBeNull(); // frozen
   });
 
-  it("never drops a Ricochet case on the bench during the finale (review minor)", () => {
+  it("never drops a Ricochet case on the bench while the vault is out (review minor)", () => {
     const run = new Run(1, { ...DEFAULT_SETUP, charms: ["ricochet"] });
     allUnlocked(run);
     run.state.cash = 1e9;

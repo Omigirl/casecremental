@@ -374,7 +374,7 @@ export class World {
 
   /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
   private updateText(b: BenchState): void {
-    const key = this.controller.run.locked() ? null : hintKey(b); // no "Buy a case" during the finale or after the run
+    const key = this.controller.run.locked() ? null : hintKey(b); // no "Buy a case" while the vault is out or after the run
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const r = this.benchReels.area ?? this.l.you.reel; // under the reel window, whatever its height

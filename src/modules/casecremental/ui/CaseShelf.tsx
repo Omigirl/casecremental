@@ -62,7 +62,7 @@ function DayJobRow({ view, act }: { view: GameView; act: Act }): ReactNode {
   );
 }
 
-/** Vault Case I (M2b spec §7): shown once every case is unlocked; buying it starts the finale. */
+/** Vault Case I (rework spec §4): shown once every case is unlocked; buying it takes the screen. */
 function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const v = view.vault;
