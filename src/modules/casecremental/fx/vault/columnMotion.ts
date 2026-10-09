@@ -1,7 +1,5 @@
-import type { Rect } from "../pixel/layout";
-
-// The vault's five vertical reel columns (spec 2026-10-09 §1): where each strip is in time, and where the
-// columns sit. Pure, so the lock-ins are tested without Pixi.
+// The vault's five reels (spec 2026-10-09 §1, §5): where each beam's strip is in time, in cells (items). Pure,
+// so the lock-ins are tested without Pixi.
 
 /** Cells a column decelerates through before it lands. */
 export const COLUMN_SLOW_CELLS = 6;
@@ -27,17 +25,4 @@ export function columnMotion(t: number, start: number, land: number, target: num
   const remaining = land - t;
   // velocity falls linearly from `speed` to 0 over the slow part: continuous in position and speed
   return remaining >= slowSeconds ? speed * (t - start) : target - (speed / (2 * slowSeconds)) * remaining * remaining;
-}
-
-/** World px between the vault's columns. */
-export const COLUMN_GAP = 3;
-
-/** n equal whole-pixel columns side by side across `area`, `gap` px apart, centred, as tall as the area. */
-export function columnRects(area: Rect, n: number, gap: number): Rect[] {
-  const x = Math.round(area.x);
-  const y = Math.round(area.y);
-  const w = Math.max(1, Math.floor((Math.floor(area.w) - gap * (n - 1)) / n));
-  const total = n * w + gap * (n - 1);
-  const x0 = x + Math.floor((Math.floor(area.w) - total) / 2);
-  return Array.from({ length: n }, (_, i) => ({ x: x0 + i * (w + gap), y, w, h: Math.floor(area.h) }));
 }

@@ -1,10 +1,11 @@
-import type { Pt, Rect, TableLayout } from "../pixel/layout";
+import type { Pt } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
+import { beamLayout, type Beam } from "./beams";
 
-// Where the vault's pieces go on screen (spec 2026-10-09 §2). While the key waits, the vault sits big in the
+// Where the vault's pieces go on screen (spec 2026-10-09 §2, §5). While the key waits, the vault sits big in the
 // centre with the devil key beside it (as before). Once the key turns, the chest is at lower centre, ~28 % of
-// the screen tall when open; the five columns take the space above it, the total sits between the two. Pure:
-// screen px, except the columns' area (world px, for the columns' pixel layer).
+// the screen tall when open; five beams fan up out of its mouth past the screen edges, each reward's spot and
+// label on screen and clear of the others; the total sits just above the lid. Pure, screen px.
 
 /** The vault-case sprite's frame (vault-case.json). */
 export const VAULT_FRAME = { w: 68, h: 78, frames: 4 } as const;
@@ -14,13 +15,15 @@ export const OPEN_H = 45;
 export const BODY_W = 40;
 /** The body's centre sits this far (frame px) above the frame's bottom; the closed vault's middle. */
 export const BODY_UP = 14;
+/** The beams leave the open chest this far (frame px) below the lid's top: from behind the standing lid. */
+export const BEAM_MOUTH = 6;
+/** A streamed icon's box (world px). */
+export const BEAM_ICON = 32;
 
 const CHEST_SHARE = 0.28;
 const BOTTOM_LANDSCAPE = 0.88;
 const BOTTOM_PORTRAIT = 0.8;
-/** World px above the columns. */
-const TOP_MARGIN = 6;
-/** World px between the columns' area and the total, and between the total and the lid. */
+/** World px between the total and the lid. */
 const GAP = 2;
 
 export interface VaultLayout {
@@ -28,19 +31,15 @@ export interface VaultLayout {
   key: { bottom: Pt; S: number; home: Pt; hintY: number };
   /** The open chest: its bottom-centre (x, bottom), the open lid's top, its whole-number scale. */
   chest: { x: number; bottom: number; top: number; S: number };
-  /** The five columns and their labels (world px). */
-  columnsArea: Rect;
+  /** The five beams, left to right, and a streamed icon's box size. */
+  beams: Beam[];
+  icon: number;
   /** The total's centre, and its font size. */
   totalAt: Pt;
   totalSize: number;
 }
 
-/** The columns' strip across the table's width (world px): the HUD and the panels are gone. */
-export function vaultReelArea(l: TableLayout): Rect {
-  return { x: l.table.x + 8, y: TOP_MARGIN, w: l.table.w - 16, h: l.table.y + 44 - TOP_MARGIN };
-}
-
-export function vaultLayout(screen: { w: number; h: number }, l: TableLayout, k: number): VaultLayout {
+export function vaultLayout(screen: { w: number; h: number }, k: number): VaultLayout {
   const { w, h } = screen;
   const cx = w / 2;
 
@@ -58,15 +57,15 @@ export function vaultLayout(screen: { w: number; h: number }, l: TableLayout, k:
   const top = bottom - OPEN_H * S;
 
   const totalSize = hdFontSize(k, 16);
-  const totalY = Math.round(top - GAP * k - totalSize * 0.75);
-  const columnsBottom = Math.min(l.worldH, Math.floor((totalY - totalSize * 0.75 - GAP * k) / k));
-  const strip = vaultReelArea(l);
+  const icon = BEAM_ICON * k;
+  const mouth = { x: cx, y: top + BEAM_MOUTH * S };
 
   return {
     key,
     chest: { x: cx, bottom, top, S },
-    columnsArea: { x: strip.x, y: TOP_MARGIN, w: strip.w, h: columnsBottom - TOP_MARGIN },
-    totalAt: { x: cx, y: totalY },
+    beams: beamLayout(screen, mouth, icon, 2 * hdFontSize(k)),
+    icon,
+    totalAt: { x: cx, y: Math.round(top - GAP * k - totalSize * 0.75) },
     totalSize,
   };
 }

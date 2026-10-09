@@ -38,7 +38,7 @@ import { restorePlan } from "./restore";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 import { vaultCues } from "./vault/cues";
 import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
-import { VaultColumns } from "./vault/VaultColumns";
+import { VaultBeams } from "./vault/VaultBeams";
 import { VaultScene } from "./vault/VaultScene";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
@@ -70,9 +70,9 @@ export class World {
   private readonly time = new TimeScale();
   private readonly zoom = new Zoom();
   private readonly lifted = new Lifted();
-  /** Vault Case I's scene over everything (screen px), its five reel columns in a pixel layer of their own inside it. */
+  /** Vault Case I's scene over everything (screen px), its five reels as beams in its layers. */
   private readonly vault: VaultScene;
-  private readonly vaultColumns: VaultColumns;
+  private readonly vaultBeams: VaultBeams;
   private readonly power: PowerCycle;
   private readonly unbindMusic: () => void;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
@@ -145,7 +145,7 @@ export class World {
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
     this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
-    this.vaultColumns = new VaultColumns(skins, this.vault, juice, this.rng);
+    this.vaultBeams = new VaultBeams(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
     this.unbindMusic = bindMusicResync(
       audio,
@@ -205,7 +205,7 @@ export class World {
   /** A reload: the vault's key or opening where the sim is, its music from the sim (else activate() applies it), or the dark. */
   private restoreVault(s: RunState): void {
     const v = s.vault;
-    if (v?.phase === "opening") this.vaultColumns.restore(v.drops, v.landed);
+    if (v?.phase === "opening") this.vaultBeams.restore(v.drops, v.landed);
     if (v && this.controller.running) this.resumeMusic();
     else if (!v && s.over) this.power.darkNow();
   }
@@ -277,7 +277,6 @@ export class World {
     this.camera.set({ focusX: focus.x, focusY: focus.y, dx: Math.round(s.x * k), dy: Math.round(s.y * k), zoom: z }); // the UI overlay follows
     this.vault.root.position.set(Math.round(s.x * k), Math.round(s.y * k)); // the vault shakes too, but never zooms
     this.pixel.render(this.app.renderer);
-    this.vaultColumns.render(this.app.renderer);
   }
 
   destroy(): void {
@@ -293,7 +292,7 @@ export class World {
     this.tray.destroy();
     this.botCard.destroy();
     this.pixel.destroy();
-    this.vaultColumns.destroy();
+    this.vaultBeams.destroy();
     this.vault.destroy();
     this.scene.destroy({ children: true });
     this.skins.destroy();
@@ -324,8 +323,8 @@ export class World {
     const opening = v?.phase === "opening" ? v : null;
     this.vault.show(v?.phase ?? (s.over ? "done" : null), opening?.t ?? 0, opening?.drops ?? [], opening?.landed ?? 0);
     if (opening) {
-      this.vaultColumns.pulse(vaultCues(opening.t).pulse);
-      this.vaultColumns.update(opening.t);
+      this.vaultBeams.pulse(vaultCues(opening.t).pulse);
+      this.vaultBeams.update(opening.t);
     }
     this.vault.update(realSeconds);
     const lights = this.power.update(realSeconds);
@@ -334,7 +333,7 @@ export class World {
     const reels = scaleTint(0xffffff, lights.reels);
     this.benchReels.root.tint = reels;
     this.botReel.tint = reels;
-    this.vaultColumns.tint = reels;
+    this.vaultBeams.tint = reels;
   }
 
   /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
@@ -357,7 +356,7 @@ export class World {
     if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
     this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
-    this.vaultColumns.layout(this.l, this.vp, this.vault.layout(this.screen, this.l, this.vp.scale));
+    this.vaultBeams.layout(this.vault.layout(this.screen, this.vp.scale), this.vp.scale);
     const k = this.vp.scale;
     const size = hdFontSize(k);
     for (const txt of [this.hint, ...this.label, this.offline, this.trayFullLabel]) txt.style.fontSize = size;
@@ -494,11 +493,11 @@ export class World {
         this.audio.setTrack("vault-suspense", { loop: true });
         break;
       case "vaultKeyTurned": // the suspense fades out; the fanfare waits for the impact (musicPlan)
-        this.vaultColumns.start(e.drops);
+        this.vaultBeams.start(e.drops);
         this.resumeMusic();
         break;
       case "vaultReelLanded":
-        this.vaultColumns.landed(e.index, e.drop, e.amount);
+        this.vaultBeams.landed(e.index, e.drop, e.amount);
         break;
       case "vaultOpened":
         this.power.blackout();
@@ -514,7 +513,7 @@ export class World {
         this.tray.cancelDrag();
         this.botCard.cancelDrag();
         this.benchFx.clearAll();
-        this.vaultColumns.hide();
+        this.vaultBeams.hide();
         this.power.powerUp(); // before restore(): the stage loop waits for the lights
         this.restore(); // the fresh run's stage 1, look and music
         break;

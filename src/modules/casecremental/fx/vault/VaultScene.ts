@@ -7,7 +7,7 @@ import type { AudioEngine } from "../audio/AudioEngine";
 import { moneyStyle, pixelStyle } from "../hd/font";
 import type { HdLayer } from "../hd/HdLayer";
 import type { Shake } from "../juice/shake";
-import type { Pt, Rect, TableLayout } from "../pixel/layout";
+import type { Pt } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
 import { breath, dueBeats, type VaultBeat } from "./beats";
@@ -22,9 +22,9 @@ import { BODY_W, VAULT_FRAME, vaultLayout, type VaultLayout } from "./vaultLayou
 
 // Vault Case I takes the screen (rework spec §4, jackpot spec 2026-10-09): a dark room, the vault slammed into
 // the centre, the devil key floating beside it until the player drags it into the lock; then the legendary
-// chest — it trembles at lower centre, snaps open on the fanfare's first downbeat, a rainbow fans out behind the
-// five columns (VaultColumns, in reelSlot), coins and fireworks fly, the total counts up, and it holds. Screen
-// px, over the scene and under the HD overlay. The World drives it from the sim each frame: each beat fires
+// chest — it trembles at lower centre, snaps open on the fanfare's first downbeat, five beams pour out of it past
+// the screen edges (VaultBeams, in the beam/stream/label slots), coins and fireworks fly, the total counts up, and
+// it holds. Screen px, over the scene and under the HD overlay. The World drives it from the sim each frame: each beat fires
 // once when the sim's t crosses it, and a reload or a lobby trip lands on t without replaying any.
 
 export type VaultPhase = "key" | "opening" | "done" | null;
@@ -41,8 +41,13 @@ const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 
 export class VaultScene {
   readonly root = new Container();
-  /** VaultColumns puts its pixel layer of columns, their labels and the ★'s halo here. */
-  readonly reelSlot = new Container();
+  /** VaultBeams' layers: the beams behind the sky's particles; the streamed items and rewards behind the chest
+   *  (they pour out of it); the labels in front of every particle. */
+  readonly beamSlot = new Container();
+  readonly streamSlot = new Container();
+  readonly labelSlot = new Container();
+  /** The soft glow and the coin's spin, shared with VaultBeams. */
+  readonly art: { soft: Texture; coins: readonly Texture[] };
   private readonly dim = new Graphics();
   private readonly rays: Rays;
   private readonly chest: Chest;
@@ -83,22 +88,25 @@ export class VaultScene {
     const coinFrames = lib.get("coin", { w: 12, h: 22, frames: 4 }).frames;
     for (const f of [...vaultFrames, ...keyFrames, ...coinFrames]) f.source.scaleMode = "nearest";
 
-    this.rays = new Rays(soft, star);
+    this.art = { soft, coins: coinFrames };
+    this.rays = new Rays(soft);
     this.chest = new Chest(vaultFrames, soft);
     this.fx = new VaultFx(dot, star, coinFrames);
     this.key = new DevilKey(keyFrames, soft, audio, this.fx.sparks);
     this.hint.anchor.set(0.5, 0);
     this.total.anchor.set(0.5);
-    // back to front: the dim, the light, the fireworks and coins, the chest and its bursts — every particle under
-    // the columns and their labels — then the total, the key
+    // back to front: the dim, the light, the beams, the fireworks and coins, the streamed items, the chest and its
+    // bursts — every particle under the labels — then the labels, the total, the key
     this.root.addChild(
       this.dim,
       this.rays.root,
       this.chest.glow,
+      this.beamSlot,
       this.fx.back,
+      this.streamSlot,
       this.chest.front,
       this.fx.front,
-      this.reelSlot,
+      this.labelSlot,
       this.total,
       this.key.glow,
       this.key.sprite,
@@ -107,12 +115,12 @@ export class VaultScene {
     this.root.visible = false;
   }
 
-  /** Lays the scene out; returns the columns' area (world px) for VaultColumns. */
-  layout(screen: { w: number; h: number }, l: TableLayout, k: number): Rect {
+  /** Lays the scene out; returns the layout (the beams) for VaultBeams. */
+  layout(screen: { w: number; h: number }, k: number): VaultLayout {
     const { w, h } = screen;
     this.screen = { w, h };
     this.k = k;
-    const L = (this.L = vaultLayout(screen, l, k));
+    const L = (this.L = vaultLayout(screen, k));
     this.dim
       .clear()
       .rect(-40, -40, w + 80, h + 80)
@@ -121,12 +129,11 @@ export class VaultScene {
     this.chest.layout(L);
     this.rays.layout(screen, L.chest.S);
     this.fx.layout(screen, k);
-    const a = L.columnsArea;
-    this.sky = { top: h * 0.04, bottom: (a.y + a.h * 0.5) * k }; // fireworks and glints
+    this.sky = { top: h * 0.04, bottom: L.chest.top * 0.55 }; // fireworks and glints
     this.hint.style.fontSize = Math.round(hdFontSize(k) * 1.5);
     this.total.style.fontSize = L.totalSize;
     this.total.position.set(L.totalAt.x, L.totalAt.y);
-    return a;
+    return L;
   }
 
   /** The vault was bought just now: it drops in from above instead of just being there. */
@@ -169,8 +176,8 @@ export class VaultScene {
     this.fx.sparks.burst(this.local(p), this.pick(FIREWORK_COLORS), 14, 220 * (this.k / 6));
   }
 
-  /** A firework at `p` (the scene's px; a column's lock-in, which plays its own sound), or a random one
-   *  above the columns with its 8-bit kick. */
+  /** A firework at `p` (the scene's px; a beam's lock-in, which plays its own sound), or a random one in the
+   *  sky with its 8-bit kick. */
   firework(p?: Pt, color?: number, big = false): void {
     const { w } = this.screen;
     const at = p ?? { x: w * (0.15 + Math.random() * 0.7), y: lerp(this.sky.top, this.sky.bottom, Math.random()) };
@@ -258,7 +265,7 @@ export class VaultScene {
     }
   }
 
-  /** The five payouts counting up under the columns from 9.0, resolving at 11.5, held through the blackout. */
+  /** The five payouts counting up above the lid from 9.0, resolving at 11.5, held through the blackout. */
   private updateTotal(dt: number, t: number | null): void {
     const on = t !== null && t >= VAULT_CUES.celebrateFrom;
     this.total.visible = on;

@@ -2,10 +2,11 @@ import { Container, Sprite, type Texture } from "pixi.js";
 import { Particles } from "../juice/particles";
 import type { Pt } from "../pixel/layout";
 
-// The vault's particles (spec 2026-10-09 §1-2), in screen px. Both layers sit under the columns, their labels and
-// the total (a particle never covers a label). Behind the chest: fireworks, star glints, rising light motes and
-// gold coins arcing out of it and falling. In front of the chest: its own bursts (the slam's dust, the seam's
-// sparks, the impact), the key's embers and a click's sparks. All randomness here is visual only.
+// The vault's particles (spec 2026-10-09 §1-2), in screen px. Both layers sit under the beams' labels and the
+// total (a particle never covers a label); the back one is under the streamed items too. Behind the chest:
+// fireworks, star glints, rising light motes and gold coins arcing out of it and falling. In front of the chest:
+// its own bursts (the slam's dust, the seam's sparks, the impact), the key's embers and a click's sparks. All
+// randomness here is visual only.
 
 const GOLD = 0xffd34d;
 const PALE = 0xfff2c0;
@@ -58,7 +59,7 @@ export class VaultFx {
     return this.k / 6;
   }
 
-  /** A firework: a ring of colour with a white core (behind the columns). */
+  /** A firework: a ring of colour with a white core (behind the streamed items). */
   firework(at: Pt, color: number, big = false): void {
     const v = this.v;
     this.sky.burst(at, color, big ? 140 : 70, (big ? 520 : 360) * v, 260 * v);

@@ -1,8 +1,7 @@
-// A vault column's skin name (Press Start 2P is monospaced: a line is characters × size px wide). It wraps at
-// spaces only, never inside a word; when its longest word is wider than the column, the label's font shrinks
-// until it fits, down to a floor. Only past the floor does a word overflow (the caller keeps it centred).
-
-import { COLUMN_GAP } from "./columnMotion";
+// A vault reward's skin name (Press Start 2P is monospaced: a line is characters × size px wide). It wraps at
+// spaces only, never inside a word; when its longest word is wider than the box, the label's font shrinks until
+// it fits, down to a floor. Only past the floor does a word overflow (the caller keeps it centred). Passed the
+// whole name as one word, it keeps the name on one line and shrinks it to fit.
 
 /** The floor, as a share of the base size. */
 export const LABEL_MIN_SHARE = 0.6;
@@ -13,9 +12,6 @@ export interface FittedLabel {
   /** A word is still wider than `maxWidth` at the floor. */
   overflow: boolean;
 }
-
-/** A label's width (screen px): its column plus the gap to the next, less one world px, so neighbours never touch. */
-export const labelWidth = (columnW: number, k: number): number => (columnW + COLUMN_GAP - 1) * k;
 
 const chars = (s: string): number => [...s].length;
 

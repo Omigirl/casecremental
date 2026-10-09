@@ -41,9 +41,10 @@ export interface ChestView {
 }
 
 export class Chest {
-  /** Behind the columns: the light around the vault. */
+  /** Behind the beams: the light around the vault. */
   readonly glow: Sprite;
-  /** In front of the columns: the vault, its seam light, the light in its mouth. */
+  /** In front of the beams and their streams (they pour out of it): the vault, its seam light, the light in
+   *  its mouth. */
   readonly front = new Container();
   private readonly sprite: Sprite;
   private readonly seam = new Graphics();

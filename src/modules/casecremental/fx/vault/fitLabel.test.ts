@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 import { setLang } from "../../i18n/index";
 import { skinName } from "../../i18n/content";
 import { CASES, VAULT_LEGEND } from "../../sim/content/cases";
-import { tableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import { pixelViewport } from "../pixel/viewport";
-import { COLUMN_GAP, columnRects } from "./columnMotion";
-import { fitLabel, LABEL_MIN_SHARE, labelWidth } from "./fitLabel";
+import { fitLabel, LABEL_MIN_SHARE } from "./fitLabel";
 import { vaultLayout } from "./vaultLayout";
 
 // Press Start 2P is monospaced: a line is (characters × font size) px wide.
@@ -33,7 +31,7 @@ describe("fitLabel (a column's skin name: wrapped at spaces only, shrunk to fit 
     expect(f.overflow).toBe(true);
   });
 
-  it("fits every name a vault column can show, in both languages, above the floor on every supported screen", () => {
+  it("fits every name a vault reward can show on one line of its beam's label box, in both languages, above the floor, on every supported screen", () => {
     const ids = [...CASES[CASES.length - 1]!.skins.map((s) => s.id), VAULT_LEGEND.id];
     for (const screen of [
       { w: 1920, h: 1080 },
@@ -42,15 +40,18 @@ describe("fitLabel (a column's skin name: wrapped at spaces only, shrunk to fit 
       { w: 390, h: 844 },
     ]) {
       const vp = pixelViewport(screen.w, screen.h);
-      const area = vaultLayout(screen, tableLayout(vp), vp.scale).columnsArea;
-      const width = labelWidth(columnRects(area, 5, COLUMN_GAP)[0]!.w, vp.scale);
       const base = hdFontSize(vp.scale);
-      for (const lang of ["en", "ru"] as const) {
-        setLang(lang);
-        for (const id of ids) {
-          const f = fitLabel(words(skinName(id)), width, 1, base, base * LABEL_MIN_SHARE);
-          expect(f.overflow, `${lang} ${skinName(id)} at ${screen.w}×${screen.h}`).toBe(false);
-          for (const line of f.lines) expect([...line].length * f.size).toBeLessThanOrEqual(width);
+      for (const beam of vaultLayout(screen, vp.scale).beams) {
+        const box = beam.label;
+        for (const lang of ["en", "ru"] as const) {
+          setLang(lang);
+          for (const id of ids) {
+            const f = fitLabel([skinName(id)], box.w, 1, base, base * LABEL_MIN_SHARE);
+            expect(f.overflow, `${lang} ${skinName(id)} at ${screen.w}×${screen.h}`).toBe(false);
+            expect(f.lines).toHaveLength(1);
+            expect([...f.lines[0]!].length * f.size).toBeLessThanOrEqual(box.w);
+            expect(f.size + base).toBeLessThanOrEqual(box.h); // the name over its +$
+          }
         }
       }
     }

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { tableLayout } from "../pixel/layout";
 import type { Rect } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import { pixelViewport } from "../pixel/viewport";
@@ -16,7 +15,7 @@ const MARGIN = 4;
 
 function setup(screen: { w: number; h: number }) {
   const vp = pixelViewport(screen.w, screen.h);
-  const v = vaultLayout(screen, tableLayout(vp), vp.scale);
+  const v = vaultLayout(screen, vp.scale);
   const mouth = { x: v.chest.x, y: v.chest.top + 6 * v.chest.S };
   const icon = 2 * 16 * vp.scale;
   const labelH = 2 * hdFontSize(vp.scale);
