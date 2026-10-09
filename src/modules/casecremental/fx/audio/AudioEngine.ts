@@ -321,6 +321,8 @@ export class AudioEngine {
     const buffer = url ? this.buffers.get(url) : null;
     if (!ctx || !b || !buffer) return; // not decoded yet — preload() calls again when it is
     this.stopTrack(0.3);
+    // a one-shot asked for past its end has finished: silence, not its first bar again
+    if (!want.loop && buffer.duration > 0 && want.offset >= buffer.duration) return;
     try {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
@@ -329,7 +331,8 @@ export class AudioEngine {
       const now = ctx.currentTime;
       gain.gain.value = 0;
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(1, now + 0.3);
+      // from its top (the vault's impact) the first downbeat hits at once; a resume mid-track fades in
+      gain.gain.linearRampToValueAtTime(1, now + (want.offset < 0.05 ? 0.01 : 0.3));
       source.connect(gain).connect(b.music);
       const length = buffer.duration > 0 ? buffer.duration : 0;
       source.start(now, length ? want.offset % length : 0);

@@ -15,7 +15,15 @@ const URLS = {
 function fakeContext(state: AudioContextState = "running", failDecode: (url: string) => boolean = () => false) {
   const started: Array<{ url: string; rate: number; loop: boolean; when: number; offset: number | undefined }> = [];
   const stops: Array<{ url: string; when: number | undefined }> = [];
-  const param = () => ({ value: 1, setTargetAtTime() {}, cancelScheduledValues() {}, linearRampToValueAtTime() {}, setValueAtTime() {} });
+  /** Every linear gain ramp: when it ends. */
+  const ramps: number[] = [];
+  const param = () => ({
+    value: 1,
+    setTargetAtTime() {},
+    cancelScheduledValues() {},
+    linearRampToValueAtTime: (_v: number, end: number) => void ramps.push(end),
+    setValueAtTime() {},
+  });
   const node = () => ({ gain: param(), connect: (n: unknown) => n });
   const ctx = {
     state,
@@ -42,7 +50,7 @@ function fakeContext(state: AudioContextState = "running", failDecode: (url: str
     resume: async () => {},
     close: async () => {},
   };
-  return { ctx: ctx as unknown as Ctx, started, stops };
+  return { ctx: ctx as unknown as Ctx, started, stops, ramps };
 }
 
 const deps = (ctx: Ctx | null, random = () => 0.5): AudioDeps => ({
@@ -107,6 +115,33 @@ describe("AudioEngine tracks and caps", () => {
     a.setTrack(null);
     expect(stops.some((s) => s.url === "pres")).toBe(true);
     expect(started.filter((s) => s.url === "m1")).toHaveLength(before + 1); // the stage loop is back
+  });
+
+  it("a one-shot asked for past its end stays silent instead of wrapping to its first bar", async () => {
+    const { ctx, started } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    a.setTrack("vault-fanfare", { loop: false, offset: 13.2 }); // the fake buffers are 10 s long
+    expect(started.some((s) => s.url === "fan1")).toBe(false);
+    a.setTrack("vault-fanfare", { loop: false, offset: 9.5 });
+    expect(started.find((s) => s.url === "fan1")?.offset).toBe(9.5);
+  });
+
+  it("a track started from its top hits at once (the vault impact); a resume mid-track fades in", async () => {
+    const { ctx, ramps } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    ramps.length = 0;
+    a.setTrack("vault-fanfare", { loop: false, offset: 0 });
+    expect(Math.max(...ramps)).toBeLessThanOrEqual(0.02);
+    ramps.length = 0;
+    a.setTrack("vault-suspense");
+    a.setTrack("vault-fanfare", { loop: false, offset: 4 });
+    expect(ramps).toContain(0.3);
   });
 
   it("stops a capped sound at start + maxSeconds, and leaves an uncapped one alone", async () => {
