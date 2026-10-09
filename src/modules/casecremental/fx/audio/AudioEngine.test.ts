@@ -196,6 +196,20 @@ describe("AudioEngine tracks and caps", () => {
     expect(stop.when).toBeCloseTo(rumble.when + 3.5);
     expect(stops.some((s) => s.url.startsWith("tick"))).toBe(false);
   });
+
+  it("stops a sound still playing (a whisper over the vault's intro), and leaves others alone", async () => {
+    const { ctx, stops } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.unlock();
+    await a.ready;
+    a.play("vault-rumble");
+    a.play("reel-tick");
+    const before = stops.length;
+    a.stop("reel-tick");
+    const after = stops.slice(before);
+    expect(after.some((s) => s.url.startsWith("tick"))).toBe(true);
+    expect(after.some((s) => s.url === "rumble")).toBe(false);
+  });
 });
 
 describe("AudioEngine", () => {

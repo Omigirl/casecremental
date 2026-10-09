@@ -268,6 +268,8 @@ export class VaultScene {
     switch (b.beat) {
       case "keyTurn": // the key's work is done: it bursts into embers (the intro starts with the sim's key turn)
         this.fx.sparks.burst(this.key.pos, EMBER, 40, 260 * (this.k / 6), -200 * (this.k / 6));
+        this.audio.stop("devil-key-whisper"); // nothing talks over the intro
+        this.audio.stop("devil-key-laugh");
         break;
       case "impact": {
         this.shake.add(0.35); // its flash is the schedule's first (chaosPlan)

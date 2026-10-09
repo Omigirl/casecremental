@@ -74,6 +74,8 @@ export class AudioEngine {
   private buses: { music: GainNode; sfx: GainNode; ui: GainNode; duck: GainNode } | null = null;
   private readonly buffers = new Map<string, AudioBuffer | null>();
   private readonly last = new Map<SoundId, number>();
+  /** The sound effects still playing, per id, so one can be stopped early. */
+  private readonly playing = new Map<SoundId, Set<{ src: AudioBufferSourceNode; g: GainNode }>>();
   private readonly files: AudioFiles;
   private volumes = { music: 0.6, sfx: 0.8 };
   private loop: Loop | null = null;
@@ -141,6 +143,22 @@ export class AudioEngine {
     this.start(id, urls[v]!, j.rate * (opts.rate ?? 1), j.gain * (opts.gain ?? 1), opts.delay ?? 0);
   }
 
+  /** Stop a sound that is still playing, with a short fade (a whisper must not run over the vault's intro). */
+  stop(id: SoundId, fade = 0.08): void {
+    const ctx = this.ctx;
+    const live = this.playing.get(id);
+    if (!ctx || !live) return;
+    for (const { src, g } of live) {
+      try {
+        g.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);
+        src.stop(ctx.currentTime + fade);
+      } catch {
+        // already stopped
+      }
+    }
+    live.clear();
+  }
+
   /** How many generated files a sound has (the dev sound board lists them). */
   variantCount(id: SoundId): number {
     return this.files.sfx.get(id)?.length ?? 0;
@@ -166,6 +184,11 @@ export class AudioEngine {
       src.connect(g).connect(SOUNDS[id].bus === "ui" ? b.ui : b.sfx);
       const at = ctx.currentTime + delay;
       src.start(at);
+      const live = this.playing.get(id) ?? new Set();
+      const entry = { src, g };
+      live.add(entry);
+      this.playing.set(id, live);
+      src.onended = () => live.delete(entry);
       const cap = maxSecondsOf(id);
       if (cap !== undefined) {
         const end = at + cap;
