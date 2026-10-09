@@ -1,10 +1,10 @@
 import { beatPulse } from "./beat";
-import { VAULT_CUES } from "./cues";
+import { INTRO_HITS, introHit, VAULT_CUES } from "./cues";
 
-// How wild the vault gets, second by second (plan M2b-C6): dead still through the held beat, everything at full
-// tilt from the drop through the spin and the lock-ins, easing off through the count-up into the hold. Each
-// channel is an envelope (0-1) that the chaos layer multiplies with the beat's pulses. Pure functions of the sim's
-// t, so a reload or a lobby trip lands on the same chaos with nothing replayed.
+// How wild the vault gets, second by second (plans M2b-C6, C8): still through the intro (only its run-up punches
+// in), everything at full tilt from the drop through the spin and the lock-ins, easing off through the count-up
+// into the hold. Each channel is an envelope (0-1) that the chaos layer multiplies with the beat's pulses. Pure
+// functions of the sim's t, so a reload or a lobby trip lands on the same chaos with nothing replayed.
 
 export interface ChaosLevels {
   /** The camera's beat-locked shake and sway. */
@@ -29,7 +29,7 @@ const SURGE_FROM = 0.75;
 /** The count-up softens the chaos to here, and the hold to here. */
 const COUNTED = 0.55;
 const HOLD = 0.25;
-const HOLD_BY = 13;
+const HOLD_BY = C.impact + 12;
 /** The rain needs a moment to reach the floor. */
 const RAIN_IN_SECONDS = 0.5;
 /** A kick's zoom punch dies away over this long (under the volley's 0.35 s gap). */
@@ -73,8 +73,19 @@ export function kickPulse(t: number): number {
   return u < 1 ? (1 - u) ** 2 : 0;
 }
 
-/** Every full-screen flash of the opening: a kick flashes unless it would be the 4th within a second. */
-const FLASHES: readonly number[] = C.fireworks.reduce<number[]>((out, at) => {
+/** 1 on each of the intro's run-up hits, dying away like the hit (cues.ts); 0 on the build, in the pause and from
+ *  the impact on. The chaos layer's zoom punch before the drop. */
+export function introPunch(t: number): number {
+  const { index, pulse } = introHit(t);
+  return index >= 0 && INTRO_HITS[index]!.kind === "run" ? pulse : 0;
+}
+
+/** The intro's one full-screen flash: its last run-up hit, just before the impact (within the budget below). */
+const INTRO_FLASH = INTRO_HITS[INTRO_HITS.length - 1]!.at;
+
+/** Every full-screen flash of the opening: the intro's last hit, then the kicks; each flashes unless it would be the
+ *  4th within a second. The rest of the run-up (0.30-0.35 s apart) jolts and punches instead. */
+const FLASHES: readonly number[] = [INTRO_FLASH, ...C.fireworks].reduce<number[]>((out, at) => {
   const back = out[out.length - FLASHES_PER_SECOND];
   if (back === undefined || at - back > 1) out.push(at);
   return out;

@@ -2,17 +2,17 @@ import { Container, Sprite, Texture, TilingSprite } from "pixi.js";
 import type { Pt } from "../pixel/layout";
 import { barPulse, beatAt, beatPulse, VAULT_BPM } from "./beat";
 import { itemJitter } from "./beamStream";
-import { chaosBeat, chaosLevels, kickPulse, type ChaosLevels } from "./chaosPlan";
+import { chaosBeat, chaosLevels, introPunch, kickPulse, type ChaosLevels } from "./chaosPlan";
 import { VAULT_CUES } from "./cues";
 import { canvasTexture } from "./textures";
 
-// The vault's chaos layer (plan M2b-C6, "no space on screen which is not moving"): the camera shaking on every
-// beat of the drum-and-bass drop, harder on the bars and punching in on every kick; the backdrop swaying; the room
-// behind wobbling to the bar; hue-cycling stripes scrolling across the whole screen; coins, pixel stars and
-// confetti raining across its width; sparks bursting in from both edges on the bars. Everything here is behind
-// the rewards and their labels, and every position is a function of the sim's t (chaosLevels, the beat's
-// pulses, a hash per sprite), so a reload lands on the same frame and nothing replays. The sprites are pooled at
-// construction; a frame allocates none.
+// The vault's chaos layer (plan M2b-C6, "no space on screen which is not moving"): before the drop, only a punch in
+// on each of the intro's run-up hits; then the camera shaking on every beat of the fanfare, harder on the bars and
+// punching in on every kick; the backdrop swaying; the room behind wobbling to the bar; hue-cycling stripes
+// scrolling across the whole screen; coins, pixel stars and confetti raining across its width; sparks bursting in
+// from both edges on the bars. Everything here is behind the rewards and their labels, and every position is a
+// function of the sim's t (chaosLevels, the beat's pulses, a hash per sprite), so a reload lands on the same frame
+// and nothing replays. The sprites are pooled at construction; a frame allocates none.
 
 /** Rain sprites: coins, pixel stars and confetti in turn. */
 const RAIN = 96;
@@ -30,6 +30,8 @@ const BUZZ = 0.5;
 /** The zoom punch on a kick, and the beams' width pulse on a beat (scale about the chest's mouth). */
 const PUNCH_KICK = 0.05;
 const PUNCH_BEAT = 0.025;
+/** The zoom punch on an intro run-up hit (before the drop, the chaos's levels are 0). */
+const PUNCH_INTRO = 0.04;
 /** The labels' and the total's wobble (screen px): readable, a tremor only. */
 const WOBBLE_PX = 2;
 /** The landed icons' bob on the beat (screen px), at most. */
@@ -183,14 +185,15 @@ export class VaultChaos {
     return s;
   }
 
-  /** The beat-locked shake (a fresh direction each beat), the kick's punch, the sway, the room's wobble. */
+  /** The beat-locked shake (a fresh direction each beat), the kick's and the intro run-up's punch, the sway, the
+   *  room's wobble. */
   private camera(t: number, L: ChaosLevels, beat: number, bar: number, kick: number, mouth: Pt): void {
     const u = this.u;
     const dir = itemJitter(0x5eed, Math.floor(beatAt(t))) * Math.PI;
     const amp = L.shake * u * (SHAKE_BEAT * beat + SHAKE_BAR * bar + SHAKE_KICK * kick);
     const sx = Math.round(Math.cos(dir) * amp + L.shake * u * BUZZ * Math.sin(t * 43.1));
     const sy = Math.round(Math.sin(dir) * amp + L.shake * u * BUZZ * Math.cos(t * 37.7));
-    const punch = L.zoom * (PUNCH_KICK * kick + PUNCH_BEAT * beat);
+    const punch = L.zoom * (PUNCH_KICK * kick + PUNCH_BEAT * beat) + PUNCH_INTRO * introPunch(t);
 
     this.stage.pivot.set(mouth.x, mouth.y);
     this.stage.position.set(mouth.x + sx, mouth.y + sy);

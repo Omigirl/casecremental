@@ -55,14 +55,20 @@ export function maxSecondsOf(id: SoundId): number | undefined {
   return (SOUNDS[id] as { maxSeconds?: number }).maxSeconds;
 }
 
-/** Named music that replaces the stage loop: the vault's suspense and fanfare, the prestige loop. */
-export type TrackId = "vault-suspense" | "vault-fanfare" | "prestige";
+/** Named music that replaces the stage loop: the vault's suspense, its intro (from the key turn to the impact) and
+ *  fanfare, the prestige loop. */
+export type TrackId = "vault-suspense" | "vault-intro" | "vault-fanfare" | "prestige";
 
 /** The music bus runs this much above its slider (user: "make music louder" — the generated music sat well under
  *  the effects); the master compressor keeps the peaks in check. */
 export const MUSIC_BOOST = 1.6;
-/** Each named track's level on the music bus: the drum and bass drop rides over everything. */
-export const TRACK_GAIN: Readonly<Record<TrackId, number>> = { "vault-suspense": 1.2, "vault-fanfare": 1.5, prestige: 1 };
+/** Each named track's level on the music bus: the intro and the fanfare's drop ride over everything. */
+export const TRACK_GAIN: Readonly<Record<TrackId, number>> = {
+  "vault-suspense": 1.2,
+  "vault-intro": 1.4,
+  "vault-fanfare": 1.5,
+  prestige: 1,
+};
 
 export interface AudioFiles {
   /** variant URLs per sound */
@@ -88,7 +94,7 @@ export function indexAudio(urls: Record<string, string>): AudioFiles {
       music.set(Number(stage[1]), url);
       continue;
     }
-    const track = /^(vault-suspense|vault-fanfare|prestige)(?:-(\d+))?$/.exec(name);
+    const track = /^(vault-suspense|vault-intro|vault-fanfare|prestige)(?:-(\d+))?$/.exec(name);
     if (track) {
       const trackId = track[1] as TrackId;
       if (!tracks.has(trackId)) tracks.set(trackId, url); // sorted, so -1 wins over a spare -2

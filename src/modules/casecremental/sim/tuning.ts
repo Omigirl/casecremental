@@ -137,10 +137,14 @@ export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Vault Case I: its price grows this much per completed loop. */
 export const VAULT_GROWTH = 4;
-/** Vault Case I (rework spec §4): after the key turns, five reels land at these seconds (on the fanfare's
- *  beats); the scene ends here; each reel pays this share of the vault's price, rarer each time. */
-export const VAULT_LAND_TIMES = [6, 6.5, 7, 7.5, 8.5] as const;
-export const VAULT_OPENING_SECONDS = 14.5;
+/** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
+ *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
+export const VAULT_INTRO_SECONDS = 3.4;
+/** Vault Case I (rework spec §4): after the key turns, five reels land at these seconds (5-7.5 s after the impact,
+ *  on the fanfare's 120 BPM beats); the scene ends once the 14 s fanfare has rung out; each reel pays this share of
+ *  the vault's price, rarer each time. */
+export const VAULT_LAND_TIMES = [8.4, 8.9, 9.4, 9.9, 10.9] as const;
+export const VAULT_OPENING_SECONDS = 17.4;
 export const VAULT_REEL_SHARES = [0.03, 0.06, 0.08, 0.13, 0.3] as const;
 export const VAULT_REEL_RARITIES = ["classified", "covert", "covert", "gold", "gold"] as const;
 export const VAULT_TROPHY = "vault1";

@@ -1,7 +1,7 @@
 import { VAULT_CUES } from "./cues";
 
-/** The total shown under the columns: 0 before the celebration (9.0), counting up to `total` by 11.5
- *  (ease-out), `total` after. */
+/** The total shown under the columns: 0 before the celebration (VAULT_CUES.celebrateFrom), counting up to `total`
+ *  by its end (ease-out), `total` after. */
 export function countUp(t: number, total: number): number {
   const { celebrateFrom: a, celebrateTo: b } = VAULT_CUES;
   if (t <= a) return 0;

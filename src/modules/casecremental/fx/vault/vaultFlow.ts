@@ -13,7 +13,7 @@ export interface MusicPlan {
   /** A named track over the stage loop, or null for the stage loop. */
   track: TrackId | null;
   loop: boolean;
-  /** Where a one-shot starts (the fanfare resumes at the opening's time). */
+  /** Where a one-shot starts (the intro and the fanfare resume at the opening's time). */
   offset: number;
   musicOn: boolean;
 }
@@ -32,7 +32,8 @@ export function musicPlan(s: Pick<RunState, "vault" | "over">, power: PowerPhase
   const v = s.vault;
   if (v?.phase === "key") return plan("vault-suspense");
   if (v?.phase === "opening") {
-    if (v.t < VAULT_CUES.impact) return plan("vault-fanfare", false, 0, false); // silent: the World starts it at the impact
+    // the intro from the key turn; on the impact the scene hands over to the fanfare (its first downbeat)
+    if (v.t < VAULT_CUES.impact) return plan("vault-intro", false, v.t);
     return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
   }
   // the prestige loop waits for the dark: the PowerCycle turns it on when the blackout has fallen

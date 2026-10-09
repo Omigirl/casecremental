@@ -79,6 +79,7 @@ const TRACKS = {
   "/a/vault-suspense.mp3": "susp",
   "/a/vault-fanfare-1.mp3": "fan1",
   "/a/vault-fanfare-2.mp3": "fan2",
+  "/a/vault-intro-1.mp3": "intro1",
   "/a/prestige.mp3": "pres",
   "/a/vault-rumble-1.mp3": "rumble",
 };
@@ -96,6 +97,13 @@ describe("indexAudio tracks", () => {
     expect(files.tracks.get("vault-fanfare")).toBe("f1");
     expect(files.tracks.get("prestige")).toBe("p");
     expect(files.music.get(1)).toBe("m1");
+  });
+
+  it("indexes the vault's intro as its own track, not as the fanfare or an effect", () => {
+    const files = indexAudio({ "/a/vault-intro-1.mp3": "i1", "/a/vault-fanfare-1.mp3": "f1" });
+    expect(files.tracks.get("vault-intro")).toBe("i1");
+    expect(files.tracks.get("vault-fanfare")).toBe("f1");
+    expect(files.sfx.size).toBe(0);
   });
 });
 
@@ -133,6 +141,32 @@ describe("AudioEngine tracks and caps", () => {
     expect(started.some((s) => s.url === "fan1")).toBe(false);
     a.setTrack("vault-fanfare", { loop: false, offset: 9.5 });
     expect(started.find((s) => s.url === "fan1")?.offset).toBe(9.5);
+  });
+
+  it("re-asking a one-shot moves it to the new offset (a resync mid-intro), a loop asked again carries on", async () => {
+    const { ctx, started } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    a.setTrack("vault-intro", { loop: false, offset: 0 });
+    a.setMusicOn(false);
+    a.setTrack("vault-intro", { loop: false, offset: 1.6 });
+    a.setMusicOn(true);
+    expect(started.filter((s) => s.url === "intro1").map((s) => s.offset)).toEqual([0, 1.6]);
+    a.setTrack("vault-suspense");
+    a.setTrack("vault-suspense");
+    expect(started.filter((s) => s.url === "susp")).toHaveLength(1);
+  });
+
+  it("an intro with no file yet stays silent", async () => {
+    const { ctx, started } = fakeContext();
+    const a = new AudioEngine(URLS, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    expect(() => a.setTrack("vault-intro", { loop: false, offset: 0 })).not.toThrow();
+    expect(started.some((s) => !s.loop)).toBe(false);
   });
 
   it("a track started from its top hits at once (the vault impact); a resume mid-track fades in", async () => {
@@ -308,5 +342,6 @@ describe("AudioEngine.onReady", () => {
     a.setTrack("vault-fanfare", { loop: false, offset: 0 });
     expect(levels).toContain(TRACK_GAIN["vault-fanfare"]);
     expect(TRACK_GAIN["vault-fanfare"]).toBeGreaterThan(1);
+    expect(TRACK_GAIN["vault-intro"]).toBe(1.4);
   });
 });

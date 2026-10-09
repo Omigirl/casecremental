@@ -204,10 +204,11 @@ export class AudioEngine {
     } else this.updateMusic();
   }
 
-  /** A named track (the vault's suspense and fanfare, the prestige loop) replaces the stage loop; null
-   *  hands back to it. A one-shot can start part-way (a reload mid-fanfare). */
+  /** A named track (the vault's suspense, intro and fanfare, the prestige loop) replaces the stage loop; null
+   *  hands back to it. A one-shot can start part-way (a reload mid-intro or mid-fanfare): asked again, it moves to
+   *  the new offset; a loop asked again carries on. */
   setTrack(id: TrackId | null, opts: { loop?: boolean; offset?: number } = {}): void {
-    if ((this.wantTrack?.id ?? null) === id && id !== "vault-fanfare") return;
+    if ((this.wantTrack?.id ?? null) === id && opts.loop !== false) return;
     this.wantTrack = id ? { id, loop: opts.loop ?? true, offset: opts.offset ?? 0 } : null;
     this.updateMusic();
   }

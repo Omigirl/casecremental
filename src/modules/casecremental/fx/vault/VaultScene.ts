@@ -1,7 +1,6 @@
 import { Container, Graphics, Text, type Texture } from "pixi.js";
 import { getLang, t as tr } from "../../i18n/index";
 import { formatCash } from "../../sim/format";
-import { RARITY_INFO } from "../../sim/rarity";
 import type { Drop } from "../../sim/types";
 import type { AudioEngine } from "../audio/AudioEngine";
 import { moneyStyle, pixelStyle } from "../hd/font";
@@ -11,11 +10,12 @@ import type { Pt } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
 import { breath, dueBeats, type DueBeat } from "./beats";
+import { burstColor, FIREWORK_COLORS, introSpot, kickSpot, pick } from "./bursts";
 import { VaultChaos } from "./chaos";
 import { chaosBeat, flashCrossed } from "./chaosPlan";
 import { Chest } from "./chest";
 import { countUp } from "./countUp";
-import { VAULT_CUES, vaultCues, type VaultCues } from "./cues";
+import { INTRO_HITS, VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import { DevilKey, dist, EMBER, KEY_FRAME } from "./devilKey";
 import { Rays } from "./rays";
 import { vaultTextures } from "./textures";
@@ -24,12 +24,12 @@ import { BODY_W, VAULT_FRAME, vaultLayout, type VaultLayout } from "./vaultLayou
 
 // Vault Case I takes the screen (rework spec §4, jackpot spec 2026-10-09): a dark room, the vault slammed into
 // the centre, the devil key floating beside it until the player drags it into the lock; then the legendary
-// chest — it trembles at lower centre, snaps open on the fanfare's first downbeat, five beams pour out of it past
-// the screen edges (VaultBeams, in the beam/stream/label slots), coins and fireworks fly, the total counts up, and
-// it holds. The chaos layer (VaultChaos) shakes, sways and rains behind all of it to the drum-and-bass drop, and a
-// kick explodes somewhere on screen every VAULT_CUES.fireworks time. Screen px, over the scene and under the HD
-// overlay. The World drives it from the sim each frame: each beat fires once when the sim's t crosses it, and a
-// reload or a lobby trip lands on t without replaying any.
+// chest — it jolts at lower centre on the intro's kicks (INTRO_HITS), snaps open on the fanfare's first downbeat,
+// five beams pour out of it past the screen edges (VaultBeams, in the beam/stream/label slots), coins and fireworks
+// fly, the total counts up, and it holds. The chaos layer (VaultChaos) shakes, sways and rains behind all of it to
+// the fanfare, and a kick explodes somewhere on screen every VAULT_CUES.fireworks time. Screen px, over the scene
+// and under the HD overlay. The World drives it from the sim each frame: each beat fires once when the sim's t
+// crosses it, and a reload or a lobby trip lands on t without replaying any.
 
 export type VaultPhase = "key" | "opening" | "done" | null;
 
@@ -37,23 +37,7 @@ const SLAM_DELAY = 0.28;
 const DIM_KEY = 0.8;
 const DIM_OPEN = 0.86;
 const GOLD = 0xffd34d;
-const FIREWORK_COLORS = [RARITY_INFO.covert.color, RARITY_INFO.gold.color, RARITY_INFO.classified.color, 0xffffff, 0x7affc1];
-/** Where the kicks burst, kick i at spot i (shares of the screen, jittered): the corners and sides as well as the sky. */
-const KICK_SPOTS: readonly (readonly [number, number])[] = [
-  [0.5, 0.14],
-  [0.1, 0.12],
-  [0.9, 0.16],
-  [0.08, 0.52],
-  [0.92, 0.46],
-  [0.3, 0.3],
-  [0.7, 0.26],
-  [0.1, 0.86],
-  [0.9, 0.84],
-  [0.5, 0.4],
-];
-const KICK_JITTER = 0.06;
-const jitter = () => (Math.random() - 0.5) * 2 * KICK_JITTER;
-/** The impact's flash, and a kick's (in its colour). */
+/** The impact's flash, and a kick's or the intro's last hit's (in its colour). */
 const IMPACT_FLASH = 0.35;
 const KICK_FLASH = 0.16;
 /** The hold: the particles die away over this long after the count-up. */
@@ -190,10 +174,10 @@ export class VaultScene {
     this.t = t;
     this.frameCues = vaultCues(t);
     for (const b of dueBeats(prev, t)) this.beat(b);
-    // the full-screen flashes, within the photosensitivity budget (chaosPlan)
+    // the full-screen flashes, within the photosensitivity budget (chaosPlan): the intro's last hit, the impact, kicks
     const flash = flashCrossed(prev, t);
     if (flash === VAULT_CUES.impact) this.hd.flash(0xfff2c0, IMPACT_FLASH);
-    else if (flash !== null) this.hd.flash(this.fireworkColor(), KICK_FLASH);
+    else if (flash !== null) this.hd.flash(this.burstColor(), KICK_FLASH);
   }
 
   /** Pointer `id` went down at `p` (screen px): grab the key if it is on it. */
@@ -218,13 +202,13 @@ export class VaultScene {
 
   /** Sparks where a hands-off click lands. */
   sparks(p: Pt): void {
-    this.fx.sparks.burst(this.local(p), this.pick(FIREWORK_COLORS), 14, 220 * (this.k / 6));
+    this.fx.sparks.burst(this.local(p), pick(FIREWORK_COLORS), 14, 220 * (this.k / 6));
   }
 
   /** A firework at `p` (the scene's still px; a beam's lock-in, which plays its own sound). It bursts on the
    *  shaking stage, spawned where it shows exactly on `p` this frame (not off by the shake or the kick's zoom). */
   firework(p: Pt, color?: number, big = false): void {
-    this.fx.firework(this.chaos.toStage(p), color ?? this.fireworkColor(), big);
+    this.fx.firework(this.chaos.toStage(p), color ?? this.burstColor(), big);
   }
 
   update(dt: number): void {
@@ -282,8 +266,7 @@ export class VaultScene {
 
   private beat(b: DueBeat): void {
     switch (b.beat) {
-      case "keyTurn": // the key's work is done: it bursts into embers; the riser climbs to the impact
-        this.audio.play("vault-riser");
+      case "keyTurn": // the key's work is done: it bursts into embers (the intro starts with the sim's key turn)
         this.fx.sparks.burst(this.key.pos, EMBER, 40, 260 * (this.k / 6), -200 * (this.k / 6));
         break;
       case "impact": {
@@ -293,6 +276,9 @@ export class VaultScene {
         this.music(); // the fanfare's first downbeat
         break;
       }
+      case "introHit":
+        this.introHit(b.hit ?? 0);
+        break;
       case "firework":
         this.kick(b.kick ?? 0);
         break;
@@ -316,7 +302,7 @@ export class VaultScene {
     }
   }
 
-  /** The five payouts counting up above the lid from 9.0, resolving at 11.5, held through the blackout. */
+  /** The five payouts counting up above the lid through the celebration, held through the blackout. */
   private updateTotal(dt: number, t: number | null): void {
     const on = t !== null && t >= VAULT_CUES.celebrateFrom;
     this.total.visible = on;
@@ -369,12 +355,21 @@ export class VaultScene {
     }
   }
 
-  /** Kick `index` of VAULT_CUES.fireworks: a two-colour burst at its spot of KICK_SPOTS (corners and sides too) with
+  /** Intro hit `index` (INTRO_HITS; the jolt, seam flare and punch follow the cues): seam sparks, more each hit; a
+   *  run-up hit also bursts at the chest and somewhere on screen. No sound: the kick is in the intro. */
+  private introHit(index: number): void {
+    const seam = this.chest.seamPos();
+    this.fx.seamSparks(seam, BODY_W * this.chest.scale * 0.7, 4 + 2 * index);
+    if (INTRO_HITS[index]?.kind !== "run") return;
+    this.shake.add(0.1 + 0.02 * index);
+    this.fx.sparks.burst(seam, GOLD, 20 + 6 * index, 300 * (this.k / 6), 160 * (this.k / 6));
+    this.firework(introSpot(index, this.screen));
+  }
+
+  /** Kick `index` of VAULT_CUES.fireworks: a two-colour burst at its spot (bursts.ts: corners and sides too) with
    *  its explosion — the same spot for the same kick, live or after a reload. */
   private kick(index: number): void {
-    const { w, h } = this.screen;
-    const [sx, sy] = KICK_SPOTS[index % KICK_SPOTS.length]!;
-    const at = { x: w * (sx + jitter()), y: h * (sy + jitter()) };
+    const at = kickSpot(index, this.screen);
     this.firework(at);
     this.firework(at);
     this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
@@ -394,15 +389,9 @@ export class VaultScene {
     this.audio.play("devil-key-laugh", { delay: 0.35 });
   }
 
-  /** A landed drop's rarity colour (the sky celebrates what came out), or a festive one. */
-  private fireworkColor(): number {
-    const got = this.drops.slice(0, this.landed);
-    if (got.length && Math.random() < 0.6) return RARITY_INFO[this.pick(got).rarity].color;
-    return this.pick(FIREWORK_COLORS);
-  }
-
-  private pick<T>(xs: readonly T[]): T {
-    return xs[Math.floor(Math.random() * xs.length)]!;
+  /** A landed drop's rarity colour, or a festive one. */
+  private burstColor(): number {
+    return burstColor(this.drops.slice(0, this.landed));
   }
 
   private local(p: Pt): Pt {

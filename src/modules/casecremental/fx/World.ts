@@ -490,7 +490,7 @@ export class World {
         this.vault.slam();
         this.audio.setTrack("vault-suspense", { loop: true });
         break;
-      case "vaultKeyTurned": // the suspense fades out; the fanfare waits for the impact (musicPlan)
+      case "vaultKeyTurned": // the intro takes over from the suspense; the fanfare on the impact (musicPlan)
         this.vaultBeams.start(e.drops);
         this.resumeMusic();
         break;

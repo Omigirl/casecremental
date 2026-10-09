@@ -8,10 +8,13 @@ import type { Drop } from "../../sim/types";
 import type { Juice } from "../juice/juice";
 import { pixelViewport } from "../pixel/viewport";
 import type { SkinTextures } from "../skins/pixelSkin";
-import { vaultCues, type VaultCues } from "./cues";
+import { VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import { VaultBeams } from "./VaultBeams";
 import { vaultLayout } from "./vaultLayout";
 import type { VaultScene } from "./VaultScene";
+
+/** Mid-spin: two seconds after the impact, every beam grown in. */
+const SPINNING = VAULT_CUES.impact + 2;
 
 // Pixi's gradient fill needs a canvas: plain styles here (the text's look isn't under test)
 vi.mock("../hd/font", () => ({
@@ -90,7 +93,7 @@ describe("VaultBeams' stream under the camera", () => {
   it("keeps the streamed items on their beams through the shake and the zoom", () => {
     const h = harness();
     h.beams.start(drops);
-    h.beams.update(3);
+    h.beams.update(SPINNING);
     kick(h);
     render(h);
     const lane = lanesOf(h.beams)[2]!; // the centre beam: its items sit on its axis, give or take the scatter
@@ -173,10 +176,10 @@ describe("VaultBeams.update's cues", () => {
   it("uses the frame's cues when given, else works them out from t", () => {
     const h = harness();
     h.beams.start(drops);
-    h.beams.update(3);
-    expect(lanesOf(h.beams)[0]!.beam.visible).toBe(true); // grown in by 3 s
-    const none = { ...vaultCues(3), columnIn: [0, 0, 0, 0, 0] as VaultCues["columnIn"] };
-    h.beams.update(3, none);
+    h.beams.update(SPINNING);
+    expect(lanesOf(h.beams)[0]!.beam.visible).toBe(true); // grown in by then
+    const none = { ...vaultCues(SPINNING), columnIn: [0, 0, 0, 0, 0] as VaultCues["columnIn"] };
+    h.beams.update(SPINNING, none);
     expect(lanesOf(h.beams)[0]!.beam.visible).toBe(false);
   });
 });

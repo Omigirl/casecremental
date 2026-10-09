@@ -5,9 +5,10 @@ import { VAULT_CUES, type VaultCues } from "./cues";
 import { BODY_UP, BODY_W, VAULT_FRAME, type VaultLayout } from "./vaultLayout";
 
 // The vault itself (spec 2026-10-09 §1): slammed into the centre while the key waits; once it turns, it glides
-// down to lower centre and settles, trembles in bursts that grow harder while a gold seam of light widens along
-// its lid, holds still for a beat, then snaps open — the open frame stretching up past itself while the body
-// recoils — and glows gold inside, bouncing on the drop's beat while its inner light throbs. Everything follows
+// down to lower centre and settles, jolts on each of the intro's hits (harder with each) while a gold seam of light
+// widens along its lid, holds still through the intro's pause, its seam glowing steadily, then snaps open on the
+// impact — the open frame stretching up past itself while the body recoils — and glows gold inside, bouncing on
+// the drop's beat while its inner light throbs. Everything follows
 // the sim's t (a reload lands on the same frame); only the waiting vault's breathing and the glows use the wall
 // clock.
 
@@ -20,10 +21,12 @@ const SEAM_Y = 59;
 const SLAM_SECONDS = 0.35;
 /** The key turned: the vault glides from the centre to lower centre, then settles with a bounce. */
 const GLIDE_SECONDS = 0.35;
-/** Tremble: ~18 Hz, in 0.15 s bursts every 0.25 s. */
+/** A jolt on an intro hit: it shakes ~18 Hz this far (sprite px at full tremble), hops up and swells a little,
+ *  dying away with the hit. */
 const TREMBLE_HZ = 18;
-const BURST_EVERY = 0.25;
-const BURST_ON = 0.15;
+const JOLT_PX = 3;
+const JOLT_HOP = 0.6;
+const JOLT_SWELL = 0.05;
 /** After the impact: the in-between frame, and the body's recoil. */
 const SNAP_SECONDS = 0.05;
 const RECOIL_SECONDS = 0.25;
@@ -175,12 +178,14 @@ export class Chest {
       const settle = b > 0 ? 1 + 0.1 * Math.exp(-b * 8) * Math.sin(b * 26) : 1;
       sx = lerp(sx, L.chest.S, g) * settle;
       sy = sx;
-      // tremble in bursts
+      // the jolt on an intro hit (still between them and through the pause)
       const c = v.cues;
-      if (c.tremble > 0 && t % BURST_EVERY < BURST_ON) {
-        const a = c.tremble * 2 * L.chest.S;
+      if (c.tremble > 0) {
+        const a = c.tremble * JOLT_PX * L.chest.S;
         x += Math.round(a * Math.sin(2 * Math.PI * TREMBLE_HZ * t));
-        y += Math.round(a * 0.4 * Math.cos(2 * Math.PI * TREMBLE_HZ * 1.3 * t));
+        y += Math.round(a * 0.4 * Math.cos(2 * Math.PI * TREMBLE_HZ * 1.3 * t) - a * JOLT_HOP * c.hit);
+        sx *= 1 + JOLT_SWELL * c.tremble;
+        sy = sx;
       }
       // the snap: the open frame stretches up past itself, the body recoils down 2 px, then both settle
       const snap = snapStretch(c.lid);
@@ -222,7 +227,7 @@ export class Chest {
       this.glow.tint = GOLD;
       this.glow.alpha = Math.min(1, 0.7 + 0.15 * pulse + BEAT_LIGHT_AMPLITUDES.chestGlow * v.beat);
     }
-    // the seam: a gold line over the lid's seam, wider and brighter as the tremble builds
+    // the seam: a gold line over the lid's seam, wider hit by hit, flaring on each and steady between them
     const seam = t !== null && !open ? v.cues.seam : 0;
     this.seam.clear();
     if (seam > 0) {
@@ -230,7 +235,7 @@ export class Chest {
       const th = Math.max(2, Math.round(this.sx * (0.5 + 2 * seam)));
       const sy = this.pos.y + (SEAM_Y - VAULT_FRAME.h) * this.sy;
       this.seam.rect(Math.round(this.pos.x - sw / 2), Math.round(sy - th / 2), Math.round(sw), th).fill({ color: GOLD });
-      this.seam.alpha = 0.55 + 0.45 * Math.abs(Math.sin(clock * 23));
+      this.seam.alpha = 0.7 + 0.3 * v.cues.hit;
     }
     // the gentle gold light inside while it is open
     const m = this.mouth();

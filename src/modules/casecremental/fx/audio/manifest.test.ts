@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import manifest from "../../../../../art/manifest.json";
-import { SOUNDS } from "./sounds";
+import { SOUNDS, TRACK_GAIN } from "./sounds";
 
 // Every sound the game plays has a generation prompt in art/manifest.json, and nothing extra.
 describe("audio manifest", () => {
@@ -20,7 +20,7 @@ describe("audio manifest", () => {
     const stageLoops = music.filter((a) => a.stage !== undefined);
     expect(stageLoops.map((a) => a.stage)).toEqual([1, 2, 3, 4, 5]);
     for (const a of stageLoops) expect(a.prompt, a.id).toContain("120 BPM");
-    for (const id of ["vault-suspense", "vault-fanfare", "prestige"]) {
+    for (const id of Object.keys(TRACK_GAIN)) {
       const track = music.find((a) => a.id === id);
       expect(track, id).toBeDefined();
       expect(track?.stage, id).toBeUndefined();

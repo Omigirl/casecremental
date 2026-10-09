@@ -1,11 +1,12 @@
 import { VAULT_CUES } from "./cues";
 
-// The fanfare's clock (plan M2b-C6): the drum-and-bass drop lands on the impact and runs at 174 BPM, so every
-// pulse in the vault's chaos is locked to it. Pure functions of the sim's t, so a reload lands on the same beat.
+// The fanfare's clock (plans M2b-C6, C8): the chiptune fanfare's drop lands on the impact and runs at 120 BPM, so
+// every pulse in the vault's chaos is locked to it. Silent through the intro (its hits are cues.ts INTRO_HITS).
+// Pure functions of the sim's t, so a reload lands on the same beat.
 
-export const VAULT_BPM = 174;
+export const VAULT_BPM = 120;
 /** How much each light throbs on the beat (alpha 0–1). Each stays under 0.1 so a beat is never a flash, whatever
- *  the tempo (WCAG 2.3.1; 174 BPM is 2.9 pulses a second, and a sustained throb is a flash sequence). */
+ *  the tempo (WCAG 2.3.1; a sustained throb is a flash sequence, and 120 BPM is 2 pulses a second). */
 export const BEAT_LIGHT_AMPLITUDES = { chestGlow: 0.09, mouthLight: 0.09, starburst: 0.08 } as const;
 const BEAT_SECONDS = 60 / VAULT_BPM;
 const BEATS_PER_BAR = 4;

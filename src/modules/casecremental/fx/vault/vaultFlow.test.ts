@@ -24,19 +24,26 @@ describe("the music after a lobby trip picks up where the vault is", () => {
     expect(musicPlan(at({ phase: "key" }), "lit")).toEqual({ track: "vault-suspense", loop: true, offset: 0, musicOn: true });
   });
 
-  it("resumes the fanfare at the opening's time, not from its top", () => {
-    expect(musicPlan(at(opening(4)), "lit")).toEqual({ track: "vault-fanfare", loop: false, offset: 3, musicOn: true });
-    expect(musicPlan(at(opening(0.5)), "lit")).toEqual({ track: "vault-fanfare", loop: false, offset: 0, musicOn: false });
-    const ended: VaultState = { phase: "opening", t: VAULT_OPENING_SECONDS, drops: [], landed: 5 };
-    expect(musicPlan(at(ended), "lit").track).not.toBe("vault-fanfare"); // past its end it would wrap
+  it("plays the intro from the key turn, at the opening's time, up to the impact", () => {
+    expect(musicPlan(at(opening(0)), "lit")).toEqual({ track: "vault-intro", loop: false, offset: 0, musicOn: true });
+    expect(musicPlan(at(opening(1.6)), "lit")).toEqual({ track: "vault-intro", loop: false, offset: 1.6, musicOn: true });
+    expect(musicPlan(at(opening(3.39)), "lit")).toEqual({ track: "vault-intro", loop: false, offset: 3.39, musicOn: true });
   });
 
-  it("holds the fanfare silent up to the impact, starts it from its top on it, and runs to just before the end", () => {
-    expect(musicPlan(at(opening(0.99)), "lit")).toEqual({ track: "vault-fanfare", loop: false, offset: 0, musicOn: false });
-    expect(musicPlan(at(opening(VAULT_CUES.impact)), "lit")).toEqual({ track: "vault-fanfare", loop: false, offset: 0, musicOn: true });
-    const late = musicPlan(at(opening(14.49)), "lit");
+  it("hands over to the fanfare on the impact, from its top, then at t − 3.40", () => {
+    expect(VAULT_CUES.impact).toBe(3.4);
+    expect(musicPlan(at(opening(3.4)), "lit")).toEqual({ track: "vault-fanfare", loop: false, offset: 0, musicOn: true });
+    const mid = musicPlan(at(opening(6.4)), "lit");
+    expect(mid).toMatchObject({ track: "vault-fanfare", loop: false, musicOn: true });
+    expect(mid.offset).toBeCloseTo(3, 9);
+  });
+
+  it("runs the fanfare to just before the end, and nothing past it (a one-shot past its end would wrap)", () => {
+    const late = musicPlan(at(opening(VAULT_OPENING_SECONDS - 0.01)), "lit");
     expect(late).toMatchObject({ track: "vault-fanfare", loop: false, musicOn: true });
-    expect(late.offset).toBeCloseTo(14.49 - VAULT_CUES.impact, 9);
+    expect(late.offset).toBeCloseTo(VAULT_OPENING_SECONDS - 0.01 - VAULT_CUES.impact, 9);
+    const ended: VaultState = { phase: "opening", t: VAULT_OPENING_SECONDS, drops: [], landed: 5 };
+    expect(musicPlan(at(ended), "lit").track).toBeNull();
   });
 
   it("plays the prestige loop once the run is over (in the dark)", () => {
@@ -60,8 +67,8 @@ describe("the music after a lobby trip picks up where the vault is", () => {
 describe("applyMusic", () => {
   it("arms a silent plan's track as the plan says (a one-shot stays a one-shot), with the music off", () => {
     const r = recorder();
-    applyMusic(r.audio, { track: "vault-fanfare", loop: false, offset: 0, musicOn: false });
-    expect(r.calls).toEqual(["music off", 'track vault-fanfare {"loop":false,"offset":0}']);
+    applyMusic(r.audio, { track: "vault-intro", loop: false, offset: 0, musicOn: false });
+    expect(r.calls).toEqual(["music off", 'track vault-intro {"loop":false,"offset":0}']);
   });
 
   it("picks the track while the music is off, then turns it on", () => {

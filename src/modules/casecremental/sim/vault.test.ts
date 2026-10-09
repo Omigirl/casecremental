@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { CASES, VAULT_LEGEND } from "./content/cases";
 import { STAGE_NAMES } from "./intensity";
 import { DEFAULT_SETUP, Run } from "./run";
-import { VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES, VAULT_TROPHY } from "./tuning";
+import {
+  VAULT_INTRO_SECONDS,
+  VAULT_LAND_TIMES,
+  VAULT_OPENING_SECONDS,
+  VAULT_REEL_RARITIES,
+  VAULT_REEL_SHARES,
+  VAULT_TROPHY,
+} from "./tuning";
 
 const DT = 1 / 30;
 const tickFor = (run: Run, s: number) => {
@@ -18,6 +25,12 @@ const openVault = (run: Run) => {
 };
 
 describe("Vault Case I", () => {
+  it("opens on the intro's clock: the impact at 3.40, the five lock-ins 5-7.5 s after it, the end once the 14 s fanfare has rung out (17.4)", () => {
+    expect(VAULT_INTRO_SECONDS).toBe(3.4);
+    expect([...VAULT_LAND_TIMES]).toEqual([8.4, 8.9, 9.4, 9.9, 10.9]);
+    expect(VAULT_OPENING_SECONDS).toBe(17.4);
+  });
+
   it("shows once every case is unlocked, and costs the setup's vault price", () => {
     const run = new Run(1);
     run.state.cash = 1e9;

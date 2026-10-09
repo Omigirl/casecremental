@@ -1,27 +1,30 @@
-import { VAULT_CUES } from "./cues";
+import { INTRO_HITS, VAULT_CUES } from "./cues";
 
 // The opening's one-shot beats (spec 2026-10-09 §1): each fires once, on the frame the sim's t crosses it. A
 // restore sets the previous t to the current one, so nothing before it replays. Pure functions of time.
 
-export type VaultBeat = "keyTurn" | "impact" | "firework" | "celebrate" | "tick" | "countDone";
+export type VaultBeat = "keyTurn" | "introHit" | "impact" | "firework" | "celebrate" | "tick" | "countDone";
 
-/** The count-up ticks this often while the total climbs (9.0-11.5). */
+/** The count-up ticks this often while the total climbs (the celebration). */
 export const COUNT_TICK_SECONDS = 0.08;
 
 const C = VAULT_CUES;
 const TICKS = Math.floor((C.celebrateTo - C.celebrateFrom) / COUNT_TICK_SECONDS - 1e-9);
 
-/** A beat and its time; a kick also carries its index in VAULT_CUES.fireworks (which spot it bursts at). */
+/** A beat and its time; a kick also carries its index in VAULT_CUES.fireworks (which spot it bursts at), an intro
+ *  hit its index in INTRO_HITS. */
 export interface DueBeat {
   readonly at: number;
   readonly beat: VaultBeat;
   readonly kick?: number;
+  readonly hit?: number;
 }
 
 /** In time order; at the same time, in this order (the impact before its firework kick). */
 const BEATS: readonly DueBeat[] = (
   [
     { at: 0, beat: "keyTurn" },
+    ...INTRO_HITS.map((h, hit) => ({ at: h.at, beat: "introHit" as const, hit })),
     { at: C.impact, beat: "impact" },
     ...C.fireworks.map((at, kick) => ({ at, beat: "firework" as const, kick })),
     { at: C.celebrateFrom, beat: "celebrate" },
@@ -46,12 +49,14 @@ export function dueBeats(prevT: number, t: number): DueBeat[] {
   return out;
 }
 
-const QUIET_FROM = 3.5;
-const QUIET_TO = 4.5;
+/** The spin's second second: 2.5-3.5 s after the impact. */
+const QUIET_FROM = VAULT_CUES.impact + 2.5;
+const QUIET_TO = VAULT_CUES.impact + 3.5;
 const QUIET = 0.4;
 const EDGE = 0.25;
 
-/** The spin breathes: the particles are lighter at 3.5-4.5 than either side of it, so it is not constant noise. */
+/** The spin breathes: the particles are lighter in its second second than either side of it, so it is not constant
+ *  noise. */
 export function breath(t: number): number {
   const dip = Math.min(1, Math.max(0, Math.min(t - QUIET_FROM, QUIET_TO - t) / EDGE)); // eased over a quarter-second
   return 1 - (1 - QUIET) * dip;
