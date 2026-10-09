@@ -16,11 +16,12 @@ describe("the opening's beats", () => {
 
   it("fires a firework at each of VAULT_CUES.fireworks", () => {
     for (const at of VAULT_CUES.fireworks) expect(dueBeats(at - 0.01, at + 0.01)).toContain("firework");
-    expect(dueBeats(3.5, 4.9)).toEqual([]);
+    expect(dueBeats(3.5, 4.49)).toEqual([]);
+    expect(dueBeats(3.5, 4.5)).toEqual(["firework"]);
   });
 
   it("starts the celebration at 9.0, ticks while counting, and dings once at 11.5", () => {
-    expect(dueBeats(8.99, 9.0)).toEqual(["celebrate"]);
+    expect(dueBeats(8.99, 9.0)).toEqual(["firework", "celebrate"]); // the volley's first kick opens the count-up
     expect(dueBeats(9.07, 9.09)).toEqual(["tick"]);
     expect(dueBeats(9.09, 9.15)).toEqual([]);
     expect(dueBeats(11.49, 11.51)).toEqual(["countDone"]);
@@ -28,8 +29,11 @@ describe("the opening's beats", () => {
   });
 
   it("collapses the ticks a long frame crosses into one (the other beats each fire)", () => {
-    expect(dueBeats(9.01, 9.5)).toEqual(["tick"]);
-    expect(dueBeats(-1e-6, 14.5)).toEqual(["keyTurn", "impact", "firework", "firework", "firework", "celebrate", "tick", "countDone"]);
+    expect(dueBeats(10.06, 10.6)).toEqual(["tick"]);
+    const kicks = VAULT_CUES.fireworks.length;
+    const all = dueBeats(-1e-6, 14.5);
+    expect(all.filter((b) => b === "firework")).toHaveLength(kicks);
+    expect(all.filter((b) => b !== "firework")).toEqual(["keyTurn", "impact", "celebrate", "tick", "countDone"]);
   });
 
   it("replays nothing on a restore (prevT = t)", () => {
@@ -44,7 +48,8 @@ describe("the opening's beats", () => {
       prev = t;
     }
     const once = seen.filter((b) => b !== "tick");
-    expect(once).toEqual(["keyTurn", "impact", "firework", "firework", "firework", "celebrate", "countDone"]);
+    expect(once.filter((b) => b === "firework")).toHaveLength(VAULT_CUES.fireworks.length);
+    expect(once.filter((b) => b !== "firework")).toEqual(["keyTurn", "impact", "celebrate", "countDone"]);
     const ticks = seen.length - once.length;
     expect(ticks).toBeGreaterThanOrEqual(25); // ~every 0.08 s across 9.0-11.5
     expect(ticks).toBeLessThanOrEqual(32);

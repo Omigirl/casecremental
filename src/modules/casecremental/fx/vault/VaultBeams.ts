@@ -31,11 +31,11 @@ import type { VaultScene } from "./VaultScene";
 const N = VAULT_LAND_TIMES.length;
 /** Items per second along a beam while it spins; each beam's exact speed follows from its start, landing and
  *  target (columnMotion). */
-const SPEED = 10;
+const SPEED = 15; // 1.5× the calm version: the chaos runs hot
 /** The fifth decelerates longer: its lock-in is the one the whole opening builds to. */
 const LAST_SLOW_CELLS = 9;
 /** Items stream this share of an icon box apart. */
-const SPACING = 0.6;
+const SPACING = 0.45;
 /** Back to front: the outer beams first, the centre one last. */
 const DRAW_ORDER = [0, 4, 1, 3, 2] as const;
 /** The beam's core: its brightness at rest, once landed, and on the flash and the pulse. */

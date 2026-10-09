@@ -6,8 +6,9 @@ import { BODY_UP, BODY_W, VAULT_FRAME, type VaultLayout } from "./vaultLayout";
 // The vault itself (spec 2026-10-09 §1): slammed into the centre while the key waits; once it turns, it glides
 // down to lower centre and settles, trembles in bursts that grow harder while a gold seam of light widens along
 // its lid, holds still for a beat, then snaps open — the open frame stretching up past itself while the body
-// recoils — and glows gold inside. Everything follows the sim's t (a reload lands on the same frame); only the
-// waiting vault's breathing and the glows use the wall clock.
+// recoils — and glows gold inside, bouncing on the drop's beat while its inner light throbs. Everything follows
+// the sim's t (a reload lands on the same frame); only the waiting vault's breathing and the glows use the wall
+// clock.
 
 // frame px inside the 68×78 frame
 const MID_X = 34.5;
@@ -25,6 +26,10 @@ const BURST_ON = 0.15;
 /** After the impact: the in-between frame, and the body's recoil. */
 const SNAP_SECONDS = 0.05;
 const RECOIL_SECONDS = 0.25;
+/** The open chest on a beat: it squashes and hops by this much, and its light inside throbs by this much. */
+const BEAT_SQUASH = 0.06;
+const BEAT_HOP = 1.5;
+const BEAT_THROB = 0.35;
 const RED = 0xff2a1a;
 const GOLD = 0xffd34d;
 
@@ -38,6 +43,8 @@ export interface ChestView {
   cues: VaultCues;
   /** The key is dragged over the lock. */
   near: boolean;
+  /** The drop's beat (0-1, at the chaos's strength): the open chest bounces on it. */
+  beat: number;
 }
 
 export class Chest {
@@ -167,6 +174,12 @@ export class Chest {
       }
       const since = t - VAULT_CUES.impact;
       if (since >= 0 && since < RECOIL_SECONDS) y += 2 * L.chest.S * (1 - since / RECOIL_SECONDS) ** 2;
+      // the bounce on the beat: a squash and a little hop
+      if (c.lid > 0 && v.beat > 0) {
+        sy *= 1 - BEAT_SQUASH * v.beat;
+        sx *= 1 + BEAT_SQUASH * v.beat;
+        y -= BEAT_HOP * L.chest.S * v.beat;
+      }
     }
     this.pos = { x: Math.round(x), y: Math.round(y) };
     this.sx = sx;
@@ -200,7 +213,7 @@ export class Chest {
       this.glow.alpha = 0.3 + 0.5 * v.cues.seam + 0.1 * pulse;
     } else {
       this.glow.tint = GOLD;
-      this.glow.alpha = 0.7 + 0.15 * pulse;
+      this.glow.alpha = Math.min(1, 0.7 + 0.15 * pulse + 0.3 * v.beat);
     }
     // the seam: a gold line over the lid's seam, wider and brighter as the tremble builds
     const seam = t !== null && !open ? v.cues.seam : 0;
@@ -217,6 +230,6 @@ export class Chest {
     this.mouthLight.visible = open;
     this.mouthLight.position.set(m.x, m.y);
     this.mouthLight.scale.set((BODY_W * this.sx * 1.1) / 128, (BODY_W * this.sx * 0.5) / 128);
-    this.mouthLight.alpha = 0.45 + 0.2 * pulse;
+    this.mouthLight.alpha = Math.min(1, 0.45 + 0.2 * pulse + BEAT_THROB * v.beat);
   }
 }

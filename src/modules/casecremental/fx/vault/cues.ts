@@ -10,7 +10,9 @@ export const VAULT_CUES = {
   columnsFrom: 1.5,
   columnStagger: 0.1,
   spinFrom: 2.5,
-  fireworks: [1.0, 3.0, 5.0],
+  /** The kick explosions: the impact, every second of the spin, every lock-in (sim/tuning VAULT_LAND_TIMES), and
+   *  a volley as the count-up starts. */
+  fireworks: [1.0, 2.5, 3.5, 4.5, 5.5, 6, 6.5, 7, 7.5, 8.5, 9.0, 9.35, 9.7, 10.05],
   celebrateFrom: 9.0,
   celebrateTo: 11.5,
 } as const;

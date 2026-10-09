@@ -5,13 +5,24 @@ import { canvasTexture } from "./textures";
 
 // The light behind the beams (spec 2026-10-09 §1-2, §5): a slowly rotating starburst, the impact's vertical shaft
 // and a soft glow at the chest's mouth, strongest while the beams spin and softening in the celebration. The
-// beams themselves are the colour (VaultBeams). While the key waits, only the starburst turns, devilish red.
+// beams themselves are the colour (VaultBeams). While the key waits, only the starburst turns, devilish red. Once
+// the drop hits, the starburst spins faster and pulses on its beat (the chaos layer's).
 
 /** ~6°/s. */
 const STARBURST_SPIN = (6 * Math.PI) / 180;
 const SHAFT_SECONDS = 1.6;
 /** The light's strength once the celebration has softened it (cues.rays rests here). */
 const RESTING = 0.3;
+/** At full chaos the starburst spins this many times faster, and swells and brightens this much on a beat. */
+const CHAOS_SPIN = 6;
+const BEAT_SWELL = 0.08;
+const BEAT_LIGHT = 0.15;
+
+/** The chaos layer's beat (its pulse at the chaos's strength) and strength, 0-1. */
+export interface RaysBeat {
+  beat: number;
+  level: number;
+}
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
@@ -21,6 +32,7 @@ export class Rays {
   private readonly shaft: Sprite;
   private readonly glow: Sprite;
   private readonly textures: Texture[];
+  private burstScale = 1;
 
   constructor(soft: Texture) {
     // spokes from the centre, fading outward
@@ -69,15 +81,17 @@ export class Rays {
 
   layout(screen: { w: number; h: number }, chestS: number): void {
     this.starburst.width = this.starburst.height = Math.max(screen.w, screen.h) * 1.2;
+    this.burstScale = this.starburst.scale.x;
     this.shaft.width = 26 * chestS;
     this.shaft.height = screen.h * 1.1;
     this.glow.width = this.glow.height = 120 * chestS;
   }
 
   /** `t` is null while the key waits; `at` is the chest's mouth (open) or middle (waiting). */
-  update(dt: number, clock: number, t: number | null, c: VaultCues, at: Pt): void {
+  update(dt: number, clock: number, t: number | null, c: VaultCues, at: Pt, chaos: RaysBeat): void {
     this.starburst.position.set(at.x, at.y);
-    this.starburst.rotation += dt * STARBURST_SPIN;
+    this.starburst.rotation += dt * STARBURST_SPIN * (1 + CHAOS_SPIN * chaos.level);
+    this.starburst.scale.set(this.burstScale * (1 + BEAT_SWELL * chaos.beat));
     if (t === null) {
       const pulse = 0.5 + 0.5 * Math.sin(clock * 3.1);
       this.starburst.tint = 0xff3020;
@@ -89,7 +103,7 @@ export class Rays {
     const light = celebrating ? clamp01((c.rays - RESTING) / (1 - RESTING)) : c.rays;
     const charge = clamp01(t / VAULT_CUES.impact);
     this.starburst.tint = 0xffe08a;
-    this.starburst.alpha = t < VAULT_CUES.impact ? 0.1 * charge : 0.12 + 0.3 * light + (celebrating ? 0.1 : 0);
+    this.starburst.alpha = t < VAULT_CUES.impact ? 0.1 * charge : 0.12 + 0.3 * light + (celebrating ? 0.1 : 0) + BEAT_LIGHT * chaos.beat;
     // the impact's shaft of light, handing over to the beams
     const since = t - VAULT_CUES.impact;
     this.shaft.position.set(at.x, at.y);

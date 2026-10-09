@@ -272,8 +272,8 @@ export class World {
       : target;
     const focus = this.focus;
     this.scene.pivot.set(focus.x, focus.y);
-    this.scene.position.set(focus.x + Math.round(s.x * k), focus.y + Math.round(s.y * k));
-    this.scene.scale.set(z);
+    this.scene.position.set(focus.x + Math.round(s.x * k) + this.vault.room.x, focus.y + Math.round(s.y * k) + this.vault.room.y);
+    this.scene.scale.set(z * this.vault.room.zoom); // the room behind the vault pulses to its bar (the HUD does not)
     this.camera.set({ focusX: focus.x, focusY: focus.y, dx: Math.round(s.x * k), dy: Math.round(s.y * k), zoom: z }); // the UI overlay follows
     this.vault.root.position.set(Math.round(s.x * k), Math.round(s.y * k)); // the vault shakes too, but never zooms
     this.pixel.render(this.app.renderer);

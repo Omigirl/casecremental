@@ -11,6 +11,8 @@ import type { Pt } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
 import { breath, dueBeats, type VaultBeat } from "./beats";
+import { VaultChaos } from "./chaos";
+import { flashCrossed } from "./chaosPlan";
 import { Chest } from "./chest";
 import { countUp } from "./countUp";
 import { VAULT_CUES, vaultCues } from "./cues";
@@ -24,8 +26,10 @@ import { BODY_W, VAULT_FRAME, vaultLayout, type VaultLayout } from "./vaultLayou
 // the centre, the devil key floating beside it until the player drags it into the lock; then the legendary
 // chest — it trembles at lower centre, snaps open on the fanfare's first downbeat, five beams pour out of it past
 // the screen edges (VaultBeams, in the beam/stream/label slots), coins and fireworks fly, the total counts up, and
-// it holds. Screen px, over the scene and under the HD overlay. The World drives it from the sim each frame: each beat fires
-// once when the sim's t crosses it, and a reload or a lobby trip lands on t without replaying any.
+// it holds. The chaos layer (VaultChaos) shakes, sways and rains behind all of it to the drum-and-bass drop, and a
+// kick explodes somewhere on screen every VAULT_CUES.fireworks time. Screen px, over the scene and under the HD
+// overlay. The World drives it from the sim each frame: each beat fires once when the sim's t crosses it, and a
+// reload or a lobby trip lands on t without replaying any.
 
 export type VaultPhase = "key" | "opening" | "done" | null;
 
@@ -34,10 +38,25 @@ const DIM_KEY = 0.8;
 const DIM_OPEN = 0.86;
 const GOLD = 0xffd34d;
 const FIREWORK_COLORS = [RARITY_INFO.covert.color, RARITY_INFO.gold.color, RARITY_INFO.classified.color, 0xffffff, 0x7affc1];
+/** Where the kicks burst, in turn (shares of the screen, jittered): the corners and the sides as well as the sky. */
+const KICK_SPOTS: readonly (readonly [number, number])[] = [
+  [0.5, 0.14],
+  [0.1, 0.12],
+  [0.9, 0.16],
+  [0.08, 0.52],
+  [0.92, 0.46],
+  [0.3, 0.3],
+  [0.7, 0.26],
+  [0.1, 0.86],
+  [0.9, 0.84],
+  [0.5, 0.4],
+];
+const KICK_JITTER = 0.06;
+/** The impact's flash, and a kick's (in its colour). */
+const IMPACT_FLASH = 0.35;
+const KICK_FLASH = 0.16;
 /** The hold: the particles die away over this long after the count-up. */
 const FADE_SECONDS = 1.5;
-
-const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 
 export class VaultScene {
   readonly root = new Container();
@@ -52,6 +71,7 @@ export class VaultScene {
   private readonly rays: Rays;
   private readonly chest: Chest;
   private readonly fx: VaultFx;
+  private readonly chaos: VaultChaos;
   private readonly key: DevilKey;
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xffd0c0) });
   private readonly total = new Text({ text: "", style: moneyStyle(16) });
@@ -71,6 +91,7 @@ export class VaultScene {
   private totalPop = 0;
   private tickText = "";
   private slamPending = false;
+  private kicks = 0;
 
   constructor(
     lib: SpriteLibrary,
@@ -92,17 +113,19 @@ export class VaultScene {
     this.rays = new Rays(soft);
     this.chest = new Chest(vaultFrames, soft);
     this.fx = new VaultFx(dot, star, coinFrames);
+    this.chaos = new VaultChaos({ dot, star, coins: coinFrames });
     this.key = new DevilKey(keyFrames, soft, audio, this.fx.sparks);
     this.hint.anchor.set(0.5, 0);
     this.total.anchor.set(0.5);
-    // back to front: the dim, the light, the beams, the fireworks and coins, the streamed items, the chest and its
-    // bursts — every particle under the labels — then the labels, the total, the key
+    // back to front: the dim; the chaos's backdrop (stripes, the light); its stage (the beams, the fireworks and
+    // coins, the rain); the streamed items and rewards, the chest and its bursts — every particle under the labels —
+    // then the labels, the total, the key
+    this.chaos.backdrop.addChild(this.rays.root);
+    this.chaos.stage.addChild(this.chest.glow, this.beamSlot, this.fx.back, this.chaos.rain);
     this.root.addChild(
       this.dim,
-      this.rays.root,
-      this.chest.glow,
-      this.beamSlot,
-      this.fx.back,
+      this.chaos.backdrop,
+      this.chaos.stage,
       this.streamSlot,
       this.chest.front,
       this.fx.front,
@@ -129,11 +152,17 @@ export class VaultScene {
     this.chest.layout(L);
     this.rays.layout(screen, L.chest.S);
     this.fx.layout(screen, k);
+    this.chaos.layout(screen, k);
     this.sky = { top: h * 0.04, bottom: L.chest.top * 0.55 }; // fireworks and glints
     this.hint.style.fontSize = Math.round(hdFontSize(k) * 1.5);
     this.total.style.fontSize = L.totalSize;
     this.total.position.set(L.totalAt.x, L.totalAt.y);
     return L;
+  }
+
+  /** The room behind (the World's camera): the chaos's offset and zoom; identity while the vault is away. */
+  get room(): { readonly x: number; readonly y: number; readonly zoom: number } {
+    return this.chaos.room;
   }
 
   /** The vault was bought just now: it drops in from above instead of just being there. */
@@ -151,6 +180,10 @@ export class VaultScene {
     const prev = this.t;
     this.t = t;
     for (const b of dueBeats(prev, t)) this.beat(b);
+    // the full-screen flashes, within the photosensitivity budget (chaosPlan)
+    const flash = flashCrossed(prev, t);
+    if (flash === VAULT_CUES.impact) this.hd.flash(0xfff2c0, IMPACT_FLASH);
+    else if (flash !== null) this.hd.flash(this.fireworkColor(), KICK_FLASH);
   }
 
   /** A pointer went down at `p` (screen px): grab the key if it is on it. */
@@ -176,13 +209,17 @@ export class VaultScene {
     this.fx.sparks.burst(this.local(p), this.pick(FIREWORK_COLORS), 14, 220 * (this.k / 6));
   }
 
-  /** A firework at `p` (the scene's px; a beam's lock-in, which plays its own sound), or a random one in the
-   *  sky with its 8-bit kick. */
+  /** A firework at `p` (the scene's px; a beam's lock-in, which plays its own sound), or a kick: a two-colour
+   *  burst at the next of KICK_SPOTS (corners and sides too) with its kick explosion. */
   firework(p?: Pt, color?: number, big = false): void {
-    const { w } = this.screen;
-    const at = p ?? { x: w * (0.15 + Math.random() * 0.7), y: lerp(this.sky.top, this.sky.bottom, Math.random()) };
+    if (p) return this.fx.firework(p, color ?? this.fireworkColor(), big);
+    const { w, h } = this.screen;
+    const [sx, sy] = KICK_SPOTS[this.kicks++ % KICK_SPOTS.length]!;
+    const jitter = () => (Math.random() - 0.5) * 2 * KICK_JITTER;
+    const at = { x: w * (sx + jitter()), y: h * (sy + jitter()) };
     this.fx.firework(at, color ?? this.fireworkColor(), big);
-    if (!p) this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
+    this.fx.firework(at, this.fireworkColor());
+    this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
   }
 
   update(dt: number): void {
@@ -197,9 +234,15 @@ export class VaultScene {
     this.dim.alpha += (dimTarget - this.dim.alpha) * Math.min(1, dt * 5);
 
     const near = this.phase === "key" && this.key.dragging && dist(this.key.pos, this.chest.lockPos()) <= BODY_W * this.chest.scale * 0.3;
-    if (this.chest.update(dt, this.clock, { t, cues, near })) this.landSlam();
+    const chaos = this.chaos;
+    if (this.chest.update(dt, this.clock, { t, cues, near, beat: chaos.beat })) this.landSlam();
     const mouth = this.chest.mouth();
-    this.rays.update(dt, this.clock, t, cues, t !== null && cues.lid > 0 ? mouth : this.chest.centre());
+    chaos.update(t, mouth);
+    this.rays.update(dt, this.clock, t, cues, t !== null && cues.lid > 0 ? mouth : this.chest.centre(), chaos);
+    this.beamSlot.tint = chaos.shimmer;
+    // the rewards bob on the beat; their labels only tremble (at most 2 px), readable
+    this.streamSlot.y = chaos.bob;
+    this.labelSlot.position.set(chaos.wobble.x, chaos.wobble.y);
     this.key.update(dt, this.clock, this.phase === "key" && !this.chest.falling);
 
     // the hint, pulsing, while the key waits
@@ -225,6 +268,7 @@ export class VaultScene {
     this.fx.clear();
     this.rays.destroy();
     this.root.destroy({ children: true });
+    this.chaos.destroy(); // its stripes' texture, once the sprite is gone
     for (const tex of this.textures) tex.destroy(true);
   }
 
@@ -235,8 +279,7 @@ export class VaultScene {
         this.fx.sparks.burst(this.key.pos, EMBER, 40, 260 * (this.k / 6), -200 * (this.k / 6));
         break;
       case "impact": {
-        this.hd.flash(0xfff2c0, 0.35);
-        this.shake.add(0.35);
+        this.shake.add(0.35); // its flash is the schedule's first (chaosPlan)
         this.fx.impact(this.chest.mouth());
         this.audio.play("vault-open-hit");
         this.music(); // the fanfare's first downbeat
@@ -274,7 +317,9 @@ export class VaultScene {
     if (this.total.text !== text) this.total.text = text;
     this.total.alpha = Math.min(1, (t - VAULT_CUES.celebrateFrom) / 0.3);
     this.totalPop = Math.max(0, this.totalPop - dt * 4);
-    this.total.scale.set(1 + 0.25 * this.totalPop);
+    // pops on the count's beats and pulses on the drop's, never past the layout's 1.25 (vaultLayout TOTAL_POP)
+    this.total.scale.set(1 + Math.min(0.25, 0.25 * this.totalPop + 0.08 * this.chaos.beat));
+    if (this.L) this.total.position.set(this.L.totalAt.x + this.chaos.wobble.x, this.L.totalAt.y + this.chaos.wobble.y);
   }
 
   private totalText(t: number): string {
@@ -291,6 +336,7 @@ export class VaultScene {
       this.chest.clearSlam();
       this.slamPending = false;
       this.fx.clear();
+      this.chaos.reset();
       this.t = 0;
       return;
     }

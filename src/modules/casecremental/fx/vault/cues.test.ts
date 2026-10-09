@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countUp } from "./countUp";
+import { VAULT_LAND_TIMES } from "../../sim/tuning";
 import { VAULT_CUES, vaultCues } from "./cues";
 
 describe("the jackpot opening's cues", () => {
@@ -44,6 +45,17 @@ describe("the jackpot opening's cues", () => {
     for (const t of [3, 5, 8]) expect(vaultCues(t).rays).toBe(1);
     expect(vaultCues(12).rays).toBeLessThan(0.5);
     expect(vaultCues(1.4).rays).toBe(0);
+  });
+
+  it("kicks on the impact, every second of the spin, every lock-in and in a volley as the count-up starts", () => {
+    const kicks = VAULT_CUES.fireworks;
+    expect([...kicks]).toEqual([1.0, 2.5, 3.5, 4.5, 5.5, 6, 6.5, 7, 7.5, 8.5, 9.0, 9.35, 9.7, 10.05]);
+    expect([...kicks].sort((a, b) => a - b)).toEqual([...kicks]);
+    for (const at of kicks) {
+      expect(at).toBeGreaterThanOrEqual(1);
+      expect(at).toBeLessThanOrEqual(11.5);
+    }
+    for (const at of VAULT_LAND_TIMES) expect(kicks).toContain(at);
   });
 
   it("pulses gold once at 9.0", () => {
