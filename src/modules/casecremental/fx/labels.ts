@@ -18,7 +18,8 @@ export function hintKey(b: Bench): StringKey | null {
     case "spinning":
       return null;
     case "revealed":
-      return "hint.sell";
+      // over two or more waiting cards (multi-open) the hint would sit on their tops: the label lines are enough
+      return b.cards.filter((d) => d).length > 1 ? null : "hint.sell";
   }
 }
 

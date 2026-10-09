@@ -25,8 +25,16 @@ describe("canvas labels", () => {
 
   it("hints at the next step and stays quiet while the reel spins", () => {
     expect(hintKey({ phase: "empty" })).toBe("hint.buy");
-    expect(hintKey({ phase: "spinning", caseId: "bootcamp", drop: DROP, elapsed: 1, fullDuration: 6 })).toBeNull();
-    expect(hintKey({ phase: "revealed", caseId: "bootcamp", drop: DROP })).toBe("hint.sell");
+    expect(hintKey({ phase: "locked", caseId: "bootcamp", free: false, count: 2 })).toBe("hint.key");
+    const reel = { drop: DROP, tease: null, duration: 6 };
+    expect(hintKey({ phase: "spinning", caseId: "bootcamp", reels: [reel, reel], elapsed: 1, fullDuration: 6 })).toBeNull();
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP] })).toBe("hint.sell");
+  });
+
+  it("hints at selling one waiting card, and stays quiet over two (multi-open: it would cover their tops)", () => {
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP, DROP] })).toBeNull();
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [null, DROP] })).toBe("hint.sell");
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP, null] })).toBe("hint.sell");
   });
 
   it("keeps a centred line inside its span, as near the wanted centre as it fits", () => {
