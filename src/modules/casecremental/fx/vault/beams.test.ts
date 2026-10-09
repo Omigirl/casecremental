@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Rect } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import { pixelViewport } from "../pixel/viewport";
-import { BEAM_ANGLES_LANDSCAPE, BEAM_ANGLES_PORTRAIT, BEAM_PALETTE, beamLayout, itemDistance } from "./beams";
+import { BEAM_ANGLES_LANDSCAPE, BEAM_ANGLES_PORTRAIT, BEAM_PALETTE, beamLayout, itemDistance, type Beam } from "./beams";
+import { beamWidthAt } from "./beamStream";
 import { vaultLayout } from "./vaultLayout";
 
 const SCREENS = [
@@ -20,6 +21,18 @@ function setup(screen: { w: number; h: number }) {
   const icon = 2 * 16 * vp.scale;
   const labelH = 2 * hdFontSize(vp.scale);
   return { beams: beamLayout(screen, mouth, icon, labelH), mouth, icon, labelH };
+}
+
+/** Both corners of a beam's far end (origin + dir × length ± perp × half its width there) lie off screen. */
+function endCornersOff(b: Beam, s: { w: number; h: number }): boolean {
+  // the whole far end (the segment between its corners) lies beyond one screen edge
+  const hw = beamWidthAt(b, b.length) / 2;
+  const ex = b.origin.x + Math.sin(b.angle) * b.length;
+  const ey = b.origin.y - Math.cos(b.angle) * b.length;
+  const corners = [-1, 1].map((side) => ({ x: ex + side * Math.cos(b.angle) * hw, y: ey + side * Math.sin(b.angle) * hw }));
+  return (
+    corners.every((c) => c.y < 0) || corners.every((c) => c.x < 0) || corners.every((c) => c.x > s.w) || corners.every((c) => c.y > s.h)
+  );
 }
 
 const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -52,11 +65,12 @@ describe("the vault's beams", () => {
       expect(beams[0].angle).toBeLessThan(beams[4].angle);
     });
 
-    it("runs each beam past the screen edge", () => {
+    it("runs each beam past the screen edge, both corners of its far end off screen", () => {
       for (const b of beams) {
         const x = b.origin.x + Math.sin(b.angle) * b.length;
         const y = b.origin.y - Math.cos(b.angle) * b.length;
         expect(x < 0 || x > screen.w || y < 0 || y > screen.h).toBe(true);
+        expect(endCornersOff(b, screen)).toBe(true);
       }
     });
 

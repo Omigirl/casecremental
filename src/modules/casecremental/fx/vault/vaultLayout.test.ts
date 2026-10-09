@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { skinName } from "../../i18n/content";
+import { setLang } from "../../i18n/index";
+import { CASES, VAULT_LEGEND } from "../../sim/content/cases";
 import type { Rect } from "../pixel/layout";
 import { pixelViewport } from "../pixel/viewport";
+import type { Beam } from "./beams";
+import { beamWidthAt } from "./beamStream";
+import { fitLabel, LABEL_MIN_SHARE } from "./fitLabel";
 import { OPEN_H, VAULT_FRAME, vaultLayout } from "./vaultLayout";
 
 const SCREENS = [
@@ -71,5 +77,105 @@ describe("the vault's layout (chest at lower centre, the beams out of it, the to
     expect(layoutFor(SCREENS[0]!).v.chest.bottom / 1080).toBeCloseTo(0.88, 2);
     expect(layoutFor(SCREENS[2]!).v.chest.bottom / 768).toBeCloseTo(0.88, 2);
     expect(layoutFor(SCREENS[3]!).v.chest.bottom / 844).toBeCloseTo(0.8, 2);
+  });
+});
+
+// A sweep of window sizes, landscape and portrait (final review, Important 1-3 and Minor 1): the five rewards,
+// their icons and labels, on screen and apart, clear of the total and the chest, each beam's far end off
+// screen, and every name and +$ fitting its label box.
+const SWEEP = [
+  ...[640, 960, 1366, 1920, 2560, 3840].flatMap((w) => [360, 720, 1080, 1440, 2160].map((h) => ({ w, h }))),
+  { w: 1324, h: 824 },
+  { w: 1324, h: 768 },
+  { w: 2560, h: 1440 },
+  { w: 3440, h: 1440 },
+  { w: 3840, h: 2160 },
+  { w: 768, h: 1024 },
+  { w: 1080, h: 1200 },
+  { w: 1280, h: 1380 },
+  { w: 960, h: 1032 },
+  { w: 960, h: 1040 },
+  { w: 960, h: 1000 },
+  { w: 785, h: 873 },
+  { w: 1173, h: 1229 },
+  { w: 360, h: 640 },
+  { w: 375, h: 667 },
+  { w: 390, h: 844 },
+  { w: 844, h: 390 },
+  { w: 667, h: 375 },
+];
+const MARGIN = 4;
+/** The widest +$ a vault pays out. */
+const WIDEST_MONEY = "+$999.9Qa";
+
+function endCornersOff(b: Beam, s: { w: number; h: number }): boolean {
+  // the whole far end (the segment between its corners) lies beyond one screen edge
+  const hw = beamWidthAt(b, b.length) / 2;
+  const ex = b.origin.x + Math.sin(b.angle) * b.length;
+  const ey = b.origin.y - Math.cos(b.angle) * b.length;
+  const corners = [-1, 1].map((side) => ({ x: ex + side * Math.cos(b.angle) * hw, y: ey + side * Math.sin(b.angle) * hw }));
+  return (
+    corners.every((c) => c.y < 0) || corners.every((c) => c.x < 0) || corners.every((c) => c.x > s.w) || corners.every((c) => c.y > s.h)
+  );
+}
+
+describe("the vault's layout over a sweep of window sizes", () => {
+  const names = (() => {
+    const ids = [...CASES[CASES.length - 1]!.skins.map((s) => s.id), VAULT_LEGEND.id];
+    const out: string[] = [];
+    for (const lang of ["en", "ru"] as const) {
+      setLang(lang);
+      out.push(...ids.map(skinName));
+    }
+    setLang("en");
+    return out;
+  })();
+
+  it("keeps every reward on screen, apart, clear of the total and the chest, with the beams' ends off screen and every label fitting", () => {
+    const t0 = performance.now();
+    const fails: string[] = [];
+    for (const screen of SWEEP) {
+      const { v } = layoutFor(screen);
+      const at = `${screen.w}×${screen.h}`;
+      const size = 1.25 * v.totalSize;
+      const total: Rect = { x: v.totalAt.x - 7.5 * size, y: v.totalAt.y - size / 2, w: 15 * size, h: size };
+      const chest: Rect = {
+        x: v.chest.x - (VAULT_FRAME.w * v.chest.S) / 2,
+        y: v.chest.top,
+        w: VAULT_FRAME.w * v.chest.S,
+        h: v.chest.bottom - v.chest.top,
+      };
+      const boxes = v.beams.map((b) => ({
+        icon: { x: b.spot.x - v.icon / 2, y: b.spot.y - v.icon / 2, w: v.icon, h: v.icon },
+        label: b.label,
+      }));
+      const inside = (r: Rect) => r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= screen.w - MARGIN && r.y + r.h <= screen.h - MARGIN;
+      boxes.forEach((bx, i) => {
+        for (const [what, r] of [
+          ["icon", bx.icon],
+          ["label", bx.label],
+        ] as const) {
+          if (!inside(r)) fails.push(`${at} ${what} ${i} off screen`);
+          if (hit(r, total)) fails.push(`${at} ${what} ${i} on the total`);
+          if (hit(r, chest)) fails.push(`${at} ${what} ${i} on the chest`);
+        }
+        boxes.forEach((o, j) => {
+          if (i < j && hit(bx.icon, o.icon)) fails.push(`${at} icon ${i} × icon ${j}`);
+          if (i < j && hit(bx.label, o.label)) fails.push(`${at} label ${i} × label ${j}`);
+          if (i !== j && hit(bx.label, o.icon)) fails.push(`${at} label ${i} × icon ${j}`);
+        });
+      });
+      v.beams.forEach((b, i) => {
+        if (!endCornersOff(b, screen)) fails.push(`${at} beam ${i}'s end shows`);
+        const base = b.label.h / 2;
+        if ([...WIDEST_MONEY].length * base > b.label.w) fails.push(`${at} +$ wider than label ${i}`);
+        for (const name of names) {
+          const f = fitLabel([name], b.label.w, 1, base, base * LABEL_MIN_SHARE);
+          if (f.overflow || f.lines.length !== 1) fails.push(`${at} "${name}" overflows label ${i}`);
+        }
+      });
+    }
+    expect(fails.slice(0, 12)).toEqual([]);
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 });

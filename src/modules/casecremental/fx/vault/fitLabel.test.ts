@@ -40,9 +40,11 @@ describe("fitLabel (a column's skin name: wrapped at spaces only, shrunk to fit 
       { w: 390, h: 844 },
     ]) {
       const vp = pixelViewport(screen.w, screen.h);
-      const base = hdFontSize(vp.scale);
       for (const beam of vaultLayout(screen, vp.scale).beams) {
         const box = beam.label;
+        // the renderer's font is a line of the box: full size on these screens, none of them crowded
+        const base = box.h / 2;
+        expect(base).toBe(hdFontSize(vp.scale));
         for (const lang of ["en", "ru"] as const) {
           setLang(lang);
           for (const id of ids) {

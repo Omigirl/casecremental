@@ -9,7 +9,6 @@ import { VAULT_LAND_TIMES } from "../../sim/tuning";
 import type { Drop, SkinDef } from "../../sim/types";
 import { moneyStyle, pixelStyle } from "../hd/font";
 import type { Juice } from "../juice/juice";
-import { hdFontSize } from "../pixel/screen";
 import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { drawBeam, drawRewardFrames } from "./beamArt";
@@ -171,7 +170,7 @@ export class VaultBeams {
       const { x, y, w, h } = b.label;
       c.back.clear().rect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)).fill({ color: LABEL_BACK, alpha: 0.7 });
       Object.assign(c.name.style, { wordWrap: false, align: "center" });
-      c.money.style.fontSize = hdFontSize(k);
+      c.money.style.fontSize = b.label.h / 2; // a line of the box: smaller when the screen is crowded
       c.fitName = "";
       this.drawFrame(c);
     });
@@ -191,11 +190,14 @@ export class VaultBeams {
   start(drops: readonly Drop[]): void {
     // never caseById on a vault drop (its case is "vault1"): the filler is the top case's skins
     const top = CASES[CASES.length - 1]!.skins;
+    // bake every skin the streams can show now, at the key turn, rather than as each first flies by mid-spin
+    for (const skin of top) this.skins.frames(skin);
     this.t = 0;
     this.glow = 0;
     this.lanes.forEach((c, i) => {
       const d = drops[i];
       c.drop = d ? skinById(d.skinId) : null;
+      if (c.drop) this.skins.frames(c.drop);
       c.amount = d?.value ?? 0;
       c.filler = this.shuffle(top);
       c.start = VAULT_CUES.columnsFrom + VAULT_CUES.columnStagger * i;
@@ -379,7 +381,7 @@ export class VaultBeams {
     const name = skinName(c.drop.id);
     const box = b.label;
     if (c.fitName !== name || c.fitW !== box.w) {
-      const base = hdFontSize(this.k);
+      const base = box.h / 2;
       const fit = fitLabel([name], box.w, 1, base, base * LABEL_MIN_SHARE);
       c.name.style.fontSize = fit.size;
       c.name.text = fit.lines.join("\n");

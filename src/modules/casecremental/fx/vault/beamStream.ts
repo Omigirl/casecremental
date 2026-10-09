@@ -1,12 +1,8 @@
-import type { Beam } from "./beams";
+import { BEAM_END_SHARE, BEAM_MOUTH_SHARE, type Beam } from "./beams";
 
 // The stream along one of the vault's beams (spec 2026-10-09 §5): which items are out of the chest and on the
 // beam, where each sits across it, which are coins, and how big an icon is drawn. Pure, so the pool's bound and
 // the stream's shape are tested without Pixi. Distances are screen px from the mouth (see itemDistance).
-
-/** The beam is this share of its width at the mouth, and widens by `TAPER` of it over its length. */
-const MOUTH_SHARE = 0.4;
-const TAPER = 0.9;
 
 /** The most items a beam reaching `reach` px can show at once, `spacing` px apart: the pool's size. */
 export const maxVisibleItems = (reach: number, spacing: number): number => Math.floor(Math.max(0, reach) / spacing) + 1;
@@ -42,4 +38,4 @@ export const iconScale = (w: number, h: number, box: number, k: number): number 
 
 /** The beam's width `d` px from the mouth: narrow at the chest, widening out past the screen edge. */
 export const beamWidthAt = (beam: Pick<Beam, "width" | "length">, d: number): number =>
-  beam.width * (MOUTH_SHARE + (TAPER * d) / beam.length);
+  beam.width * (BEAM_MOUTH_SHARE + ((BEAM_END_SHARE - BEAM_MOUTH_SHARE) * d) / beam.length);
