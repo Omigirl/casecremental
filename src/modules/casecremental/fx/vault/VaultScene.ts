@@ -1,238 +1,132 @@
-import { Container, Graphics, Sprite, Text, Texture } from "pixi.js";
-import { t as tr } from "../../i18n/index";
+import { Container, Graphics, Text, type Texture } from "pixi.js";
+import { getLang, t as tr } from "../../i18n/index";
+import { formatCash } from "../../sim/format";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Drop } from "../../sim/types";
 import type { AudioEngine } from "../audio/AudioEngine";
-import { pixelStyle } from "../hd/font";
+import { moneyStyle, pixelStyle } from "../hd/font";
 import type { HdLayer } from "../hd/HdLayer";
-import { KnifeFlight } from "../hd/knifeFlight";
-import { Coins } from "../juice/coins";
-import { Particles } from "../juice/particles";
+import type { Shake } from "../juice/shake";
 import type { Pt, Rect, TableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
-import { legacyVaultCues as vaultCues, VAULT_CUE_TIMES } from "./legacyCues";
+import { breath, dueBeats, type VaultBeat } from "./beats";
+import { Chest } from "./chest";
+import { countUp } from "./countUp";
+import { VAULT_CUES, vaultCues } from "./cues";
+import { DevilKey, dist, EMBER, KEY_FRAME } from "./devilKey";
+import { Rays } from "./rays";
+import { vaultTextures } from "./textures";
+import { VaultFx } from "./vaultFx";
+import { BODY_W, VAULT_FRAME, vaultLayout, type VaultLayout } from "./vaultLayout";
 
-// Vault Case I takes the screen (rework spec §4): a dark room, the vault slammed into the centre, the devil
-// key floating beside it until the player drags it into the lock; then the legendary-chest opening — the lock
-// spins, chains snap, light bursts, the lid opens on a golden column, coins fountain, fireworks go off — while
-// the World's five stacked reels slide in above it. Everything here is in screen px, over the scene and
-// under the HD overlay (flash, vignette, the blackout's veil). The World drives it from the sim each frame.
+// Vault Case I takes the screen (rework spec §4, jackpot spec 2026-10-09): a dark room, the vault slammed into
+// the centre, the devil key floating beside it until the player drags it into the lock; then the legendary
+// chest — it trembles at lower centre, snaps open on the fanfare's first downbeat, a rainbow fans out behind the
+// five columns (VaultColumns, in reelSlot), coins and fireworks fly, the total counts up, and it holds. Screen
+// px, over the scene and under the HD overlay. The World drives it from the sim each frame: each beat fires
+// once when the sim's t crosses it, and a reload or a lobby trip lands on t without replaying any.
 
 export type VaultPhase = "key" | "opening" | "done" | null;
 
-/** Where the vault's five reels stack (world px): the HUD and the panels are gone, so they take the top of
- *  the table's width. */
-export function vaultReelArea(l: TableLayout): Rect {
-  return { x: l.table.x + 8, y: 6, w: l.table.w - 16, h: l.table.y + 44 - 6 };
-}
-
-// The chest inside its 68×78 frame (vault-case.json): the body's centre (the anchor — the lid opens upward
-// from it), the lock, the mouth the light comes out of, the body's width and the open chest's height.
-const VAULT_FRAME = { w: 68, h: 78, frames: 4 };
-const BODY = { x: 34.5, y: 64 };
-const LOCK = { x: 35, y: 64 };
-const MOUTH = { x: 34.5, y: 52 };
-const BODY_W = 40;
-const OPEN_H = 45;
-/** The open chest's visual centre sits this far (frame px) above the body's centre. */
-const OPEN_LIFT = 9;
-// The devil key inside its 26×38 frame: the drawn key's centre.
-const KEY_FRAME = { w: 26, h: 38, frames: 4 };
-const KEY_CENTRE = { x: 10, y: 29.5 };
-
-const SLAM_SECONDS = 0.35;
+const SLAM_DELAY = 0.28;
 const DIM_KEY = 0.8;
 const DIM_OPEN = 0.86;
-const EMBER = 0xff5a1f;
 const GOLD = 0xffd34d;
-const FIREWORK_EVERY = 1.2;
 const FIREWORK_COLORS = [RARITY_INFO.covert.color, RARITY_INFO.gold.color, RARITY_INFO.classified.color, 0xffffff, 0x7affc1];
+/** The hold: the particles die away over this long after the count-up. */
+const FADE_SECONDS = 1.5;
 
-const easeOut = (x: number) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 3;
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
-const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
-
-function canvasTexture(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void): Texture {
-  const c = document.createElement("canvas");
-  c.width = w;
-  c.height = h;
-  draw(c.getContext("2d")!);
-  return Texture.from(c);
-}
-
-interface Coin {
-  s: Sprite;
-  vx: number;
-  vy: number;
-  age: number;
-}
 
 export class VaultScene {
   readonly root = new Container();
-  /** The World puts its pixel layer of stacked reels here; it slides in as the lid opens. */
+  /** VaultColumns puts its pixel layer of columns, their labels and the ★'s halo here. */
   readonly reelSlot = new Container();
   private readonly dim = new Graphics();
-  private readonly rays: Sprite;
-  private readonly glow: Sprite;
-  private readonly beam: Sprite;
-  private readonly vault: Sprite;
-  private readonly fountain = new Container();
-  private readonly keyGlow: Sprite;
-  private readonly key: Sprite;
+  private readonly rays: Rays;
+  private readonly chest: Chest;
+  private readonly fx: VaultFx;
+  private readonly key: DevilKey;
   private readonly hint = new Text({ text: "", style: pixelStyle(8, 0xffd0c0) });
-  private readonly particles: Particles;
-  private readonly coins: Coins;
-  private readonly fx = new Container();
-  private readonly flight: KnifeFlight;
+  private readonly total = new Text({ text: "", style: moneyStyle(16) });
   private readonly textures: Texture[];
-  private readonly vaultFrames: readonly Texture[];
-  private readonly keyFrames: readonly Texture[];
-  private readonly coinFrames: readonly Texture[];
 
   private phase: VaultPhase = null;
   private t = 0;
   private landed = 0;
   private drops: readonly Drop[] = [];
+  private sum = 0;
   private clock = 0;
   private screen = { w: 1, h: 1 };
   private k = 1;
-  /** Screen px per vault-sprite px while it waits (a whole number: crisp pixels). */
-  private S = 1;
-  private Sf = 1;
-  private centre: Pt = { x: 0, y: 0 };
-  private low: Pt = { x: 0, y: 0 };
-  private keyHome: Pt = { x: 0, y: 0 };
-  private keyPos: Pt = { x: 0, y: 0 };
-  private keySpin = 0;
-  private slamT: number | null = null;
+  private L: VaultLayout | null = null;
+  private sky = { top: 0, bottom: 1 };
+  private seamT = 0;
+  private totalPop = 0;
+  private tickText = "";
   private slamPending = false;
-  private punch = 0;
-  private emberT = 0;
-  private whisperT = 1.5;
-  private fountainT = 0;
-  private fireworkT = 0;
-  private live: Coin[] = [];
-  private drag: { start: Pt; grab: Pt; moved: number } | null = null;
 
   constructor(
     lib: SpriteLibrary,
     private readonly hd: HdLayer,
     private readonly audio: AudioEngine,
-    private readonly shake: (trauma: number) => void,
+    private readonly shake: Pick<Shake, "add">,
+    /** Re-apply the music from the sim (the fanfare starts on the impact). */
+    private readonly music: () => void,
   ) {
-    const soft = canvasTexture(128, 128, (g) => {
-      const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-      grad.addColorStop(0, "rgba(255,255,255,1)");
-      grad.addColorStop(0.35, "rgba(255,255,255,0.45)");
-      grad.addColorStop(1, "rgba(255,255,255,0)");
-      g.fillStyle = grad;
-      g.fillRect(0, 0, 128, 128);
-    });
-    const dot = canvasTexture(16, 16, (g) => {
-      const grad = g.createRadialGradient(8, 8, 0, 8, 8, 8);
-      grad.addColorStop(0, "rgba(255,255,255,1)");
-      grad.addColorStop(0.5, "rgba(255,255,255,0.6)");
-      grad.addColorStop(1, "rgba(255,255,255,0)");
-      g.fillStyle = grad;
-      g.fillRect(0, 0, 16, 16);
-    });
-    // god rays: wedges from the centre, fading outward
-    const rays = canvasTexture(512, 512, (g) => {
-      const grad = g.createRadialGradient(256, 256, 0, 256, 256, 256);
-      grad.addColorStop(0, "rgba(255,255,255,0.9)");
-      grad.addColorStop(0.4, "rgba(255,255,255,0.35)");
-      grad.addColorStop(1, "rgba(255,255,255,0)");
-      g.fillStyle = grad;
-      const n = 18;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        const w = (Math.PI / n) * (i % 2 ? 0.35 : 0.6);
-        g.beginPath();
-        g.moveTo(256, 256);
-        g.arc(256, 256, 256, a - w, a + w);
-        g.closePath();
-        g.fill();
-      }
-    });
-    // the golden column: bright in the middle, soft at the edges, fading toward the top
-    const beam = canvasTexture(64, 256, (g) => {
-      const h = g.createLinearGradient(0, 0, 64, 0);
-      h.addColorStop(0, "rgba(255,255,255,0)");
-      h.addColorStop(0.35, "rgba(255,255,255,0.55)");
-      h.addColorStop(0.5, "rgba(255,255,255,1)");
-      h.addColorStop(0.65, "rgba(255,255,255,0.55)");
-      h.addColorStop(1, "rgba(255,255,255,0)");
-      g.fillStyle = h;
-      g.fillRect(0, 0, 64, 256);
-      g.globalCompositeOperation = "destination-in";
-      const v = g.createLinearGradient(0, 0, 0, 256);
-      v.addColorStop(0, "rgba(0,0,0,0)");
-      v.addColorStop(0.5, "rgba(0,0,0,0.7)");
-      v.addColorStop(1, "rgba(0,0,0,1)");
-      g.fillStyle = v;
-      g.fillRect(0, 0, 64, 256);
-    });
-    this.textures = [soft, dot, rays, beam];
+    const { soft, dot, star } = vaultTextures();
+    this.textures = [soft, dot, star];
 
-    const vs = lib.get("vault-case", VAULT_FRAME);
-    const ks = lib.get("devil-key", KEY_FRAME);
-    this.vaultFrames = vs.frames;
-    this.keyFrames = ks.frames;
-    this.coinFrames = lib.get("coin", { w: 12, h: 22, frames: 4 }).frames;
-    for (const f of [...this.vaultFrames, ...this.keyFrames, ...this.coinFrames]) f.source.scaleMode = "nearest";
+    const vaultFrames = lib.get("vault-case", VAULT_FRAME).frames;
+    const keyFrames = lib.get("devil-key", KEY_FRAME).frames;
+    const coinFrames = lib.get("coin", { w: 12, h: 22, frames: 4 }).frames;
+    for (const f of [...vaultFrames, ...keyFrames, ...coinFrames]) f.source.scaleMode = "nearest";
 
-    this.rays = new Sprite({ texture: rays, anchor: 0.5, blendMode: "add", alpha: 0 });
-    this.glow = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0 });
-    this.beam = new Sprite({ texture: beam, anchor: { x: 0.5, y: 1 }, blendMode: "add", alpha: 0, tint: 0xffe08a });
-    this.vault = new Sprite({ texture: this.vaultFrames[0], anchor: { x: BODY.x / VAULT_FRAME.w, y: BODY.y / VAULT_FRAME.h } });
-    this.keyGlow = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0, tint: 0xff2a10 });
-    this.key = new Sprite({ texture: this.keyFrames[0], anchor: { x: KEY_CENTRE.x / KEY_FRAME.w, y: KEY_CENTRE.y / KEY_FRAME.h } });
-    this.particles = new Particles(dot);
-    this.coins = new Coins(this.coinFrames);
+    this.rays = new Rays(soft, star);
+    this.chest = new Chest(vaultFrames, soft);
+    this.fx = new VaultFx(dot, star, coinFrames);
+    this.key = new DevilKey(keyFrames, soft, audio, this.fx.sparks);
     this.hint.anchor.set(0.5, 0);
-    this.flight = new KnifeFlight(this.fx);
-    this.fx.addChild(this.particles.container, this.coins.container);
+    this.total.anchor.set(0.5);
+    // back to front: the dim, the light, the fireworks and coins, the columns, the chest and its bursts, the total,
+    // the key
     this.root.addChild(
       this.dim,
-      this.rays,
-      this.glow,
-      this.beam,
-      this.vault,
-      this.fountain,
+      this.rays.root,
+      this.chest.glow,
+      this.fx.back,
       this.reelSlot,
-      this.keyGlow,
-      this.key,
+      this.chest.front,
+      this.fx.front,
+      this.total,
+      this.key.glow,
+      this.key.sprite,
       this.hint,
-      this.fx,
     );
     this.root.visible = false;
   }
 
-  layout(screen: { w: number; h: number }, l: TableLayout, k: number): void {
+  /** Lays the scene out; returns the columns' area (world px) for VaultColumns. */
+  layout(screen: { w: number; h: number }, l: TableLayout, k: number): Rect {
     const { w, h } = screen;
     this.screen = { w, h };
     this.k = k;
-    this.flight.cancel();
+    const L = (this.L = vaultLayout(screen, l, k));
     this.dim
       .clear()
       .rect(-40, -40, w + 80, h + 80)
       .fill({ color: 0x000000 });
-    this.S = Math.max(1, Math.floor(Math.min((h * 0.5) / OPEN_H, (w * 0.62) / BODY_W)));
-    this.Sf = Math.max(1, Math.round(this.S * 0.55));
-    this.centre = { x: w / 2, y: Math.round(h * 0.5 + OPEN_LIFT * this.S * 0.5) };
-    const area = vaultReelArea(l);
-    const reelsBottom = (area.y + area.h) * k;
-    const lowY = (reelsBottom + h) / 2 + OPEN_LIFT * this.Sf;
-    this.low = { x: w / 2, y: Math.min(lowY, h - 14 * this.Sf - 4) };
-    this.keyHome = { x: this.centre.x - BODY_W * this.S * 0.5 - 16 * this.S * 0.6, y: this.centre.y - 6 * this.S };
-    if (!this.drag) this.keyPos = { ...this.keyHome };
-    this.rays.width = this.rays.height = Math.max(w, h) * 1.2;
-    this.glow.width = this.glow.height = BODY_W * this.S * 2.6;
-    this.beam.width = BODY_W * this.S * 0.7;
-    this.beam.height = h * 1.1;
+    this.key.layout(L.key.home, L.key.S, k);
+    this.chest.layout(L);
+    this.rays.layout(screen, L.chest.S);
+    this.fx.layout(screen, k);
+    const a = L.columnsArea;
+    this.sky = { top: h * 0.04, bottom: (a.y + a.h * 0.5) * k }; // fireworks and glints
     this.hint.style.fontSize = Math.round(hdFontSize(k) * 1.5);
-    this.coins.setScale(k, hdFontSize(k, 16));
+    this.total.style.fontSize = L.totalSize;
+    this.total.position.set(L.totalAt.x, L.totalAt.y);
+    return a;
   }
 
   /** The vault was bought just now: it drops in from above instead of just being there. */
@@ -243,180 +137,141 @@ export class VaultScene {
   /** The sim's vault this frame; "done" holds the last frame while the blackout falls. */
   show(phase: VaultPhase, t: number, drops: readonly Drop[], landed: number): void {
     if (phase !== this.phase) this.enter(phase, t);
-    if (phase === "opening") {
-      const prev = this.t;
-      const at = (x: number) => prev < x && t >= x;
-      const T = VAULT_CUE_TIMES;
-      if (at(0)) this.audio.play("vault-lock-spin");
-      if (at(T.chains)) this.chains();
-      if (at(T.burst)) this.burst();
-      if (at(T.open)) this.open();
-      this.t = t;
-    }
+    if (phase !== "opening") return;
     this.drops = drops;
     this.landed = landed;
+    this.sum = drops.reduce((s, d) => s + d.value, 0);
+    const prev = this.t;
+    this.t = t;
+    for (const b of dueBeats(prev, t)) this.beat(b);
   }
 
   /** A pointer went down at `p` (screen px): grab the key if it is on it. */
   keyHit(p: Pt): boolean {
-    if (this.phase !== "key" || this.slamT !== null) return false;
-    const q = this.local(p);
-    const r = Math.max(28, KEY_FRAME.h * this.keyScale() * 0.45);
-    if (dist(q, this.keyPos) > r) return false;
-    this.drag = { start: q, grab: { x: this.keyPos.x - q.x, y: this.keyPos.y - q.y }, moved: 0 };
-    this.audio.play("key-turn", { gain: 0.4, rate: 0.7 });
-    return true;
+    return this.phase === "key" && this.chest.settled && this.key.grab(this.local(p));
   }
 
   keyMove(p: Pt): void {
-    const d = this.drag;
-    if (!d) return;
-    const q = this.local(p);
-    this.keyPos = { x: q.x + d.grab.x, y: q.y + d.grab.y };
-    d.moved = Math.max(d.moved, dist(q, d.start));
+    this.key.move(this.local(p));
   }
 
   /** Released: "turn" in the lock (or on a tap), else the key floats back. */
   keyRelease(p: Pt): "turn" | "none" {
-    const d = this.drag;
-    if (!d) return "none";
-    this.keyMove(p);
-    this.drag = null;
-    const inLock = dist(this.keyPos, this.lockPos()) <= BODY_W * this.S * 0.2;
-    return d.moved < 6 || inLock ? "turn" : "none";
+    return this.key.release(this.local(p), this.chest.lockPos(), BODY_W * this.chest.scale * 0.2);
   }
 
   cancelDrag(): void {
-    this.drag = null;
+    this.key.cancel();
   }
 
   /** Sparks where a hands-off click lands. */
   sparks(p: Pt): void {
-    const q = this.local(p);
-    this.particles.burst(q, FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)]!, 14, 220 * (this.k / 6));
+    this.fx.sparks.burst(this.local(p), this.pick(FIREWORK_COLORS), 14, 220 * (this.k / 6));
   }
 
-  /** A firework at `p` (screen px; the World's reel landings), or a random one in the upper half. */
+  /** A firework at `p` (the scene's px; a column's lock-in, which plays its own sound), or a random one
+   *  above the columns with its 8-bit kick. */
   firework(p?: Pt, color?: number, big = false): void {
-    const at = p ? this.local(p) : { x: this.screen.w * (0.15 + Math.random() * 0.7), y: this.screen.h * (0.08 + Math.random() * 0.4) };
-    const c = color ?? this.fireworkColor();
-    const v = this.k / 6;
-    this.particles.burst(at, c, big ? 140 : 70, (big ? 520 : 360) * v, 260 * v);
-    this.particles.burst(at, 0xffffff, big ? 40 : 18, 160 * v, 120 * v);
-    if (!p) this.audio.play("firework", { gain: 0.5, rate: 0.9 + Math.random() * 0.25 });
-  }
-
-  floatText(p: Pt, text: string): void {
-    this.coins.floatText(this.local(p), text);
-  }
-
-  /** The legendary's b-roll shot, its animated texture playing as it turns. */
-  showcase(frames: readonly Texture[], p: Pt, size: number, onLand: () => void, fps = 8): void {
-    this.flight.start(frames, this.local(p), size, onLand, fps);
+    const { w } = this.screen;
+    const at = p ?? { x: w * (0.15 + Math.random() * 0.7), y: lerp(this.sky.top, this.sky.bottom, Math.random()) };
+    this.fx.firework(at, color ?? this.fireworkColor(), big);
+    if (!p) this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
   }
 
   update(dt: number): void {
     if (!this.root.visible) return;
     this.clock += dt;
-    const S = this.S;
-    const v = this.k / 6;
     const opening = this.phase === "opening" || (this.phase === "done" && this.t > 0);
-    const c = vaultCues(opening ? this.t : -1);
-    const reelsIn = opening ? easeOut(c.reelsIn) : 0;
+    const t = opening ? this.t : null;
+    const cues = vaultCues(t ?? -1);
 
     // the room behind darkens
     const dimTarget = this.phase === "key" ? DIM_KEY : DIM_OPEN;
-    this.dim.alpha += (dimTarget - this.dim.alpha) * Math.min(1, dt * 3);
+    this.dim.alpha += (dimTarget - this.dim.alpha) * Math.min(1, dt * 5);
 
-    // the vault: slammed in, breathing while it waits, trembling before it bursts, then sinking under the reels
-    let pos = { x: lerp(this.centre.x, this.low.x, reelsIn), y: lerp(this.centre.y, this.low.y, reelsIn) };
-    let sx = lerp(S, this.Sf, reelsIn);
-    let sy = sx;
-    if (this.slamT !== null) {
-      const before = this.slamT;
-      this.slamT += dt;
-      const u = this.slamT / SLAM_SECONDS;
-      if (u < 1) pos = { x: pos.x, y: pos.y - (1 - u * u) * (pos.y + OPEN_H * S) };
-      else {
-        if (before < SLAM_SECONDS) this.landSlam();
-        const b = this.slamT - SLAM_SECONDS;
-        const squash = Math.exp(-b * 9) * Math.sin(b * 34) * 0.14;
-        sx *= 1 + squash;
-        sy *= 1 - squash;
-        if (b > 0.6) this.slamT = null;
-      }
-    } else if (this.phase === "key") {
-      const breathe = 1 + 0.02 * Math.sin(this.clock * 2.2);
-      sx *= breathe;
-      sy *= breathe;
-    }
-    if (opening && this.t >= VAULT_CUE_TIMES.chains && this.t < VAULT_CUE_TIMES.open) {
-      const tremble = ((this.t - VAULT_CUE_TIMES.chains) / (VAULT_CUE_TIMES.open - VAULT_CUE_TIMES.chains)) * S * 0.6;
-      pos = { x: pos.x + (Math.random() - 0.5) * tremble, y: pos.y + (Math.random() - 0.5) * tremble * 0.5 };
-      if (this.phase === "opening") this.shake(dt * 2.2);
-    }
-    this.punch = Math.max(0, this.punch - dt * 3);
-    const p = 1 + 0.12 * this.punch;
-    const near = this.phase === "key" && !!this.drag && dist(this.keyPos, this.lockPos()) <= BODY_W * S * 0.3;
-    this.vault.texture = this.vaultFrames[opening ? c.vaultFrame : near ? 1 : 0]!;
-    this.vault.position.set(Math.round(pos.x), Math.round(pos.y));
-    this.vault.scale.set(sx * p, sy * p);
-    const scaleNow = sx * p;
-
-    // light: devilish red while it waits, gold once it opens
-    const mouth = { x: pos.x + (MOUTH.x - BODY.x) * scaleNow, y: pos.y + (MOUTH.y - BODY.y) * scaleNow };
-    const pulse = 0.5 + 0.5 * Math.sin(this.clock * 3.1);
-    this.glow.position.set(pos.x, pos.y - OPEN_LIFT * scaleNow * 0.5);
-    this.glow.scale.set((BODY_W * scaleNow * 2.6) / 128);
-    this.rays.position.set(pos.x, pos.y - OPEN_LIFT * scaleNow);
-    this.rays.rotation += dt * (opening && this.t >= VAULT_CUE_TIMES.burst ? 0.3 : 0.12);
-    if (!opening) {
-      this.glow.tint = 0xff2a1a;
-      this.glow.alpha = (near ? 0.75 : 0.35) + 0.25 * pulse;
-      this.rays.tint = 0xff3020;
-      this.rays.alpha = 0.1 + 0.05 * pulse;
-    } else {
-      const charge = Math.min(1, this.t / VAULT_CUE_TIMES.open);
-      this.glow.tint = this.t < VAULT_CUE_TIMES.burst ? 0xffb040 : GOLD;
-      this.glow.alpha = 0.3 + 0.6 * charge + 0.1 * pulse;
-      this.rays.tint = 0xffe08a;
-      this.rays.alpha = this.t < VAULT_CUE_TIMES.burst ? 0.1 * charge : Math.min(0.6, 0.1 + (this.t - VAULT_CUE_TIMES.burst) * 0.6);
-    }
-    this.beam.position.set(mouth.x, mouth.y);
-    this.beam.alpha = c.beam * (0.8 + 0.2 * Math.sin(this.clock * 7));
-    this.beam.width = BODY_W * scaleNow * 0.7 * (0.9 + 0.1 * Math.sin(this.clock * 11));
-
-    this.updateKey(dt, opening, c.lockSpin);
-
-    // the reels slide down into place as the lid opens
-    this.reelSlot.alpha = opening ? c.reelsIn : 0;
-    this.reelSlot.y = Math.round(-(1 - reelsIn) * 40 * this.k);
+    const near = this.phase === "key" && this.key.dragging && dist(this.key.pos, this.chest.lockPos()) <= BODY_W * this.chest.scale * 0.3;
+    if (this.chest.update(dt, this.clock, { t, cues, near })) this.landSlam();
+    const mouth = this.chest.mouth();
+    this.rays.update(dt, this.clock, t, cues, t !== null && cues.lid > 0 ? mouth : this.chest.centre());
+    this.key.update(dt, this.clock, this.phase === "key" && !this.chest.falling);
 
     // the hint, pulsing, while the key waits
     const hint = tr("hint.vaultkey");
     if (this.hint.text !== hint) this.hint.text = hint;
-    this.hint.visible = this.phase === "key" && this.slamT === null;
-    this.hint.alpha = 0.6 + 0.4 * pulse;
-    this.hint.position.set(this.centre.x, this.centre.y + 16 * S);
+    this.hint.visible = this.phase === "key" && this.chest.settled;
+    this.hint.alpha = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(this.clock * 3.1));
+    if (this.L) this.hint.position.set(this.L.key.bottom.x, this.L.key.hintY);
 
-    // emitters: coins fountain out of the mouth, fireworks go off overhead
-    if (this.phase === "opening" && c.fountain) {
-      for (this.fountainT += dt; this.fountainT >= 0.1; this.fountainT -= 0.1) this.spawnCoins(mouth, this.t > 20 ? 1 : 3);
-      // after the legendary lands the sky goes off twice as often
-      const every = this.landed >= 5 ? FIREWORK_EVERY / 2 : FIREWORK_EVERY;
-      for (this.fireworkT += dt; this.fireworkT >= every; this.fireworkT -= every) this.firework();
+    if (this.phase === "opening" && t !== null) {
+      // sparks escape through the seam while it trembles
+      if (cues.tremble > 0)
+        for (this.seamT += dt * 30 * cues.tremble; this.seamT >= 1; this.seamT--)
+          this.fx.seamSparks(this.chest.seamPos(), BODY_W * this.chest.scale * 0.7, 1);
+      const fade = t < VAULT_CUES.celebrateTo ? 1 : Math.max(0, 1 - (t - VAULT_CUES.celebrateTo) / FADE_SECONDS);
+      this.fx.emit(dt, mouth, cues.density * breath(t) * fade, this.sky);
     }
-    this.updateCoins(dt, v);
-    this.particles.update(dt);
-    this.coins.update(dt);
-    this.flight.update(dt);
+    this.updateTotal(dt, t);
+    this.fx.update(dt);
   }
 
   destroy(): void {
-    this.flight.cancel();
-    this.coins.destroy();
+    this.fx.clear();
+    this.rays.destroy();
     this.root.destroy({ children: true });
     for (const tex of this.textures) tex.destroy(true);
+  }
+
+  private beat(b: VaultBeat): void {
+    switch (b) {
+      case "keyTurn": // the key's work is done: it bursts into embers; the riser climbs to the impact
+        this.audio.play("vault-riser");
+        this.fx.sparks.burst(this.key.pos, EMBER, 40, 260 * (this.k / 6), -200 * (this.k / 6));
+        break;
+      case "impact": {
+        this.hd.flash(0xfff2c0, 0.35);
+        this.shake.add(0.35);
+        this.fx.impact(this.chest.mouth());
+        this.audio.play("vault-open-hit");
+        this.music(); // the fanfare's first downbeat
+        break;
+      }
+      case "firework":
+        this.firework();
+        break;
+      case "celebrate":
+        this.audio.play("coin-fountain");
+        this.fx.shower(40);
+        this.fx.coinArc(this.chest.mouth(), 24);
+        this.totalPop = 1;
+        break;
+      case "tick": {
+        const text = this.totalText(this.t);
+        if (text !== this.tickText) this.audio.play("count-tick", { rate: 1 + (this.t - VAULT_CUES.celebrateFrom) * 0.2 });
+        this.tickText = text;
+        break;
+      }
+      case "countDone":
+        this.audio.play("count-ding");
+        this.totalPop = 1;
+        this.fx.stars.burst({ x: this.total.x, y: this.total.y }, GOLD, 30, 320 * (this.k / 6), 200 * (this.k / 6));
+        break;
+    }
+  }
+
+  /** The five payouts counting up under the columns from 9.0, resolving at 11.5, held through the blackout. */
+  private updateTotal(dt: number, t: number | null): void {
+    const on = t !== null && t >= VAULT_CUES.celebrateFrom;
+    this.total.visible = on;
+    if (!on) return;
+    const text = this.totalText(t);
+    if (this.total.text !== text) this.total.text = text;
+    this.total.alpha = Math.min(1, (t - VAULT_CUES.celebrateFrom) / 0.3);
+    this.totalPop = Math.max(0, this.totalPop - dt * 4);
+    this.total.scale.set(1 + 0.25 * this.totalPop);
+  }
+
+  private totalText(t: number): string {
+    return tr("float.total", { n: `+${formatCash(countUp(t, this.sum), getLang())}` });
   }
 
   private enter(phase: VaultPhase, t: number): void {
@@ -425,171 +280,56 @@ export class VaultScene {
     if (phase === null) {
       this.root.visible = false;
       this.dim.alpha = 0;
-      this.drag = null;
-      this.slamT = null;
+      this.key.cancel();
+      this.chest.clearSlam();
       this.slamPending = false;
-      this.flight.cancel();
-      for (const c of this.live) c.s.destroy();
-      this.live = [];
+      this.fx.clear();
       this.t = 0;
       return;
     }
     if (phase === "done") return; // hold the last frame (a reload on the prestige screen shows nothing)
     this.root.visible = true;
     if (phase === "key") {
-      this.keyPos = { ...this.keyHome };
-      this.keySpin = 0;
-      this.whisperT = 2.5;
+      this.key.reset();
       if (this.slamPending) {
-        this.slamT = 0;
-        this.audio.play("vault-slam", { delay: SLAM_SECONDS * 0.8 });
-        this.audio.play("vault-rumble", { delay: SLAM_SECONDS * 0.8 });
+        this.chest.slam();
+        this.audio.play("vault-slam", { delay: SLAM_DELAY });
+        this.audio.play("vault-rumble", { delay: SLAM_DELAY });
       } else this.dim.alpha = DIM_KEY; // a reload: already there
       this.slamPending = false;
     } else {
-      // opening: live after the key turned, or a reload part-way (no cue replays before `t`)
+      // opening: live after the key turned (every beat from 0 fires), or a restore part-way (none before t replay)
       this.t = was === "key" ? -1e-6 : t;
-      this.fountainT = 0;
-      this.fireworkT = FIREWORK_EVERY * 0.6;
-      this.slamT = null;
-      this.drag = null;
+      this.tickText = this.totalText(this.t);
+      this.chest.clearSlam();
+      this.key.cancel();
       if (was !== "key") this.dim.alpha = DIM_OPEN;
     }
   }
 
   private landSlam(): void {
-    const S = this.S;
-    const base = { x: this.centre.x, y: this.centre.y + 13 * S };
-    this.shake(0.6);
+    const L = this.L;
+    if (!L) return;
+    const S = L.key.S;
+    const base = L.key.bottom;
+    const v = this.k / 6;
+    this.shake.add(0.6);
     this.hd.flash(0xff3b1f, 0.25);
-    const v = this.k / 6;
-    this.particles.burst({ x: base.x - BODY_W * S * 0.4, y: base.y }, 0x8a7f70, 30, 260 * v);
-    this.particles.burst({ x: base.x + BODY_W * S * 0.4, y: base.y }, 0x8a7f70, 30, 260 * v);
-    this.particles.burst(this.keyHome, EMBER, 40, 240 * v, -200 * v);
+    this.fx.sparks.burst({ x: base.x - BODY_W * S * 0.4, y: base.y - S }, 0x8a7f70, 30, 260 * v);
+    this.fx.sparks.burst({ x: base.x + BODY_W * S * 0.4, y: base.y - S }, 0x8a7f70, 30, 260 * v);
+    this.fx.sparks.burst(L.key.home, EMBER, 40, 240 * v, -200 * v);
     this.audio.play("devil-key-laugh", { delay: 0.35 });
-  }
-
-  /** The chains snap: the key's work is done, it bursts into embers. */
-  private chains(): void {
-    const v = this.k / 6;
-    this.audio.play("chain-snap");
-    this.shake(0.4);
-    this.punch = 0.6;
-    const lock = this.lockPos();
-    this.particles.burst(lock, EMBER, 60, 320 * v, -240 * v);
-    this.particles.burst(lock, 0xc8ccd8, 36, 420 * v);
-  }
-
-  /** Light bursts through the cracks. */
-  private burst(): void {
-    const v = this.k / 6;
-    this.hd.flash(0xfff3b0, 0.8);
-    this.audio.play("light-burst");
-    this.shake(0.5);
-    this.punch = 1;
-    this.particles.burst({ x: this.centre.x, y: this.centre.y - OPEN_LIFT * this.S }, 0xfff3b0, 90, 520 * v);
-  }
-
-  /** The lid flies open: the column of light and the fountain begin. */
-  private open(): void {
-    const v = this.k / 6;
-    this.hd.flash(GOLD, 0.45);
-    this.audio.play("coin-fountain");
-    this.shake(0.45);
-    this.punch = 0.8;
-    const mouth = { x: this.centre.x, y: this.centre.y + (MOUTH.y - BODY.y) * this.S };
-    this.particles.burst(mouth, GOLD, 160, 600 * v, 400 * v);
-    this.spawnCoins(mouth, 18);
-  }
-
-  private updateKey(dt: number, opening: boolean, lockSpin: boolean): void {
-    const ks = this.keyScale();
-    if (this.phase === "key") {
-      this.key.visible = this.keyGlow.visible = true;
-      this.key.alpha = 1;
-      this.key.texture = this.keyFrames[Math.floor(this.clock * 6) % this.keyFrames.length]!;
-      const bob = Math.sin(this.clock * 2.4) * 4 * Math.max(1, this.k / 6);
-      if (!this.drag) {
-        const home = { x: this.keyHome.x, y: this.keyHome.y + bob };
-        const u = Math.min(1, dt * 8);
-        this.keyPos = { x: lerp(this.keyPos.x, home.x, u), y: lerp(this.keyPos.y, home.y, u) };
-      }
-      const hidden = this.slamT !== null && this.slamT < SLAM_SECONDS;
-      this.key.visible = this.keyGlow.visible = !hidden;
-      this.key.rotation = this.drag ? Math.sin(this.clock * 20) * 0.08 : 0.12 * Math.sin(this.clock * 1.7);
-      this.key.scale.set(ks * (this.drag ? 1.1 : 1));
-      if (!hidden) {
-        this.whisperT -= dt;
-        if (this.whisperT <= 0) {
-          this.whisperT = 6 + Math.random() * 2;
-          this.audio.play("devil-key-whisper");
-        }
-        for (this.emberT += dt; this.emberT >= 0.5; this.emberT -= 0.5) {
-          const v = this.k / 6;
-          this.particles.burst(this.keyPos, Math.random() < 0.3 ? 0xffb020 : EMBER, 2, 60 * v, -140 * v);
-        }
-      }
-    } else if (opening && lockSpin && this.phase === "opening") {
-      // in the lock, turning fast
-      this.key.visible = this.keyGlow.visible = true;
-      const lock = this.lockPos();
-      const u = Math.min(1, dt * 18);
-      this.keyPos = { x: lerp(this.keyPos.x, lock.x, u), y: lerp(this.keyPos.y, lock.y, u) };
-      this.keySpin += dt * (6 + this.t * 14);
-      this.key.rotation = this.keySpin;
-      this.key.scale.set(ks * (1 + 0.15 * Math.sin(this.clock * 30)));
-      this.key.texture = this.keyFrames[Math.floor(this.clock * 12) % this.keyFrames.length]!;
-    } else {
-      this.key.visible = this.keyGlow.visible = false;
-    }
-    this.key.position.set(Math.round(this.keyPos.x), Math.round(this.keyPos.y));
-    this.keyGlow.position.copyFrom(this.key.position);
-    this.keyGlow.scale.set((KEY_FRAME.h * ks * 1.4) / 128);
-    this.keyGlow.alpha = 0.55 + 0.3 * Math.sin(this.clock * 5);
-  }
-
-  private spawnCoins(at: Pt, n: number): void {
-    const k = this.k;
-    for (let i = 0; i < n; i++) {
-      const s = new Sprite({ texture: this.coinFrames[0], anchor: 0.5 });
-      s.scale.set(k * 0.6);
-      s.position.set(at.x + (Math.random() - 0.5) * BODY_W * this.Sf * 0.5, at.y);
-      this.fountain.addChild(s);
-      this.live.push({ s, vx: (Math.random() - 0.5) * 120 * k, vy: -(110 + Math.random() * 90) * k, age: Math.random() });
-    }
-  }
-
-  private updateCoins(dt: number, v: number): void {
-    const g = 1500 * v;
-    this.live = this.live.filter((c) => {
-      c.age += dt;
-      c.vy += g * dt;
-      c.s.x += c.vx * dt;
-      c.s.y += c.vy * dt;
-      c.s.texture = this.coinFrames[Math.floor(c.age * 14) % this.coinFrames.length]!;
-      if (c.s.y > this.screen.h + 40) {
-        c.s.destroy();
-        return false;
-      }
-      return true;
-    });
   }
 
   /** A landed drop's rarity colour (the sky celebrates what came out), or a festive one. */
   private fireworkColor(): number {
     const got = this.drops.slice(0, this.landed);
-    if (got.length && Math.random() < 0.6) return RARITY_INFO[got[Math.floor(Math.random() * got.length)]!.rarity].color;
-    return FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)]!;
+    if (got.length && Math.random() < 0.6) return RARITY_INFO[this.pick(got).rarity].color;
+    return this.pick(FIREWORK_COLORS);
   }
 
-  private keyScale(): number {
-    return Math.max(2, Math.round(this.S * 0.8));
-  }
-
-  /** The lock, where the vault is now (screen px, the root's space). */
-  private lockPos(): Pt {
-    const s = this.vault.scale.x || this.S;
-    return { x: this.vault.x + (LOCK.x - BODY.x) * s, y: this.vault.y + (LOCK.y - BODY.y) * s };
+  private pick<T>(xs: readonly T[]): T {
+    return xs[Math.floor(Math.random() * xs.length)]!;
   }
 
   private local(p: Pt): Pt {

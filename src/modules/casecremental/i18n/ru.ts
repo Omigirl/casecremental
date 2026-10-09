@@ -40,6 +40,7 @@ export const RU: Record<StringKey, string> = {
   "seller.speed": "Скорость УР {n}",
   "float.nopay": "НЕ ЗАПЛАТИЛИ",
   "float.trayfull": "ЛОТОК ПОЛОН",
+  "float.total": "ИТОГО {n}",
   "prestige.title": "СЕЙФ I ВСКРЫТ",
   "prestige.gained": "+{n} ХАЙПА",
   "prestige.total": "ХАЙП: {n}",

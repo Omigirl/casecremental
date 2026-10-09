@@ -17,7 +17,8 @@ import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { COLUMN_SLOW_CELLS, columnMotion, columnRects } from "./columnMotion";
 import { VAULT_CUES, vaultCues } from "./cues";
-import { vaultReelArea, type VaultScene } from "./VaultScene";
+import type { VaultScene } from "./VaultScene";
+import { vaultReelArea } from "./vaultLayout";
 
 // Vault Case I's five reels as vertical slot columns (spec 2026-10-09 §1-2): they cascade in, spin, and lock in
 // one by one, left to right, on the drops the sim already rolled — each landing louder than the last, the

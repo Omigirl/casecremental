@@ -36,6 +36,7 @@ import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
+import { vaultCues } from "./vault/cues";
 import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultColumns } from "./vault/VaultColumns";
 import { VaultScene } from "./vault/VaultScene";
@@ -143,7 +144,7 @@ export class World {
     this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
     this.look = new StageLook(this.scene);
-    this.vault = new VaultScene(lib, this.hd, audio, (trauma) => this.shake.add(trauma));
+    this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
     this.vaultColumns = new VaultColumns(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
     this.unbindMusic = bindMusicResync(
@@ -201,15 +202,12 @@ export class World {
     this.restoreVault(this.controller.run.state);
   }
 
-  /** A reload with the vault out waits for the key again, resumes the opening where it is, or sits in the dark
-   *  of the prestige screen. */
+  /** A reload: the vault's key or opening where the sim is, its music from the sim (else activate() applies it), or the dark. */
   private restoreVault(s: RunState): void {
     const v = s.vault;
-    if (v?.phase === "key") this.audio.setTrack("vault-suspense", { loop: true });
-    else if (v?.phase === "opening") {
-      this.vaultColumns.restore(v.drops, v.landed);
-      this.audio.setTrack("vault-fanfare", { loop: false, offset: v.t });
-    } else if (s.over) this.power.darkNow();
+    if (v?.phase === "opening") this.vaultColumns.restore(v.drops, v.landed);
+    if (v && this.controller.running) this.resumeMusic();
+    else if (!v && s.over) this.power.darkNow();
   }
 
   /** Back from the lobby: the music picks up where the vault (or the power-up) is, not where it was asked for. */
@@ -325,7 +323,10 @@ export class World {
     const v = s.vault;
     const opening = v?.phase === "opening" ? v : null;
     this.vault.show(v?.phase ?? (s.over ? "done" : null), opening?.t ?? 0, opening?.drops ?? [], opening?.landed ?? 0);
-    if (opening) this.vaultColumns.update(opening.t);
+    if (opening) {
+      this.vaultColumns.pulse(vaultCues(opening.t).pulse);
+      this.vaultColumns.update(opening.t);
+    }
     this.vault.update(realSeconds);
     const lights = this.power.update(realSeconds);
     this.hd.setLights(lights);
@@ -356,8 +357,7 @@ export class World {
     if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
     this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
-    this.vaultColumns.layout(this.l, this.vp);
-    this.vault.layout(this.screen, this.l, this.vp.scale);
+    this.vaultColumns.layout(this.l, this.vp, this.vault.layout(this.screen, this.l, this.vp.scale));
     const k = this.vp.scale;
     const size = hdFontSize(k);
     for (const txt of [this.hint, ...this.label, this.offline, this.trayFullLabel]) txt.style.fontSize = size;
@@ -493,9 +493,9 @@ export class World {
         this.vault.slam();
         this.audio.setTrack("vault-suspense", { loop: true });
         break;
-      case "vaultKeyTurned":
+      case "vaultKeyTurned": // the suspense fades out; the fanfare waits for the impact (musicPlan)
         this.vaultColumns.start(e.drops);
-        this.audio.setTrack("vault-fanfare", { loop: false });
+        this.resumeMusic();
         break;
       case "vaultReelLanded":
         this.vaultColumns.landed(e.index, e.drop, e.amount);
