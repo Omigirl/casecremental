@@ -31,10 +31,10 @@ describe("canvas labels", () => {
     expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP] })).toBe("hint.sell");
   });
 
-  it("hints at selling one waiting card, and stays quiet over two (multi-open: it would cover their tops)", () => {
+  it("hints at selling a single card, and stays quiet over a pair, even half-sold (it would cover their tops)", () => {
     expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP, DROP] })).toBeNull();
-    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [null, DROP] })).toBe("hint.sell");
-    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP, null] })).toBe("hint.sell");
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [null, DROP] })).toBeNull();
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP, null] })).toBeNull();
   });
 
   it("keeps a centred line inside its span, as near the wanted centre as it fits", () => {

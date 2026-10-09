@@ -1,5 +1,6 @@
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
+import { MULTI_OPEN_MAX } from "../sim/tuning";
 
 // The local save (M2b spec §9): the meta and the run in progress under one localStorage key, versioned.
 // Version 2 (rework): the bot opens, the auto-seller sells; a version-1 save starts fresh.
@@ -40,7 +41,7 @@ function isBench(b: unknown): boolean {
   if (b.phase === "revealed") {
     return Array.isArray(b.cards) && b.cards.every((c) => c === null || isObj(c)) && b.cards.some((c) => isObj(c));
   }
-  return isNum(b.count) && b.count >= 1;
+  return Number.isInteger(b.count) && (b.count as number) >= 1 && (b.count as number) <= MULTI_OPEN_MAX;
 }
 
 /** A version-2 save held one card; it becomes a bench of one (and no multi-open). */

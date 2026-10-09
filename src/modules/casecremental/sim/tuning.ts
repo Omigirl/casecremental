@@ -81,6 +81,9 @@ export const UPGRADE_COSTS = {
   multiOpen: { baseCost: 500, growth: 1, maxLevel: 1 },
 } as const;
 
+/** The widest multi-open in the campaign (×5 in Run 3, rework spec §2): a bench of more is a corrupt save. */
+export const MULTI_OPEN_MAX = 5;
+
 /** Sells closer together than this keep the combo going. */
 export const COMBO_WINDOW_SECONDS = 4;
 /** Sell multiplier per combo step: 1 + COMBO_STEP × min(combo, COMBO_CAP). */

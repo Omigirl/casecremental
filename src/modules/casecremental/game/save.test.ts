@@ -93,6 +93,20 @@ describe("the local save", () => {
     expect(bad({ phase: "empty" })).not.toBeNull();
   });
 
+  it("drops a locked bench whose count no BUY could make — one would build millions of reels", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const locked = (count: unknown) => {
+      const d = data() as unknown as { run: { state: Record<string, unknown> } };
+      d.run.state.bench = { phase: "locked", caseId: "bootcamp", free: false, count };
+      return decodeSave(JSON.stringify(d));
+    };
+    expect(locked(1e7)).toBeNull();
+    expect(locked(1.5)).toBeNull();
+    expect(locked(0)).toBeNull();
+    expect(locked(2)).not.toBeNull();
+    expect(locked(5)).not.toBeNull();
+  });
+
   it("migrates a version-2 save: a single card, a single reel, no multi-open (Review Focus 3)", () => {
     const v3 = data();
     const drop = { id: 1, skinId: CASES[0]!.skins[0]!.id, caseId: "bootcamp", rarity: "milspec", float: 0.2, statTrak: false, value: 1 };
