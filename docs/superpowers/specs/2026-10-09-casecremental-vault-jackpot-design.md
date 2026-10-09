@@ -75,3 +75,21 @@ time, once. A reload mid-opening resumes at the same frame, and the fanfare resu
 
 A skip action, a CONTINUE button, reduced-motion mode, and the bench's own reels (multi-open keeps its stacked
 reels).
+
+## 5. Addendum (user, 2026-10-09, with a Vampire Survivors screenshot): the reels are beams out of the chest
+
+The five reels are no longer framed vertical columns. They are **five wide coloured beams fanning up out of the
+chest's mouth and running past the edge of the screen**, so they read as endless:
+- Palette, left to right: yellow, orange, red, orange, yellow, translucent over the starburst.
+- Skin icons and gold coins stream out of the chest along each beam, upright, with a little sideways jitter.
+  They fly off the screen edge for as long as the beam spins.
+- The beams grow out of the chest in the cascade (100 ms apart). They replace the rainbow ray fan; the rotating
+  starburst and the glow stay behind them.
+- **Lock-ins** keep the same times and order (left to right). At each one the beam's stream decelerates and its
+  reward rides out and stops at its spot on the beam. The spot is well inside the screen; spots are staggered so
+  icons and labels never touch.
+- Then: a scale pulse, a rarity-coloured frame, a star burst, the chime, and the name and `+$` beside it. The
+  beam's other items fade out (0.3 s), leaving the reward on a lit beam.
+- The fifth is the animated ★, with the strongest accent.
+- The celebration's golden pulse brightens all five beams and frames.
+- Reload and lobby trip rules are unchanged: landed beams show their reward at rest, and no beat replays.
