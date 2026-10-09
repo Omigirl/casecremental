@@ -10,12 +10,12 @@ import type { Shake } from "../juice/shake";
 import type { Pt } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
-import { breath, dueBeats, type VaultBeat } from "./beats";
+import { breath, dueBeats, type DueBeat } from "./beats";
 import { VaultChaos } from "./chaos";
-import { flashCrossed } from "./chaosPlan";
+import { chaosBeat, flashCrossed } from "./chaosPlan";
 import { Chest } from "./chest";
 import { countUp } from "./countUp";
-import { VAULT_CUES, vaultCues } from "./cues";
+import { VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import { DevilKey, dist, EMBER, KEY_FRAME } from "./devilKey";
 import { Rays } from "./rays";
 import { vaultTextures } from "./textures";
@@ -38,7 +38,7 @@ const DIM_KEY = 0.8;
 const DIM_OPEN = 0.86;
 const GOLD = 0xffd34d;
 const FIREWORK_COLORS = [RARITY_INFO.covert.color, RARITY_INFO.gold.color, RARITY_INFO.classified.color, 0xffffff, 0x7affc1];
-/** Where the kicks burst, in turn (shares of the screen, jittered): the corners and the sides as well as the sky. */
+/** Where the kicks burst, kick i at spot i (shares of the screen, jittered): the corners and sides as well as the sky. */
 const KICK_SPOTS: readonly (readonly [number, number])[] = [
   [0.5, 0.14],
   [0.1, 0.12],
@@ -52,11 +52,14 @@ const KICK_SPOTS: readonly (readonly [number, number])[] = [
   [0.5, 0.4],
 ];
 const KICK_JITTER = 0.06;
+const jitter = () => (Math.random() - 0.5) * 2 * KICK_JITTER;
 /** The impact's flash, and a kick's (in its colour). */
 const IMPACT_FLASH = 0.35;
 const KICK_FLASH = 0.16;
 /** The hold: the particles die away over this long after the count-up. */
 const FADE_SECONDS = 1.5;
+/** The cues while the key waits (or the vault is away): nothing has started. */
+const WAITING: VaultCues = vaultCues(-1);
 
 export class VaultScene {
   readonly root = new Container();
@@ -91,7 +94,8 @@ export class VaultScene {
   private totalPop = 0;
   private tickText = "";
   private slamPending = false;
-  private kicks = 0;
+  /** This frame's cues, computed once (show) and shared: the chest, the light, the beams' pulse (the World). */
+  private frameCues: VaultCues = WAITING;
 
   constructor(
     lib: SpriteLibrary,
@@ -160,6 +164,11 @@ export class VaultScene {
     return L;
   }
 
+  /** This frame's cues (from the sim's t while it opens; the waiting ones before; held through "done"). */
+  get cues(): VaultCues {
+    return this.frameCues;
+  }
+
   /** The room behind (the World's camera): the chaos's offset and zoom; identity while the vault is away. */
   get room(): { readonly x: number; readonly y: number; readonly zoom: number } {
     return this.chaos.room;
@@ -179,6 +188,7 @@ export class VaultScene {
     this.sum = drops.reduce((s, d) => s + d.value, 0);
     const prev = this.t;
     this.t = t;
+    this.frameCues = vaultCues(t);
     for (const b of dueBeats(prev, t)) this.beat(b);
     // the full-screen flashes, within the photosensitivity budget (chaosPlan)
     const flash = flashCrossed(prev, t);
@@ -186,18 +196,19 @@ export class VaultScene {
     else if (flash !== null) this.hd.flash(this.fireworkColor(), KICK_FLASH);
   }
 
-  /** A pointer went down at `p` (screen px): grab the key if it is on it. */
-  keyHit(p: Pt): boolean {
-    return this.phase === "key" && this.chest.settled && this.key.grab(this.local(p));
+  /** Pointer `id` went down at `p` (screen px): grab the key if it is on it. */
+  keyHit(p: Pt, id: number): boolean {
+    return this.phase === "key" && this.chest.settled && this.key.grab(this.local(p), id);
   }
 
-  keyMove(p: Pt): void {
-    this.key.move(this.local(p));
+  /** Pointer `id` moved: the key follows only the finger holding it. */
+  keyMove(p: Pt, id: number): void {
+    this.key.move(this.local(p), id);
   }
 
-  /** Released: "turn" in the lock (or on a tap), else the key floats back. */
-  keyRelease(p: Pt): "turn" | "none" {
-    return this.key.release(this.local(p), this.chest.lockPos(), BODY_W * this.chest.scale * 0.2);
+  /** Pointer `id` let go: "turn" in the lock (or on a tap), else the key floats back; another finger's is "none". */
+  keyRelease(p: Pt, id: number): "turn" | "none" {
+    return this.key.release(this.local(p), id, this.chest.lockPos(), BODY_W * this.chest.scale * 0.2);
   }
 
   cancelDrag(): void {
@@ -209,25 +220,20 @@ export class VaultScene {
     this.fx.sparks.burst(this.local(p), this.pick(FIREWORK_COLORS), 14, 220 * (this.k / 6));
   }
 
-  /** A firework at `p` (the scene's px; a beam's lock-in, which plays its own sound), or a kick: a two-colour
-   *  burst at the next of KICK_SPOTS (corners and sides too) with its kick explosion. */
-  firework(p?: Pt, color?: number, big = false): void {
-    if (p) return this.fx.firework(p, color ?? this.fireworkColor(), big);
-    const { w, h } = this.screen;
-    const [sx, sy] = KICK_SPOTS[this.kicks++ % KICK_SPOTS.length]!;
-    const jitter = () => (Math.random() - 0.5) * 2 * KICK_JITTER;
-    const at = { x: w * (sx + jitter()), y: h * (sy + jitter()) };
-    this.fx.firework(at, color ?? this.fireworkColor(), big);
-    this.fx.firework(at, this.fireworkColor());
-    this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
+  /** A firework at `p` (the scene's still px; a beam's lock-in, which plays its own sound). It bursts on the
+   *  shaking stage, spawned where it shows exactly on `p` this frame (not off by the shake or the kick's zoom). */
+  firework(p: Pt, color?: number, big = false): void {
+    this.fx.firework(this.chaos.toStage(p), color ?? this.fireworkColor(), big);
   }
 
   update(dt: number): void {
     if (!this.root.visible) return;
     this.clock += dt;
+    // "done" holds the last frame while the blackout falls, the chaos still moving gently (its hold level)
+    if (this.phase === "done" && this.t > 0) this.t += dt;
     const opening = this.phase === "opening" || (this.phase === "done" && this.t > 0);
     const t = opening ? this.t : null;
-    const cues = vaultCues(t ?? -1);
+    const cues = this.frameCues;
 
     // the room behind darkens
     const dimTarget = this.phase === "key" ? DIM_KEY : DIM_OPEN;
@@ -235,7 +241,8 @@ export class VaultScene {
 
     const near = this.phase === "key" && this.key.dragging && dist(this.key.pos, this.chest.lockPos()) <= BODY_W * this.chest.scale * 0.3;
     const chaos = this.chaos;
-    if (this.chest.update(dt, this.clock, { t, cues, near, beat: chaos.beat })) this.landSlam();
+    // the chest bounces on this frame's beat (a function of t), before the chaos layer moves to its mouth
+    if (this.chest.update(dt, this.clock, { t, cues, near, beat: t === null ? 0 : chaosBeat(t) })) this.landSlam();
     const mouth = this.chest.mouth();
     chaos.update(t, mouth);
     this.rays.update(dt, this.clock, t, cues, t !== null && cues.lid > 0 ? mouth : this.chest.centre(), chaos);
@@ -266,14 +273,14 @@ export class VaultScene {
 
   destroy(): void {
     this.fx.clear();
-    this.rays.destroy();
-    this.root.destroy({ children: true });
+    this.root.destroy({ children: true }); // every layer, the rays' root among them, once
+    this.rays.destroy(); // its textures, once its sprites are gone
     this.chaos.destroy(); // its stripes' texture, once the sprite is gone
     for (const tex of this.textures) tex.destroy(true);
   }
 
-  private beat(b: VaultBeat): void {
-    switch (b) {
+  private beat(b: DueBeat): void {
+    switch (b.beat) {
       case "keyTurn": // the key's work is done: it bursts into embers; the riser climbs to the impact
         this.audio.play("vault-riser");
         this.fx.sparks.burst(this.key.pos, EMBER, 40, 260 * (this.k / 6), -200 * (this.k / 6));
@@ -286,7 +293,7 @@ export class VaultScene {
         break;
       }
       case "firework":
-        this.firework();
+        this.kick(b.kick ?? 0);
         break;
       case "celebrate":
         this.audio.play("coin-fountain");
@@ -329,6 +336,7 @@ export class VaultScene {
   private enter(phase: VaultPhase, t: number): void {
     const was = this.phase;
     this.phase = phase;
+    if (phase !== "done") this.frameCues = WAITING; // "done" holds the last frame's (constant through the hold)
     if (phase === null) {
       this.root.visible = false;
       this.dim.alpha = 0;
@@ -358,6 +366,17 @@ export class VaultScene {
       this.key.cancel();
       if (was !== "key") this.dim.alpha = DIM_OPEN;
     }
+  }
+
+  /** Kick `index` of VAULT_CUES.fireworks: a two-colour burst at its spot of KICK_SPOTS (corners and sides too) with
+   *  its explosion — the same spot for the same kick, live or after a reload. */
+  private kick(index: number): void {
+    const { w, h } = this.screen;
+    const [sx, sy] = KICK_SPOTS[index % KICK_SPOTS.length]!;
+    const at = { x: w * (sx + jitter()), y: h * (sy + jitter()) };
+    this.firework(at);
+    this.firework(at);
+    this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
   }
 
   private landSlam(): void {

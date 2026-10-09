@@ -80,6 +80,37 @@ describe("the vault's layout (chest at lower centre, the beams out of it, the to
   });
 });
 
+// Phones held either way and an ultrawide (C7): the key phase's vault, key and hint, and the open chest with
+// the total over it, all on screen and apart. The rewards are checked in the sweep below, which includes these.
+const EDGE_SCREENS = [
+  { w: 844, h: 390 },
+  { w: 640, h: 360 },
+  { w: 568, h: 320 },
+  { w: 360, h: 640 },
+  { w: 3440, h: 1440 },
+];
+
+describe("the vault's layout on phones and an ultrawide", () => {
+  it.each(EDGE_SCREENS)("keeps the key phase and the open chest on screen and apart at $w×$h", (screen) => {
+    const { v } = layoutFor(screen);
+    const on = (x: number, y: number) => x >= 0 && x <= screen.w && y >= 0 && y <= screen.h;
+    // the waiting vault, the devil key beside it and the hint under them
+    const k = v.key;
+    expect(on(k.bottom.x - (VAULT_FRAME.w * k.S) / 2, k.bottom.y - OPEN_H * k.S)).toBe(true);
+    expect(on(k.bottom.x + (VAULT_FRAME.w * k.S) / 2, k.bottom.y)).toBe(true);
+    expect(on(k.home.x, k.home.y)).toBe(true);
+    expect(on(k.bottom.x, k.hintY)).toBe(true);
+    // the open chest, and the total at its widest pop between the screen's top and the lid
+    const c = v.chest;
+    expect(on(c.x - (VAULT_FRAME.w * c.S) / 2, c.top)).toBe(true);
+    expect(on(c.x + (VAULT_FRAME.w * c.S) / 2, c.bottom)).toBe(true);
+    const size = 1.25 * v.totalSize;
+    expect(v.totalAt.y - size / 2).toBeGreaterThanOrEqual(0);
+    expect(v.totalAt.y + size / 2).toBeLessThan(c.top);
+    expect(v.beams).toHaveLength(5);
+  });
+});
+
 // A sweep of window sizes, landscape and portrait (final review, Important 1-3 and Minor 1): the five rewards,
 // their icons and labels, on screen and apart, clear of the total and the chest, each beam's far end off
 // screen, and every name and +$ fitting its label box.
@@ -103,6 +134,7 @@ const SWEEP = [
   { w: 390, h: 844 },
   { w: 844, h: 390 },
   { w: 667, h: 375 },
+  { w: 568, h: 320 },
 ];
 const MARGIN = 4;
 /** The widest +$ a vault pays out. */

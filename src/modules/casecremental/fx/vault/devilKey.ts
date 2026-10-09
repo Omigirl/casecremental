@@ -22,7 +22,8 @@ export class DevilKey {
   private home: Pt = { x: 0, y: 0 };
   private S = 2;
   private k = 1;
-  private drag: { start: Pt; grab: Pt; moved: number } | null = null;
+  /** The drag, and the pointer (finger) holding it: no other pointer moves or drops the key. */
+  private drag: { id: number; start: Pt; grab: Pt; moved: number } | null = null;
   private emberT = 0;
   private whisperT = 2.5;
 
@@ -55,27 +56,29 @@ export class DevilKey {
     return !!this.drag;
   }
 
-  /** A pointer went down at `q`: grab the key if it is on it. */
-  grab(q: Pt): boolean {
+  /** Pointer `id` went down at `q`: grab the key if it is on it and not already held. */
+  grab(q: Pt, id: number): boolean {
     const r = Math.max(28, KEY_FRAME.h * this.S * 0.45);
-    if (dist(q, this.pos) > r) return false;
-    this.drag = { start: q, grab: { x: this.pos.x - q.x, y: this.pos.y - q.y }, moved: 0 };
+    if (this.drag || dist(q, this.pos) > r) return false;
+    this.drag = { id, start: q, grab: { x: this.pos.x - q.x, y: this.pos.y - q.y }, moved: 0 };
     this.audio.play("key-turn", { gain: 0.4, rate: 0.7 });
     return true;
   }
 
-  move(q: Pt): void {
+  /** Pointer `id` moved to `q`: the key follows the finger holding it. */
+  move(q: Pt, id: number): void {
     const d = this.drag;
-    if (!d) return;
+    if (d?.id !== id) return;
     this.pos = { x: q.x + d.grab.x, y: q.y + d.grab.y };
     d.moved = Math.max(d.moved, dist(q, d.start));
   }
 
-  /** Released: "turn" within `lockR` of the lock (or on a tap), else it floats back. */
-  release(q: Pt, lock: Pt, lockR: number): "turn" | "none" {
+  /** Pointer `id` let go: "turn" within `lockR` of the lock (or on a tap), else it floats back. Another
+   *  pointer's release changes nothing. */
+  release(q: Pt, id: number, lock: Pt, lockR: number): "turn" | "none" {
     const d = this.drag;
-    if (!d) return "none";
-    this.move(q);
+    if (d?.id !== id) return "none";
+    this.move(q, id);
     this.drag = null;
     return d.moved < 6 || dist(this.pos, lock) <= lockR ? "turn" : "none";
   }

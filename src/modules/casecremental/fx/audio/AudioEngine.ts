@@ -86,6 +86,8 @@ export class AudioEngine {
   /** Resolves when every file has loaded (or failed to). */
   ready: Promise<void> = Promise.resolve();
   private readonly readyListeners = new Set<() => void>();
+  /** Which context's load is current: one left over from a dropped context neither restarts music nor fires. */
+  private loadGen = 0;
 
   constructor(
     urls: Record<string, string> = FILES,
@@ -101,7 +103,7 @@ export class AudioEngine {
         this.ctx = this.deps.createContext();
         if (!this.ctx) return;
         this.buildBuses(this.ctx);
-        this.ready = this.preload();
+        this.ready = this.preload(++this.loadGen);
       }
       if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => {});
       this.updateMusic();
@@ -111,7 +113,8 @@ export class AudioEngine {
     }
   }
 
-  /** Fires each time the files have finished decoding (the sound can play now); returns the unsubscribe. */
+  /** Fires once each time the files have finished decoding for a new context (the sound can play now); returns
+   *  the unsubscribe. */
   onReady(cb: () => void): () => void {
     this.readyListeners.add(cb);
     return () => void this.readyListeners.delete(cb);
@@ -240,9 +243,10 @@ export class AudioEngine {
     this.buses = { music, sfx, ui, duck };
   }
 
-  private async preload(): Promise<void> {
+  private async preload(gen: number): Promise<void> {
     const urls = [...this.files.music.values(), ...this.files.tracks.values(), ...[...this.files.sfx.values()].flat()];
     await Promise.all(urls.map((u) => this.loadBuffer(u)));
+    if (gen !== this.loadGen || !this.ctx) return; // a dropped context's load: the current one fires
     this.updateMusic();
     for (const cb of [...this.readyListeners]) cb();
   }

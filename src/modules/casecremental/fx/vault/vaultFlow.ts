@@ -18,9 +18,16 @@ export interface MusicPlan {
   musicOn: boolean;
 }
 
-/** What should be playing when the scene comes back from the lobby, read from the sim (the music engine
- *  only remembers where a track started, not where the vault is). */
-export function musicPlan(s: Pick<RunState, "vault" | "over">, poweringUp: boolean): MusicPlan {
+/** Where the lights are: the blackout still falling, black (the prestige screen), the workshop powering back
+ *  up, or lit. */
+export type PowerPhase = "blackout" | "dark" | "powerUp" | "lit";
+
+/** What the music needs from the audio engine (a recorder stands in for it in the tests). */
+export type MusicAudio = Pick<AudioEngine, "play" | "setMusicOn" | "setTrack">;
+
+/** What should be playing, read from the sim and the lights (the music engine only remembers where a track
+ *  started, not where the vault is): on a reload, back from the lobby, and whenever the World restores a run. */
+export function musicPlan(s: Pick<RunState, "vault" | "over">, power: PowerPhase): MusicPlan {
   const plan = (track: TrackId | null, loop = true, offset = 0, musicOn = true): MusicPlan => ({ track, loop, offset, musicOn });
   const v = s.vault;
   if (v?.phase === "key") return plan("vault-suspense");
@@ -28,21 +35,18 @@ export function musicPlan(s: Pick<RunState, "vault" | "over">, poweringUp: boole
     if (v.t < VAULT_CUES.impact) return plan("vault-fanfare", false, 0, false); // silent: the World starts it at the impact
     return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
   }
-  if (s.over) return plan("prestige");
-  if (poweringUp) return plan(null, true, 0, false); // the PowerCycle turns it on when the lights are up
+  // the prestige loop waits for the dark: the PowerCycle turns it on when the blackout has fallen
+  if (s.over) return power === "blackout" ? plan("prestige", true, 0, false) : plan("prestige");
+  if (power === "powerUp") return plan(null, true, 0, false); // the PowerCycle turns it on when the lights are up
   return plan(null);
 }
 
-/** Apply a plan: the track is chosen while the music is still off, so turning it on starts the right one. */
-export function applyMusic(audio: AudioEngine, p: MusicPlan): void {
-  if (!p.musicOn) {
-    audio.setMusicOn(false);
-    audio.setTrack(p.track);
-    return;
-  }
+/** Apply a plan: the track is chosen while the music is still off, so turning it on starts the right one. A
+ *  silent plan arms its track as planned (a one-shot stays a one-shot), and whoever turns the music on starts it. */
+export function applyMusic(audio: MusicAudio, p: MusicPlan): void {
   audio.setMusicOn(false);
   audio.setTrack(p.track, { loop: p.loop, offset: p.offset });
-  audio.setMusicOn(true);
+  if (p.musicOn) audio.setMusicOn(true);
 }
 
 /** Re-apply the music from the sim when the audio finishes decoding after a reload's first gesture, and when a
@@ -75,11 +79,13 @@ export class PowerCycle {
   private dark = false;
   private prestigeOn = false;
 
-  constructor(private readonly audio: AudioEngine) {}
+  constructor(private readonly audio: MusicAudio) {}
 
-  /** The lights are still coming up (the music waits for them). */
-  get poweringUp(): boolean {
-    return this.lightsT !== null;
+  /** Where the lights are (the music waits for the dark, and for the lights to come up). */
+  get phase(): PowerPhase {
+    if (this.blackoutT !== null) return this.prestigeOn ? "dark" : "blackout";
+    if (this.dark) return "dark";
+    return this.lightsT !== null ? "powerUp" : "lit";
   }
 
   /** The vault has opened: fade everything to black, then the prestige music. */
@@ -90,10 +96,9 @@ export class PowerCycle {
     this.audio.play("blackout");
   }
 
-  /** A reload on the prestige screen: already black. */
+  /** A reload on the prestige screen: already black (musicPlan picks the prestige loop). */
   darkNow(): void {
     this.dark = true;
-    this.audio.setTrack("prestige", { loop: true });
   }
 
   /** The next run: the lights stutter back on in silence, then the stage loop returns. */
@@ -111,7 +116,9 @@ export class PowerCycle {
       this.blackoutT += dt;
       if (!this.prestigeOn && this.blackoutT >= BLACKOUT_SECONDS) {
         this.prestigeOn = true;
+        // on as well: a lobby trip during the fade left the music off, the prestige loop armed (musicPlan)
         this.audio.setTrack("prestige", { loop: true });
+        this.audio.setMusicOn(true);
       }
       return all(blackoutLevel(this.blackoutT));
     }

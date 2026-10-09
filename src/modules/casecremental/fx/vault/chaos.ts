@@ -2,7 +2,7 @@ import { Container, Sprite, Texture, TilingSprite } from "pixi.js";
 import type { Pt } from "../pixel/layout";
 import { barPulse, beatAt, beatPulse, VAULT_BPM } from "./beat";
 import { itemJitter } from "./beamStream";
-import { chaosLevels, kickPulse, type ChaosLevels } from "./chaosPlan";
+import { chaosBeat, chaosLevels, kickPulse, type ChaosLevels } from "./chaosPlan";
 import { VAULT_CUES } from "./cues";
 import { canvasTexture } from "./textures";
 
@@ -42,14 +42,25 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 /** A fixed per-sprite random in [0, 1): the same every frame and after a reload. */
 const rnd = (i: number, salt: number) => (itemJitter(salt, i) + 1) / 2;
 
-/** A colour around the wheel: h in turns, s and v 0-1. */
+/** A colour around the wheel: h in turns, s and v 0-1. Allocation-free (it runs ~100 times a frame). */
 export function hsv(h: number, s: number, v: number): number {
-  const hh = ((h % 1) + 1) % 1;
-  const f = (n: number) => {
-    const k = (n + hh * 6) % 6;
-    return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+  const h6 = (((h % 1) + 1) % 1) * 6;
+  return (channel(5, h6, s, v) << 16) | (channel(3, h6, s, v) << 8) | channel(1, h6, s, v);
+}
+
+/** One 0-255 channel of hsv() (n: 5 red, 3 green, 1 blue; h6: the hue in sixths). */
+function channel(n: number, h6: number, s: number, v: number): number {
+  const k = (n + h6) % 6;
+  return Math.round((v - v * s * Math.max(0, Math.min(k, 4 - k, 1))) * 255);
+}
+
+/** A still point (the scene's px, unshaken) in the shaking stage's own px: a burst spawned there shows exactly on
+ *  the point now, however the stage is shaken and punched in about its pivot. */
+export function intoStage(p: Pt, stage: { pivot: Pt; position: Pt; scale: number }): Pt {
+  return {
+    x: stage.pivot.x + (p.x - stage.position.x) / stage.scale,
+    y: stage.pivot.y + (p.y - stage.position.y) / stage.scale,
   };
-  return (Math.round(f(5) * 255) << 16) | (Math.round(f(3) * 255) << 8) | Math.round(f(1) * 255);
 }
 
 export interface ChaosArt {
@@ -129,11 +140,17 @@ export class VaultChaos {
     const bar = barPulse(t);
     const kick = kickPulse(t);
     this.level = L.shake;
-    this.beat = beat * L.shake;
+    this.beat = chaosBeat(t);
     this.camera(t, L, beat, bar, kick, mouth);
     this.backdropLook(t, L, beat);
     this.rainAt(t, L.rain);
     this.edgeSparks(t, L.sparks);
+  }
+
+  /** A still point (the scene's px) where a burst on the stage must spawn to show on it (the landing fireworks). */
+  toStage(p: Pt): Pt {
+    const s = this.stage;
+    return intoStage(p, { pivot: s.pivot, position: s.position, scale: s.scale.x });
   }
 
   /** Nothing moves: the vault is away, or the key still waits. */

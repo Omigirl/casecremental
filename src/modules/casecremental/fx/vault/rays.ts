@@ -114,8 +114,8 @@ export class Rays {
     this.glow.alpha = since < 0 ? 0 : celebrating ? 0.35 + 0.25 * (1 - light) : 0.35 * c.rays;
   }
 
+  /** Its drawn textures; its root goes with the scene's tree (VaultScene.destroy), once. */
   destroy(): void {
-    this.root.destroy({ children: true });
     for (const tex of this.textures) tex.destroy(true);
   }
 }

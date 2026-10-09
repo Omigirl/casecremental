@@ -1,3 +1,4 @@
+import { beatPulse } from "./beat";
 import { VAULT_CUES } from "./cues";
 
 // How wild the vault gets, second by second (plan M2b-C6): dead still through the held beat, everything at full
@@ -56,6 +57,12 @@ export function chaosLevels(t: number): ChaosLevels {
   const e = envelope(t);
   const rain = e * easeOut((t - C.impact) / RAIN_IN_SECONDS);
   return { shake: e, zoom: e, hue: e, rain, sparks: e, wobble: e, background: e };
+}
+
+/** The drop's beat at the chaos's strength (0-1): what the chest bounces to, the starburst and the total pulse
+ *  to. A function of t alone, so the chest reads this frame's beat before the chaos layer has moved. */
+export function chaosBeat(t: number): number {
+  return beatPulse(t) * envelope(t);
 }
 
 /** 1 on each kick (VAULT_CUES.fireworks), dying away over 0.3 s; 0 between and before the first. */

@@ -13,6 +13,21 @@ import { charmChoices } from "./prestigeRules";
 
 type Act = (a: Action) => void;
 
+/** The settings gear as pixel art (the pixel font has no ⚙): 9×9 in the text colour, one cell per font pixel
+ *  (the text size is a multiple of 8 px, so 9/8 em keeps every cell whole). */
+const GEAR = ["....#....", ".#.###.#.", "..#####..", ".##...##.", "###...###", ".##...##.", "..#####..", ".#.###.#.", "....#...."];
+const GEAR_RUNS = GEAR.flatMap((row, y) => [...row.matchAll(/#+/g)].map((m) => ({ x: m.index, y, w: m[0].length })));
+
+function PixelGear(): ReactNode {
+  return (
+    <svg viewBox="0 0 9 9" width="1.125em" height="1.125em" shapeRendering="crispEdges" aria-hidden="true" style={{ display: "block" }}>
+      {GEAR_RUNS.map((r) => (
+        <rect key={`${r.x},${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill="currentColor" />
+      ))}
+    </svg>
+  );
+}
+
 export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; onSettings: () => void }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const box = useRef<HTMLDivElement>(null);
@@ -38,12 +53,8 @@ export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; on
         <div className="cc-row-line">
           <div className="cc-title">{t("prestige.title")}</div>
           {/* the HUD is gone here, and this screen waits with its own music: mute or switch language from it */}
-          <PxButton
-            onClick={onSettings}
-            title={t("hud.settings")}
-            style={{ fontFamily: "system-ui, sans-serif", fontSize: "calc(var(--fs) * 1.5)", lineHeight: 1 }}
-          >
-            ⚙
+          <PxButton onClick={onSettings} title={t("hud.settings")} style={{ lineHeight: 1 }}>
+            <PixelGear />
           </PxButton>
         </div>
         <div className="cc-row-line">

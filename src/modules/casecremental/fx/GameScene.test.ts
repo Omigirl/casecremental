@@ -86,3 +86,21 @@ describe("GameScene mount / destroy", () => {
     expect(controller.mounted).toBe(false);
   });
 });
+
+describe("GameScene music on the first mount", () => {
+  beforeEach(() => {
+    fake.apps.length = 0;
+    fake.worlds.length = 0;
+    vi.stubGlobal("window", { devicePixelRatio: 1 });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("leaves the music off while the World loads: its restore() starts the right track (not the stage loop first)", () => {
+    const audio = silent();
+    const on = vi.spyOn(audio, "setMusicOn");
+    const scene = createGameScene(new GameController(1), audio);
+    scene.mount({ host: { appendChild: vi.fn() } as unknown as HTMLElement });
+    scene.activate?.();
+    expect(on).not.toHaveBeenCalledWith(true);
+  });
+});

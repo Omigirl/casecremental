@@ -27,6 +27,22 @@ function stutter(t: number, start: number, flicker: number): number {
   return [1, 0, 1, 1, 0, 0, 1, 0, 1][blip] ?? 1;
 }
 
+/** The room's main light: a slow ramp, dim while the lamp warms up, then from ROOM_FROM it flickers up to full over
+ *  ROOM_FLICKER seconds — a few soft dips, never a hard step (a frame moves it by a few percent at most). */
+const ROOM_DIM = 0.4;
+const ROOM_FROM = 1.4;
+const ROOM_FLICKER = 0.5;
+const ROOM_DIPS = 3;
+const ROOM_DIP = 0.3;
+
+function roomLevel(t: number): number {
+  const ramp = Math.min(1, Math.max(0, (t - 0.5) / (LIGHTS_UP_SECONDS - 0.5)));
+  const u = Math.min(1, Math.max(0, (t - ROOM_FROM) / ROOM_FLICKER));
+  const rise = u * u * (3 - 2 * u);
+  const dip = ROOM_DIP * (1 - u) * Math.sin(Math.PI * ROOM_DIPS * u) ** 2;
+  return ramp * Math.max(0, ROOM_DIM + (1 - ROOM_DIM) * rise - dip);
+}
+
 export function lightLevels(t: number): LightLevels {
   if (t >= LIGHTS_UP_SECONDS) return { room: 1, lamp: 1, reels: 1, bin: 1, leds: 1 };
   return {
@@ -34,7 +50,7 @@ export function lightLevels(t: number): LightLevels {
     reels: stutter(t, 1.5, 0.6),
     bin: stutter(t, 2.3, 0.5),
     leds: stutter(t, 2.9, 0.4),
-    room: Math.min(1, Math.max(0, (t - 0.5) / (LIGHTS_UP_SECONDS - 0.5))) * (t < 1.4 ? 0.4 : 1),
+    room: roomLevel(t),
   };
 }
 

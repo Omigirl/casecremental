@@ -12,7 +12,6 @@ export class BotSprite {
   readonly root = new Container();
   private readonly sleep: Animated;
   private readonly awake: Animated;
-  private frenzy = false;
   private ready = false;
 
   constructor(lib: SpriteLibrary) {
@@ -35,13 +34,6 @@ export class BotSprite {
   /** It opens a case on its reel: the crouch-and-hop. */
   open(): void {
     this.awake.play(ANIMS.botOpen);
-  }
-
-  /** The vault finale: it can't stand still. */
-  setFrenzy(on: boolean): void {
-    if (on === this.frenzy) return;
-    this.frenzy = on;
-    this.awake.setIdle(on ? ANIMS.botFrenzy : ANIMS.botIdle);
   }
 
   update(ms: number, bot: BotState): void {

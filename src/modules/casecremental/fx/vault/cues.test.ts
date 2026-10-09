@@ -75,3 +75,30 @@ describe("countUp", () => {
     expect(countUp(14, 1000)).toBe(1000);
   });
 });
+
+describe("the cues' bounds", () => {
+  it("keeps the seam's light and the particle density within 0-1, before, through and after the opening", () => {
+    for (let t = -2; t <= 20; t += 0.013) {
+      const c = vaultCues(t);
+      for (const [name, v] of [
+        ["seam", c.seam],
+        ["density", c.density],
+      ] as const) {
+        expect(v, `${name} at ${t}`).toBeGreaterThanOrEqual(0);
+        expect(v, `${name} at ${t}`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("never counts the total down", () => {
+    for (const total of [0, 1, 999.5, 1e15]) {
+      let last = countUp(-1, total);
+      for (let t = -1; t <= 20; t += 0.007) {
+        const v = countUp(t, total);
+        expect(v, `${total} at ${t}`).toBeGreaterThanOrEqual(last);
+        last = v;
+      }
+      expect(last).toBe(total);
+    }
+  });
+});

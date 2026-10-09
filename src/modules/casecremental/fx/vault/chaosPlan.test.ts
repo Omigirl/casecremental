@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { chaosLevels, flashTimes, kickPulse, type ChaosLevels } from "./chaosPlan";
+import { beatPulse } from "./beat";
+import { chaosBeat, chaosLevels, flashTimes, kickPulse, type ChaosLevels } from "./chaosPlan";
 import { VAULT_CUES } from "./cues";
 
 const CHANNELS: (keyof ChaosLevels)[] = ["shake", "zoom", "hue", "rain", "sparks", "wobble", "background"];
@@ -71,5 +72,18 @@ describe("the full-screen flashes (photosensitivity)", () => {
     expect(flashTimes(0.98, 1.0)).toEqual([1.0]);
     expect(flashTimes(1.0, 1.01)).toEqual([]);
     expect(flashTimes(5, 5)).toEqual([]);
+  });
+});
+
+describe("the chaos's beat", () => {
+  it("is the drop's beat at the chaos's strength, a function of t alone (the chest reads this frame's)", () => {
+    for (let t = -1; t <= 16; t += 0.017) {
+      const b = chaosBeat(t);
+      expect(b, `at ${t}`).toBeCloseTo(beatPulse(t) * chaosLevels(t).shake, 12);
+      expect(b).toBeGreaterThanOrEqual(0);
+      expect(b).toBeLessThanOrEqual(1);
+    }
+    expect(chaosBeat(0.99)).toBe(0);
+    expect(chaosBeat(VAULT_CUES.impact + 1e-6)).toBeGreaterThan(0.7);
   });
 });

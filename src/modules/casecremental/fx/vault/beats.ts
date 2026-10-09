@@ -11,27 +11,38 @@ export const COUNT_TICK_SECONDS = 0.08;
 const C = VAULT_CUES;
 const TICKS = Math.floor((C.celebrateTo - C.celebrateFrom) / COUNT_TICK_SECONDS - 1e-9);
 
-interface Timed {
-  at: number;
-  beat: VaultBeat;
+/** A beat and its time; a kick also carries its index in VAULT_CUES.fireworks (which spot it bursts at). */
+export interface DueBeat {
+  readonly at: number;
+  readonly beat: VaultBeat;
+  readonly kick?: number;
 }
 
 /** In time order; at the same time, in this order (the impact before its firework kick). */
-const BEATS: readonly Timed[] = (
+const BEATS: readonly DueBeat[] = (
   [
     { at: 0, beat: "keyTurn" },
     { at: C.impact, beat: "impact" },
-    ...C.fireworks.map((at) => ({ at, beat: "firework" as const })),
+    ...C.fireworks.map((at, kick) => ({ at, beat: "firework" as const, kick })),
     { at: C.celebrateFrom, beat: "celebrate" },
     ...Array.from({ length: TICKS }, (_, i) => ({ at: C.celebrateFrom + COUNT_TICK_SECONDS * (i + 1), beat: "tick" as const })),
     { at: C.celebrateTo, beat: "countDone" },
-  ] satisfies Timed[]
+  ] satisfies DueBeat[]
 ).sort((a, b) => a.at - b.at);
 
-/** The beats crossed going from `prevT` to `t` (prevT < at ≤ t), in time order; the ticks a long frame crosses count once. */
-export function dueBeats(prevT: number, t: number): VaultBeat[] {
-  const out: VaultBeat[] = [];
-  for (const b of BEATS) if (prevT < b.at && t >= b.at && (b.beat !== "tick" || !out.includes("tick"))) out.push(b.beat);
+/** The beats crossed going from `prevT` to `t` (prevT < at ≤ t), in time order; the ticks a long frame crosses count
+ *  once. Each is a shared, read-only entry of the schedule. */
+export function dueBeats(prevT: number, t: number): DueBeat[] {
+  const out: DueBeat[] = [];
+  let ticked = false;
+  for (const b of BEATS) {
+    if (!(prevT < b.at && t >= b.at)) continue;
+    if (b.beat === "tick") {
+      if (ticked) continue;
+      ticked = true;
+    }
+    out.push(b);
+  }
   return out;
 }
 

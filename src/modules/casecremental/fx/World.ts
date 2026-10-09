@@ -36,7 +36,6 @@ import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
-import { vaultCues } from "./vault/cues";
 import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultBeams } from "./vault/VaultBeams";
 import { VaultScene } from "./vault/VaultScene";
@@ -159,14 +158,14 @@ export class World {
     app.stage.hitArea = app.screen;
     app.stage.on("pointerdown", (e: FederatedPointerEvent) => this.pointerDown(e));
     app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
-      this.vault.keyMove(e.global);
+      this.vault.keyMove(e.global, e.pointerId);
       const p = this.worldPt(e);
       this.tray.pointerMove(p);
       this.botCard.pointerMove(p);
       this.bench.pointerMove(p);
     });
     const up = (e: FederatedPointerEvent) => {
-      if (this.vault.keyRelease(e.global) === "turn") void this.controller.act({ type: "turnVaultKey" });
+      if (this.vault.keyRelease(e.global, e.pointerId) === "turn") void this.controller.act({ type: "turnVaultKey" });
       const p = this.worldPt(e);
       this.tray.pointerUp(p);
       this.botCard.pointerUp(p);
@@ -202,17 +201,18 @@ export class World {
     this.restoreVault(this.controller.run.state);
   }
 
-  /** A reload: the vault's key or opening where the sim is, its music from the sim (else activate() applies it), or the dark. */
+  /** A reload or a new run: the vault's key or opening where the sim is, or the dark; the music always from the
+   *  sim, so a stale track goes (while suspended, activate() applies it). */
   private restoreVault(s: RunState): void {
     const v = s.vault;
     if (v?.phase === "opening") this.vaultBeams.restore(v.drops, v.landed);
-    if (v && this.controller.running) this.resumeMusic();
-    else if (!v && s.over) this.power.darkNow();
+    if (!v && s.over) this.power.darkNow();
+    if (this.controller.running) this.resumeMusic();
   }
 
-  /** Back from the lobby: the music picks up where the vault (or the power-up) is, not where it was asked for. */
+  /** Back from the lobby: the music picks up where the vault (or the lights) are, not where it was asked for. */
   resumeMusic(): void {
-    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.poweringUp));
+    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase));
   }
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */
@@ -304,7 +304,7 @@ export class World {
     const run = this.controller.run;
     if (run.locked()) {
       // the vault's key is the one thing to grab; anywhere else (and over the opening) a click only adds sparks
-      if (run.state.vault?.phase === "key" && this.vault.keyHit(e.global)) return;
+      if (run.state.vault?.phase === "key" && this.vault.keyHit(e.global, e.pointerId)) return;
       if (run.state.vault) this.vault.sparks(e.global);
       else {
         const at = this.hd.root.toLocal(e.global);
@@ -323,7 +323,7 @@ export class World {
     const opening = v?.phase === "opening" ? v : null;
     this.vault.show(v?.phase ?? (s.over ? "done" : null), opening?.t ?? 0, opening?.drops ?? [], opening?.landed ?? 0);
     if (opening) {
-      this.vaultBeams.pulse(vaultCues(opening.t).pulse);
+      this.vaultBeams.pulse(this.vault.cues.pulse); // this frame's cues, computed once (in show)
       this.vaultBeams.update(opening.t);
     }
     this.vault.update(realSeconds);

@@ -279,6 +279,21 @@ describe("AudioEngine.onReady", () => {
     expect(m).toBe(0);
   });
 
+  it("fires once per ready transition: a load left over from a dropped context does not fire again", async () => {
+    const a = new AudioEngine(TRACKS, deps(fakeContext().ctx));
+    let n = 0;
+    a.onReady(() => n++);
+    a.unlock();
+    const first = a.ready;
+    a.dispose(); // the context goes while its files are still decoding
+    a.unlock();
+    await Promise.all([first, a.ready]);
+    expect(n).toBe(1);
+    a.unlock(); // already running: nothing to load, nothing fires
+    await a.ready;
+    expect(n).toBe(1);
+  });
+
   it("music is louder than its slider: the bus is boosted, and the fanfare rides higher than the stage loop", async () => {
     const { ctx, levels, targets } = fakeContext();
     const a = new AudioEngine(TRACKS, deps(ctx));

@@ -38,3 +38,33 @@ describe("blackout and the lights coming back", () => {
     expect(lightCues.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("the room light coming up", () => {
+  const FRAME = 1 / 60;
+
+  it("stays within 0-1", () => {
+    for (let t = -1; t <= LIGHTS_UP_SECONDS + 1; t += 0.003) {
+      expect(lightLevels(t).room, `at ${t}`).toBeGreaterThanOrEqual(0);
+      expect(lightLevels(t).room, `at ${t}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("flickers up rather than stepping: a frame never changes it by more than 0.05", () => {
+    for (let t = 0; t <= LIGHTS_UP_SECONDS; t += 0.001) {
+      const d = Math.abs(lightLevels(t + FRAME).room - lightLevels(t).room);
+      expect(d, `from ${t.toFixed(3)}`).toBeLessThanOrEqual(0.05);
+    }
+  });
+
+  it("still flickers: it dips at least once on its way up", () => {
+    let peak = 0;
+    let dipped = false;
+    for (let t = 0; t <= LIGHTS_UP_SECONDS; t += 0.005) {
+      const v = lightLevels(t).room;
+      if (v < peak - 0.01) dipped = true;
+      peak = Math.max(peak, v);
+    }
+    expect(dipped).toBe(true);
+    expect(lightLevels(LIGHTS_UP_SECONDS).room).toBe(1);
+  });
+});
