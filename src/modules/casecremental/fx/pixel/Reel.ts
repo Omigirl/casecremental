@@ -83,15 +83,16 @@ export class Reel extends Container {
     this.place(this.fraction, false);
   }
 
-  /** A new spin: a fresh strip that ends on `winner` (a fake tease plants its decoy beside it). */
-  start(c: CaseDef, winner: SkinDef, rng: Rng, tease: Tease | null = null): void {
+  /** A new spin: a fresh strip that ends on `winner` (a fake tease plants its decoy beside it). `landed`: shown
+   *  already stopped on it (a reload while its drop waits). */
+  start(c: CaseDef, winner: SkinDef, rng: Rng, tease: Tease | null = null, landed = false): void {
     const side = tease?.fake ? (rng.next() < 0.5 ? "short" : "over") : null;
     this.items = buildStrip(c, winner, rng, tease?.fake && side ? { rarity: tease.fake, side } : null);
     this.jitter = landingJitter(side, rng);
-    this.fraction = 0;
+    this.fraction = landed ? 1 : 0;
     this.lastIndex = -1;
     this.rebuild();
-    this.place(0, false);
+    this.place(this.fraction, false);
   }
 
   /** Move the strip while spinning. Cards always show a skin's still frame — animated skins play only on

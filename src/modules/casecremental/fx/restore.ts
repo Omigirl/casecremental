@@ -13,6 +13,8 @@ export interface RestorePlan {
   /** The cards waiting to be sold, left to right; null where one is already gone. */
   revealed: (Drop | null)[] | null;
   stage: number;
+  /** The bot's reel: its spin under way, or — while its card waits — landed on that card's drop. */
+  botReel: { caseId: string; skinId: string; landed: boolean } | null;
 }
 
 export function restorePlan(s: RunState): RestorePlan {
@@ -22,5 +24,12 @@ export function restorePlan(s: RunState): RestorePlan {
     spinning: b.phase === "spinning" ? b.reels : null,
     revealed: b.phase === "revealed" ? b.cards : null,
     stage: s.stage,
+    botReel: botReel(s),
   };
+}
+
+function botReel(s: RunState): RestorePlan["botReel"] {
+  const { spin, card } = s.bot;
+  if (spin) return { caseId: spin.caseId, skinId: spin.drop.skinId, landed: false };
+  return card ? { caseId: card.caseId, skinId: card.skinId, landed: true } : null;
 }

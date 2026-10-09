@@ -6,7 +6,7 @@ import { caseName, stageName, upgradeName } from "../i18n/content";
 import { getLang, t } from "../i18n/index";
 import { formatCash } from "../sim/format";
 import { fromCents, toCents } from "./cash";
-import { Bar, PxButton, UiEnvContext } from "./parts";
+import { Bar, PixelGear, PxButton, UiEnvContext } from "./parts";
 
 // Top of the screen: the stage, the cash (large, gold), the combo, the next goal (always visible —
 // spec §9.2) and the settings button. Height = the layout's HUD band.
@@ -63,12 +63,8 @@ export function Hud({ view, hudH, onSettings }: { view: GameView; hudH: number; 
           </span>
         ) : null}
         <span style={{ pointerEvents: "auto" }}>
-          <PxButton
-            onClick={onSettings}
-            title={t("hud.settings")}
-            style={{ fontFamily: "system-ui, sans-serif", fontSize: "calc(var(--fs) * 1.5)", lineHeight: 1 }}
-          >
-            ⚙
+          <PxButton onClick={onSettings} title={t("hud.settings")} style={{ lineHeight: 1 }}>
+            <PixelGear />
           </PxButton>
         </span>
       </div>

@@ -4,7 +4,7 @@ import type { Rect } from "../fx/pixel/layout";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
 
 // Small building blocks shared by the panels: a pixel button that presses in and springs back,
-// a progress bar, and a framed panel placed over a world-pixel rect.
+// a progress bar, a framed panel placed over a world-pixel rect, and the settings gear.
 
 export interface UiEnv {
   scale: number;
@@ -44,6 +44,21 @@ export function PxButton(props: {
     >
       {props.children}
     </button>
+  );
+}
+
+/** The settings gear as pixel art (the pixel font has no ⚙): 9×9 in the text colour, one cell per font pixel
+ *  (the text size is a multiple of 8 px, so 9/8 em keeps every cell whole). */
+const GEAR = ["....#....", ".#.###.#.", "..#####..", ".##...##.", "###...###", ".##...##.", "..#####..", ".#.###.#.", "....#...."];
+const GEAR_RUNS = GEAR.flatMap((row, y) => [...row.matchAll(/#+/g)].map((m) => ({ x: m.index, y, w: m[0].length })));
+
+export function PixelGear(): ReactNode {
+  return (
+    <svg viewBox="0 0 9 9" width="1.125em" height="1.125em" shapeRendering="crispEdges" aria-hidden="true" style={{ display: "block" }}>
+      {GEAR_RUNS.map((r) => (
+        <rect key={`${r.x},${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill="currentColor" />
+      ))}
+    </svg>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Container, Sprite, type Texture } from "pixi.js";
+import { Container, Sprite, Texture } from "pixi.js";
 import { RARITY_ORDER } from "../../sim/rarity";
 import type { Drop, SkinDef } from "../../sim/types";
 import { SkinPlayer } from "../skins/player";
@@ -68,10 +68,13 @@ export class BenchCards {
     this.place(slot);
   }
 
-  /** The card leaves (its textures stay until the slot is shown again or destroyed). */
+  /** The card leaves, and its baked textures with it. */
   clear(slot: number): void {
     const s = this.slots[slot];
-    if (s) s.sprite.visible = false;
+    if (s) {
+      s.sprite.visible = false;
+      this.release(s);
+    }
     if (this.knife === slot) this.knife = null;
   }
 
@@ -167,6 +170,7 @@ export class BenchCards {
   }
 
   private release(s: Slot): void {
+    s.sprite.texture = Texture.EMPTY; // never left pointing at a destroyed texture
     for (const t of s.frames) t.destroy(true);
     s.frames = [];
     s.player = null;

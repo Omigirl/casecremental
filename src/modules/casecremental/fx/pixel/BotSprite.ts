@@ -12,7 +12,6 @@ export class BotSprite {
   readonly root = new Container();
   private readonly sleep: Animated;
   private readonly awake: Animated;
-  private ready = false;
 
   constructor(lib: SpriteLibrary) {
     this.sleep = new Animated(new Actor(lib.get("bot-sleep", { w: 51, h: 62, frames: 4 })), ANIMS.botSleep);
@@ -21,7 +20,6 @@ export class BotSprite {
   }
 
   layout(l: TableLayout): void {
-    this.ready = true;
     this.sleep.actor.place(l.bot.spot.x, l.bot.spot.y);
     this.awake.actor.place(l.bot.spot.x, l.bot.spot.y);
   }
@@ -37,7 +35,6 @@ export class BotSprite {
   }
 
   update(ms: number, bot: BotState): void {
-    if (!this.ready) return;
     this.sleep.actor.visible = !bot.awake;
     this.awake.actor.visible = bot.awake;
     (bot.awake ? this.awake : this.sleep).update(ms);

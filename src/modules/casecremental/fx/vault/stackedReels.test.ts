@@ -26,3 +26,31 @@ describe("stacked reels", () => {
     expect(rs[0]!.h).toBeGreaterThanOrEqual(8);
   });
 });
+
+describe("stackRects in a tiny area", () => {
+  const fits = (area: { x: number; y: number; w: number; h: number }, n: number) => {
+    const rs = stackRects(area, n);
+    expect(rs).toHaveLength(n);
+    expect(rs[0]!.y).toBeGreaterThanOrEqual(area.y);
+    expect(rs[n - 1]!.y + rs[n - 1]!.h).toBeLessThanOrEqual(area.y + area.h);
+    for (let i = 1; i < n; i++) expect(rs[i]!.y).toBeGreaterThanOrEqual(rs[i - 1]!.y + rs[i - 1]!.h);
+    return rs;
+  };
+
+  it("shrinks the gap, then the 8-px floor, rather than overflow", () => {
+    for (const h of [51, 45, 40, 30, 12]) fits({ x: 0, y: 0, w: 100, h }, 5);
+    expect(fits({ x: 0, y: 0, w: 100, h: 44 }, 5)[0]!.h).toBe(8); // the floor holds while it fits without gaps
+    expect(fits({ x: 0, y: 0, w: 100, h: 30 }, 5)[0]!.h).toBe(6);
+  });
+
+  it("rounds a fractional area to whole pixels inside it, its right edge where the area's rounds", () => {
+    const area = { x: 10.5, y: 20.4, w: 100.6, h: 60.7 };
+    for (const n of [1, 2, 5]) {
+      for (const r of fits(area, n)) {
+        expect(Number.isInteger(r.x) && Number.isInteger(r.y) && Number.isInteger(r.w) && Number.isInteger(r.h)).toBe(true);
+        expect(r.x).toBe(Math.round(area.x));
+        expect(r.x + r.w).toBe(Math.round(area.x + area.w));
+      }
+    }
+  });
+});

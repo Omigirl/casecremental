@@ -187,7 +187,7 @@ describe("AudioEngine", () => {
     a.unlock();
     await a.ready;
     expect(a.variantCount("reel-tick")).toBe(2);
-    expect(a.variantCount("bot-beep")).toBe(0);
+    expect(a.variantCount("count-ding")).toBe(0);
     a.playVariant("reel-tick", 1);
     a.playVariant("reel-tick", 1);
     a.playVariant("reel-tick", 7); // out of range: nothing

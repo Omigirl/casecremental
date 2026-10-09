@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setLang } from "../i18n/index";
 import type { Drop } from "../sim/types";
-import { fitCentre, hintKey, revealLines, trayFull } from "./labels";
+import { binCalling, fitCentre, hintKey, revealLines, trayFull } from "./labels";
 
 afterEach(() => setLang("en"));
 
@@ -37,6 +37,14 @@ describe("canvas labels", () => {
     expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP, null] })).toBeNull();
   });
 
+  it("drops the single card's hint in portrait, where it would sit on the card's top", () => {
+    const one = { phase: "revealed", caseId: "bootcamp", cards: [DROP] } as const;
+    expect(hintKey(one, true)).toBeNull();
+    expect(hintKey(one, false)).toBe("hint.sell");
+    expect(hintKey({ phase: "empty" }, true)).toBe("hint.buy"); // no card up: the hint stays
+    expect(hintKey({ phase: "locked", caseId: "bootcamp", free: false, count: 1 }, true)).toBe("hint.key");
+  });
+
   it("keeps a centred line inside its span, as near the wanted centre as it fits", () => {
     expect(fitCentre(100, 40, 0, 300)).toBe(100); // fits where it is
     expect(fitCentre(30, 100, 0, 300)).toBe(50); // pushed off the left edge
@@ -51,5 +59,14 @@ describe("trayFull", () => {
     expect(trayFull({ seller: { on: true }, tray: [drop, drop] }, 2)).toBe(true);
     expect(trayFull({ seller: { on: true }, tray: [drop] }, 2)).toBe(false);
     expect(trayFull({ seller: { on: false }, tray: [drop, drop] }, 2)).toBe(false);
+  });
+});
+
+describe("binCalling", () => {
+  it("calls for a card waiting on your bench or at the bot's station", () => {
+    const empty = { phase: "empty" } as const;
+    expect(binCalling({ bench: empty, bot: { card: null } })).toBe(false);
+    expect(binCalling({ bench: { phase: "revealed", caseId: "bootcamp", cards: [DROP] }, bot: { card: null } })).toBe(true);
+    expect(binCalling({ bench: empty, bot: { card: DROP } })).toBe(true);
   });
 });

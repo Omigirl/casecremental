@@ -18,7 +18,7 @@ import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
 import { Zoom } from "./juice/zoom";
-import { fitCentre, hintKey, revealLines, trayFull } from "./labels";
+import { binCalling, fitCentre, hintKey, revealLines, trayFull } from "./labels";
 import { Bench } from "./pixel/Bench";
 import { bestSlot } from "./pixel/BenchCards";
 import { BenchReels } from "./pixel/BenchReels";
@@ -186,9 +186,9 @@ export class World {
 
   /** Redraw a run already in progress (the scene is rebuilt after a trip to the lobby). */
   private restore(): void {
-    const sp = this.controller.run.state.bot.spin;
-    if (sp) this.botReel.start(caseById(sp.caseId), skinById(sp.drop.skinId), this.rng);
     const plan = restorePlan(this.controller.run.state);
+    const br = plan.botReel; // its spin under way, or stopped on the drop its waiting card shows
+    if (br) this.botReel.start(caseById(br.caseId), skinById(br.skinId), this.rng, null, br.landed);
     if (plan.caseId) this.bench.showCase(plan.caseId, false);
     if (plan.caseId && plan.spinning) {
       this.benchReels.start(plan.caseId, plan.spinning, this.rng);
@@ -234,8 +234,9 @@ export class World {
     const gameMs = realSeconds * scale * 1000;
     const run = this.controller.run;
     const b = run.state.bench;
-    const lean = this.benchReels.update(b); // a red or a knife is crawling in (or a fake one): lean in toward its reel
-    if (lean) this.zoom.punch(1 + TEASE_ZOOM * lean.strength, lean.seconds);
+    const reels = this.benchReels.update(b); // a red or a knife is crawling in (or a fake one): lean in toward its reel
+    if (reels.lean) this.zoom.punch(1 + TEASE_ZOOM * reels.lean.strength, reels.lean.seconds);
+    if (reels.landed.length) this.benchFx.reelLanded(); // a reel that lands before its teasing partner stops on its own
     this.bench.update(gameMs, b);
     const bot = run.state.bot;
     this.bot.update(gameMs, bot);
@@ -257,7 +258,7 @@ export class World {
     this.look.update(realSeconds);
     setTweenTimeScale(scale);
     this.updateText(b);
-    this.hd.setBinCalling(b.phase === "revealed");
+    this.hd.setBinCalling(binCalling(run.state));
 
     const k = this.vp.scale;
     this.lifted.update(this.tray.lifted() ?? this.botCard.lifted() ?? this.bench.lifted(), k, realSeconds);
@@ -265,7 +266,7 @@ export class World {
     // camera: shake in whole px, zoom around the reveal cards
     const s = this.shake.update(realSeconds);
     const z = this.zoom.update(realSeconds);
-    const target = this.screenPt(this.benchReels.leanCentre() ?? this.bench.revealCentre());
+    const target = this.hd.toScreen(this.benchReels.leanCentre() ?? this.bench.revealCentre());
     const glide = Math.min(1, realSeconds * 6);
     this.focus = this.focus
       ? { x: this.focus.x + (target.x - this.focus.x) * glide, y: this.focus.y + (target.y - this.focus.y) * glide }
@@ -324,7 +325,7 @@ export class World {
     this.vault.show(v?.phase ?? (s.over ? "done" : null), opening?.t ?? 0, opening?.drops ?? [], opening?.landed ?? 0);
     if (opening) {
       this.vaultBeams.pulse(this.vault.cues.pulse); // this frame's cues, computed once (in show)
-      this.vaultBeams.update(opening.t);
+      this.vaultBeams.update(opening.t, this.vault.cues);
     }
     this.vault.update(realSeconds);
     const lights = this.power.update(realSeconds);
@@ -373,7 +374,7 @@ export class World {
 
   /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
   private updateText(b: BenchState): void {
-    const key = this.controller.run.locked() ? null : hintKey(b); // no "Buy a case" while the vault is out or after the run
+    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait); // no "Buy a case" while the vault is out or after the run
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const r = this.benchReels.area ?? this.l.you.reel; // under the reel window, whatever its height
@@ -403,10 +404,6 @@ export class World {
     b.position.set(fitCentre(card.x * k, b.width, lo, hi), a.y + a.height + k);
   }
 
-  private screenPt(p: Pt): Pt {
-    return this.hd.toScreen(p);
-  }
-
   private onEvent(e: SimEvent): void {
     switch (e.type) {
       case "caseBought":
@@ -433,7 +430,7 @@ export class World {
               : e.source === "seller"
                 ? this.l.seller
                 : this.l.bin;
-        const at = this.screenPt(src);
+        const at = this.hd.toScreen(src);
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
         this.audio.play(e.source === "seller" ? "seller-sell" : "cash-register");
@@ -467,14 +464,14 @@ export class World {
         this.audio.play("bot-reel-spin");
         break;
       case "botRevealed": {
-        const at = this.screenPt(this.botCard.centre());
+        const at = this.hd.toScreen(this.botCard.centre());
         this.hd.particles.burst(at, RARITY_INFO[e.drop.rarity].color, 18, 160 * (this.vp.scale / 6));
         this.audio.play("reveal-chime", { gain: 0.5, rate: 2 ** (RARITY_ORDER.indexOf(e.drop.rarity) / 6) });
         break;
       }
       case "dayJobDone": {
         const tb = this.l.table;
-        const at = this.screenPt({ x: tb.x + tb.w / 2, y: tb.y + 12 });
+        const at = this.hd.toScreen({ x: tb.x + tb.w / 2, y: tb.y + 12 });
         this.hd.coins.floatText(at, e.amount > 0 ? `+${formatCash(e.amount, getLang())}` : t("float.nopay"));
         this.audio.play(e.amount > 0 ? "dayjob-pay" : "dayjob-nopay");
         break;

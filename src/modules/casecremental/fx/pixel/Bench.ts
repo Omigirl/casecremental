@@ -36,6 +36,8 @@ export class Bench {
   private keyAtLock = 0;
   private l: TableLayout | null = null;
   private phase: BenchState["phase"] = "empty";
+  /** The layout and card count the cards were last placed for (placeCards runs every frame). */
+  private placed: { l: TableLayout; n: number } | null = null;
 
   constructor(
     private readonly lib: SpriteLibrary,
@@ -222,7 +224,10 @@ export class Bench {
 
   /** The cards sit side by side, as many spots as the current open has cases. */
   private placeCards(): void {
-    if (this.l) this.cards.layout(revealSpots(this.l, cardCount(this.controller.run.state.bench)));
+    const n = cardCount(this.controller.run.state.bench);
+    if (!this.l || (this.placed?.l === this.l && this.placed.n === n)) return;
+    this.placed = { l: this.l, n };
+    this.cards.layout(revealSpots(this.l, n));
   }
 
   private homeItems(): void {

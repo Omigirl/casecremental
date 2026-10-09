@@ -10,11 +10,18 @@ import type { SkinTextures } from "../skins/pixelSkin";
 
 // Several reels stacked in one window (rework spec §4, §5): the vault's five, and multi-open's two.
 
+/** n reels stacked in `area`, centred, in whole pixels: at most maxH tall, at least 8 — a tiny area shrinks the gap
+ *  first, then that floor, so the stack never leaves it. */
 export function stackRects(area: Rect, n: number, maxH = 24, gap = 3): Rect[] {
-  const h = Math.max(8, Math.min(maxH, Math.floor((area.h - gap * (n - 1)) / n)));
-  const total = n * h + gap * (n - 1);
-  const y0 = area.y + Math.floor((area.h - total) / 2);
-  return Array.from({ length: n }, (_, i) => ({ x: Math.round(area.x), y: y0 + i * (h + gap), w: Math.round(area.w), h }));
+  const top = Math.ceil(area.y);
+  const areaH = Math.floor(area.y + area.h) - top;
+  const floorH = Math.max(0, Math.min(8, Math.floor(areaH / n)));
+  const g = n > 1 ? Math.max(0, Math.min(gap, Math.floor((areaH - n * floorH) / (n - 1)))) : 0;
+  const h = Math.max(floorH, Math.min(maxH, Math.floor((areaH - g * (n - 1)) / n)));
+  const y0 = top + Math.floor((areaH - (n * h + g * (n - 1))) / 2);
+  const x = Math.round(area.x);
+  const w = Math.round(area.x + area.w) - x;
+  return Array.from({ length: n }, (_, i) => ({ x, y: y0 + i * (h + g), w, h }));
 }
 
 export class StackedReels extends Container {

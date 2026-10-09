@@ -107,7 +107,7 @@ export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portr
       keyHome: { x: mat.x - 12, y: 92 },
       reveal: { x: matCx, y: 66 },
     },
-    bot: { reel: null, spot: { x: r(W * 0.76), y: 112 }, reveal: { x: Math.min(r(W * 0.7), W - 4 - 23), y: 66 } },
+    bot: { reel: null, spot: { x: r(W * 0.76), y: 112 }, reveal: { x: Math.min(r(W * 0.7), W - 4 - ITEM_SIZE.reveal.w / 2), y: 66 } },
     tray: { x: r(W * 0.25), y: H - 40, w: r(W * 0.5), h: 18 },
     seller: { x: 20, y: H - 14 },
     bin: { x: W - 18, y: H - 30 },

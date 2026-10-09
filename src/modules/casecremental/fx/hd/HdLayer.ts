@@ -118,11 +118,7 @@ export class HdLayer {
   setSellerOn(on: boolean): void {
     if (on === this.sellerOn) return;
     this.sellerOn = on;
-    const k = this.vp?.scale ?? 1;
-    this.led
-      .clear()
-      .circle(0, 0, Math.max(1.5, k * 0.6))
-      .fill({ color: on ? 0x3ddc84 : 0xff3b30 });
+    this.drawLed();
   }
 
   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
@@ -144,10 +140,7 @@ export class HdLayer {
     this.binGlow.position.set(l.bin.x * k, (l.bin.y - 4) * k);
     this.binGlow.width = this.binGlow.height = l.binR * 5 * k;
     for (const z of this.zs) z.style.fontSize = hdFontSize(k);
-    this.led
-      .clear()
-      .circle(0, 0, Math.max(1.5, k * 0.6))
-      .fill({ color: this.sellerOn ? 0x3ddc84 : 0xff3b30 });
+    this.drawLed();
     this.led.position.set(l.seller.x * k, (l.seller.y - 26) * k);
     this.coins.setScale(k, hdFontSize(k, 16));
   }
@@ -212,6 +205,14 @@ export class HdLayer {
     this.root.destroy({ children: true });
     this.overlay.destroy({ children: true });
     for (const t of this.textures) t.destroy(true);
+  }
+
+  private drawLed(): void {
+    const k = this.vp?.scale ?? 1;
+    this.led
+      .clear()
+      .circle(0, 0, Math.max(1.5, k * 0.6))
+      .fill({ color: this.sellerOn ? 0x3ddc84 : 0xff3b30 });
   }
 
   private updateZs(): void {

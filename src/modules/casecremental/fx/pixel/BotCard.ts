@@ -1,4 +1,4 @@
-import { Container, Sprite, type Texture } from "pixi.js";
+import { Container, Sprite, Texture } from "pixi.js";
 import type { GameController } from "../../game/controller";
 import { skinById } from "../../sim/content/cases";
 import type { Drop } from "../../sim/types";
@@ -43,6 +43,7 @@ export class BotCardView {
   update(card: Drop | null): void {
     if ((card?.id ?? null) !== this.shownId) {
       this.shownId = card?.id ?? null;
+      this.sprite.texture = Texture.EMPTY; // never left pointing at the destroyed texture
       this.tex?.destroy(true);
       this.tex = null;
       if (card) {

@@ -4,7 +4,7 @@ import type { Action } from "../game/controller";
 import type { PrestigeView } from "../game/view";
 import { charmDesc, charmName, perkDesc, perkName } from "../i18n/content";
 import { t } from "../i18n/index";
-import { PxButton, UiEnvContext } from "./parts";
+import { PixelGear, PxButton, UiEnvContext } from "./parts";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
 import { charmChoices } from "./prestigeRules";
 
@@ -12,21 +12,6 @@ import { charmChoices } from "./prestigeRules";
 // run, the perks to buy with CLOUT, and "Start next run".
 
 type Act = (a: Action) => void;
-
-/** The settings gear as pixel art (the pixel font has no ⚙): 9×9 in the text colour, one cell per font pixel
- *  (the text size is a multiple of 8 px, so 9/8 em keeps every cell whole). */
-const GEAR = ["....#....", ".#.###.#.", "..#####..", ".##...##.", "###...###", ".##...##.", "..#####..", ".#.###.#.", "....#...."];
-const GEAR_RUNS = GEAR.flatMap((row, y) => [...row.matchAll(/#+/g)].map((m) => ({ x: m.index, y, w: m[0].length })));
-
-function PixelGear(): ReactNode {
-  return (
-    <svg viewBox="0 0 9 9" width="1.125em" height="1.125em" shapeRendering="crispEdges" aria-hidden="true" style={{ display: "block" }}>
-      {GEAR_RUNS.map((r) => (
-        <rect key={`${r.x},${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill="currentColor" />
-      ))}
-    </svg>
-  );
-}
 
 export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; onSettings: () => void }): ReactNode {
   const { scale } = useContext(UiEnvContext);

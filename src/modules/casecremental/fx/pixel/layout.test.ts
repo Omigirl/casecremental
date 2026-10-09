@@ -77,8 +77,14 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     expect(card.y).toBeGreaterThanOrEqual(l.you.reel.y + l.you.reel.h);
     expect(card.y + card.h).toBeLessThanOrEqual(l.you.mat.y + 4);
   });
-  it.each(SIZES)("puts the bot's card on the table, clear of your reveal card, at %ix%i", (w, h) => {
-    const l = tableLayout(pixelViewport(w, h));
+
+  it("leaves room for the hint between the reel and a single card, except in portrait (where it is dropped)", () => {
+    // the hint sits 2 px under the reel, one line of hdFontSize CSS px tall (World.updateText, labels.hintKey)
+    const hintBottom = l.you.reel.y + l.you.reel.h + 2 + hdFontSize(vp.scale) / vp.scale;
+    const cardTop = l.you.reveal.y - ITEM_SIZE.reveal.h / 2;
+    expect(hintBottom <= cardTop).toBe(!vp.portrait);
+  });
+  it("puts the bot's card on the table, clear of your reveal card", () => {
     const r = l.bot.reveal;
     const { w: cw } = ITEM_SIZE.reveal;
     expect(r.x - cw / 2).toBeGreaterThanOrEqual(l.table.x);

@@ -9,8 +9,9 @@ import { benchReelArea, type Pt, type Rect, type TableLayout } from "./layout";
 import type { SpriteSet } from "./sprites";
 
 // Your bench's reels (multi-open: stacked, one per case, each landing its own drop with its own tease). While
-// more than one spins the window is tall — the cards are not up yet — and it snaps back to compact as they land:
-// Reel.layout rebuilds the whole strip, so it is not glided frame by frame.
+// more than one spins the window is tall — the cards are not up yet — and it snaps back to compact once they have
+// all landed: Reel.layout rebuilds the whole strip, so it is not glided frame by frame. A reel that lands before
+// its teasing partner gets its own (quieter) stop; the camera leans toward the strongest tease until that reel lands.
 
 /** The tallest one reel gets in a stack. */
 const REEL_MAX_H = 26;
@@ -32,6 +33,28 @@ export function leanReel(reels: readonly BenchReel[]): number | null {
   return best;
 }
 
+/** The reels that land between two frames (elapsed `from` → `to`), before the last landing — the reveal's own. */
+export function earlyLandings(reels: readonly BenchReel[], from: number, to: number): number[] {
+  const last = Math.max(...reels.map((r) => r.duration));
+  return reels.flatMap((r, i) => (r.duration < last && r.duration > from && r.duration <= to ? [i] : []));
+}
+
+/** The reel the camera still leans toward: the one it leaned to, until that reel lands. */
+export function leanHeld(reels: readonly BenchReel[], leaned: number | null, elapsed: number): number | null {
+  const r = leaned === null ? undefined : reels[leaned];
+  return r && elapsed < r.duration ? leaned : null;
+}
+
+/** The window is tall while more than one reel spins; it snaps back to compact once they have landed. */
+export const tallWindow = (b: BenchState): boolean => b.phase === "spinning" && b.reels.length > 1;
+
+/** One frame of the reels: the camera's lean (the first frame the strongest tease crawls), and the reels that
+ *  landed this frame before the last one. */
+export interface ReelFrame {
+  lean: ReelLean | null;
+  landed: number[];
+}
+
 export class BenchReels {
   readonly root: StackedReels;
   private l: TableLayout | null = null;
@@ -39,6 +62,10 @@ export class BenchReels {
   private tall = false;
   /** The reel the camera has leaned toward this spin, or null. */
   private leaned: number | null = null;
+  /** Whether that reel is still spinning (the camera lets go when it lands). */
+  private leaning = false;
+  /** Last frame's elapsed time of this spin (null until its first frame: a reload lands nothing). */
+  private lastElapsed: number | null = null;
 
   constructor(frameSet: SpriteSet, skins: SkinTextures, onTick: (i: number) => void) {
     this.root = new StackedReels(frameSet, skins, onTick);
@@ -67,35 +94,47 @@ export class BenchReels {
     this.n = Math.max(1, reels.length);
     this.tall = this.n > 1;
     this.leaned = null;
+    this.leaning = false;
+    this.lastElapsed = null;
     this.apply();
     const c = caseById(caseId);
     reels.forEach((r, i) => this.root.start(i, c, skinById(r.drop.skinId), rng, r.tease));
   }
 
-  /** Move every reel; a lean the first frame the strongest tease is into its crawl, else null. */
-  update(b: BenchState): ReelLean | null {
+  /** Move every reel: the lean (the first frame the strongest tease is into its crawl) and the early landings. */
+  update(b: BenchState): ReelFrame {
+    if (tallWindow(b) !== this.tall) {
+      this.tall = !this.tall; // landed: back to compact
+      this.apply();
+    }
     if (b.phase !== "spinning") {
       this.leaned = null;
-      if (this.tall) {
-        this.tall = false; // landed: back to compact
-        this.apply();
-      }
-      return null;
+      this.leaning = false;
+      return { lean: null, landed: [] };
     }
     b.reels.forEach((r, i) =>
       this.root.update(i, { elapsed: Math.min(b.elapsed, r.duration), fullDuration: r.duration, crawl: crawlSeconds(r.tease, r.duration) }),
     );
-    const i = leanReel(b.reels);
-    const r = i === null ? null : b.reels[i]!;
-    if (i === null || !r?.tease || this.leaned !== null || b.elapsed < r.duration - crawlSeconds(r.tease, r.duration)) return null;
-    this.leaned = i; // a red or a knife is crawling in (or a fake one): lean in toward its reel
-    return { strength: r.tease.strength, seconds: r.duration - b.elapsed };
+    const landed = earlyLandings(b.reels, this.lastElapsed ?? b.elapsed, b.elapsed);
+    this.lastElapsed = b.elapsed;
+    const lean = this.leanIn(b.reels, b.elapsed);
+    this.leaning = leanHeld(b.reels, this.leaned, b.elapsed) !== null;
+    return { lean, landed };
   }
 
-  /** The centre of the reel the camera leans toward this spin, or null when it has not leaned (or has landed). */
+  /** The centre of the reel the camera leans toward, or null when it has not leaned or that reel has landed. */
   leanCentre(): Pt | null {
-    const r = this.leaned === null ? null : this.root.rect(this.leaned);
+    const r = this.leaning && this.leaned !== null ? this.root.rect(this.leaned) : null;
     return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null;
+  }
+
+  /** The lean, the first frame the strongest tease is into its crawl (once a spin), else null. */
+  private leanIn(reels: readonly BenchReel[], elapsed: number): ReelLean | null {
+    const i = leanReel(reels);
+    const r = i === null ? null : reels[i]!;
+    if (i === null || !r?.tease || this.leaned !== null || elapsed < r.duration - crawlSeconds(r.tease, r.duration)) return null;
+    this.leaned = i; // a red or a knife is crawling in (or a fake one): lean in toward its reel
+    return { strength: r.tease.strength, seconds: r.duration - elapsed };
   }
 
   private apply(): void {

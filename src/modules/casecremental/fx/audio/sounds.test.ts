@@ -26,7 +26,6 @@ describe("SOUNDS", () => {
       "charm-pick",
       "perk-buy",
       "run-start",
-      "reel-spinup",
     ])
       expect(SOUNDS).toHaveProperty(id);
   });

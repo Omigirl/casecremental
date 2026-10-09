@@ -113,4 +113,23 @@ describe("BenchCards", () => {
     expect(cards.knifeOut).toBeNull();
     cards.destroy();
   });
+
+  it("releases a card's baked textures when it leaves", () => {
+    const baked: Texture[] = [];
+    const bake = () => {
+      const t = tex();
+      baked.push(t);
+      return t;
+    };
+    const cards = new BenchCards(skins, bake);
+    cards.layout([{ x: 30, y: 70 }]);
+    cards.show(0, skin, drop("gold", 1));
+    expect(baked.length).toBeGreaterThan(0);
+    cards.clear(0);
+    expect(baked.every((t) => t.destroyed)).toBe(true);
+    expect(cards.texture(0)).toBeNull();
+    cards.show(0, skin, drop("gold", 1)); // the slot shows again after it was released
+    expect(cards.texture(0)).not.toBeNull();
+    cards.destroy();
+  });
 });

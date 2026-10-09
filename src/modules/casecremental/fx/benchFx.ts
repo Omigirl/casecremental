@@ -24,6 +24,18 @@ const BURST: Record<Drop["rarity"], { count: number; speed: number }> = {
   gold: { count: 220, speed: 520 },
 };
 
+/** A card's sparks at pixel scale `scale`: as many as its rarity throws, at its speed scaled from 6. */
+export function cardBurst(rarity: Drop["rarity"], scale: number): { count: number; speed: number } {
+  const b = BURST[rarity];
+  return { count: b.count, speed: (b.speed * scale) / 6 };
+}
+
+/** The glow under the cards: the best one still waiting's colour, or null (out) when none waits. */
+export function glowColor(cards: readonly (Drop | null)[]): number | null {
+  const best = bestSlot(cards);
+  return best === null ? null : RARITY_INFO[cards[best]!.rarity].color;
+}
+
 export class BenchFx {
   private readonly knifeFlight: KnifeFlight;
 
@@ -42,6 +54,12 @@ export class BenchFx {
     this.knifeFlight.update(realSeconds);
   }
 
+  /** A reel lands before its teasing partner: its own quieter stop and a small shake (the last is revealed()'s). */
+  reelLanded(): void {
+    this.juice.shake.add(0.05);
+    this.juice.audio.play("reel-stop", { gain: 0.35 });
+  }
+
   /** The reels land and the cards come up. */
   revealed(drops: readonly Drop[]): void {
     const { hd, audio, shake, zoom, time } = this.juice;
@@ -57,8 +75,8 @@ export class BenchFx {
     hd.setGlow(color);
     audio.play("reveal-chime", { rate: 2 ** (RARITY_ORDER.indexOf(best.rarity) / 6) });
     drops.forEach((d, i) => {
-      const b = BURST[d.rarity];
-      hd.particles.burst(this.at(i), RARITY_INFO[d.rarity].color, b.count, b.speed * v);
+      const b = cardBurst(d.rarity, this.scale());
+      hd.particles.burst(this.at(i), RARITY_INFO[d.rarity].color, b.count, b.speed);
     });
     switch (best.rarity) {
       case "classified":
@@ -95,9 +113,7 @@ export class BenchFx {
   left(slot: number, sold: boolean, b: BenchState): void {
     if (this.bench.knifeOut === slot) this.knifeFlight.cancel();
     this.bench.clearReveal(slot, sold);
-    const cards = b.phase === "revealed" ? b.cards : [];
-    if (!cards.some((d) => d)) this.knifeFlight.cancel();
-    this.glowFor(cards);
+    this.glowFor(b.phase === "revealed" ? b.cards : []);
   }
 
   /** The screen changed, the vault slammed in, or the run ended: a knife in the air goes straight back. */
@@ -115,8 +131,7 @@ export class BenchFx {
   }
 
   private glowFor(cards: readonly (Drop | null)[]): void {
-    const best = bestSlot(cards);
-    this.juice.hd.setGlow(best === null ? null : RARITY_INFO[cards[best]!.rarity].color);
+    this.juice.hd.setGlow(glowColor(cards));
   }
 
   /** A card's centre on screen. */
