@@ -89,7 +89,7 @@ const UPGRADES: Record<UpgradeId, { name: Pair; desc: Pair }> = {
   luck: { name: { en: "Luck", ru: "Удача" }, desc: { en: "Better rarities", ru: "Чаще редкие" } },
   appraiser: { name: { en: "Appraiser", ru: "Оценщик" }, desc: { en: "+25% sell value", ru: "+25% к продаже" } },
   quickHands: { name: { en: "Quick Hands", ru: "Ловкие руки" }, desc: { en: "Faster reel", ru: "Быстрее рулетка" } },
-  multiOpen: { name: { en: "Multi-open", ru: "Мультиоткрытие" }, desc: { en: "BUY opens 2 cases", ru: "2 кейса за раз" } },
+  multiOpen: { name: { en: "Multi-open", ru: "Мультикейс" }, desc: { en: "BUY opens 2 cases", ru: "2 кейса за раз" } },
 };
 
 const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {

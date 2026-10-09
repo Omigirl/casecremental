@@ -19,7 +19,7 @@ const BY_PREFIX: Array<[string, number]> = [
   ["skin.", 22],
   ["rarity.", 18],
   ["wear.", 18],
-  ["upgrade.name.", 14],
+  ["upgrade.name.", 12], // a single word cannot wrap on the upgrades board
   ["upgrade.desc.", 20],
   ["stage.", 16],
   ["charm.name.", 18],
