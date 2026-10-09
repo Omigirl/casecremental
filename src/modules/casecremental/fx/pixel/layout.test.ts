@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ITEM_SIZE, PANEL_CHROME, tableLayout, type Rect } from "./layout";
+import { benchReelArea, ITEM_SIZE, PANEL_CHROME, revealSpots, tableLayout, type Pt, type Rect } from "./layout";
 import { hdFontSize } from "./screen";
 import { pixelViewport } from "./viewport";
 
@@ -85,5 +85,44 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     expect(r.x + cw / 2).toBeLessThanOrEqual(l.table.x + l.table.w);
     expect(Math.abs(r.x - l.you.reveal.x)).toBeGreaterThanOrEqual(cw); // the two cards don't overlap
     expect(r.x).toBeLessThanOrEqual(l.bot.spot.x - 10); // the bot's face stays visible beside it
+  });
+});
+
+describe("multi-open on the table", () => {
+  for (const vp of [pixelViewport(1920, 1080), pixelViewport(390, 844)]) {
+    const l = tableLayout(vp);
+    const name = vp.portrait ? "portrait" : "landscape";
+    it(`one card sits on you.reveal (${name})`, () => {
+      expect(revealSpots(l, 1)).toEqual([l.you.reveal]);
+      expect(benchReelArea(l, 1, true)).toEqual(l.you.reel);
+      expect(benchReelArea(l, 1, false)).toEqual(l.you.reel);
+    });
+    it(`two cards stay on the table, left of the bot's card (Review Focus 5, ${name})`, () => {
+      const [a, b] = revealSpots(l, 2) as [Pt, Pt];
+      const w = ITEM_SIZE.reveal.w;
+      expect(a.x).toBeLessThan(b.x);
+      expect(a.x - w / 2).toBeGreaterThanOrEqual(l.table.x);
+      expect(b.x + w / 2).toBeLessThanOrEqual(l.bot.reveal.x - w / 2);
+      expect(a.y).toBe(l.you.reveal.y);
+      expect(b.y).toBe(l.you.reveal.y);
+      expect(Number.isInteger(a.x) && Number.isInteger(b.x)).toBe(true);
+    });
+    it(`the tall window spans the reel's top to above the mat and never covers the case (${name})`, () => {
+      const tall = benchReelArea(l, 2, true);
+      expect(tall.y).toBe(l.you.reel.y);
+      expect(tall.h).toBeGreaterThan(l.you.reel.h);
+      expect(tall.y + tall.h).toBeLessThanOrEqual(l.you.mat.y - 1);
+      const compact = benchReelArea(l, 2, false);
+      expect(compact.y + compact.h).toBeLessThanOrEqual(l.you.reveal.y - ITEM_SIZE.reveal.h / 2);
+    });
+  }
+  it.each(SIZES)("two cards fit beside each other or overlap, never past their limits, at %ix%i", (w, h) => {
+    const l = tableLayout(pixelViewport(w, h));
+    const cw = ITEM_SIZE.reveal.w;
+    const [a, b] = revealSpots(l, 2) as [Pt, Pt];
+    expect(a.x - cw / 2).toBeGreaterThanOrEqual(l.table.x + 1);
+    expect(b.x + cw / 2).toBeLessThanOrEqual(l.bot.reveal.x - cw / 2 - 1);
+    expect(b.x - a.x).toBeLessThanOrEqual(cw + 2);
+    expect(b.x).toBeGreaterThan(a.x);
   });
 });

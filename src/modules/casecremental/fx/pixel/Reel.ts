@@ -56,6 +56,11 @@ export class Reel extends Container {
     this.strip.mask = this.clip;
   }
 
+  /** Where the reel sits, in world px. */
+  get window(): Rect {
+    return this.rect;
+  }
+
   layout(rect: Rect): void {
     this.rect = rect;
     this.position.set(rect.x, rect.y);

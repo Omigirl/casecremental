@@ -9,6 +9,14 @@ const tick = (run: Run, s: number) => {
   for (let t = 0; t < s; t += 1 / 30) run.tick(1 / 30);
 };
 
+/** A run with Multi-open ×2 bought and cash for two cases. */
+const multi = () => {
+  const run = new Run(9);
+  run.state.upgrades.multiOpen = 1;
+  run.state.cash = 1000;
+  return run;
+};
+
 describe("restorePlan", () => {
   it("is empty for a fresh run", () => {
     expect(restorePlan(new Run(1).state)).toEqual({ caseId: null, spinning: null, revealed: null, stage: 1 });
@@ -26,7 +34,8 @@ describe("restorePlan", () => {
     run.insertKey();
     const b = run.state.bench;
     if (b.phase !== "spinning") throw new Error("expected spinning");
-    expect(restorePlan(run.state)).toMatchObject({ caseId: "bootcamp", spinning: b.drop, revealed: null });
+    expect(restorePlan(run.state)).toMatchObject({ caseId: "bootcamp", spinning: b.reels, revealed: null });
+    expect(b.reels).toHaveLength(1);
   });
 
   it("restores a revealed skin and the current stage", () => {
@@ -37,6 +46,26 @@ describe("restorePlan", () => {
     run.state.stage = 2;
     const b = run.state.bench;
     if (b.phase !== "revealed") throw new Error("expected revealed");
-    expect(restorePlan(run.state)).toEqual({ caseId: "bootcamp", spinning: null, revealed: b.drop, stage: 2 });
+    expect(restorePlan(run.state)).toEqual({ caseId: "bootcamp", spinning: null, revealed: b.cards, stage: 2 });
+  });
+
+  it("restores a two-reel spin and a half-sold pair (Review Focus 3)", () => {
+    const run = multi();
+    run.buyCase("bootcamp");
+    run.insertKey();
+    tick(run, 1);
+    const b = run.state.bench;
+    if (b.phase !== "spinning") throw new Error("expected spinning");
+    const plan = restorePlan(run.state);
+    expect(plan.spinning).toHaveLength(2);
+    expect(plan.spinning!.map((r) => [r.drop.id, r.tease, r.duration])).toEqual(b.reels.map((r) => [r.drop.id, r.tease, r.duration]));
+    expect(plan.revealed).toBeNull();
+
+    tick(run, b.fullDuration);
+    const r = run.state.bench;
+    if (r.phase !== "revealed") throw new Error("expected revealed");
+    const second = r.cards[1]!;
+    expect(run.sell(0).ok).toBe(true);
+    expect(restorePlan(run.state)).toMatchObject({ caseId: "bootcamp", spinning: null, revealed: [null, second] });
   });
 });

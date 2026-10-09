@@ -1,25 +1,29 @@
-import { Container, Sprite, type Texture } from "pixi.js";
+import { Container, type Texture } from "pixi.js";
 import type { GameController } from "../../game/controller";
 import type { Bench as BenchState } from "../../sim/run";
 import type { Drop, SkinDef } from "../../sim/types";
 import type { LiftInfo } from "../hd/Lifted";
-import { SkinPlayer } from "../skins/player";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { Actor } from "./Actor";
-import { cardFace } from "./cardFace";
 import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
+import { BenchCards, centreOf } from "./BenchCards";
 import { cardGrabbable, DragTracker, type Grabbable } from "./drag";
-import { ITEM_SIZE, type Pt, type Rect, type TableLayout } from "./layout";
+import { ITEM_SIZE, revealSpots, type Pt, type Rect, type TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
 
-// Your bench: the case on the mat, the key (drag it into the lock), the revealed skin card (drag
-// it into the SELL bin) and the bin. Taps work too.
+// Your bench: the case on the mat, the key (drag it into the lock), the revealed skin cards (multi-open:
+// side by side; drag each into the SELL bin) and the bin. Taps work too.
 // Every change goes through controller.act — the one input path. A dragged item leaves the pixel
 // world and is drawn lifted in the HD layer (lifted()) until it is let go.
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 const inside = (r: Rect, p: Pt) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
+/** A card's drag id is `card<slot>`; the key's is "key". */
+const cardSlot = (id: string | null): number | null => (id?.startsWith("card") ? Number(id.slice(4)) : null);
+/** The card count of the current open (1 when the bench holds none). */
+const cardCount = (b: BenchState): number =>
+  b.phase === "revealed" ? b.cards.length : b.phase === "spinning" ? b.reels.length : b.phase === "locked" ? b.count : 1;
 
 export class Bench {
   readonly root = new Container();
@@ -27,13 +31,7 @@ export class Bench {
   private caseId: string | null = null;
   private readonly key: Animated;
   private readonly bin: Animated;
-  private readonly card = new Sprite();
-  /** The reveal card, baked once per frame of the skin's loop (one frame for a still skin). */
-  private cardFrames: Texture[] = [];
-  private cardPlayer: SkinPlayer<Texture> | null = null;
-  /** The card without its art, shown while a ★ knife is out of it. */
-  private cardEmpty: Texture | null = null;
-  private knifeFlying = false;
+  private readonly cards: BenchCards;
   private readonly drag = new DragTracker();
   private keyAtLock = 0;
   private l: TableLayout | null = null;
@@ -41,15 +39,15 @@ export class Bench {
 
   constructor(
     private readonly lib: SpriteLibrary,
-    private readonly skins: SkinTextures,
+    skins: SkinTextures,
     private readonly controller: GameController,
-    /** Renders a container into a 1:1 nearest-sampled texture (the reveal card). */
-    private readonly bake: (c: Container) => Texture,
+    /** Renders a container into a 1:1 nearest-sampled texture (the reveal cards). */
+    bake: (c: Container) => Texture,
   ) {
     this.key = new Animated(new Actor(lib.get("key", { w: 20, h: 24, frames: 4 })), ANIMS.keyIdle);
     this.bin = new Animated(new Actor(lib.get("sell-bin", { w: 26, h: 38, frames: 4 })), ANIMS.binIdle);
-    this.card.visible = false;
-    this.root.addChild(this.bin.actor, this.card, this.key.actor);
+    this.cards = new BenchCards(skins, bake);
+    this.root.addChild(this.bin.actor, this.cards.root, this.key.actor);
   }
 
   layout(l: TableLayout): void {
@@ -59,9 +57,18 @@ export class Bench {
     this.homeItems();
   }
 
-  /** World centre of the reveal card (coins and sparks start here). */
+  /** World centre of the cards still waiting, or of the reveal spot (the camera pushes in here). */
   revealCentre(): Pt {
-    return this.l ? { ...this.l.you.reveal } : { x: 0, y: 0 };
+    const home = this.l ? this.l.you.reveal : { x: 0, y: 0 };
+    return centreOf(
+      this.cards.waiting().map((s) => this.cards.centre(s)),
+      home,
+    );
+  }
+
+  /** World centre of one card (coins and sparks start here). */
+  cardCentre(slot: number): Pt {
+    return this.cards.centre(slot);
   }
 
   showCase(caseId: string, dropIn: boolean): void {
@@ -94,36 +101,24 @@ export class Bench {
     this.caseId = null;
   }
 
-  showReveal(skin: SkinDef, drop: Drop): void {
-    for (const t of this.cardFrames) t.destroy(true);
-    this.cardFrames = this.skins.frames(skin).map((tex) => {
-      const face = cardFace(tex, drop);
-      const baked = this.bake(face);
-      face.destroy({ children: true });
-      return baked;
-    });
-    this.cardEmpty?.destroy(true);
-    const empty = cardFace(null, drop);
-    this.cardEmpty = this.bake(empty);
-    empty.destroy({ children: true });
-    this.knifeFlying = false;
-    this.cardPlayer = new SkinPlayer(this.cardFrames, this.skins.fps(skin));
-    this.card.texture = this.cardPlayer.frame;
-    this.card.visible = true;
-    this.homeItems();
+  showReveal(slot: number, skin: SkinDef, drop: Drop): void {
+    this.placeCards();
+    this.cards.show(slot, skin, drop);
   }
 
-  /** The ★ knife has left the card: show it empty, and keep it from being picked up until the knife lands. */
-  beginKnifeFlight(): void {
-    this.knifeFlying = true;
-    if (this.cardEmpty) this.card.texture = this.cardEmpty;
+  /** The ★ knife has left this card: show it empty, and keep it from being picked up until the knife lands. */
+  beginKnifeFlight(slot: number): void {
+    this.cards.beginKnifeFlight(slot);
   }
 
-  /** The knife is back in the card: it spins there from its first frame. */
+  /** The knife is back in its card: it spins there from its first frame. */
   endKnifeFlight(): void {
-    this.knifeFlying = false;
-    this.cardPlayer?.reset();
-    if (this.cardPlayer && this.card.visible) this.card.texture = this.cardPlayer.frame;
+    this.cards.endKnifeFlight();
+  }
+
+  /** The slot whose ★ knife is out, or null. */
+  get knifeOut(): number | null {
+    return this.cards.knifeOut;
   }
 
   /** The bin swallows a card the bot or a tray claim sold. */
@@ -131,21 +126,28 @@ export class Bench {
     this.bin.play(ANIMS.binSwallow);
   }
 
-  /** The card leaves; if it was sold the bin swallows it. */
-  clearReveal(sold: boolean): void {
-    this.knifeFlying = false;
-    this.card.visible = false;
-    this.hideCase();
+  /** A card leaves; if it was sold the bin swallows it. The case goes with the last card. */
+  clearReveal(slot: number, sold: boolean): void {
+    this.cards.clear(slot);
+    if (!this.cards.waiting().length) this.hideCase();
     if (sold) this.bin.play(ANIMS.binSwallow);
+  }
+
+  /** Every card leaves at once (a new run). */
+  clearAll(): void {
+    this.cards.clearAll();
+    this.hideCase();
   }
 
   // ── input, in world px ──────────────────────────────────────────────────────────────────────
 
   pointerDown(p: Pt): boolean {
     const grabbed = this.drag.down(p, this.grabbables());
-    if (grabbed === "card") this.controller.act({ type: "holdCard", spot: "bench" }); // the bot turns back (spec §3)
+    const slot = cardSlot(grabbed);
+    if (slot !== null) this.controller.act({ type: "holdCard", spot: "bench", slot }); // the auto-seller leaves it be
     if (grabbed) return true;
-    if (this.phase === "revealed" && this.l && dist(p, this.l.bin) <= this.l.binR + 2) return this.controller.act({ type: "sell" }).ok;
+    if (this.phase === "revealed" && this.l && dist(p, this.l.bin) <= this.l.binR + 2)
+      return this.controller.act({ type: "sell", slot: this.cards.waiting()[0] ?? 0 }).ok;
     return false;
   }
 
@@ -154,16 +156,16 @@ export class Bench {
   }
 
   pointerUp(p: Pt): void {
-    const wasCard = this.drag.dragging === "card";
     const end = this.drag.up(p);
+    const slot = end.kind === "none" ? null : cardSlot(end.id);
     const l = this.l;
-    if (end.kind === "tap") this.controller.act(end.id === "key" ? { type: "insertKey" } : { type: "sell" });
+    if (end.kind === "tap") this.controller.act(slot === null ? { type: "insertKey" } : { type: "sell", slot });
     if (end.kind === "drop" && l) {
       const lock = { x: l.you.caseSpot.x, y: l.you.caseSpot.y - 10 };
       if (end.id === "key" && (dist(end.at, lock) <= 18 || inside(l.you.mat, end.at))) this.controller.act({ type: "insertKey" });
-      if (end.id === "card" && dist(end.at, l.bin) <= l.binR + 8) this.controller.act({ type: "sell" });
+      if (slot !== null && dist(end.at, l.bin) <= l.binR + 8) this.controller.act({ type: "sell", slot });
     }
-    if (wasCard) this.controller.act({ type: "holdCard", spot: null });
+    if (slot !== null) this.controller.act({ type: "holdCard", spot: null });
     this.homeItems();
   }
 
@@ -176,14 +178,16 @@ export class Bench {
       const m = this.key.actor.meta;
       return { id, texture: this.key.actor.set.frames[0]!, center: { x: p.x + m.frameW / 2, y: p.y + m.frameH / 2 } };
     }
-    if (!this.cardFrames.length) return null;
+    const slot = cardSlot(id);
+    const texture = slot === null ? null : this.cards.texture(slot);
+    if (!texture) return null;
     const { w, h } = ITEM_SIZE.reveal;
-    return { id, texture: this.card.texture, center: { x: p.x + w / 2, y: p.y + h / 2 } };
+    return { id, texture, center: { x: p.x + w / 2, y: p.y + h / 2 } };
   }
 
   /** The viewport changed under a drag: the item goes home and nothing fires. */
   cancelDrag(): void {
-    if (this.drag.dragging === "card") this.controller.act({ type: "holdCard", spot: null });
+    if (cardSlot(this.drag.dragging) !== null) this.controller.act({ type: "holdCard", spot: null });
     this.drag.cancel();
     this.homeItems();
   }
@@ -195,33 +199,30 @@ export class Bench {
     this.bin.setIdle(b.phase === "revealed" ? ANIMS.binHungry : ANIMS.binIdle);
     // the held item is drawn lifted in the HD layer instead
     this.key.actor.visible = this.drag.dragging !== "key";
-    this.card.alpha = this.drag.dragging === "card" ? 0 : 1;
+    this.placeCards();
+    this.cards.update(ms, cardSlot(this.drag.dragging));
     for (const c of this.cases.values()) if (c.actor.visible) c.update(ms);
     this.key.update(ms);
     this.bin.update(ms);
-    if (this.card.visible && !this.knifeFlying && this.cardPlayer?.moving) this.card.texture = this.cardPlayer.advance(ms);
     this.key.actor.alpha = b.phase === "locked" || this.keyAtLock > 0 ? 1 : 0.45;
   }
 
   private grabbables(): Grabbable[] {
     const out: Grabbable[] = [];
     if (this.phase === "locked" && this.keyAtLock <= 0) out.push({ id: "key", rect: this.key.actor.box() });
-    if (cardGrabbable(this.phase, this.card.visible, this.knifeFlying)) out.push({ id: "card", rect: this.cardRect() });
+    // where cards overlap (portrait) the one drawn on top, the later slot, is grabbed first
+    for (const slot of this.cards.waiting().reverse())
+      if (cardGrabbable(this.phase, true, this.cards.knifeOut === slot)) out.push({ id: `card${slot}`, rect: this.cards.rect(slot) });
     return out;
   }
 
-  private cardRect(): Rect {
-    const r = this.revealCentre();
-    const { w, h } = ITEM_SIZE.reveal;
-    return { x: r.x - w / 2, y: r.y - h / 2, w, h };
+  destroy(): void {
+    this.cards.destroy();
   }
 
-  destroy(): void {
-    for (const t of this.cardFrames) t.destroy(true);
-    this.cardFrames = [];
-    this.cardPlayer = null;
-    this.cardEmpty?.destroy(true);
-    this.cardEmpty = null;
+  /** The cards sit side by side, as many spots as the current open has cases. */
+  private placeCards(): void {
+    if (this.l) this.cards.layout(revealSpots(this.l, cardCount(this.controller.run.state.bench)));
   }
 
   private homeItems(): void {
@@ -229,7 +230,6 @@ export class Bench {
     if (!l) return;
     if (this.keyAtLock > 0) this.key.actor.place(l.you.caseSpot.x + 2, l.you.caseSpot.y - 6);
     else this.key.actor.place(l.you.keyHome.x, l.you.keyHome.y + 5);
-    const c = this.cardRect();
-    this.card.position.set(c.x, c.y);
+    this.placeCards();
   }
 }

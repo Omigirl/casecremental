@@ -1,6 +1,7 @@
 import { Container } from "pixi.js";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import type { Rng } from "../../sim/rng";
+import type { Tease } from "../../sim/tease";
 import type { Rect } from "../pixel/layout";
 import { Reel } from "../pixel/Reel";
 import type { SpriteSet } from "../pixel/sprites";
@@ -41,8 +42,15 @@ export class StackedReels extends Container {
     });
   }
 
-  start(i: number, c: CaseDef, winner: SkinDef, rng: Rng): void {
-    this.reels[i]?.start(c, winner, rng);
+  /** Reel i's new spin, ending on `winner` (a fake tease plants its decoy beside it). */
+  start(i: number, c: CaseDef, winner: SkinDef, rng: Rng, tease: Tease | null = null): void {
+    this.reels[i]?.start(c, winner, rng, tease);
+  }
+
+  /** Reel i's window (null when it has none). */
+  rect(i: number): Rect | null {
+    const r = this.reels[i];
+    return r?.visible ? r.window : null;
   }
 
   update(i: number, motion: ReelMotion | null): void {

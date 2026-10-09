@@ -114,3 +114,25 @@ export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portr
     binR: 12,
   };
 }
+
+/** Your reel window: one reel's window, or — for n > 1 while the reels spin — a tall window reaching down to
+ *  just above the mat (the cards are not up yet). Landed, it settles back to the one-reel height. */
+export function benchReelArea(l: TableLayout, n: number, tall: boolean): Rect {
+  const r = l.you.reel;
+  if (n <= 1) return r;
+  if (tall) return { ...r, h: l.you.mat.y - 1 - r.y };
+  return { ...r, h: Math.max(r.h, l.you.reveal.y - ITEM_SIZE.reveal.h / 2 - 2 - r.y) };
+}
+
+/** Where n bench cards sit, side by side around you.reveal, left to right. They stay on the table and left of
+ *  the bot's card; where that is too narrow (portrait) they overlap rather than cross those limits. */
+export function revealSpots(l: TableLayout, n: number): Pt[] {
+  if (n <= 1) return [l.you.reveal];
+  const w = ITEM_SIZE.reveal.w;
+  const lo = l.table.x + 1 + w / 2; // the leftmost card's centre
+  const hi = l.bot.reveal.x - w / 2 - 1 - w / 2; // the rightmost card's centre
+  const step = Math.max(0, Math.floor(Math.min(w + 2, (hi - lo) / (n - 1))));
+  const span = step * (n - 1);
+  const x0 = Math.round(clamp(l.you.reveal.x - span / 2, lo, hi - span));
+  return Array.from({ length: n }, (_, i) => ({ x: x0 + i * step, y: l.you.reveal.y }));
+}
