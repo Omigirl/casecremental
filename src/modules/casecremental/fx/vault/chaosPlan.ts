@@ -80,12 +80,10 @@ export function introPunch(t: number): number {
   return index >= 0 && INTRO_HITS[index]!.kind === "run" ? pulse : 0;
 }
 
-/** The intro's one full-screen flash: its last run-up hit, just before the impact (within the budget below). */
-const INTRO_FLASH = INTRO_HITS[INTRO_HITS.length - 1]!.at;
-
-/** Every full-screen flash of the opening: the intro's last hit, then the kicks; each flashes unless it would be the
- *  4th within a second. The rest of the run-up (0.30-0.35 s apart) jolts and punches instead. */
-const FLASHES: readonly number[] = [INTRO_FLASH, ...C.fireworks].reduce<number[]>((out, at) => {
+/** Every full-screen flash of the opening: the kicks, from the impact on; each flashes unless it would be the 4th
+ *  within a second. The intro never flashes (its last hit is 0.1 s before the impact's — a double flash): its
+ *  run-up jolts and punches instead. */
+const FLASHES: readonly number[] = [...C.fireworks].reduce<number[]>((out, at) => {
   const back = out[out.length - FLASHES_PER_SECOND];
   if (back === undefined || at - back > 1) out.push(at);
   return out;

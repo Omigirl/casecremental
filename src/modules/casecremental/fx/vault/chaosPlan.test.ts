@@ -61,20 +61,18 @@ describe("the full-screen flashes (photosensitivity)", () => {
       expect(flashTimes(from - 1e-9, from + 1).length, `[${from}, ${from + 1}]`).toBeLessThanOrEqual(3);
   });
 
-  it("flashes once in the intro, on the run-up's last hit; then on the impact and only on kicks, sorted", () => {
+  it("never flashes in the intro (its last hit is 0.1 s before the impact's: it would read as a double flash); then on the impact and only on kicks, sorted", () => {
     const all = flashTimes(-1, 20);
-    const last = INTRO_HITS[INTRO_HITS.length - 1]!;
-    expect(last.kind).toBe("run");
-    expect(all.slice(0, 2)).toEqual([last.at, VAULT_CUES.impact]);
-    expect(flashTimes(-1, VAULT_CUES.impact - 0.01)).toEqual([last.at]); // the build and the rest of the run-up: no flash
+    expect(flashTimes(-1, VAULT_CUES.impact - 0.01)).toEqual([]);
+    expect(all[0]).toBe(VAULT_CUES.impact);
     expect([...all].sort((a, b) => a - b)).toEqual(all);
-    for (const at of all.slice(1)) expect(VAULT_CUES.fireworks).toContain(at);
+    for (const at of all) expect(VAULT_CUES.fireworks).toContain(at);
   });
 
   it("lists the flashes after `from` up to and including `to`", () => {
     expect(flashTimes(3.38, 3.4)).toEqual([3.4]);
     expect(flashTimes(3.4, 3.41)).toEqual([]);
-    expect(flashTimes(3.2, 3.3)).toEqual([3.3]);
+    expect(flashTimes(3.2, 3.3)).toEqual([]);
     expect(flashTimes(5, 5)).toEqual([]);
   });
 });

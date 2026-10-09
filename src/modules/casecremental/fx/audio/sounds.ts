@@ -41,7 +41,6 @@ export const SOUNDS = {
   "charm-pick": { bus: "ui", gain: 0.7 },
   "perk-buy": { bus: "ui", gain: 0.7 },
   "run-start": { bus: "sfx", gain: 0.8, maxSeconds: 1.8 },
-  "vault-riser": { bus: "sfx", gain: 0.9, maxSeconds: 1.2 },
   "vault-open-hit": { bus: "sfx", gain: 1, maxSeconds: 2.5 },
   "reward-chime": { bus: "sfx", gain: 0.8 },
   "count-tick": { bus: "sfx", gain: 0.35, maxSeconds: 0.3 },
