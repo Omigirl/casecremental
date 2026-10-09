@@ -15,15 +15,20 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
 - **Stage 5 is "Unhinged"** (was "Cyberpsychosis" — it didn't fit the game).
 - **Content is split across the four runs** (user): Run 1 has the bot opening its own cases (Speed ×1 → ×8) and the auto-seller, the tray, 8 of
   14 charms, multi-open ×2 (plan M2b-C). Later runs bring the locker and the auto-buyer grid.
-- **The vault is a last-chance ticket** (user, after the first finale felt "down to earth"): buying it takes
-  the screen (UI hidden), the player turns a devilish key by hand, the vault opens like a legendary chest
-  (fanfare, golden column, coins, fireworks, five reels landing on the fanfare's beats — the fifth is Vault I's
-  own animated ★, "Event Horizon"), then a smooth blackout, the prestige screen over black with its own music,
-  and the next run's lights stutter back on. The opening is a fixed sim timeline, so a reload resumes it.
-  The vault's reels live in their own transparent pixel layer inside the vault scene (the scene's dim would hide
-  them in the main world); the UI fades back 3.4 s into the next run, and the power-up is silent until the lights
-  are on. After a lobby trip the music is re-derived from the sim (musicPlan), so the fanfare resumes in step with
-  the reels.
+- **The vault is a last-chance ticket, opened like a jackpot** (user, after the first finale felt "down to
+  earth", then a Vampire Survivors legendary-chest guide — its animation and music parts, no skip): buying it
+  takes the screen (UI hidden) and the player turns a devilish key by hand. Then a fixed 14.5 s sim timeline
+  (spec `2026-10-09-casecremental-vault-jackpot-design.md`): the chest trembles with a widening gold seam, snaps
+  open at 1.0 s (flash, shake, light shaft, the jackpot hit, the chiptune fanfare's first downbeat), a rainbow
+  fan opens behind five vertical reel columns that cascade in, spin and lock in left to right on the beat
+  (6, 6.5, 7, 7.5, 8.5 s) with rising chimes — the fifth is Vault I's animated ★ "Event Horizon" — then the
+  total counts up and the results hold until the blackout (auto-continue, the user's choice). Prestige follows
+  over black and the next run's lights stutter back on. A reload or lobby trip resumes at the same moment with
+  no beat replayed; the fanfare plays from `t − 1` (silent before the impact). Russian names wrap at whole words
+  and shrink to fit the narrow columns. The vault's columns live in their own pixel layer inside the vault
+  scene (the scene's dim would hide them in the main world); the UI fades back 3.4 s into the next run.
+- **ElevenLabs sound effects need `duration_seconds` passed through a flow node's model parameters** — the
+  plain generate-in-flow call drops it and returns whole seconds, which is why the first batch came back short.
 - **The day job replaced the free case** (user): broke with an empty bench → a 3 s shift, 90 % +$2.
 - **The prestige screen** waits for the blackout only when the player watched the run end; after a reload it is
   up at once, over black. It has its own ⚙ (the HUD is hidden there), so the music can be muted.
