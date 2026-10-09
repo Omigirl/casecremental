@@ -147,13 +147,13 @@ describe("VaultBeams' labels", () => {
     const lane = lanesOf(h.beams)[0]!;
     const base = box.h / 2;
     const width = (t: { text: string; style: { fontSize: number } }) => [...t.text].length * t.style.fontSize;
-    expect(lane.money.text.startsWith("+"), lane.money.text).toBe(true);
-    expect([...lane.money.text].length * base, lane.money.text).toBeGreaterThan(box.w); // too wide at the base size
-    expect(lane.money.style.fontSize).toBeLessThan(base);
-    expect(width(lane.money)).toBeLessThanOrEqual(box.w);
-    expect(width(lane.name)).toBeLessThanOrEqual(box.w);
-    expect(lane.name.text, skinName(long.id)).toMatch(/…$/);
-    expect(skinName(long.id).startsWith(lane.name.text.slice(0, -1))).toBe(true);
+    expect(lane.label.money.text.startsWith("+"), lane.label.money.text).toBe(true);
+    expect([...lane.label.money.text].length * base, lane.label.money.text).toBeGreaterThan(box.w); // too wide at the base size
+    expect(lane.label.money.style.fontSize).toBeLessThan(base);
+    expect(width(lane.label.money)).toBeLessThanOrEqual(box.w);
+    expect(width(lane.label.name)).toBeLessThanOrEqual(box.w);
+    expect(lane.label.name.text, skinName(long.id)).toMatch(/…$/);
+    expect(skinName(long.id).startsWith(lane.label.name.text.slice(0, -1))).toBe(true);
   });
 
   it("backs the label with its plaque, headroom under the +$ included", () => {
@@ -163,7 +163,7 @@ describe("VaultBeams' labels", () => {
     h.beams.update(VAULT_LAND_TIMES[0] + 1);
     const lane = lanesOf(h.beams)[0]!;
     const plaque = h.L.beams[0]!.plaque;
-    const b = lane.back.getLocalBounds();
+    const b = lane.label.back.getLocalBounds();
     expect(Math.round(b.height)).toBe(Math.round(plaque.h));
     expect(Math.round(b.y)).toBe(Math.round(plaque.y));
   });

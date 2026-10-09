@@ -1,17 +1,14 @@
-import { Container, Graphics, Sprite, Text, type Texture } from "pixi.js";
-import { skinName } from "../../i18n/content";
-import { getLang } from "../../i18n/index";
+import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import { CASES, skinById } from "../../sim/content/cases";
-import { formatCash } from "../../sim/format";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Rng } from "../../sim/rng";
 import { VAULT_LAND_TIMES } from "../../sim/tuning";
 import type { Drop, SkinDef } from "../../sim/types";
-import { moneyStyle, pixelStyle } from "../hd/font";
 import type { Juice } from "../juice/juice";
 import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
-import { drawBeam, drawRewardFrames, setLabelLine } from "./beamArt";
+import { drawBeam, drawRewardFrames } from "./beamArt";
+import { RewardLabel } from "./beamLabel";
 import { BEAM_PALETTE, itemDistance, type Beam } from "./beams";
 import {
   beamWidthAt,
@@ -56,7 +53,6 @@ const FLASH_SECONDS = 0.4;
 const FADE_SECONDS = 0.3;
 const COIN_FPS = 14;
 const GOLD = 0xffd34d;
-const LABEL_BACK = 0x07080c;
 
 interface Lane {
   /** The beam, drawn pointing straight up from its origin and rotated onto its angle. */
@@ -73,9 +69,7 @@ interface Lane {
   /** The reward's rarity outline and the gold one around it that flashes on the lock-in and the pulse. */
   readonly frame: Graphics;
   readonly flash: Graphics;
-  readonly back: Graphics;
-  readonly name: Text;
-  readonly money: Text;
+  readonly label: RewardLabel;
   geo: Beam | null;
   filler: SkinDef[];
   drop: SkinDef | null;
@@ -88,10 +82,6 @@ interface Lane {
    *  null while it spins. */
   lockedAt: number | null;
   lastCell: number;
-  /** What the labels were last set for. */
-  fitName: string;
-  fitW: number;
-  moneyFor: number;
 }
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
@@ -121,7 +111,6 @@ export class VaultBeams {
   ) {
     this.coins = scene.art.coins;
     this.halo = new Sprite({ texture: scene.art.soft, anchor: 0.5, blendMode: "add", tint: GOLD, alpha: 0 });
-    const top = { x: 0.5, y: 0 };
     for (let i = 0; i < N; i++) {
       const body = new Graphics();
       const core = new Graphics();
@@ -139,9 +128,7 @@ export class VaultBeams {
         reward,
         frame,
         flash,
-        back: new Graphics(),
-        name: new Text({ text: "", style: pixelStyle(8, 0xffffff), anchor: top }),
-        money: new Text({ text: "", style: moneyStyle(8), anchor: top }),
+        label: new RewardLabel(this.labelsRoot),
         geo: null,
         filler: [],
         drop: null,
@@ -151,9 +138,6 @@ export class VaultBeams {
         seed: 0,
         lockedAt: null,
         lastCell: NaN,
-        fitName: "",
-        fitW: 0,
-        moneyFor: NaN,
       });
     }
     const ordered = DRAW_ORDER.map((i) => this.lanes[i]!);
@@ -163,7 +147,6 @@ export class VaultBeams {
     this.streamRoot.addChild(this.itemsCam, ...ordered.map((c) => c.cam));
     // at render time, once the scene has moved its camera for the frame, whatever order the updates ran in
     this.streamRoot.onRender = () => this.follow();
-    this.labelsRoot.addChild(...this.lanes.flatMap((c) => [c.back, c.name, c.money]));
     scene.beamSlot.addChild(this.beamsRoot);
     scene.streamSlot.addChild(this.streamRoot);
     scene.labelSlot.addChild(this.labelsRoot);
@@ -189,11 +172,7 @@ export class VaultBeams {
         c.items.addChild(s);
         c.pool.push(s);
       }
-      const { x, y, w, h } = b.plaque;
-      c.back.clear().rect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)).fill({ color: LABEL_BACK, alpha: 0.7 });
-      Object.assign(c.name.style, { wordWrap: false, align: "center" });
-      c.fitName = "";
-      c.moneyFor = NaN;
+      c.label.layout(b);
       this.drawFrame(c);
     });
     this.halo.width = this.halo.height = L.icon * 2.6;
@@ -226,8 +205,7 @@ export class VaultBeams {
       c.seed = this.rng.int(0, 0x7fffffff);
       c.lockedAt = null;
       c.lastCell = NaN;
-      c.fitName = "";
-      c.moneyFor = NaN;
+      c.label.reset();
       this.drawFrame(c);
     });
     this.active = true;
@@ -269,7 +247,7 @@ export class VaultBeams {
       c.core.alpha = CORE_ALPHA + (c.lockedAt === null ? 0 : CORE_LIT) + 0.4 * flash + 0.4 * this.glow;
       c.flash.alpha = Math.max(this.glow, flash);
       this.placeStream(c, i, b, t, b.length * come, since);
-      this.placeLabels(c, b, c.lockedAt === null ? 0 : Math.min(1, since / FADE_SECONDS));
+      c.label.place(c.drop, c.amount, b, c.lockedAt === null ? 0 : Math.min(1, since / FADE_SECONDS));
     }
     const last = this.lanes[N - 1]!;
     this.halo.visible = last.lockedAt !== null && last.reward.visible;
@@ -403,32 +381,5 @@ export class VaultBeams {
     s.texture = tex;
     s.scale.set(scale);
     s.visible = true;
-  }
-
-  /** The name over the +$, each one line shrunk to fit its box (cut short with "…" past the floor), on the
-   *  beam's plaque, fading in. */
-  private placeLabels(c: Lane, b: Beam, alpha: number): void {
-    const on = alpha > 0 && !!c.drop;
-    c.name.visible = c.money.visible = c.back.visible = on;
-    if (!c.drop || !on) return;
-    const name = skinName(c.drop.id);
-    const box = b.label;
-    const line = b.font;
-    if (c.fitName !== name || c.fitW !== box.w) {
-      setLabelLine(c.name, name, box.w, line);
-      c.name.style.fill = RARITY_INFO[c.drop.rarity].color;
-      c.fitName = name;
-      c.fitW = box.w;
-      c.moneyFor = NaN; // the language may have changed with the name
-    }
-    if (c.moneyFor !== c.amount) {
-      setLabelLine(c.money, `+${formatCash(c.amount, getLang())}`, box.w, line);
-      c.moneyFor = c.amount;
-    }
-    c.name.alpha = c.money.alpha = c.back.alpha = alpha;
-    const x = Math.round(box.x + box.w / 2);
-    // each centred in its line: the +$ a line down, the plaque's headroom under it
-    c.name.position.set(x, Math.round(box.y + (line - c.name.style.fontSize) / 2));
-    c.money.position.set(x, Math.round(box.y + line + (line - c.money.style.fontSize) / 2));
   }
 }
