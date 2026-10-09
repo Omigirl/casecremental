@@ -1,3 +1,4 @@
+import { BEAT_LIGHT_AMPLITUDES } from "./beat";
 import { Container, Sprite, type Texture } from "pixi.js";
 import type { Pt } from "../pixel/layout";
 import { VAULT_CUES, type VaultCues } from "./cues";
@@ -16,7 +17,7 @@ const RESTING = 0.3;
 /** At full chaos the starburst spins this many times faster, and swells and brightens this much on a beat. */
 const CHAOS_SPIN = 6;
 const BEAT_SWELL = 0.08;
-const BEAT_LIGHT = 0.15;
+const BEAT_LIGHT = BEAT_LIGHT_AMPLITUDES.starburst;
 
 /** The chaos layer's beat (its pulse at the chaos's strength) and strength, 0-1. */
 export interface RaysBeat {

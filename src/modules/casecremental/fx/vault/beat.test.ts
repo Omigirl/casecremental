@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barPulse, beatAt, beatPulse, VAULT_BPM } from "./beat";
+import { barPulse, beatAt, beatPulse, VAULT_BPM, BEAT_LIGHT_AMPLITUDES } from "./beat";
 
 const BEAT = 60 / VAULT_BPM;
 const EPS = 1e-6;
@@ -44,5 +44,13 @@ describe("the fanfare's clock", () => {
         expect(v).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+describe("the beat throb and photosensitivity", () => {
+  it("every light that throbs on the beat changes by less than 0.1 — under the flash threshold at any tempo", () => {
+    const amps = Object.values(BEAT_LIGHT_AMPLITUDES);
+    expect(amps.length).toBeGreaterThanOrEqual(3);
+    for (const a of amps) expect(a).toBeLessThan(0.1);
   });
 });

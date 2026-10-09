@@ -272,8 +272,7 @@ export class VaultBeams {
     if (at) this.scene.firework(at, color, last);
     if (!last) return;
     if (at) this.scene.firework(at, GOLD, true);
-    audio.play("legendary-choir");
-    audio.play("firework", { gain: 0.8, rate: 0.9 });
+    audio.play("legendary-choir"); // its kick is the scheduled one at 8.5 (VAULT_CUES.fireworks): one, not a flam
     shake.add(0.25);
   }
 

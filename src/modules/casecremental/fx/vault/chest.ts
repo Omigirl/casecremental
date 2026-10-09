@@ -1,3 +1,4 @@
+import { BEAT_LIGHT_AMPLITUDES } from "./beat";
 import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import type { Pt } from "../pixel/layout";
 import { VAULT_CUES, type VaultCues } from "./cues";
@@ -29,7 +30,7 @@ const RECOIL_SECONDS = 0.25;
 /** The open chest on a beat: it squashes and hops by this much, and its light inside throbs by this much. */
 const BEAT_SQUASH = 0.06;
 const BEAT_HOP = 1.5;
-const BEAT_THROB = 0.35;
+const BEAT_THROB = BEAT_LIGHT_AMPLITUDES.mouthLight;
 const RED = 0xff2a1a;
 const GOLD = 0xffd34d;
 
@@ -213,7 +214,7 @@ export class Chest {
       this.glow.alpha = 0.3 + 0.5 * v.cues.seam + 0.1 * pulse;
     } else {
       this.glow.tint = GOLD;
-      this.glow.alpha = Math.min(1, 0.7 + 0.15 * pulse + 0.3 * v.beat);
+      this.glow.alpha = Math.min(1, 0.7 + 0.15 * pulse + BEAT_LIGHT_AMPLITUDES.chestGlow * v.beat);
     }
     // the seam: a gold line over the lid's seam, wider and brighter as the tremble builds
     const seam = t !== null && !open ? v.cues.seam : 0;
