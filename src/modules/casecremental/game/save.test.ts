@@ -119,4 +119,17 @@ describe("the local save", () => {
     });
     expect(decodeSave(v2({ phase: "locked", caseId: "bootcamp", free: false }))!.run.state.bench).toMatchObject({ count: 1 });
   });
+
+  it("drops a revealed bench with no real card (a v2 one without drop, or only nulls/junk)", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const withBench = (v: number, bench: unknown) => {
+      const d = JSON.parse(encodeSave(data()));
+      d.v = v;
+      d.run.state.bench = bench;
+      return decodeSave(JSON.stringify(d));
+    };
+    expect(withBench(2, { phase: "revealed", caseId: "bootcamp" })).toBeNull();
+    expect(withBench(3, { phase: "revealed", caseId: "bootcamp", cards: [null, null] })).toBeNull();
+    expect(withBench(3, { phase: "revealed", caseId: "bootcamp", cards: [42] })).toBeNull();
+  });
 });

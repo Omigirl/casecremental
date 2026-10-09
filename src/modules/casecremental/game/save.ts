@@ -37,7 +37,9 @@ function isBench(b: unknown): boolean {
       isNum(b.fullDuration)
     );
   }
-  if (b.phase === "revealed") return Array.isArray(b.cards) && b.cards.length > 0;
+  if (b.phase === "revealed") {
+    return Array.isArray(b.cards) && b.cards.every((c) => c === null || isObj(c)) && b.cards.some((c) => isObj(c));
+  }
   return isNum(b.count) && b.count >= 1;
 }
 
