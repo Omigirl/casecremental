@@ -11,12 +11,23 @@ import { moneyStyle, pixelStyle } from "../hd/font";
 import type { Juice } from "../juice/juice";
 import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
-import { drawBeam, drawRewardFrames } from "./beamArt";
+import { drawBeam, drawRewardFrames, setLabelLine } from "./beamArt";
 import { BEAM_PALETTE, itemDistance, type Beam } from "./beams";
-import { beamWidthAt, firstItem, firstVisible, iconScale, isCoin, itemJitter, lastVisible, maxVisibleItems } from "./beamStream";
+import {
+  beamWidthAt,
+  firstItem,
+  firstVisible,
+  followCamera,
+  iconScale,
+  isCoin,
+  itemJitter,
+  lastVisible,
+  maxVisibleItems,
+  STREAM_ITEMS_PER_SECOND,
+  STREAM_SPACING,
+} from "./beamStream";
 import { COLUMN_SLOW_CELLS, columnMotion } from "./columnMotion";
-import { VAULT_CUES, vaultCues } from "./cues";
-import { fitLabel, LABEL_MIN_SHARE } from "./fitLabel";
+import { VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import type { VaultLayout } from "./vaultLayout";
 import type { VaultScene } from "./VaultScene";
 
@@ -25,17 +36,14 @@ import type { VaultScene } from "./VaultScene";
 // stream along them, and they lock in one by one, left to right, on the drops the sim already rolled — each
 // reward riding out to its spot on its beam, the beam's other items fading away, each landing louder than the
 // last, the fifth (the animated ★) the loudest. Screen px, in the vault scene's slots: the beams behind the sky's
-// particles, the streams behind the chest (they come out of it), the labels in front of every particle. Icons
-// are drawn upright at a whole-number scale; the sprites are pooled per beam, so a frame allocates none.
+// particles, the streams behind the chest (they come out of it), the labels in front of every particle. The
+// streamed items ride the beams' camera (the chaos's shake and zoom punch), so they stay on their beams; a reward
+// rides it while it spins and eases off it once landed, steady beside its label. Icons are drawn upright at a
+// whole-number scale; the sprites are pooled per beam, so a frame allocates none.
 
 const N = VAULT_LAND_TIMES.length;
-/** Items per second along a beam while it spins; each beam's exact speed follows from its start, landing and
- *  target (columnMotion). */
-const SPEED = 15; // 1.5× the calm version: the chaos runs hot
 /** The fifth decelerates longer: its lock-in is the one the whole opening builds to. */
 const LAST_SLOW_CELLS = 9;
-/** Items stream this share of an icon box apart. */
-const SPACING = 0.45;
 /** Back to front: the outer beams first, the centre one last. */
 const DRAW_ORDER = [0, 4, 1, 3, 2] as const;
 /** The beam's core: its brightness at rest, once landed, and on the flash and the pulse. */
@@ -44,7 +52,7 @@ const CORE_LIT = 0.18;
 const PULSE_SECONDS = 0.2;
 const POP = 0.3;
 const FLASH_SECONDS = 0.4;
-/** The other items fade out, and the label in, over this long after a lock-in. */
+/** The other items fade out, the label in, and the reward eases off the camera over this long after a lock-in. */
 const FADE_SECONDS = 0.3;
 const COIN_FPS = 14;
 const GOLD = 0xffd34d;
@@ -58,6 +66,9 @@ interface Lane {
   /** The stream's pooled sprites (icons and coins), never the reward. */
   readonly items: Container;
   readonly pool: Sprite[];
+  /** The reward and its frames, on `share` (0-1) of the beams' camera. */
+  readonly cam: Container;
+  share: number;
   readonly reward: Sprite;
   /** The reward's rarity outline and the gold one around it that flashes on the lock-in and the pulse. */
   readonly frame: Graphics;
@@ -73,7 +84,8 @@ interface Lane {
   start: number;
   /** The scatter's seed: each item keeps its lane across the beam. */
   seed: number;
-  /** The sim time its lock-in juice started; -Infinity once restored at rest; null while it spins. */
+  /** Its landing time (VAULT_LAND_TIMES), from which its lock-in juice plays; -Infinity once restored at rest;
+   *  null while it spins. */
   lockedAt: number | null;
   lastCell: number;
   /** What the labels were last set for. */
@@ -88,6 +100,8 @@ export class VaultBeams {
   private readonly beamsRoot = new Container();
   private readonly streamRoot = new Container();
   private readonly labelsRoot = new Container();
+  /** Every beam's streamed items, on the beams' camera. */
+  private readonly itemsCam = new Container();
   private readonly lanes: Lane[] = [];
   private readonly halo: Sprite;
   private readonly coins: readonly Texture[];
@@ -95,7 +109,6 @@ export class VaultBeams {
   private icon = 32;
   private spacing = 19;
   private coinScale = 1;
-  private t = 0;
   private glow = 0;
   private active = false;
 
@@ -112,15 +125,20 @@ export class VaultBeams {
     for (let i = 0; i < N; i++) {
       const body = new Graphics();
       const core = new Graphics();
+      const reward = new Sprite({ anchor: 0.5 });
+      const frame = new Graphics();
+      const flash = new Graphics();
       this.lanes.push({
         beam: new Container({ children: [body, core] }),
         body,
         core,
         items: new Container(),
         pool: [],
-        reward: new Sprite({ anchor: 0.5 }),
-        frame: new Graphics(),
-        flash: new Graphics(),
+        cam: new Container({ children: [flash, frame, reward] }),
+        share: 1,
+        reward,
+        frame,
+        flash,
         back: new Graphics(),
         name: new Text({ text: "", style: pixelStyle(8, 0xffffff), anchor: top }),
         money: new Text({ text: "", style: moneyStyle(8), anchor: top }),
@@ -140,7 +158,11 @@ export class VaultBeams {
     }
     const ordered = DRAW_ORDER.map((i) => this.lanes[i]!);
     this.beamsRoot.addChild(...ordered.map((c) => c.beam));
-    this.streamRoot.addChild(...ordered.map((c) => c.items), this.halo, ...ordered.flatMap((c) => [c.flash, c.frame, c.reward]));
+    this.itemsCam.addChild(...ordered.map((c) => c.items));
+    this.lanes[N - 1]!.cam.addChildAt(this.halo, 0); // the halo rings the fifth reward, under its frames
+    this.streamRoot.addChild(this.itemsCam, ...ordered.map((c) => c.cam));
+    // at render time, once the scene has moved its camera for the frame, whatever order the updates ran in
+    this.streamRoot.onRender = () => this.follow();
     this.labelsRoot.addChild(...this.lanes.flatMap((c) => [c.back, c.name, c.money]));
     scene.beamSlot.addChild(this.beamsRoot);
     scene.streamSlot.addChild(this.streamRoot);
@@ -152,7 +174,7 @@ export class VaultBeams {
   layout(L: VaultLayout, k: number): void {
     this.k = k;
     this.icon = L.icon;
-    this.spacing = Math.max(1, Math.round(L.icon * SPACING));
+    this.spacing = Math.max(1, Math.round(L.icon * STREAM_SPACING));
     this.coinScale = Math.max(1, Math.round(k * 0.6));
     this.lanes.forEach((c, i) => {
       const b = (c.geo = L.beams[i] ?? null);
@@ -167,11 +189,11 @@ export class VaultBeams {
         c.items.addChild(s);
         c.pool.push(s);
       }
-      const { x, y, w, h } = b.label;
+      const { x, y, w, h } = b.plaque;
       c.back.clear().rect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)).fill({ color: LABEL_BACK, alpha: 0.7 });
       Object.assign(c.name.style, { wordWrap: false, align: "center" });
-      c.money.style.fontSize = b.label.h / 2; // a line of the box: smaller when the screen is crowded
       c.fitName = "";
+      c.moneyFor = NaN;
       this.drawFrame(c);
     });
     this.halo.width = this.halo.height = L.icon * 2.6;
@@ -192,7 +214,6 @@ export class VaultBeams {
     const top = CASES[CASES.length - 1]!.skins;
     // bake every skin the streams can show now, at the key turn, rather than as each first flies by mid-spin
     for (const skin of top) this.skins.frames(skin);
-    this.t = 0;
     this.glow = 0;
     this.lanes.forEach((c, i) => {
       const d = drops[i];
@@ -201,7 +222,7 @@ export class VaultBeams {
       c.amount = d?.value ?? 0;
       c.filler = this.shuffle(top);
       c.start = VAULT_CUES.columnsFrom + VAULT_CUES.columnStagger * i;
-      c.target = Math.round(SPEED * (VAULT_LAND_TIMES[i]! - c.start)) - this.slowCells(i) + this.rng.int(0, 3);
+      c.target = Math.round(STREAM_ITEMS_PER_SECOND * (VAULT_LAND_TIMES[i]! - c.start)) - this.slowCells(i) + this.rng.int(0, 3);
       c.seed = this.rng.int(0, 0x7fffffff);
       c.lockedAt = null;
       c.lastCell = NaN;
@@ -229,11 +250,11 @@ export class VaultBeams {
     for (const c of this.lanes) for (const s of c.pool) s.visible = false;
   }
 
-  /** The opening at sim time t: the beams growing in, each stream where it is, the lock-ins' juice playing out. */
-  update(t: number): void {
+  /** The opening at sim time t: the beams growing in, each stream where it is, the lock-ins' juice playing out.
+   *  `frameCues`: the frame's cues when the scene has them (VaultScene.cues), else worked out here. */
+  update(t: number, frameCues?: VaultCues): void {
     if (!this.active) return;
-    this.t = t;
-    const cues = vaultCues(t);
+    const cues = frameCues ?? vaultCues(t);
     for (let i = 0; i < N; i++) {
       const c = this.lanes[i]!;
       const b = c.geo;
@@ -242,7 +263,8 @@ export class VaultBeams {
       c.beam.visible = come > 0;
       c.beam.alpha = come;
       c.beam.scale.y = come;
-      const since = c.lockedAt === null ? Infinity : t - c.lockedAt;
+      const since = c.lockedAt === null ? Infinity : Math.max(0, t - c.lockedAt);
+      c.share = c.lockedAt === null ? 1 : Math.max(0, 1 - since / FADE_SECONDS);
       const flash = Math.max(0, 1 - since / FLASH_SECONDS);
       c.core.alpha = CORE_ALPHA + (c.lockedAt === null ? 0 : CORE_LIT) + 0.4 * flash + 0.4 * this.glow;
       c.flash.alpha = Math.max(this.glow, flash);
@@ -261,7 +283,7 @@ export class VaultBeams {
   landed(index: number, d: Drop, amount: number): void {
     const c = this.lanes[index];
     if (!c) return;
-    c.lockedAt = this.t;
+    c.lockedAt = VAULT_LAND_TIMES[index] ?? 0; // the juice plays from its landing, whichever frame this arrives on
     c.amount = amount;
     this.drawFrame(c);
     const { audio, shake } = this.juice;
@@ -278,6 +300,17 @@ export class VaultBeams {
 
   destroy(): void {
     for (const root of [this.beamsRoot, this.streamRoot, this.labelsRoot]) root.destroy({ children: true });
+  }
+
+  /** The streamed items onto the beams' camera (the beam slot's parent, the chaos stage; the slot and the beams'
+   *  own containers sit still on it), each reward onto its share of it. The stream's slot is a plain offset
+   *  beside that camera (its bob), under the same parent. */
+  private follow(): void {
+    const cam = this.scene.beamSlot.parent;
+    if (!cam) return;
+    const slot = this.scene.streamSlot.position;
+    followCamera(this.itemsCam, cam, slot, 1);
+    for (const c of this.lanes) followCamera(c.cam, cam, slot, c.share);
   }
 
   private slowCells(i: number): number {
@@ -310,7 +343,7 @@ export class VaultBeams {
   private placeStream(c: Lane, i: number, b: Beam, t: number, reach: number, since: number): void {
     const land = VAULT_LAND_TIMES[i]!;
     const slow = this.slowCells(i);
-    const pos = columnMotion(t, c.start, land, c.target, { slowCells: slow });
+    const pos = columnMotion(t, c.start, land, c.target, slow);
     const sp = this.spacing;
     const dx = Math.sin(b.angle);
     const dy = -Math.cos(b.angle);
@@ -372,31 +405,30 @@ export class VaultBeams {
     s.visible = true;
   }
 
-  /** The name (one line, shrunk to fit its box) over the +$, in the beam's label box, fading in. */
+  /** The name over the +$, each one line shrunk to fit its box (cut short with "…" past the floor), on the
+   *  beam's plaque, fading in. */
   private placeLabels(c: Lane, b: Beam, alpha: number): void {
     const on = alpha > 0 && !!c.drop;
     c.name.visible = c.money.visible = c.back.visible = on;
     if (!c.drop || !on) return;
     const name = skinName(c.drop.id);
     const box = b.label;
+    const line = b.font;
     if (c.fitName !== name || c.fitW !== box.w) {
-      const base = box.h / 2;
-      const fit = fitLabel([name], box.w, 1, base, base * LABEL_MIN_SHARE);
-      c.name.style.fontSize = fit.size;
-      c.name.text = fit.lines.join("\n");
+      setLabelLine(c.name, name, box.w, line);
       c.name.style.fill = RARITY_INFO[c.drop.rarity].color;
       c.fitName = name;
       c.fitW = box.w;
       c.moneyFor = NaN; // the language may have changed with the name
     }
     if (c.moneyFor !== c.amount) {
-      c.money.text = `+${formatCash(c.amount, getLang())}`;
+      setLabelLine(c.money, `+${formatCash(c.amount, getLang())}`, box.w, line);
       c.moneyFor = c.amount;
     }
     c.name.alpha = c.money.alpha = c.back.alpha = alpha;
     const x = Math.round(box.x + box.w / 2);
-    const line = box.h / 2;
+    // each centred in its line: the +$ a line down, the plaque's headroom under it
     c.name.position.set(x, Math.round(box.y + (line - c.name.style.fontSize) / 2));
-    c.money.position.set(x, Math.round(box.y + line));
+    c.money.position.set(x, Math.round(box.y + line + (line - c.money.style.fontSize) / 2));
   }
 }

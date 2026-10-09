@@ -31,7 +31,7 @@ describe("a vault column's motion", () => {
 
   it("decelerates through at least `slowCells` cells in its last second", () => {
     for (const slowCells of [4, 6]) {
-      const travelled = columnMotion(land, start, land, target, { slowCells }) - columnMotion(land - 1, start, land, target, { slowCells });
+      const travelled = columnMotion(land, start, land, target, slowCells) - columnMotion(land - 1, start, land, target, slowCells);
       expect(travelled).toBeGreaterThanOrEqual(slowCells);
     }
   });
@@ -41,5 +41,11 @@ describe("a vault column's motion", () => {
     const a = columnMotion(4, 1.5, land, target);
     const b = columnMotion(4, 1.6, land, target);
     expect(Math.abs(frac(a) - frac(b))).toBeGreaterThan(0.05);
+  });
+
+  it("stays still on a target of 0 (no NaN), then settles on it", () => {
+    for (let t = 0; t <= land + 1; t += 0.05) expect(Number.isFinite(columnMotion(t, start, land, 0))).toBe(true);
+    expect(columnMotion((start + land) / 2, start, land, 0)).toBe(0);
+    expect(columnMotion(land + 1, start, land, 0)).toBe(0);
   });
 });

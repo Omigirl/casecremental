@@ -4,8 +4,7 @@ import { setLang } from "../../i18n/index";
 import { CASES, VAULT_LEGEND } from "../../sim/content/cases";
 import type { Rect } from "../pixel/layout";
 import { pixelViewport } from "../pixel/viewport";
-import type { Beam } from "./beams";
-import { beamWidthAt } from "./beamStream";
+import { endCornersOff } from "./beamTestKit";
 import { fitLabel, LABEL_MIN_SHARE } from "./fitLabel";
 import { OPEN_H, VAULT_FRAME, vaultLayout } from "./vaultLayout";
 
@@ -139,17 +138,6 @@ const SWEEP = [
 const MARGIN = 4;
 /** The widest +$ a vault pays out. */
 const WIDEST_MONEY = "+$999.9Qa";
-
-function endCornersOff(b: Beam, s: { w: number; h: number }): boolean {
-  // the whole far end (the segment between its corners) lies beyond one screen edge
-  const hw = beamWidthAt(b, b.length) / 2;
-  const ex = b.origin.x + Math.sin(b.angle) * b.length;
-  const ey = b.origin.y - Math.cos(b.angle) * b.length;
-  const corners = [-1, 1].map((side) => ({ x: ex + side * Math.cos(b.angle) * hw, y: ey + side * Math.sin(b.angle) * hw }));
-  return (
-    corners.every((c) => c.y < 0) || corners.every((c) => c.x < 0) || corners.every((c) => c.x > s.w) || corners.every((c) => c.y > s.h)
-  );
-}
 
 describe("the vault's layout over a sweep of window sizes", () => {
   const names = (() => {

@@ -1,3 +1,4 @@
+import type { Pt } from "../pixel/layout";
 import { BEAM_END_SHARE, BEAM_MOUTH_SHARE, type Beam } from "./beams";
 
 // The stream along one of the vault's beams (spec 2026-10-09 §5): which items are out of the chest and on the
@@ -39,3 +40,33 @@ export const iconScale = (w: number, h: number, box: number, k: number): number 
 /** The beam's width `d` px from the mouth: narrow at the chest, widening out past the screen edge. */
 export const beamWidthAt = (beam: Pick<Beam, "width" | "length">, d: number): number =>
   beam.width * (BEAM_MOUTH_SHARE + ((BEAM_END_SHARE - BEAM_MOUTH_SHARE) * d) / beam.length);
+
+/** Items stream this share of an icon box apart. */
+export const STREAM_SPACING = 0.45;
+/** Icon boxes per second an item travels along its beam while it spins: 1.5× the calm stream (10 items a second,
+ *  0.6 of a box apart), so the denser chaos stream still reads faster. */
+export const STREAM_BOXES_PER_SECOND = 9;
+/** Items per second past the spot while a beam spins; each beam's exact speed follows from its start, landing and
+ *  target (columnMotion). */
+export const STREAM_ITEMS_PER_SECOND = STREAM_BOXES_PER_SECOND / STREAM_SPACING;
+
+/** A Pixi layer's transform (a Container's): maps p to position + rotation · scale · (p − pivot). */
+interface Layer {
+  readonly pivot: { set(x: number, y: number): void };
+  readonly position: { set(x: number, y: number): void };
+  readonly scale: { set(x: number, y: number): void };
+  rotation: number;
+}
+
+/** Puts `layer`, in a slot (at `slot`, a plain offset beside the camera under the same parent), on `share` (0-1) of
+ *  the beams' camera `cam`: at 1 it draws exactly where the camera draws the beams, at 0 it stays put in its
+ *  slot. Nothing is allocated, so it runs every frame. */
+export function followCamera(layer: Layer, cam: { pivot: Pt; position: Pt; scale: Pt; rotation: number }, slot: Pt, share: number): void {
+  layer.pivot.set(cam.pivot.x, cam.pivot.y);
+  layer.position.set(
+    cam.pivot.x + share * (cam.position.x - slot.x - cam.pivot.x),
+    cam.pivot.y + share * (cam.position.y - slot.y - cam.pivot.y),
+  );
+  layer.scale.set(1 + share * (cam.scale.x - 1), 1 + share * (cam.scale.y - 1));
+  layer.rotation = share * cam.rotation;
+}

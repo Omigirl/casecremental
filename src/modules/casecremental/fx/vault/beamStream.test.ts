@@ -1,6 +1,19 @@
+import { Container } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import { itemDistance } from "./beams";
-import { beamWidthAt, firstItem, iconScale, isCoin, itemJitter, lastVisible, maxVisibleItems, firstVisible } from "./beamStream";
+import {
+  beamWidthAt,
+  firstItem,
+  firstVisible,
+  followCamera,
+  iconScale,
+  isCoin,
+  itemJitter,
+  lastVisible,
+  maxVisibleItems,
+  STREAM_ITEMS_PER_SECOND,
+  STREAM_SPACING,
+} from "./beamStream";
 
 describe("a beam's stream", () => {
   const spacing = 115;
@@ -90,5 +103,54 @@ describe("beamWidthAt", () => {
     expect(beamWidthAt(beam, 500)).toBeGreaterThan(beamWidthAt(beam, 0));
     expect(beamWidthAt(beam, 1000)).toBeGreaterThan(beamWidthAt(beam, 500));
     expect(beamWidthAt(beam, 1000)).toBeCloseTo(260, 9);
+  });
+});
+
+describe("the stream's speed", () => {
+  it("runs 1.5× faster on screen than the calm version (10 items a second, 0.6 of an icon box apart)", () => {
+    expect(STREAM_ITEMS_PER_SECOND * STREAM_SPACING).toBeCloseTo(1.5 * 10 * 0.6, 9);
+  });
+
+  it("moves an item well under half its spacing per frame at 60 fps (no wagon-wheel)", () => {
+    expect(STREAM_ITEMS_PER_SECOND / 60).toBeLessThan(0.5);
+  });
+});
+
+describe("followCamera", () => {
+  // the beams' camera: a punch about the mouth, a shake, a slight turn; and the stream's slot, bobbing
+  const cam = new Container();
+  cam.pivot.set(400, 600);
+  cam.position.set(409, 594);
+  cam.scale.set(1.05);
+  cam.rotation = 0.02;
+  const slot = { x: 0, y: -3 };
+  const p = { x: 250, y: 180 };
+  /** Where a layer in the slot draws p, in the slot's and the camera's shared parent. */
+  const drawn = (layer: Container) => {
+    const q = layer.toGlobal(p);
+    return { x: q.x + slot.x, y: q.y + slot.y };
+  };
+
+  it("puts a layer in its slot exactly where the camera puts the beams, at share 1", () => {
+    const layer = new Container();
+    followCamera(layer, cam, slot, 1);
+    const want = cam.toGlobal(p);
+    expect(drawn(layer).x).toBeCloseTo(want.x, 9);
+    expect(drawn(layer).y).toBeCloseTo(want.y, 9);
+  });
+
+  it("leaves the layer where it is at share 0, and halfway at 0.5 (no turn)", () => {
+    const layer = new Container();
+    followCamera(layer, cam, slot, 0);
+    expect(layer.toGlobal(p).x).toBeCloseTo(p.x, 9);
+    expect(layer.toGlobal(p).y).toBeCloseTo(p.y, 9);
+    const flat = new Container();
+    flat.pivot.copyFrom(cam.pivot);
+    flat.position.copyFrom(cam.position);
+    flat.scale.copyFrom(cam.scale);
+    const full = flat.toGlobal(p);
+    followCamera(layer, flat, slot, 0.5);
+    expect(drawn(layer).x).toBeCloseTo((p.x + slot.x + full.x) / 2, 9);
+    expect(drawn(layer).y).toBeCloseTo((p.y + slot.y + full.y) / 2, 9);
   });
 });

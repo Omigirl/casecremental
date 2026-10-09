@@ -1,9 +1,11 @@
-import type { Graphics } from "pixi.js";
+import type { Graphics, Text } from "pixi.js";
 import type { Beam } from "./beams";
 import { beamWidthAt } from "./beamStream";
+import { fitLabel, LABEL_MIN_SHARE } from "./fitLabel";
 
-// How a vault beam and a landed reward's frames are drawn (spec 2026-10-09 §5): flat pixel-art shapes in Pixi
-// Graphics, built once per layout or landing, never per frame. VaultBeams places, rotates and fades them.
+// How a vault beam, a landed reward's frames and its label's lines are drawn (spec 2026-10-09 §5): flat pixel-art
+// shapes in Pixi Graphics and fitted text, built once per layout or landing, never per frame. VaultBeams places,
+// rotates and fades them.
 
 const BEAM_ALPHA = 0.8;
 /** The bright core down a beam's middle, as a share of its width. */
@@ -46,4 +48,12 @@ export function drawBeam(body: Graphics, core: Graphics, b: Beam, color: number,
 export function drawRewardFrames(frame: Graphics, flash: Graphics, w: number, h: number, s: number, rarity: number): void {
   outline(frame.clear(), -2 * s, -2 * s, w + 4 * s, h + 4 * s, s, rarity);
   outline(flash.clear(), -3 * s, -3 * s, w + 6 * s, h + 6 * s, s, GOLD);
+}
+
+/** One line of a reward's label (its name, or its +$): `s` on a single line `font` px tall, shrunk to fit
+ *  `width` on the font's grid and cut short with "…" past the floor, so it never spills off its plaque. */
+export function setLabelLine(t: Text, s: string, width: number, font: number): void {
+  const fit = fitLabel([s], width, 1, font, font * LABEL_MIN_SHARE);
+  t.style.fontSize = fit.size;
+  t.text = fit.lines.join("\n");
 }

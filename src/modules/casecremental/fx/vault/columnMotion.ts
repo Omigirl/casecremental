@@ -12,14 +12,16 @@ const OVERSHOOT = 0.43;
  *  from there, then a quadratic ease-out through the last `slowCells` cells to land exactly on `target` at
  *  `land`, an overshoot of ~0.25 cell and a settle back by `land + 0.25`. Monotonic until the overshoot.
  *  The spin's speed follows from the rest — (target + slowCells) / (land − start) — so columns that start at
- *  different times spin at different speeds, out of phase; pick `target` for the speed you want. */
-export function columnMotion(t: number, start: number, land: number, target: number, opts: { slowCells?: number } = {}): number {
+ *  different times spin at different speeds, out of phase; pick `target` for the speed you want. A target of 0
+ *  (or less) never moves: 0 throughout. */
+export function columnMotion(t: number, start: number, land: number, target: number, slowCells = COLUMN_SLOW_CELLS): number {
+  if (!(target > 0)) return 0;
   if (t >= land) {
     const u = (t - land) / SETTLE_SECONDS;
     return u >= 1 ? target : target + OVERSHOOT * Math.sin(Math.PI * u) * (1 - u);
   }
   if (t <= start) return 0;
-  const slow = Math.min(opts.slowCells ?? COLUMN_SLOW_CELLS, target / 2);
+  const slow = Math.min(slowCells, target / 2);
   const speed = (target + slow) / (land - start);
   const slowSeconds = (2 * slow) / speed;
   const remaining = land - t;
