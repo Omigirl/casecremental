@@ -45,4 +45,24 @@ describe("the devil key's drag (multi-touch)", () => {
     key.move({ x: 130, y: 100 }, 1);
     expect(key.pos.x).toBe(130);
   });
+
+  it("a cancelled touch (the OS took the finger) frees the key for another finger", () => {
+    const { key, release } = rig();
+    key.grab({ x: 100, y: 100 }, 1);
+    key.move({ x: 160, y: 100 }, 1);
+    key.cancel(1); // no pointerup will ever come for finger 1
+    expect(key.dragging).toBe(false);
+    expect(key.grab({ x: 160, y: 100 }, 2)).toBe(true);
+    key.move({ x: 400, y: 100 }, 2);
+    expect(release({ x: 400, y: 100 }, 2)).toBe("turn");
+  });
+
+  it("another finger's cancel leaves the key in the hand holding it", () => {
+    const { key } = rig();
+    key.grab({ x: 100, y: 100 }, 1);
+    key.cancel(2);
+    expect(key.dragging).toBe(true);
+    key.move({ x: 130, y: 100 }, 1);
+    expect(key.pos.x).toBe(130);
+  });
 });

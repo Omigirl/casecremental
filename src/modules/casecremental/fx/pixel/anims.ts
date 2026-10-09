@@ -87,7 +87,7 @@ export const ANIMS = {
   botWake: [
     { frame: 1, ms: 140, eyes: "half" },
     { frame: 2, ms: 120 },
-    { frame: 3, ms: 110, dy: -1, event: "beep" },
+    { frame: 3, ms: 110, dy: -1 },
     { frame: 4, ms: 120, dy: -2 },
     { frame: 5, ms: 140, dy: -1 },
     { frame: 6, ms: 120 },

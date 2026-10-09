@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import manifest from "../../../../../art/manifest.json";
+import { BOT_WAKE_SECONDS } from "../../sim/tuning";
 import { ANIM_SPRITE, ANIMS, loopLength, type AnimId } from "./anims";
 
 const framesOf = (sprite: string): number => {
@@ -29,5 +30,14 @@ describe("prop animations", () => {
           expect(Number.isInteger(v)).toBe(true);
           expect(Math.abs(v)).toBeLessThanOrEqual(9);
         }
+  });
+
+  it("rests a woken bot at least as long as its wake-up plays, so its first spin never cuts it", () => {
+    expect(BOT_WAKE_SECONDS * 1000).toBeGreaterThanOrEqual(loopLength(ANIMS.botWake));
+  });
+
+  it("carries no event marker nothing listens for", () => {
+    const events = Object.values(ANIMS).flatMap((keys) => (keys as readonly { event?: string }[]).map((k) => k.event));
+    expect(events).not.toContain("beep");
   });
 });

@@ -83,8 +83,10 @@ export class DevilKey {
     return d.moved < 6 || dist(this.pos, lock) <= lockR ? "turn" : "none";
   }
 
-  cancel(): void {
-    this.drag = null;
+  /** The drag ends with nothing fired (a resize, a lobby trip); given a pointer `id` (the OS cancelled that touch,
+   *  so no up will come), only if that pointer holds the key. */
+  cancel(id?: number): void {
+    if (id === undefined || this.drag?.id === id) this.drag = null;
   }
 
   update(dt: number, clock: number, shown: boolean): void {

@@ -48,6 +48,20 @@ export interface ChestView {
   beat: number;
 }
 
+/** The vault's frame: closed; closed with the seam lit (the key over the lock, or the tremble widening it); the
+ *  in-between as it snaps open; open. `t` is null while the key waits. */
+export function chestFrame(t: number | null, near: boolean, c: Pick<VaultCues, "lid" | "seam">): number {
+  if (t === null) return near ? 1 : 0;
+  if (c.lid <= 0) return c.seam > 0.15 ? 1 : 0;
+  return t - VAULT_CUES.impact < SNAP_SECONDS ? 2 : 3;
+}
+
+/** The lid's overshoot past open (lid > 1): the open frame stretches up while it narrows. */
+export function snapStretch(lid: number): { sx: number; sy: number } {
+  const over = Math.max(0, lid - 1);
+  return { sx: 1 - over, sy: 1 + over * 2.5 };
+}
+
 export class Chest {
   /** Behind the beams: the light around the vault. */
   readonly glow: Sprite;
@@ -169,10 +183,9 @@ export class Chest {
         y += Math.round(a * 0.4 * Math.cos(2 * Math.PI * TREMBLE_HZ * 1.3 * t));
       }
       // the snap: the open frame stretches up past itself, the body recoils down 2 px, then both settle
-      if (c.lid > 1) {
-        sy *= 1 + (c.lid - 1) * 2.5;
-        sx *= 1 - (c.lid - 1);
-      }
+      const snap = snapStretch(c.lid);
+      sy *= snap.sy;
+      sx *= snap.sx;
       const since = t - VAULT_CUES.impact;
       if (since >= 0 && since < RECOIL_SECONDS) y += 2 * L.chest.S * (1 - since / RECOIL_SECONDS) ** 2;
       // the bounce on the beat: a squash and a little hop
@@ -187,16 +200,9 @@ export class Chest {
     this.sy = sy;
     this.sprite.position.set(this.pos.x, this.pos.y);
     this.sprite.scale.set(sx, sy);
-    this.sprite.texture = this.frames[this.frame(t, v)]!;
+    this.sprite.texture = this.frames[chestFrame(t, v.near, v.cues)]!;
     this.light(clock, t, v);
     return landed;
-  }
-
-  /** Closed; closed with the seam lit; the in-between as it snaps; open. */
-  private frame(t: number | null, v: ChestView): number {
-    if (t === null) return v.near ? 1 : 0;
-    if (v.cues.lid <= 0) return v.cues.seam > 0.15 ? 1 : 0;
-    return t - VAULT_CUES.impact < SNAP_SECONDS ? 2 : 3;
   }
 
   /** Red around the waiting vault; orange and the seam while it trembles; gold once it is open. */

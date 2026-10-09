@@ -74,6 +74,14 @@ export class DragTracker {
   }
 }
 
+/** Pixi 8 never forwards a native `pointercancel` (the OS took the touch: a system gesture, a call banner, palm
+ *  rejection), so no up arrives for it: `f` hears the cancelled pointer's id. Returns the unbind. */
+export function onPointerCancel(target: EventTarget, f: (pointerId: number) => void): () => void {
+  const h = (e: Event) => f((e as PointerEvent).pointerId);
+  target.addEventListener("pointercancel", h);
+  return () => target.removeEventListener("pointercancel", h);
+}
+
 /** The revealed card can be picked up once it is up and, for a ★ knife, once the knife has landed back in it. */
 export const cardGrabbable = (phase: string, cardVisible: boolean, knifeFlying: boolean): boolean =>
   phase === "revealed" && cardVisible && !knifeFlying;

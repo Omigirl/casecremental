@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardGrabbable, DragTracker } from "./drag";
+import { cardGrabbable, DragTracker, onPointerCancel } from "./drag";
 
 const KEY = { id: "key", rect: { x: 10, y: 10, w: 10, h: 6 } };
 const CARD = { id: "card", rect: { x: 40, y: 10, w: 44, h: 30 } };
@@ -46,5 +46,19 @@ describe("cardGrabbable", () => {
     expect(cardGrabbable("revealed", true, true)).toBe(false); // the ★ knife is still in the air
     expect(cardGrabbable("revealed", false, false)).toBe(false);
     expect(cardGrabbable("spinning", true, false)).toBe(false);
+  });
+});
+
+describe("onPointerCancel", () => {
+  const cancel = (pointerId: number) => Object.assign(new Event("pointercancel"), { pointerId });
+
+  it("passes on the cancelled pointer's id, until unbound", () => {
+    const target = new EventTarget();
+    const ids: number[] = [];
+    const unbind = onPointerCancel(target, (id) => ids.push(id));
+    target.dispatchEvent(cancel(3));
+    unbind();
+    target.dispatchEvent(cancel(4));
+    expect(ids).toEqual([3]);
   });
 });

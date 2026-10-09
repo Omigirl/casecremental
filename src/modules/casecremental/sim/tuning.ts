@@ -127,8 +127,9 @@ export const DAY_JOB_PAY_CHANCE = 0.9;
 /** The bot opens its own cases (rework spec §1): one spin on its reel takes this long at Speed ×1. */
 export const BOT_SPIN_SECONDS = 4;
 export const BOT_WAKE_COST = 22;
-/** A bot just woken rests this long before its first spin, so its waking-up plays out. */
-export const BOT_WAKE_SECONDS = 0.8;
+/** A bot just woken rests this long before its first spin, so its waking-up plays out: at least the length of
+ *  fx/pixel/anims.ts `botWake` (1.11 s; anims.test.ts pins it), else its first spin cuts the hop's end. */
+export const BOT_WAKE_SECONDS = 1.15;
 /** Run 1's cap: Speed levels and the speed at the last one. */
 export const BOT_SPEED_LEVELS = 5;
 export const BOT_MAX_SPEED = 8;

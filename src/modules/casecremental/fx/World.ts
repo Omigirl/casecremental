@@ -24,6 +24,7 @@ import { bestSlot } from "./pixel/BenchCards";
 import { BenchReels } from "./pixel/BenchReels";
 import { BotCardView } from "./pixel/BotCard";
 import { BotSprite } from "./pixel/BotSprite";
+import { onPointerCancel } from "./pixel/drag";
 import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
@@ -92,7 +93,7 @@ export class World {
   private readonly reelFrame = reelFrameSet();
   /** Where the camera pushes in, gliding between the reel (during a tease) and the reveal cards. */
   private focus: Pt | null = null;
-  private readonly off: () => void;
+  private readonly offs: (() => void)[] = [];
 
   static async create(app: Application, controller: GameController, audio: AudioEngine, camera: Camera): Promise<World> {
     await loadPixelFont();
@@ -173,7 +174,8 @@ export class World {
     };
     app.stage.on("pointerup", up);
     app.stage.on("pointerupoutside", up);
-    this.off = controller.onEvent((e) => this.onEvent(e));
+    this.offs.push(controller.onEvent((e) => this.onEvent(e)));
+    this.offs.push(onPointerCancel(app.canvas, (id) => this.cancelDrags(id)));
 
     this.vp = pixelViewport(app.screen.width, app.screen.height);
     this.l = tableLayout(this.vp);
@@ -223,10 +225,7 @@ export class World {
   update(realSeconds: number, scale: number): void {
     const { width, height } = this.app.screen;
     if (width !== this.screen.w || height !== this.screen.h) {
-      this.bench.cancelDrag(); // Review Focus 3: a resize or rotation mid-drag cancels it
-      this.tray.cancelDrag();
-      this.botCard.cancelDrag();
-      this.vault.cancelDrag();
+      this.cancelDrags(); // Review Focus 3: a resize or rotation mid-drag cancels it
       this.vp = pixelViewport(width, height);
       this.l = tableLayout(this.vp);
       this.applyLayout();
@@ -282,11 +281,8 @@ export class World {
 
   destroy(): void {
     this.unbindMusic();
-    this.tray.cancelDrag(); // a drag left mid-air would leave the card "held" across a lobby trip
-    this.botCard.cancelDrag();
-    this.bench.cancelDrag();
-    this.vault.cancelDrag();
-    this.off();
+    this.cancelDrags(); // a drag left mid-air would leave the card "held" across a lobby trip
+    for (const off of this.offs) off();
     this.app.stage.removeAllListeners();
     this.hd.destroy();
     this.bench.destroy();
@@ -335,6 +331,13 @@ export class World {
     this.benchReels.root.tint = reels;
     this.botReel.tint = reels;
     this.vaultBeams.tint = reels;
+  }
+
+  /** Every drag ends, nothing fired. For a touch the OS cancelled (`id`; no up comes), the vault's key only if that
+   *  finger holds it (else it stays locked to a dead finger); the others follow any one pointer, so they go too. */
+  private cancelDrags(id?: number): void {
+    for (const d of [this.bench, this.tray, this.botCard]) d.cancelDrag();
+    this.vault.cancelDrag(id);
   }
 
   /** Pointer → world px, through the camera (shake and zoom). Fractional, so lifted items glide. */
@@ -482,9 +485,7 @@ export class World {
         break;
       case "vaultBought":
         // the screen goes to the vault: it slams in, the suspense loop takes over the music
-        this.bench.cancelDrag();
-        this.tray.cancelDrag();
-        this.botCard.cancelDrag();
+        this.cancelDrags();
         this.benchFx.cancelKnife();
         this.vault.slam();
         this.audio.setTrack("vault-suspense", { loop: true });
@@ -506,9 +507,7 @@ export class World {
         this.audio.play("perk-buy");
         break;
       case "runStarted":
-        this.bench.cancelDrag();
-        this.tray.cancelDrag();
-        this.botCard.cancelDrag();
+        this.cancelDrags();
         this.benchFx.clearAll();
         this.vaultBeams.hide();
         this.power.powerUp(); // before restore(): the stage loop waits for the lights

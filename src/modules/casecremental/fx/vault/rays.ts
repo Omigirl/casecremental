@@ -27,6 +27,21 @@ export interface RaysBeat {
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
+/** The opening's light at sim `t`, by the rays' strength (cues.rays) and the chaos's beat: the starburst charging
+ *  up to the impact, then following the rays (softened in the celebration) and pulsing on the beat; the impact's
+ *  shaft fading out over SHAFT_SECONDS (before its flicker); the glow behind the beams, brightest once the
+ *  celebration softens the starburst. */
+export function raysLight(t: number, rays: number, beat: number): { starburst: number; shaft: number; glow: number } {
+  const celebrating = t >= VAULT_CUES.celebrateFrom;
+  const light = celebrating ? clamp01((rays - RESTING) / (1 - RESTING)) : rays;
+  const since = t - VAULT_CUES.impact;
+  return {
+    starburst: since < 0 ? 0.1 * clamp01(t / VAULT_CUES.impact) : 0.12 + 0.3 * light + (celebrating ? 0.1 : 0) + BEAT_LIGHT * beat,
+    shaft: since >= 0 ? 0.95 * clamp01(1 - since / SHAFT_SECONDS) : 0,
+    glow: since < 0 ? 0 : celebrating ? 0.35 + 0.25 * (1 - light) : 0.35 * rays,
+  };
+}
+
 export class Rays {
   readonly root = new Container();
   private readonly starburst: Sprite;
@@ -100,18 +115,15 @@ export class Rays {
       this.shaft.alpha = this.glow.alpha = 0;
       return;
     }
-    const celebrating = t >= VAULT_CUES.celebrateFrom;
-    const light = celebrating ? clamp01((c.rays - RESTING) / (1 - RESTING)) : c.rays;
-    const charge = clamp01(t / VAULT_CUES.impact);
+    const a = raysLight(t, c.rays, chaos.beat);
     this.starburst.tint = 0xffe08a;
-    this.starburst.alpha = t < VAULT_CUES.impact ? 0.1 * charge : 0.12 + 0.3 * light + (celebrating ? 0.1 : 0) + BEAT_LIGHT * chaos.beat;
-    // the impact's shaft of light, handing over to the beams
-    const since = t - VAULT_CUES.impact;
+    this.starburst.alpha = a.starburst;
+    // the impact's shaft of light, handing over to the beams (flickering)
     this.shaft.position.set(at.x, at.y);
-    this.shaft.alpha = since >= 0 ? 0.95 * clamp01(1 - since / SHAFT_SECONDS) * (0.85 + 0.15 * Math.sin(clock * 9)) : 0;
-    // the soft glow behind the beams, the brightest once the celebration softens the starburst
+    this.shaft.alpha = a.shaft * (0.85 + 0.15 * Math.sin(clock * 9));
+    // the soft glow behind the beams
     this.glow.position.set(at.x, at.y);
-    this.glow.alpha = since < 0 ? 0 : celebrating ? 0.35 + 0.25 * (1 - light) : 0.35 * c.rays;
+    this.glow.alpha = a.glow;
   }
 
   /** Its drawn textures; its root goes with the scene's tree (VaultScene.destroy), once. */

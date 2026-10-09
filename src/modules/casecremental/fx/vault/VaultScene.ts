@@ -211,8 +211,9 @@ export class VaultScene {
     return this.key.release(this.local(p), id, this.chest.lockPos(), BODY_W * this.chest.scale * 0.2);
   }
 
-  cancelDrag(): void {
-    this.key.cancel();
+  /** Drop the key's drag (only pointer `id`'s, when given). */
+  cancelDrag(id?: number): void {
+    this.key.cancel(id);
   }
 
   /** Sparks where a hands-off click lands. */
