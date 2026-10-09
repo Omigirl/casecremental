@@ -38,7 +38,7 @@ export const SOUNDS = {
   "chain-snap": { bus: "sfx", gain: 0.9, maxSeconds: 1.2 },
   "light-burst": { bus: "sfx", gain: 1 },
   "coin-fountain": { bus: "sfx", gain: 0.8 },
-  firework: { bus: "sfx", gain: 0.7 },
+  firework: { bus: "sfx", gain: 0.7, maxSeconds: 1.8 },
   "vault-reel-land": { bus: "sfx", gain: 0.9 },
   "legendary-choir": { bus: "sfx", gain: 1 },
   blackout: { bus: "sfx", gain: 0.9 },
@@ -48,6 +48,11 @@ export const SOUNDS = {
   "perk-buy": { bus: "ui", gain: 0.7 },
   "run-start": { bus: "sfx", gain: 0.8, maxSeconds: 1.8 },
   "reel-spinup": { bus: "sfx", gain: 0.6 },
+  "vault-riser": { bus: "sfx", gain: 0.9, maxSeconds: 1.2 },
+  "vault-open-hit": { bus: "sfx", gain: 1, maxSeconds: 2.5 },
+  "reward-chime": { bus: "sfx", gain: 0.8 },
+  "count-tick": { bus: "sfx", gain: 0.35, maxSeconds: 0.3 },
+  "count-ding": { bus: "sfx", gain: 0.8 },
 } as const satisfies Record<string, { bus: Bus; gain: number; maxSeconds?: number }>;
 
 export type SoundId = keyof typeof SOUNDS;
