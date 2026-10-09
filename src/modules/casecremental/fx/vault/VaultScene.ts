@@ -89,16 +89,16 @@ export class VaultScene {
     this.key = new DevilKey(keyFrames, soft, audio, this.fx.sparks);
     this.hint.anchor.set(0.5, 0);
     this.total.anchor.set(0.5);
-    // back to front: the dim, the light, the fireworks and coins, the columns, the chest and its bursts, the total,
-    // the key
+    // back to front: the dim, the light, the fireworks and coins, the chest and its bursts — every particle under
+    // the columns and their labels — then the total, the key
     this.root.addChild(
       this.dim,
       this.rays.root,
       this.chest.glow,
       this.fx.back,
-      this.reelSlot,
       this.chest.front,
       this.fx.front,
+      this.reelSlot,
       this.total,
       this.key.glow,
       this.key.sprite,

@@ -40,6 +40,15 @@ export class Particles {
     }
   }
 
+  /** Every live spark back into the pool at once (a scene going away: nothing frozen to reappear later). */
+  clear(): void {
+    for (const p of this.live) {
+      this.container.removeChild(p.s);
+      this.pool.push(p.s);
+    }
+    this.live = [];
+  }
+
   update(dt: number): void {
     this.live = this.live.filter((p) => {
       p.age += dt;

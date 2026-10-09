@@ -2,10 +2,10 @@ import { Container, Sprite, type Texture } from "pixi.js";
 import { Particles } from "../juice/particles";
 import type { Pt } from "../pixel/layout";
 
-// The vault's particles (spec 2026-10-09 §1-2), in screen px. Behind the columns (they never cover a label):
-// fireworks, star glints, rising light motes and gold coins arcing out of the chest and falling. In front of
-// the chest: its own bursts (the slam's dust, the seam's sparks, the impact), the key's embers and a click's
-// sparks. All randomness here is visual only.
+// The vault's particles (spec 2026-10-09 §1-2), in screen px. Both layers sit under the columns, their labels and
+// the total (a particle never covers a label). Behind the chest: fireworks, star glints, rising light motes and
+// gold coins arcing out of it and falling. In front of the chest: its own bursts (the slam's dust, the seam's
+// sparks, the impact), the key's embers and a click's sparks. All randomness here is visual only.
 
 const GOLD = 0xffd34d;
 const PALE = 0xfff2c0;
@@ -20,7 +20,7 @@ interface Coin {
 export class VaultFx {
   readonly back = new Container();
   readonly front = new Container();
-  /** In front of the chest: sparks and pixel stars. */
+  /** In front of the chest (still under the labels): sparks and pixel stars. */
   readonly sparks: Particles;
   readonly stars: Particles;
   private readonly sky: Particles;
@@ -144,8 +144,9 @@ export class VaultFx {
     });
   }
 
-  /** The vault is gone: drop the coins in flight (the pooled particles just run out). */
+  /** The vault is gone: drop every particle and coin in flight (frozen while hidden, they would reappear). */
   clear(): void {
+    for (const p of [this.sparks, this.stars, this.sky, this.glints]) p.clear();
     for (const c of this.coins) c.s.destroy();
     this.coins = [];
   }

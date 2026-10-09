@@ -29,6 +29,9 @@ export function columnMotion(t: number, start: number, land: number, target: num
   return remaining >= slowSeconds ? speed * (t - start) : target - (speed / (2 * slowSeconds)) * remaining * remaining;
 }
 
+/** World px between the vault's columns. */
+export const COLUMN_GAP = 3;
+
 /** n equal whole-pixel columns side by side across `area`, `gap` px apart, centred, as tall as the area. */
 export function columnRects(area: Rect, n: number, gap: number): Rect[] {
   const x = Math.round(area.x);

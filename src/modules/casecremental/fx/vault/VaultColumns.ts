@@ -15,8 +15,9 @@ import { hdFontSize } from "../pixel/screen";
 import type { PixelViewport } from "../pixel/viewport";
 import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
-import { COLUMN_SLOW_CELLS, columnMotion, columnRects } from "./columnMotion";
+import { COLUMN_GAP, COLUMN_SLOW_CELLS, columnMotion, columnRects } from "./columnMotion";
 import { VAULT_CUES, vaultCues } from "./cues";
+import { fitLabel, LABEL_MIN_SHARE, labelWidth } from "./fitLabel";
 import type { VaultScene } from "./VaultScene";
 import { vaultReelArea } from "./vaultLayout";
 
@@ -28,7 +29,7 @@ import { vaultReelArea } from "./vaultLayout";
 const N = VAULT_LAND_TIMES.length;
 /** Cells a column's window shows; the middle one is framed and is where a drop locks in. */
 const CELLS = 3;
-const GAP = 3;
+const GAP = COLUMN_GAP;
 const MIN_CELL = 12;
 const MAX_CELL = 20;
 /** The spin's speed (cells/s); each column's exact speed follows from its own start, landing and target. */
@@ -64,6 +65,8 @@ interface Column {
   /** The sim time its lock-in juice started; -Infinity once restored at rest; null while it spins. */
   lockedAt: number | null;
   lastCell: number;
+  /** What its name label was fitted for (the name, the column width, the scale). */
+  fitted: string;
 }
 
 const outline = (g: Graphics, x: number, y: number, w: number, h: number, color: number) =>
@@ -138,6 +141,7 @@ export class VaultColumns {
         start: 0,
         lockedAt: null,
         lastCell: NaN,
+        fitted: "",
       });
     }
     this.pixel.world.visible = false;
@@ -166,8 +170,8 @@ export class VaultColumns {
       outline(c.flash, 0, 0, r.w, r.h, GOLD);
       outline(c.flash, 1, 1, r.w - 2, r.h - 2, GOLD);
       this.drawFrame(c, r);
-      c.name.style.fontSize = size;
-      Object.assign(c.name.style, { wordWrap: true, breakWords: true, wordWrapWidth: (r.w + GAP - 1) * k, align: "center" });
+      Object.assign(c.name.style, { wordWrap: false, align: "center" }); // fitLabel wraps it, at spaces only
+      c.fitted = "";
       c.money.style.fontSize = size;
     });
     const last = this.rects[N - 1]!;
@@ -354,9 +358,15 @@ export class VaultColumns {
     c.name.visible = c.money.visible = alpha > 0 && !!c.drop;
     if (!c.drop || alpha <= 0) return;
     const name = skinName(c.drop.id);
-    if (c.name.text !== name) {
-      c.name.text = name;
-      c.name.style.fill = RARITY_INFO[c.drop.rarity].color; // a skin's rarity never changes: restyle only with it
+    const fitFor = `${name}|${r.w}|${k}`;
+    if (c.fitted !== fitFor) {
+      // whole words only; a word wider than the column shrinks this label's font (down to a floor)
+      const base = hdFontSize(k);
+      const fit = fitLabel(name.split(" "), labelWidth(r.w, k), 1, base, base * LABEL_MIN_SHARE);
+      c.name.style.fontSize = fit.size;
+      c.name.text = fit.lines.join("\n");
+      c.name.style.fill = RARITY_INFO[c.drop.rarity].color;
+      c.fitted = fitFor;
     }
     const money = `+${formatCash(c.amount, getLang())}`;
     if (c.money.text !== money) c.money.text = money;
