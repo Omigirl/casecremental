@@ -37,6 +37,12 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   edge sparks, 14 kick explosions (`VAULT_CUES.fireworks`). Rewards, labels and the total sit outside the cameras
   so they stay readable. Photosensitivity is a hard rule: at most 3 full-screen flashes a second, and every
   light that throbs on the beat changes by less than 0.1 (`BEAT_LIGHT_AMPLITUDES`, tested).
+- **Music is boosted in code, not in the files** (user: "make music louder"): the music bus runs at
+  `MUSIC_BOOST` (1.6×) its slider and each named track has a `TRACK_GAIN` (the DnB drop 1.5×) — re-encoding the
+  loops would add mp3 padding at their loop points, and the peaky DnB track barely gains from compression. The
+  five kick variants were level-matched with ffmpeg (within ~3 dB).
+- **The bot rests `BOT_WAKE_SECONDS` after waking** so its wake-up animation plays out before its first spin
+  (pinned to the animation's length in a test).
 - **ElevenLabs sound effects need `duration_seconds` passed through a flow node's model parameters** — the
   plain generate-in-flow call drops it and returns whole seconds, which is why the first batch came back short.
 - **The day job replaced the free case** (user): broke with an empty bench → a 3 s shift, 90 % +$2.
@@ -48,8 +54,8 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   sit side by side and are sold, held or taken by the auto-seller one by one (each hand sale feeds the combo); the
   big reveal effects play once, for the best card, and the label shows the best waiting card. No "Drag to sell"
   hint over two cards — it covered their tops. Saves went to version 3 (a version-2 save is migrated).
-- **Tuning (pacing tests, medians of 5 greedy players):** bot awake ~2.2 min (132 s), auto-seller ~2.7 min
-  (162 s), first vault ~8.1 min (487 s, VAULT_BASE_PRICE $1M), a boosted second run unlocks everything in
+- **Tuning (pacing tests, medians of 5 greedy players):** bot awake ~2.2 min (132 s), auto-seller ~3.2 min
+  (~193 s, SELLER_COST $300 — raised from $150 so it lands in the spec's 3–5 min), first vault ~8.1 min (487 s, VAULT_BASE_PRICE $1M), a boosted second run unlocks everything in
   ~67 s and vaults again at ~375 s. A first vault pays ~13–15 CLOUT (CLOUT_DIVISOR 105). Wildwood's unlock
   went $40 → $30 so the bot can be woken right after it. Change numbers only in `sim/tuning.ts`.
 - **Saving:** one versioned localStorage key, written about once a second, after every action and when the
