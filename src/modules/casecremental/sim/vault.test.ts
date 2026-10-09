@@ -25,7 +25,7 @@ const openVault = (run: Run) => {
 };
 
 describe("Vault Case I", () => {
-  it("opens on the intro's clock: the impact at 3.40, the five lock-ins 5-7.5 s after it, the end once the 14 s fanfare has rung out (17.4)", () => {
+  it("opens on the intro's clock: the impact at 3.40, the five lock-ins 5-7.5 s after it, the end once the 13.8 s fanfare has rung out (17.4)", () => {
     expect(VAULT_INTRO_SECONDS).toBe(3.4);
     expect([...VAULT_LAND_TIMES]).toEqual([8.4, 8.9, 9.4, 9.9, 10.9]);
     expect(VAULT_OPENING_SECONDS).toBe(17.4);

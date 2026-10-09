@@ -491,8 +491,8 @@ export class World {
         this.audio.setTrack("vault-suspense", { loop: true });
         break;
       case "vaultKeyTurned": // the intro takes over from the suspense; the fanfare on the impact (musicPlan)
+        this.resumeMusic(); // first: the intro starts in step with the sim's clock, not after the beam bake
         this.vaultBeams.start(e.drops);
-        this.resumeMusic();
         break;
       case "vaultReelLanded":
         this.vaultBeams.landed(e.index, e.drop, e.amount);

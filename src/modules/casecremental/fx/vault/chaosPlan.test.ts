@@ -46,7 +46,7 @@ describe("the kick's zoom punch", () => {
   it("hits 1 on every kick and dies away before the next", () => {
     for (const at of VAULT_CUES.fireworks) {
       expect(kickPulse(at + 1e-6), `kick ${at}`).toBeCloseTo(1, 3);
-      expect(kickPulse(at + 0.34), `after kick ${at}`).toBeLessThan(0.1);
+      expect(kickPulse(at + 0.24), `after kick ${at}`).toBeLessThan(0.1);
     }
     expect(kickPulse(VAULT_CUES.impact - 0.01)).toBe(0);
     expect(kickPulse(16.4)).toBe(0);
@@ -61,7 +61,7 @@ describe("the full-screen flashes (photosensitivity)", () => {
       expect(flashTimes(from - 1e-9, from + 1).length, `[${from}, ${from + 1}]`).toBeLessThanOrEqual(3);
   });
 
-  it("never flashes in the intro (its last hit is 0.1 s before the impact's: it would read as a double flash); then on the impact and only on kicks, sorted", () => {
+  it("never flashes in the intro (its last hit is 0.125 s before the impact's: it would read as a double flash); then on the impact and only on kicks, sorted", () => {
     const all = flashTimes(-1, 20);
     expect(flashTimes(-1, VAULT_CUES.impact - 0.01)).toEqual([]);
     expect(all[0]).toBe(VAULT_CUES.impact);

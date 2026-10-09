@@ -37,7 +37,7 @@ const SLAM_DELAY = 0.28;
 const DIM_KEY = 0.8;
 const DIM_OPEN = 0.86;
 const GOLD = 0xffd34d;
-/** The impact's flash, and a kick's or the intro's last hit's (in its colour). */
+/** The impact's flash, and a kick's (in its colour). */
 const IMPACT_FLASH = 0.35;
 const KICK_FLASH = 0.16;
 /** The hold: the particles die away over this long after the count-up. */
@@ -174,7 +174,7 @@ export class VaultScene {
     this.t = t;
     this.frameCues = vaultCues(t);
     for (const b of dueBeats(prev, t)) this.beat(b);
-    // the full-screen flashes, within the photosensitivity budget (chaosPlan): the intro's last hit, the impact, kicks
+    // the full-screen flashes, within the photosensitivity budget (chaosPlan): the impact and the kicks (the intro never flashes)
     const flash = flashCrossed(prev, t);
     if (flash === VAULT_CUES.impact) this.hd.flash(0xfff2c0, IMPACT_FLASH);
     else if (flash !== null) this.hd.flash(this.burstColor(), KICK_FLASH);

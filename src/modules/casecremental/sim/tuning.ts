@@ -141,7 +141,7 @@ export const VAULT_GROWTH = 4;
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;
 /** Vault Case I (rework spec §4): after the key turns, five reels land at these seconds (5-7.5 s after the impact,
- *  on the fanfare's 120 BPM beats); the scene ends once the 14 s fanfare has rung out; each reel pays this share of
+ *  on the fanfare's 120 BPM beats); the scene ends once the 13.8 s fanfare has rung out; each reel pays this share of
  *  the vault's price, rarer each time. */
 export const VAULT_LAND_TIMES = [8.4, 8.9, 9.4, 9.9, 10.9] as const;
 export const VAULT_OPENING_SECONDS = 17.4;

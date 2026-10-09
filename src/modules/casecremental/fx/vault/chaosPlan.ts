@@ -32,8 +32,8 @@ const HOLD = 0.25;
 const HOLD_BY = C.impact + 12;
 /** The rain needs a moment to reach the floor. */
 const RAIN_IN_SECONDS = 0.5;
-/** A kick's zoom punch dies away over this long (under the volley's 0.35 s gap). */
-const KICK_SECONDS = 0.3;
+/** A kick's zoom punch dies away over this long (under the volley's 0.25 s gap). */
+const KICK_SECONDS = 0.22;
 /** Photosensitivity: at most this many full-screen flashes in any 1-second window. */
 const FLASHES_PER_SECOND = 3;
 
@@ -65,7 +65,7 @@ export function chaosBeat(t: number): number {
   return beatPulse(t) * envelope(t);
 }
 
-/** 1 on each kick (VAULT_CUES.fireworks), dying away over 0.3 s; 0 between and before the first. */
+/** 1 on each kick (VAULT_CUES.fireworks), dying away over 0.22 s; 0 between and before the first. */
 export function kickPulse(t: number): number {
   let last = -Infinity;
   for (const at of C.fireworks) if (at <= t) last = at;
@@ -81,7 +81,7 @@ export function introPunch(t: number): number {
 }
 
 /** Every full-screen flash of the opening: the kicks, from the impact on; each flashes unless it would be the 4th
- *  within a second. The intro never flashes (its last hit is 0.1 s before the impact's — a double flash): its
+ *  within a second. The intro never flashes (its last hit is 0.125 s before the impact's — a double flash): its
  *  run-up jolts and punches instead. */
 const FLASHES: readonly number[] = [...C.fireworks].reduce<number[]>((out, at) => {
   const back = out[out.length - FLASHES_PER_SECOND];

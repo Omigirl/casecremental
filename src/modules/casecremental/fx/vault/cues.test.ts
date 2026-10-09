@@ -59,10 +59,10 @@ describe("the jackpot opening's cues", () => {
     expect(vaultCues(3.8).rays).toBe(0);
   });
 
-  it("kicks on the impact, every second of the spin, every lock-in and in a volley as the count-up starts", () => {
+  it("kicks on the impact, every second of the spin, every lock-in and in a 120 BPM eighth-note volley as the count-up starts", () => {
     const kicks = VAULT_CUES.fireworks;
-    expect([...kicks]).toEqual([3.4, 4.9, 5.9, 6.9, 7.9, 8.4, 8.9, 9.4, 9.9, 10.9, 11.4, 11.75, 12.1, 12.45]);
-    const before = [1.0, 2.5, 3.5, 4.5, 5.5, 6, 6.5, 7, 7.5, 8.5, 9.0, 9.35, 9.7, 10.05];
+    expect([...kicks]).toEqual([3.4, 4.9, 5.9, 6.9, 7.9, 8.4, 8.9, 9.4, 9.9, 10.9, 11.4, 11.65, 11.9, 12.15]);
+    const before = [1.0, 2.5, 3.5, 4.5, 5.5, 6, 6.5, 7, 7.5, 8.5, 9.0, 9.25, 9.5, 9.75];
     kicks.forEach((at, i) => expect(at).toBeCloseTo(before[i]! + SHIFT, 9));
     expect([...kicks].sort((a, b) => a - b)).toEqual([...kicks]);
     for (const at of kicks) {
@@ -82,7 +82,7 @@ describe("the jackpot opening's cues", () => {
 
 describe("the intro's hits (before the impact)", () => {
   it("lists its eight kicks: three build hits, the held pause, then a five-hit run-up", () => {
-    expect(INTRO_HITS.map((h) => h.at)).toEqual([0.45, 0.8, 1.15, 2.0, 2.3, 2.65, 2.95, 3.3]);
+    expect(INTRO_HITS.map((h) => h.at)).toEqual([0.425, 0.75, 1.1, 1.975, 2.3, 2.625, 2.95, 3.275]);
     expect(INTRO_HITS.map((h) => h.kind)).toEqual(["build", "build", "build", "run", "run", "run", "run", "run"]);
     expect(INTRO_PAUSE).toEqual({ from: 1.4, to: 1.95 });
     for (const h of INTRO_HITS) {
@@ -115,7 +115,7 @@ describe("the intro's hits (before the impact)", () => {
     for (let i = 1; i < peaks.length; i++) expect(peaks[i]!, `hit ${i}`).toBeGreaterThan(peaks[i - 1]!);
     expect(peaks[7]).toBeCloseTo(1, 3);
     expect(peaks[0]).toBeGreaterThan(0.2);
-    for (const t of [0, 0.3, 0.76, 1.12, 1.6, 1.9]) expect(vaultCues(t).tremble, `${t}`).toBe(0);
+    for (const t of [0, 0.3, 0.74, 1.09, 1.6, 1.9]) expect(vaultCues(t).tremble, `${t}`).toBe(0);
     expect(vaultCues(VAULT_CUES.impact).tremble).toBe(0);
   });
 

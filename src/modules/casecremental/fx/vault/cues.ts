@@ -18,8 +18,8 @@ export const VAULT_CUES = {
   columnStagger: 0.1,
   spinFrom: after(1.5),
   /** The kick explosions: the impact, every second of the spin, every lock-in (sim/tuning VAULT_LAND_TIMES), and
-   *  a volley as the count-up starts. The intro's hits are not among them (their kick is in the intro itself). */
-  fireworks: [IMPACT, after(1.5), after(2.5), after(3.5), after(4.5), ...VAULT_LAND_TIMES, after(8), after(8.35), after(8.7), after(9.05)],
+   *  an eighth-note volley (0.25 s apart at 120 BPM) as the count-up starts. The intro's hits are not among them (their kick is in the intro itself). */
+  fireworks: [IMPACT, after(1.5), after(2.5), after(3.5), after(4.5), ...VAULT_LAND_TIMES, after(8), after(8.25), after(8.5), after(8.75)],
   celebrateFrom: after(8),
   celebrateTo: after(10.5),
 } as const;
@@ -33,14 +33,14 @@ export interface IntroHit {
 /** The intro's kicks (measured from its < 140 Hz energy): three build hits, a held pause, then the run-up into the
  *  impact. The visuals follow them; their sound is the intro's own. */
 export const INTRO_HITS: readonly IntroHit[] = [
-  { at: 0.45, kind: "build" },
-  { at: 0.8, kind: "build" },
-  { at: 1.15, kind: "build" },
-  { at: 2.0, kind: "run" },
+  { at: 0.425, kind: "build" },
+  { at: 0.75, kind: "build" },
+  { at: 1.1, kind: "build" },
+  { at: 1.975, kind: "run" },
   { at: 2.3, kind: "run" },
-  { at: 2.65, kind: "run" },
+  { at: 2.625, kind: "run" },
   { at: 2.95, kind: "run" },
-  { at: 3.3, kind: "run" },
+  { at: 3.275, kind: "run" },
 ];
 /** The held pause between the build and the run-up: the chest holds still, its seam glowing steadily. */
 export const INTRO_PAUSE = { from: 1.4, to: 1.95 } as const;

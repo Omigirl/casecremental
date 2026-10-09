@@ -66,10 +66,10 @@ describe("the intro's hits", () => {
     const hits = dueBeats(-1e-6, END).filter((b) => b.beat === "introHit");
     expect(hits.map((b) => b.at)).toEqual(INTRO_HITS.map((h) => h.at));
     expect(hits.map((b) => b.hit)).toEqual(INTRO_HITS.map((_, i) => i));
-    expect(due(0.44, 0.46)).toEqual(["introHit"]);
-    expect(due(1.2, 1.99)).toEqual([]); // the held pause
+    expect(due(0.42, 0.43)).toEqual(["introHit"]);
+    expect(due(1.2, 1.97)).toEqual([]); // the held pause
     // a restore part-way: the next hit is still the one at its index
-    expect(dueBeats(2.6, 2.7)).toEqual([{ at: 2.65, beat: "introHit", hit: 5 }]);
+    expect(dueBeats(2.6, 2.7)).toEqual([{ at: 2.625, beat: "introHit", hit: 5 }]);
   });
 
   it("are not kicks: none is in the audible firework list, and no firework fires before the impact", () => {
