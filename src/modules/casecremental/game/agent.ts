@@ -51,11 +51,18 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
               ? {
                   phase: b.phase,
                   caseId: b.caseId,
-                  skin: skinDisplayName(skinById(b.drop.skinId)),
-                  rarity: b.drop.rarity,
-                  wear: b.drop.wear,
-                  statTrak: b.drop.statTrak,
-                  value: cents(b.drop.value),
+                  cards: b.cards.map((d, slot) =>
+                    d
+                      ? {
+                          slot,
+                          skin: skinDisplayName(skinById(d.skinId)),
+                          rarity: d.rarity,
+                          wear: d.wear,
+                          statTrak: d.statTrak,
+                          value: cents(d.value),
+                        }
+                      : null,
+                  ),
                 }
               : { ...b },
       };
@@ -63,7 +70,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
     actions: {
       buyCase: (args: Args) => run({ type: "buyCase", caseId: String(args?.caseId ?? "") }),
       insertKey: () => run({ type: "insertKey" }),
-      sell: () => run({ type: "sell" }),
+      sell: (args: Args) => run({ type: "sell", slot: Number(args?.slot ?? 0) }),
       unlockCase: (args: Args) => run({ type: "unlockCase", caseId: String(args?.caseId ?? "") }),
       buyUpgrade: async (args: Args) => {
         const id = String(args?.id ?? "");
@@ -96,9 +103,9 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
     describeActions: {
       buyCase: "Buy a case onto the empty bench: { caseId: bootcamp|wildwood|bedrock }.",
       insertKey: "Turn the key of the case on the bench; the reel starts spinning.",
-      sell: "Sell the revealed skin.",
+      sell: "Sell a revealed skin: { slot? } (default 0; the slots are listed in the bench state).",
       unlockCase: "Unlock the next case in the ladder: { caseId }.",
-      buyUpgrade: "Buy one level: { id: luck|appraiser|quickHands }.",
+      buyUpgrade: "Buy one level: { id: luck|appraiser|quickHands|multiOpen }.",
       claim: "Sell a claim-tray item by hand: { index }.",
       wakeBot: "Wake the bot: it then opens its own cases with your cash.",
       buyBotSpeed: "Buy one bot Speed level.",

@@ -24,7 +24,7 @@ describe("agent surface", () => {
 
   it("rejects unknown upgrade ids with the valid list", async () => {
     const api = createAgentApi(new GameController(1));
-    await expect(api.actions!.buyUpgrade!({ id: "wings" })).rejects.toThrow(/luck, appraiser, quickHands/);
+    await expect(api.actions!.buyUpgrade!({ id: "wings" })).rejects.toThrow(/luck, appraiser, quickHands, multiOpen/);
   });
 
   it("documents every action", () => {

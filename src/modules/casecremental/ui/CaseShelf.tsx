@@ -35,7 +35,8 @@ function CaseRow({ c, act }: { c: CaseView; act: Act }): ReactNode {
       {c.unlocked ? (
         <PxButton disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
           {t("btn.buy")}
-          <span className="cc-btn-sub">{formatCash(c.price, getLang())}</span>
+          {c.count > 1 ? ` ×${c.count}` : ""}
+          <span className="cc-btn-sub">{formatCash(c.price * c.count, getLang())}</span>
         </PxButton>
       ) : (
         <PxButton disabled={!c.canUnlock} onClick={() => act({ type: "unlockCase", caseId: c.id })}>

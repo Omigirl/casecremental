@@ -16,7 +16,7 @@ describe("buildView", () => {
       ["wildwood", false, false],
       ["bedrock", false, false],
     ]);
-    expect(v.upgrades.map((u) => u.id)).toEqual(["luck", "appraiser", "quickHands"]);
+    expect(v.upgrades.map((u) => u.id)).toEqual(["luck", "appraiser", "quickHands", "multiOpen"]);
     expect(v.nextGoal).toEqual({
       kind: "unlock",
       caseId: "wildwood",
@@ -157,5 +157,14 @@ describe("buildView — M2b", () => {
     expect(v.cases.some((c) => c.canBuy || c.canUnlock)).toBe(false);
     expect(v.upgrades.some((u) => u.canBuy)).toBe(false);
     expect(v.vault.canBuy).toBe(false);
+  });
+
+  it("shows how many cases a BUY opens", () => {
+    const run = new Run(3);
+    run.state.upgrades.multiOpen = 1;
+    run.state.cash = 1000;
+    expect(buildView(run).cases[0]!.count).toBe(2);
+    run.state.cash = run.casePrice("bootcamp");
+    expect(buildView(run).cases[0]!.count).toBe(1);
   });
 });

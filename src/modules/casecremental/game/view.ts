@@ -19,6 +19,8 @@ export interface CaseView {
   price: number;
   unlocked: boolean;
   unlockCost: number;
+  /** Cases this BUY opens (multi-open, as many as you can afford). */
+  count: number;
   canBuy: boolean;
   canUnlock: boolean;
 }
@@ -124,6 +126,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       price: run.casePrice(c.id),
       unlocked,
       unlockCost: unlockCostOf(c.id),
+      count: run.openCount(c.id),
       canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
       canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
     };

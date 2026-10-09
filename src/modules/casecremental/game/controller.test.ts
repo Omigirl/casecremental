@@ -169,6 +169,20 @@ describe("GameController — the campaign", () => {
     expect(c!.run.state.unlocked).toEqual(["bootcamp"]);
     vi.restoreAllMocks();
   });
+
+  it("sells and holds a bench card by its slot", () => {
+    const c = new GameController(1);
+    c.run.state.upgrades.multiOpen = 1;
+    c.run.state.cash = 1000;
+    c.act({ type: "buyCase", caseId: "bootcamp" });
+    c.act({ type: "insertKey" });
+    for (let i = 0; i < 2000 && c.run.state.bench.phase !== "revealed"; i++) c.run.tick(1 / 30);
+    c.act({ type: "holdCard", spot: "bench", slot: 1 });
+    expect(c.run.state.heldSlot).toBe(1);
+    expect(c.act({ type: "sell", slot: 1 }).ok).toBe(true);
+    expect(c.act({ type: "sell" }).ok).toBe(true); // slot 0 by default
+    expect(c.run.state.bench.phase).toBe("empty");
+  });
 });
 
 function openVaultAfterUnlock(c: GameController) {

@@ -14,7 +14,7 @@ import { buildView, type GameView } from "./view";
 export type Action =
   | { type: "buyCase"; caseId: string }
   | { type: "insertKey" }
-  | { type: "sell" }
+  | { type: "sell"; slot?: number }
   | { type: "unlockCase"; caseId: string }
   | { type: "buyUpgrade"; id: UpgradeId }
   | { type: "claim"; index: number }
@@ -25,7 +25,7 @@ export type Action =
   | { type: "buySeller" }
   | { type: "buySellerSpeed" }
   | { type: "setSellerThreshold"; rarity: RarityId }
-  | { type: "holdCard"; spot: CardSpot | null }
+  | { type: "holdCard"; spot: CardSpot | null; slot?: number }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "turnVaultKey" }
@@ -144,7 +144,7 @@ export class GameController {
       case "insertKey":
         return run.insertKey();
       case "sell":
-        return run.sell();
+        return run.sell(a.slot ?? 0);
       case "unlockCase":
         return run.unlockCase(a.caseId);
       case "buyUpgrade":
@@ -166,7 +166,7 @@ export class GameController {
       case "setSellerThreshold":
         return run.setSellerThreshold(a.rarity);
       case "holdCard":
-        return run.setHeld(a.spot);
+        return run.setHeld(a.spot, a.slot ?? 0);
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":

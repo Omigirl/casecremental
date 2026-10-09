@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CASES } from "../sim/content/cases";
 import { freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
 import { decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
@@ -87,6 +88,35 @@ describe("the local save", () => {
     expect(bad({ phase: "locked" })).toBeNull();
     expect(bad({ phase: "weird", caseId: "bootcamp" })).toBeNull();
     expect(bad({ phase: "revealed", caseId: "bootcamp" })).toBeNull();
+    expect(bad({ phase: "revealed", caseId: "bootcamp", cards: [] })).toBeNull();
+    expect(bad({ phase: "spinning", caseId: "bootcamp", elapsed: 0, fullDuration: 3 })).toBeNull();
     expect(bad({ phase: "empty" })).not.toBeNull();
+  });
+
+  it("migrates a version-2 save: a single card, a single reel, no multi-open (Review Focus 3)", () => {
+    const v3 = data();
+    const drop = { id: 1, skinId: CASES[0]!.skins[0]!.id, caseId: "bootcamp", rarity: "milspec", float: 0.2, statTrak: false, value: 1 };
+    const v2 = (bench: unknown) => {
+      const d = JSON.parse(encodeSave(v3));
+      d.v = 2;
+      d.run.state.bench = bench;
+      delete d.run.state.heldSlot;
+      delete d.run.state.upgrades.multiOpen;
+      return JSON.stringify(d);
+    };
+    const revealed = decodeSave(v2({ phase: "revealed", caseId: "bootcamp", drop }))!;
+    expect(revealed.v).toBe(3);
+    expect(revealed.run.state.bench).toEqual({ phase: "revealed", caseId: "bootcamp", cards: [drop] });
+    expect(revealed.run.state.upgrades.multiOpen).toBe(0);
+    expect(revealed.run.state.heldSlot).toBe(0);
+    const spinning = decodeSave(v2({ phase: "spinning", caseId: "bootcamp", drop, elapsed: 1, fullDuration: 3, tease: null }))!;
+    expect(spinning.run.state.bench).toEqual({
+      phase: "spinning",
+      caseId: "bootcamp",
+      elapsed: 1,
+      fullDuration: 3,
+      reels: [{ drop, tease: null, duration: 3 }],
+    });
+    expect(decodeSave(v2({ phase: "locked", caseId: "bootcamp", free: false }))!.run.state.bench).toMatchObject({ count: 1 });
   });
 });
