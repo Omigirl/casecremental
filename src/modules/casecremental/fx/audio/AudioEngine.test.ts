@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AudioEngine, type AudioDeps, type Ctx } from "./AudioEngine";
-import { indexAudio } from "./sounds";
+import { indexAudio, MUSIC_BOOST, TRACK_GAIN } from "./sounds";
 
 const URLS = {
   "/a/reel-tick-1.mp3": "tick1",
@@ -15,13 +15,19 @@ const URLS = {
 function fakeContext(state: AudioContextState = "running", failDecode: (url: string) => boolean = () => false) {
   const started: Array<{ url: string; rate: number; loop: boolean; when: number; offset: number | undefined }> = [];
   const stops: Array<{ url: string; when: number | undefined }> = [];
-  /** Every linear gain ramp: when it ends. */
+  /** Every linear gain ramp: when it ends, and the level it ramps to. */
   const ramps: number[] = [];
+  const levels: number[] = [];
+  /** Every setTargetAtTime level. */
+  const targets: number[] = [];
   const param = () => ({
     value: 1,
-    setTargetAtTime() {},
+    setTargetAtTime: (v: number) => void targets.push(v),
     cancelScheduledValues() {},
-    linearRampToValueAtTime: (_v: number, end: number) => void ramps.push(end),
+    linearRampToValueAtTime: (v: number, end: number) => {
+      ramps.push(end);
+      levels.push(v);
+    },
     setValueAtTime() {},
   });
   const node = () => ({ gain: param(), connect: (n: unknown) => n });
@@ -50,7 +56,7 @@ function fakeContext(state: AudioContextState = "running", failDecode: (url: str
     resume: async () => {},
     close: async () => {},
   };
-  return { ctx: ctx as unknown as Ctx, started, stops, ramps };
+  return { ctx: ctx as unknown as Ctx, started, stops, ramps, levels, targets };
 }
 
 const deps = (ctx: Ctx | null, random = () => 0.5): AudioDeps => ({
@@ -271,5 +277,21 @@ describe("AudioEngine.onReady", () => {
     b.unlock();
     await b.ready;
     expect(m).toBe(0);
+  });
+
+  it("music is louder than its slider: the bus is boosted, and the fanfare rides higher than the stage loop", async () => {
+    const { ctx, levels, targets } = fakeContext();
+    const a = new AudioEngine(TRACKS, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    targets.length = 0;
+    a.setVolumes(0.5, 0.8);
+    expect(targets[0]).toBeCloseTo(0.5 * MUSIC_BOOST);
+    expect(MUSIC_BOOST).toBeGreaterThan(1);
+    levels.length = 0;
+    a.setTrack("vault-fanfare", { loop: false, offset: 0 });
+    expect(levels).toContain(TRACK_GAIN["vault-fanfare"]);
+    expect(TRACK_GAIN["vault-fanfare"]).toBeGreaterThan(1);
   });
 });

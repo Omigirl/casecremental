@@ -61,6 +61,12 @@ export function maxSecondsOf(id: SoundId): number | undefined {
 /** Named music that replaces the stage loop: the vault's suspense and fanfare, the prestige loop. */
 export type TrackId = "vault-suspense" | "vault-fanfare" | "prestige";
 
+/** The music bus runs this much above its slider (user: "make music louder" — the generated music sat well under
+ *  the effects); the master compressor keeps the peaks in check. */
+export const MUSIC_BOOST = 1.6;
+/** Each named track's level on the music bus: the drum and bass drop rides over everything. */
+export const TRACK_GAIN: Readonly<Record<TrackId, number>> = { "vault-suspense": 1.2, "vault-fanfare": 1.5, prestige: 1 };
+
 export interface AudioFiles {
   /** variant URLs per sound */
   sfx: Map<SoundId, string[]>;

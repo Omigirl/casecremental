@@ -1,5 +1,5 @@
 import { barSeconds, crossfade, jitter, musicFor, nextBar, pickVariant } from "./schedule";
-import { indexAudio, maxSecondsOf, SOUNDS, type AudioFiles, type SoundId, type TrackId } from "./sounds";
+import { indexAudio, maxSecondsOf, MUSIC_BOOST, SOUNDS, TRACK_GAIN, type AudioFiles, type SoundId, type TrackId } from "./sounds";
 
 // The mixer (spec §9): music / SFX / UI buses into a limiter, music that swaps on bar lines when the
 // stage changes and ducks under big reveals, per-play pitch and level jitter. Audio unlocks on the
@@ -121,7 +121,7 @@ export class AudioEngine {
     this.volumes = { music, sfx };
     const b = this.buses;
     if (!b || !this.ctx) return;
-    b.music.gain.setTargetAtTime(music, this.ctx.currentTime, 0.05);
+    b.music.gain.setTargetAtTime(music * MUSIC_BOOST, this.ctx.currentTime, 0.05);
     b.sfx.gain.setTargetAtTime(sfx, this.ctx.currentTime, 0.05);
     b.ui.gain.setTargetAtTime(sfx, this.ctx.currentTime, 0.05);
   }
@@ -231,7 +231,7 @@ export class AudioEngine {
       return g;
     };
     const duck = bus(1);
-    const music = bus(this.volumes.music);
+    const music = bus(this.volumes.music * MUSIC_BOOST);
     music.connect(duck).connect(limiter);
     const sfx = bus(this.volumes.sfx);
     sfx.connect(limiter);
@@ -332,7 +332,7 @@ export class AudioEngine {
       gain.gain.value = 0;
       gain.gain.setValueAtTime(0, now);
       // from its top (the vault's impact) the first downbeat hits at once; a resume mid-track fades in
-      gain.gain.linearRampToValueAtTime(1, now + (want.offset < 0.05 ? 0.01 : 0.3));
+      gain.gain.linearRampToValueAtTime(TRACK_GAIN[want.id], now + (want.offset < 0.05 ? 0.01 : 0.3));
       source.connect(gain).connect(b.music);
       const length = buffer.duration > 0 ? buffer.duration : 0;
       source.start(now, length ? want.offset % length : 0);
