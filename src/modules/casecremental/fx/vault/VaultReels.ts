@@ -13,7 +13,7 @@ import { PixelLayer } from "../pixel/PixelLayer";
 import type { SpriteSet } from "../pixel/sprites";
 import type { PixelViewport } from "../pixel/viewport";
 import type { SkinTextures } from "../skins/pixelSkin";
-import { VAULT_CUE_TIMES } from "./cues";
+import { VAULT_CUE_TIMES } from "./legacyCues";
 import { StackedReels, stackRects } from "./stackedReels";
 import { vaultReelArea, type VaultScene } from "./VaultScene";
 

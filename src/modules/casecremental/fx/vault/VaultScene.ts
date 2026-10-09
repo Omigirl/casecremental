@@ -11,7 +11,7 @@ import { Particles } from "../juice/particles";
 import type { Pt, Rect, TableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
-import { VAULT_CUE_TIMES, vaultCues } from "./cues";
+import { legacyVaultCues as vaultCues, VAULT_CUE_TIMES } from "./legacyCues";
 
 // Vault Case I takes the screen (rework spec §4): a dark room, the vault slammed into the centre, the devil
 // key floating beside it until the player drags it into the lock; then the legendary-chest opening — the lock

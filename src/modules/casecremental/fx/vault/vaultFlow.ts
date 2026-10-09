@@ -2,6 +2,7 @@ import type { RunState } from "../../sim/run";
 import { VAULT_OPENING_SECONDS } from "../../sim/tuning";
 import type { AudioEngine } from "../audio/AudioEngine";
 import type { TrackId } from "../audio/sounds";
+import { VAULT_CUES } from "./cues";
 import { BLACKOUT_SECONDS, blackoutLevel, LIGHTS_UP_SECONDS, lightCues, lightLevels, type LightLevels } from "./lights";
 
 // The run's end and the next run's start, for the World (rework spec §4): the blackout after the vault, the
@@ -23,7 +24,10 @@ export function musicPlan(s: Pick<RunState, "vault" | "over">, poweringUp: boole
   const plan = (track: TrackId | null, loop = true, offset = 0, musicOn = true): MusicPlan => ({ track, loop, offset, musicOn });
   const v = s.vault;
   if (v?.phase === "key") return plan("vault-suspense");
-  if (v?.phase === "opening") return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t) : plan(null, true, 0, false);
+  if (v?.phase === "opening") {
+    if (v.t < VAULT_CUES.impact) return plan("vault-fanfare", false, 0, false); // silent: the World starts it at the impact
+    return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
+  }
   if (s.over) return plan("prestige");
   if (poweringUp) return plan(null, true, 0, false); // the PowerCycle turns it on when the lights are up
   return plan(null);

@@ -11,8 +11,10 @@ describe("the music after a lobby trip picks up where the vault is", () => {
   });
 
   it("resumes the fanfare at the opening's time, not from its top", () => {
-    const opening: VaultState = { phase: "opening", t: 13.5, drops: [], landed: 3 };
-    expect(musicPlan(at(opening), false)).toEqual({ track: "vault-fanfare", loop: false, offset: 13.5, musicOn: true });
+    const opening: VaultState = { phase: "opening", t: 4, drops: [], landed: 0 };
+    expect(musicPlan(at(opening), false)).toEqual({ track: "vault-fanfare", loop: false, offset: 3, musicOn: true });
+    const held: VaultState = { phase: "opening", t: 0.5, drops: [], landed: 0 };
+    expect(musicPlan(at(held), false)).toEqual({ track: "vault-fanfare", loop: false, offset: 0, musicOn: false });
     const ended: VaultState = { phase: "opening", t: VAULT_OPENING_SECONDS, drops: [], landed: 5 };
     expect(musicPlan(at(ended), false).track).not.toBe("vault-fanfare"); // past its end it would wrap
   });
