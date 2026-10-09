@@ -19,14 +19,17 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   earth", then a Vampire Survivors legendary-chest guide — its animation and music parts, no skip): buying it
   takes the screen (UI hidden) and the player turns a devilish key by hand. Then a fixed 14.5 s sim timeline
   (spec `2026-10-09-casecremental-vault-jackpot-design.md`): the chest trembles with a widening gold seam, snaps
-  open at 1.0 s (flash, shake, light shaft, the jackpot hit, the chiptune fanfare's first downbeat), a rainbow
-  fan opens behind five vertical reel columns that cascade in, spin and lock in left to right on the beat
+  open at 1.0 s (flash, shake, light shaft, the jackpot hit, the chiptune fanfare's first downbeat), then five
+  wide coloured beams (yellow, orange, red, orange, yellow) fan out of the chest's mouth and run past the screen
+  edge — skins and coins stream along them as if endless (the user's Vampire Survivors screenshot; they replaced
+  framed vertical columns) — and each reward rides out and stops on its beam, left to right on the beat
   (6, 6.5, 7, 7.5, 8.5 s) with rising chimes — the fifth is Vault I's animated ★ "Event Horizon" — then the
   total counts up and the results hold until the blackout (auto-continue, the user's choice). Prestige follows
   over black and the next run's lights stutter back on. A reload or lobby trip resumes at the same moment with
   no beat replayed; the fanfare plays from `t − 1` (silent before the impact). Russian names wrap at whole words
-  and shrink to fit the narrow columns. The vault's columns live in their own pixel layer inside the vault
-  scene (the scene's dim would hide them in the main world); the UI fades back 3.4 s into the next run.
+  and shrink to fit their label boxes. The beam layout (`fx/vault/beams.ts`) is solved and sweep-tested over
+  ~50 screen sizes: beam ends always past the edge, rewards and labels never overlapping one another or the
+  total. The UI fades back 3.4 s into the next run.
 - **ElevenLabs sound effects need `duration_seconds` passed through a flow node's model parameters** — the
   plain generate-in-flow call drops it and returns whole seconds, which is why the first batch came back short.
 - **The day job replaced the free case** (user): broke with an empty bench → a 3 s shift, 90 % +$2.

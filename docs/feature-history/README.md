@@ -8,4 +8,4 @@ instead.
 <!-- One line per entry: - [Title](slug.md) — one-line gist -->
 - [Casecremental core loop](casecremental-core.md) — milestone 1: sim, reel, bench, upgrades, juice, stages 1–2
 - [Casecremental look (M2a)](casecremental-look.md) — pixel world + HD layer, art pipeline, code eyes, EN/RU, ElevenLabs audio, teasing spin, no brake
-- [Casecremental Run 1 (M2b)](casecremental-run1.md) — bot opens its own cases, auto-seller + claim tray, day job, Vault I as a last-chance ticket opened like a jackpot (devil key, chiptune fanfare, five lock-in columns, blackout), multi-open ×2, prestige (CLOUT, charms, perks), local save
+- [Casecremental Run 1 (M2b)](casecremental-run1.md) — bot opens its own cases, auto-seller + claim tray, day job, Vault I as a last-chance ticket opened like a jackpot (devil key, chiptune fanfare, five endless beams out of the chest, blackout), multi-open ×2, prestige (CLOUT, charms, perks), local save
