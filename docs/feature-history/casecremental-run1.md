@@ -17,23 +17,29 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   14 charms, multi-open ×2 (plan M2b-C). Later runs bring the locker and the auto-buyer grid.
 - **The vault is a last-chance ticket, opened like a jackpot** (user, after the first finale felt "down to
   earth", then a Vampire Survivors legendary-chest guide — its animation and music parts, no skip): buying it
-  takes the screen (UI hidden) and the player turns a devilish key by hand. Then a fixed 14.5 s sim timeline
-  (spec `2026-10-09-casecremental-vault-jackpot-design.md`): the chest trembles with a widening gold seam, snaps
-  open at 1.0 s (flash, shake, light shaft, the jackpot hit, the chiptune fanfare's first downbeat), then five
+  takes the screen (UI hidden) and the player turns a devilish key by hand. Then a fixed 17.4 s sim timeline
+  (spec `2026-10-09-casecremental-vault-jackpot-design.md`, re-timed by plan C8): the user's 3.4 s intro plays
+  from the key turn and the chest jolts on its measured kicks (build 0.425/0.75/1.10, a held pause, run-up
+  1.975–3.275), then it snaps open at 3.40 s (flash, shake, light shaft, the jackpot hit, the fanfare's drop), then five
   wide coloured beams (yellow, orange, red, orange, yellow) fan out of the chest's mouth and run past the screen
   edge — skins and coins stream along them as if endless (the user's Vampire Survivors screenshot; they replaced
   framed vertical columns) — and each reward rides out and stops on its beam, left to right on the beat
-  (6, 6.5, 7, 7.5, 8.5 s) with rising chimes — the fifth is Vault I's animated ★ "Event Horizon" — then the
+  (8.4, 8.9, 9.4, 9.9, 10.9 s) with rising chimes — the fifth is Vault I's animated ★ "Event Horizon" — then the
   total counts up and the results hold until the blackout (auto-continue, the user's choice). Prestige follows
   over black and the next run's lights stutter back on. A reload or lobby trip resumes at the same moment with
-  no beat replayed; the fanfare plays from `t − 1` (silent before the impact). Russian names wrap at whole words
+  no beat replayed; the intro plays from `t`, the fanfare from `t − 3.40`. Russian names wrap at whole words
   and shrink to fit their label boxes. The beam layout (`fx/vault/beams.ts`) is solved and sweep-tested over
   ~50 screen sizes: beam ends always past the edge, rewards and labels never overlapping one another or the
   total. The UI fades back 3.4 s into the next run.
-- **The vault is chaos on purpose** (user: "no space on screen which is not moving"): the fanfare is a 174 BPM
-  drum-and-bass drop (the chiptune and spare takes are in `art/source/audio/`; a take that faded from 6 s was
-  replaced — check a generated track's level per second, not just its length). Everything pulses off one beat clock
-  from the impact (`fx/vault/beat.ts`): beat-locked shake and zoom, a swaying striped backdrop, full-screen rain,
+- **The fanfare climbs because we built it, not generated it** (user: "every iteration of the melody should go
+  higher"): generated "rising" takes started late and barely climbed (spares in `art/source/audio/`), so
+  `vault-fanfare-1.mp3` is the chiptune `vault-fanfare-take-3.mp3` cut on its 120 BPM bar grid — its drop bar, its
+  2–4 s motif five times pitch-shifted +0, +2, +4, +7, +12 semitones (ffmpeg `rubberband`), its finale an octave
+  up (13.8 s; recipe in `art/manifest.json`). Re-cut it the same way rather than paying for more takes.
+- **The vault is chaos on purpose** (user: "no space on screen which is not moving"; it was built on a 174 BPM DnB
+  drop, since replaced by the chiptune climb — the DnB takes are in `art/source/audio/`; check a generated track's
+  level per second, not just its length). Everything pulses off one beat clock
+  from the impact (`fx/vault/beat.ts`, 120 BPM): beat-locked shake and zoom, a swaying striped backdrop, full-screen rain,
   edge sparks, 14 kick explosions (`VAULT_CUES.fireworks`). Rewards, labels and the total sit outside the cameras
   so they stay readable. Photosensitivity is a hard rule: at most 3 full-screen flashes a second, and every
   light that throbs on the beat changes by less than 0.1 (`BEAT_LIGHT_AMPLITUDES`, tested).
