@@ -24,7 +24,12 @@ function setup(screen: { w: number; h: number }) {
 }
 
 const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-const iconBox = (b: { spot: { x: number; y: number } }, icon: number): Rect => ({ x: b.spot.x - icon / 2, y: b.spot.y - icon / 2, w: icon, h: icon });
+const iconBox = (b: { spot: { x: number; y: number } }, icon: number): Rect => ({
+  x: b.spot.x - icon / 2,
+  y: b.spot.y - icon / 2,
+  w: icon,
+  h: icon,
+});
 const inside = (r: Rect, s: { w: number; h: number }) =>
   r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= s.w - MARGIN && r.y + r.h <= s.h - MARGIN;
 

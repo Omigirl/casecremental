@@ -42,8 +42,7 @@ export function beamLayout(screen: { w: number; h: number }, mouth: Pt, icon: nu
   const spotAt = (a: number, d: number): Pt => ({ x: mouth.x + Math.sin(a) * d, y: mouth.y - Math.cos(a) * d });
   const iconBox = (p: Pt): Rect => ({ x: p.x - icon / 2, y: p.y - icon / 2, w: icon, h: icon });
   const labelBox = (p: Pt): Rect => ({ x: p.x - labelW / 2, y: p.y + icon / 2, w: labelW, h: labelH });
-  const fits = (r: Rect) =>
-    r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= screen.w - MARGIN && r.y + r.h <= screen.h - MARGIN;
+  const fits = (r: Rect) => r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= screen.w - MARGIN && r.y + r.h <= screen.h - MARGIN;
   const boxesOf = (a: number, d: number) => {
     const p = spotAt(a, d);
     return { icon: iconBox(p), label: labelBox(p) };
