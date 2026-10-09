@@ -23,6 +23,22 @@ function spinOut(run: Run) {
   tickFor(run, (b.phase === "spinning" ? b.fullDuration : 0) + 0.05);
 }
 
+describe("Run - held card", () => {
+  it("resets heldSlot to 0 whenever the held card leaves", () => {
+    const run = new Run(1);
+    run.state.upgrades.multiOpen = 1;
+    run.state.cash = 100;
+    run.buyCase("bootcamp");
+    run.insertKey();
+    tickFor(run, 10);
+    run.setHeld("bench", 1);
+    expect(run.state.heldSlot).toBe(1);
+    expect(run.sell(1).ok).toBe(true);
+    expect(run.state.held).toBeNull();
+    expect(run.state.heldSlot).toBe(0);
+  });
+});
+
 describe("Run", () => {
   it("starts with cash, the first case unlocked and an empty bench", () => {
     const run = new Run(1);

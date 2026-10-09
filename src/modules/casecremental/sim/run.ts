@@ -8,6 +8,7 @@ import { rollDrop } from "./roll";
 import { rollTease, type Tease } from "./tease";
 import {
   BOT_WAKE_COST,
+  BOT_WAKE_SECONDS,
   COMBO_CAP,
   COMBO_HEAT_DECAY_SECONDS,
   COMBO_STEP,
@@ -29,8 +30,9 @@ import {
   VAULT_TROPHY,
 } from "./tuning";
 import type { Drop, RarityId } from "./types";
-export type { CardSpot } from "./botOpener";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
+
+export type { CardSpot } from "./botOpener";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
 // upgrades, combo and intensity. Pure and deterministic from its seed; the renderer and the UI read
@@ -294,18 +296,18 @@ export class Run {
     this.forcedFake = true;
   }
 
-  /** Roll one case's drop with Luck, Pity, the Golden Hour and the charms; counts the open. */
-  private rollFor(caseId: string): Drop {
+  /** Roll one case's drop with Luck, Pity, the Golden Hour and the charms; counts the open.
+   *  `forced` is the dev board's rarity, which only your bench's open passes in. */
+  private rollFor(caseId: string, forced: RarityId | null = null): Drop {
     const s = this.state;
     const c = caseById(caseId);
     s.opened++;
     const luck = this.effects().luckLevel + this.setup.luckBonus + s.pity * PITY_LUCK_LEVELS;
-    const drop = rollDrop(c, priceOf(c.id), luck, this.rng, s.nextDropId++, this.forcedRarity, {
+    const drop = rollDrop(c, priceOf(c.id), luck, this.rng, s.nextDropId++, forced, {
       luckMult: s.time < s.goldenHourUntil ? GOLDEN_HOUR_LUCK : 1,
       statTrakChance: charmStatTrakChance(this.setup.charms),
       minRarity: charmMinRarity(this.setup.charms, s.opened),
     });
-    this.forcedRarity = null;
     return drop;
   }
 
@@ -318,8 +320,10 @@ export class Run {
     const fx = this.effects();
     const topTier = Math.max(...s.unlocked.map((id) => caseById(id).tier));
     const reels: BenchReel[] = [];
+    const forced = this.forcedRarity; // the dev board's rarity is for your bench's next open alone
+    this.forcedRarity = null;
     for (let i = 0; i < b.count; i++) {
-      const drop = this.rollFor(c.id);
+      const drop = this.rollFor(c.id, i === 0 ? forced : null);
       const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
       this.forcedFake = false;
       reels.push({ drop, tease, duration: fx.spinSeconds + (tease?.extraSeconds ?? 0) });
@@ -332,13 +336,19 @@ export class Run {
     return OK;
   }
 
+  /** Nobody holds a card any more. */
+  private release(): void {
+    this.state.held = null;
+    this.state.heldSlot = 0;
+  }
+
   /** A bench card leaves (sold or taken); the bench empties with the last one. */
   private takeBenchCard(slot: number): void {
     const s = this.state;
     const b = s.bench;
     if (b.phase !== "revealed") return;
     b.cards[slot] = null;
-    if (s.held === "bench" && s.heldSlot === slot) s.held = null;
+    if (s.held === "bench" && s.heldSlot === slot) this.release();
     if (b.cards.every((d) => d === null)) s.bench = { phase: "empty" };
   }
 
@@ -467,10 +477,11 @@ export class Run {
     }
     s.bot.card = null;
     s.bot.spin = null;
-    if (s.held === "bot") s.held = null;
+    if (s.held === "bot") this.release();
+    s.dayJob = null; // a shift still running has no bench to come back to
     s.vault = { phase: "key" };
     this.events.push({ type: "vaultBought", price: this.setup.vaultPrice });
-    // the vault holds the top stage from the purchase the top stage from its first frame to the end (M2b spec §7)
+    // the vault holds the top stage from its first frame to the end (M2b spec §7)
     s.stage = STAGE_NAMES.length;
     this.events.push({ type: "stageChanged", stage: s.stage });
     return OK;
@@ -529,6 +540,7 @@ export class Run {
     if (s.cash < BOT_WAKE_COST) return fail("not enough cash");
     s.cash -= BOT_WAKE_COST;
     s.bot.awake = true;
+    s.bot.wakeLeft = BOT_WAKE_SECONDS;
     this.events.push({ type: "botWoke" });
     return OK;
   }
@@ -574,7 +586,7 @@ export class Run {
     s.cash += amount;
     s.lifetimeEarnings += amount;
     s.bot.card = null;
-    if (s.held === "bot") s.held = null;
+    if (s.held === "bot") this.release();
     this.events.push({ type: "sold", drop: d, amount, combo: s.combo, source: "bot", from: "bot", slot: 0 });
     return OK;
   }
@@ -661,6 +673,10 @@ export class Run {
     const s = this.state;
     const bot = s.bot;
     if (!bot.awake || s.vault !== null) return;
+    if (bot.wakeLeft > 0) {
+      bot.wakeLeft = Math.max(0, bot.wakeLeft - dt);
+      return;
+    }
     if (bot.spin) {
       bot.spin.elapsed += dt;
       if (bot.spin.elapsed < bot.spin.duration) return;
@@ -700,7 +716,7 @@ export class Run {
     const s = this.state;
     const charms = this.setup.charms;
     if (spot === "bench") s.revealedAt = s.time;
-    if (s.held === spot) s.held = null;
+    if (s.held === spot) this.release();
     if (charms.includes("pityJar")) s.pity = d.rarity === "milspec" ? s.pity + 1 : isBigRarity(d.rarity) ? 0 : s.pity;
     if (charms.includes("ricochet") && d.rarity === "covert") s.freeCases.push(d.caseId);
     if (charms.includes("goldRush") && d.rarity === "gold") s.goldenHourUntil = s.time + GOLDEN_HOUR_SECONDS;

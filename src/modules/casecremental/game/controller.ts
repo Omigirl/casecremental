@@ -177,10 +177,17 @@ export class GameController {
         if (!run.state.over) return { ok: false, reason: "perks are bought between runs" };
         return this.emitOnOk(buyPerk(this.meta, a.id), { type: "perkBought" });
       case "pickCharm":
-        return this.emitOnOk(pickCharm(this.meta, a.id), { type: "charmPicked" });
+        return this.pickCharm(a.id);
       case "startNextRun":
         return this.startNextRun();
     }
+  }
+
+  /** The charm toggles; only a pick (not an un-pick) makes the pick sound. */
+  private pickCharm(id: CharmId): ActionResult {
+    const r = pickCharm(this.meta, id);
+    if (r.ok && this.meta.picked.includes(id)) this.emit({ type: "charmPicked" });
+    return r;
   }
 
   private startNextRun(): ActionResult {

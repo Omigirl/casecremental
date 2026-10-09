@@ -31,10 +31,13 @@ function UpgradeRow({ u, act }: { u: UpgradeView; act: Act }): ReactNode {
   );
 }
 
+/** The vault is not out and the run is not over: the board's switches work. */
+const isOpen = (view: GameView): boolean => view.vault.phase === null && !view.over;
+
 function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
   const b = view.bot;
   const lang = getLang();
-  const open = view.vault.phase === null && !view.over;
+  const open = isOpen(view);
   const unlocked = view.cases.filter((c) => c.unlocked).map((c) => c.id);
   if (!b.awake)
     return (
@@ -74,7 +77,7 @@ function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
 function SellerPanel({ view, act }: { view: GameView; act: Act }): ReactNode {
   const s = view.seller;
   const lang = getLang();
-  const open = view.vault.phase === null && !view.over;
+  const open = isOpen(view);
   if (!s.on)
     return (
       <div className="cc-row">

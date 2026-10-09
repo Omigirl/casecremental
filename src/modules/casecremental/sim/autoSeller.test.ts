@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sellerHold, sellerSpeedCost, sellsAt } from "./autoSeller";
 import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
-import { SELLER_BIG_HOLD, SELLER_COST, SELLER_HOLD_SECONDS } from "./tuning";
+import { COMBO_STEP, SELLER_BIG_HOLD, SELLER_COST, SELLER_HOLD_SECONDS } from "./tuning";
 import type { RarityId } from "./types";
 
 const DT = 1 / 30;
@@ -74,10 +74,15 @@ describe("the auto-seller", () => {
     expect(run.sell().ok).toBe(true);
   });
 
-  it("takes each of two waiting cards exactly once", () => {
-    const run = withSeller({ botAwake: true });
+  it("takes each of two cards waiting at once exactly once", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, botAwake: true });
+    run.state.cash = 1e6;
     revealOnBench(run, "milspec");
     for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(DT);
+    expect(run.state.bench.phase).toBe("revealed"); // both are waiting: no seller yet
+    expect(run.state.bot.card).not.toBeNull();
+    expect(run.buySeller().ok).toBe(true);
+    run.drainEvents();
     const events: string[] = [];
     for (let i = 0; i < 300; i++) {
       run.tick(DT);
@@ -105,6 +110,18 @@ describe("the auto-seller", () => {
     expect(run.state.bench.phase).toBe("revealed");
   });
 
+  it("holds a card for a shorter time at a higher Speed level", () => {
+    const slow = withSeller();
+    revealOnBench(slow, "milspec");
+    tickFor(slow, SELLER_HOLD_SECONDS[4] + 0.1);
+    expect(slow.state.bench.phase).toBe("revealed"); // level 0 still waits
+    const fast = withSeller();
+    for (let i = 0; i < 4; i++) fast.buySellerSpeed();
+    revealOnBench(fast, "milspec");
+    tickFor(fast, SELLER_HOLD_SECONDS[4] + 0.1);
+    expect(fast.state.bench.phase).toBe("empty");
+  });
+
   it("gets faster with Speed and obeys a new threshold", () => {
     const run = withSeller();
     for (let i = 0; i < 4; i++) expect(run.buySellerSpeed().ok).toBe(true);
@@ -125,7 +142,7 @@ describe("the auto-seller", () => {
     expect(run.state.tray).toHaveLength(2);
     const cash = run.state.cash;
     run.claim(0);
-    expect(run.state.cash - cash).toBeCloseTo(run.payout(first, false) * 1.02);
+    expect(run.state.cash - cash).toBeCloseTo(run.payout(first, false) * (1 + COMBO_STEP));
     expect(run.state.tray[0]!.rarity).toBe("gold");
   });
 });

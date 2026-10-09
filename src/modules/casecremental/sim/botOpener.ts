@@ -25,9 +25,19 @@ export interface BotState {
   card: Drop | null;
   /** When that card landed. */
   cardAt: number;
+  /** Seconds a just-woken bot still rests before its first spin. */
+  wakeLeft: number;
 }
 
-export const freshBot = (awake: boolean): BotState => ({ awake, speedLevel: 0, caseChoice: null, spin: null, card: null, cardAt: 0 });
+export const freshBot = (awake: boolean): BotState => ({
+  awake,
+  speedLevel: 0,
+  caseChoice: null,
+  spin: null,
+  card: null,
+  cardAt: 0,
+  wakeLeft: 0,
+});
 
 /** ×1 at level 0 up to ×BOT_MAX_SPEED at the run's last level, geometric in between. */
 export const botSpeed = (level: number): number => BOT_MAX_SPEED ** (Math.min(level, BOT_SPEED_LEVELS) / BOT_SPEED_LEVELS);

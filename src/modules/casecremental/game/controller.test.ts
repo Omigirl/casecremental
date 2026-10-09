@@ -89,6 +89,22 @@ describe("GameController — the campaign", () => {
     expect(c.act({ type: "startDayJob" }).ok).toBe(false);
   });
 
+  it("routes holdCard to the bench and sellBot to a waiting bot card", () => {
+    const c = new GameController(1);
+    c.run.state.cash = 1e6;
+    c.act({ type: "buyCase", caseId: "bootcamp" });
+    c.act({ type: "insertKey" });
+    for (let i = 0; i < 300 && c.run.state.bench.phase !== "revealed"; i++) c.run.tick(1 / 30);
+    expect(c.act({ type: "holdCard", spot: "bench" }).ok).toBe(true);
+    expect(c.run.state.held).toBe("bench");
+    expect(c.act({ type: "holdCard", spot: null }).ok).toBe(true);
+    expect(c.act({ type: "wakeBot" }).ok).toBe(true);
+    for (let i = 0; i < 900 && !c.run.state.bot.card; i++) c.run.tick(1 / 30);
+    expect(c.run.state.bot.card).not.toBeNull();
+    expect(c.act({ type: "sellBot" }).ok).toBe(true);
+    expect(c.run.state.bot.card).toBeNull();
+  });
+
   it("pays the vault into the meta exactly once, then prestiges into a fresh boosted run", () => {
     const c = new GameController(1);
     const events: string[] = [];
@@ -125,6 +141,20 @@ describe("GameController — the campaign", () => {
     expect(c.act({ type: "buyPerk", id: "botAwake" }).ok).toBe(true);
     expect(events).toContain("charmPicked");
     expect(events).toContain("perkBought");
+  });
+
+  it("emits charmPicked on a pick, not on an un-pick", () => {
+    const c = new GameController(1);
+    const events: string[] = [];
+    c.onEvent((e) => events.push(e.type));
+    openVault(c);
+    c.step(1);
+    const id = c.meta.offer![0]!;
+    expect(c.act({ type: "pickCharm", id }).ok).toBe(true);
+    expect(events.filter((e) => e === "charmPicked")).toHaveLength(1);
+    expect(c.act({ type: "pickCharm", id }).ok).toBe(true); // un-pick
+    expect(c.meta.picked).toEqual([]);
+    expect(events.filter((e) => e === "charmPicked")).toHaveLength(1);
   });
 
   it("refuses perks during a run", () => {

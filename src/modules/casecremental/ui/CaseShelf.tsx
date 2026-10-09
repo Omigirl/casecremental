@@ -80,6 +80,7 @@ function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
         {t("btn.buy")}
         <span className="cc-btn-sub">{formatCash(v.price, getLang())}</span>
       </PxButton>
+      {v.blockedBy === "bench" ? <div className="cc-dim">{t("vault.busy")}</div> : null}
     </div>
   );
 }

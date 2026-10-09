@@ -72,6 +72,23 @@ describe("the local save", () => {
     expect(loaded.run.state.held).toBeNull(); // nobody is holding a card after a reload
   });
 
+  it("merges the bot and seller defaults into a v3 save that lacks fields, so none becomes NaN", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.run.state.bot.speedLevel;
+    delete d.run.state.bot.wakeLeft;
+    delete d.run.state.seller.speedLevel;
+    d.run.state.bot.awake = true;
+    const loaded = decodeSave(JSON.stringify(d))!;
+    expect(loaded.run.state.bot.speedLevel).toBe(0);
+    expect(loaded.run.state.bot.wakeLeft).toBe(0);
+    expect(loaded.run.state.bot.awake).toBe(true);
+    expect(loaded.run.state.seller.speedLevel).toBe(0);
+    const run = Run.fromSnapshot(loaded.run);
+    run.state.cash = 100;
+    run.tick(1 / 30);
+    expect(run.state.bot.spin?.duration).toBe(4);
+  });
+
   it("drops a version-1 save (the M2b bot) with a warning (Review Focus 4)", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(decodeSave(JSON.stringify({ ...data(), v: 1 }))).toBeNull();

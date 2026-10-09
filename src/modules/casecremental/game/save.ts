@@ -1,6 +1,9 @@
+import { freshSeller } from "../sim/autoSeller";
+import { freshBot } from "../sim/botOpener";
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
 import { MULTI_OPEN_MAX } from "../sim/tuning";
+import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 
 // The local save (M2b spec §9): the meta and the run in progress under one localStorage key, versioned.
 // Version 2 (rework): the bot opens, the auto-seller sells; a version-1 save starts fresh.
@@ -62,7 +65,7 @@ function migrateV2(d: unknown): unknown {
   return { ...d, v: 3, run: { ...d.run, state: { ...s, bench, heldSlot: 0 } } };
 }
 
-const ZERO_UPGRADES = { luck: 0, appraiser: 0, quickHands: 0, multiOpen: 0 };
+const ZERO_UPGRADES = Object.fromEntries(UPGRADE_IDS.map((id) => [id, 0])) as Record<UpgradeId, number>;
 
 /** Fills in what an older or partial save leaves out (a perk or setup field added later). */
 function normalize(d: SaveData): SaveData {
@@ -80,6 +83,8 @@ function normalize(d: SaveData): SaveData {
       state: {
         ...d.run.state,
         upgrades: { ...ZERO_UPGRADES, ...d.run.state.upgrades },
+        bot: { ...freshBot(false), ...d.run.state.bot },
+        seller: { ...freshSeller(), ...d.run.state.seller },
         held: null,
         heldSlot: 0,
         vault: d.run.state.vault ?? null,

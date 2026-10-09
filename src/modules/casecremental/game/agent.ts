@@ -1,5 +1,5 @@
 import type { ModuleAgentApi } from "@idosgames/module-sdk";
-import { skinById, skinDisplayName } from "../sim/content/cases";
+import { CASES, skinById, skinDisplayName } from "../sim/content/cases";
 import type { CharmId } from "../sim/charms";
 import { PERK_IDS, type PerkId } from "../sim/meta";
 import { RARITY_ORDER } from "../sim/rarity";
@@ -32,6 +32,10 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         unlocked: [...s.unlocked],
         upgrades: { ...s.upgrades },
         tray: s.tray.length,
+        cases: CASES.filter((x) => s.unlocked.includes(x.id)).map((x) => {
+          const count = c.run.openCount(x.id);
+          return { id: x.id, count, charge: cents(c.run.casePrice(x.id) * count) };
+        }),
         bot: {
           awake: s.bot.awake,
           speedLevel: s.bot.speedLevel,
@@ -46,7 +50,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         meta: { clout: c.meta.clout, loops: c.meta.loops, offer: c.meta.offer, picked: c.meta.picked },
         bench:
           b.phase === "spinning"
-            ? { phase: b.phase, caseId: b.caseId, elapsed: b.elapsed, fullDuration: b.fullDuration }
+            ? { phase: b.phase, caseId: b.caseId, reels: b.reels.length, elapsed: b.elapsed, fullDuration: b.fullDuration }
             : b.phase === "revealed"
               ? {
                   phase: b.phase,
@@ -70,7 +74,12 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
     actions: {
       buyCase: (args: Args) => run({ type: "buyCase", caseId: String(args?.caseId ?? "") }),
       insertKey: () => run({ type: "insertKey" }),
-      sell: (args: Args) => run({ type: "sell", slot: Number(args?.slot ?? 0) }),
+      sell: async (args: Args) => {
+        const slot = Number(args?.slot ?? 0);
+        if (!Number.isInteger(slot))
+          throw new Error(`slot must be a whole number (got ${JSON.stringify(args?.slot)}); the slots are listed in the bench state`);
+        return run({ type: "sell", slot });
+      },
       unlockCase: (args: Args) => run({ type: "unlockCase", caseId: String(args?.caseId ?? "") }),
       buyUpgrade: async (args: Args) => {
         const id = String(args?.id ?? "");

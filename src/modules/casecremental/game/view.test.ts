@@ -78,7 +78,7 @@ describe("buildView — M2b", () => {
     });
     run.state.cash = 1e6;
     run.wakeBot();
-    run.tick(1 / 30);
+    for (let i = 0; i < 40; i++) run.tick(1 / 30); // the bot rests a moment after waking
     expect(buildView(run).bot.spinning).toBe(true);
     for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(1 / 30);
     v = buildView(run);
@@ -125,14 +125,25 @@ describe("buildView — M2b", () => {
     run.state.unlocked = CASES.map((c) => c.id);
     run.state.cash = DEFAULT_SETUP.vaultPrice / 2;
     let v = buildView(run);
-    expect(v.vault).toEqual({ shown: true, price: DEFAULT_SETUP.vaultPrice, canBuy: false, phase: null, progress: 0 });
+    expect(v.vault).toEqual({ shown: true, price: DEFAULT_SETUP.vaultPrice, canBuy: false, blockedBy: null, phase: null, progress: 0 });
     expect(v.nextGoal).toEqual({ kind: "vault", progress: 0.5 });
     run.state.cash = DEFAULT_SETUP.vaultPrice;
     run.buyVault();
     expect(buildView(run).vault.phase).toBe("key");
     run.turnVaultKey();
     run.tick(VAULT_OPENING_SECONDS / 4);
-    expect(buildView(run).opening).toBeCloseTo(0.25, 1);
+    expect(buildView(run).vault.progress).toBeCloseTo(0.25, 1);
+  });
+
+  it("says why the vault is blocked when it is affordable but the bench is busy", () => {
+    const run = new Run(1);
+    run.state.unlocked = CASES.map((c) => c.id);
+    run.state.cash = DEFAULT_SETUP.vaultPrice + 100;
+    expect(buildView(run).vault).toMatchObject({ canBuy: true, blockedBy: null });
+    run.buyCase("bootcamp");
+    expect(buildView(run).vault).toMatchObject({ canBuy: false, blockedBy: "bench" });
+    run.state.cash = 10; // not affordable: no reason to show
+    expect(buildView(run).vault.blockedBy).toBeNull();
   });
 
   it("shows the prestige screen once the run is over", () => {

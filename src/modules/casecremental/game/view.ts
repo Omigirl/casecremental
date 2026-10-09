@@ -104,9 +104,16 @@ export interface GameView {
   seller: SellerView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
-  vault: { shown: boolean; price: number; canBuy: boolean; phase: "key" | "opening" | null; progress: number };
-  /** The vault opening's progress 0–1, or null. */
-  opening: number | null;
+  vault: {
+    shown: boolean;
+    price: number;
+    canBuy: boolean;
+    /** Why an affordable vault can't be bought yet: a card is waiting on the bench. */
+    blockedBy: "bench" | null;
+    phase: "key" | "opening" | null;
+    /** The opening's progress 0–1 (0 before the key turns). */
+    progress: number;
+  };
   over: boolean;
   prestige: PrestigeView | null;
 }
@@ -177,10 +184,13 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     working: s.dayJob !== null,
     progress: s.dayJob === null ? 0 : Math.min(1, s.dayJob / DAY_JOB_SECONDS),
   };
-  const vault = {
-    shown: run.vaultShown(),
+  const vaultShown = run.vaultShown();
+  const vaultAffordable = vaultShown && s.cash >= run.setup.vaultPrice && !run.locked();
+  const vault: GameView["vault"] = {
+    shown: vaultShown,
     price: run.setup.vaultPrice,
-    canBuy: run.vaultShown() && benchFree && s.cash >= run.setup.vaultPrice && !run.locked(),
+    canBuy: vaultAffordable && benchFree,
+    blockedBy: vaultAffordable && !benchFree ? "bench" : null,
     phase: s.vault?.phase ?? null,
     progress: s.vault?.phase === "opening" ? Math.min(1, s.vault.t / VAULT_OPENING_SECONDS) : 0,
   };
@@ -213,7 +223,6 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     tray,
     dayJob,
     vault,
-    opening: s.vault?.phase === "opening" ? Math.min(1, s.vault.t / VAULT_OPENING_SECONDS) : null,
     over: s.over,
     prestige,
   };

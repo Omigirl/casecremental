@@ -115,6 +115,19 @@ describe("Vault Case I", () => {
     expect(run.state.bot.spin).toBeNull(); // frozen
   });
 
+  it("clears a running day job when the vault is bought", () => {
+    const run = new Run(1);
+    allUnlocked(run);
+    run.state.cash = 0;
+    expect(run.startDayJob().ok).toBe(true);
+    run.state.cash = 1e9;
+    expect(run.buyVault().ok).toBe(true);
+    expect(run.state.dayJob).toBeNull();
+    run.drainEvents();
+    tickFor(run, 5);
+    expect(run.drainEvents().map((e) => e.type)).not.toContain("dayJobDone");
+  });
+
   it("never drops a Ricochet case on the bench while the vault is out (review minor)", () => {
     const run = new Run(1, { ...DEFAULT_SETUP, charms: ["ricochet"] });
     allUnlocked(run);

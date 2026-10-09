@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { botCaseFor, botSpeed, botSpeedCost, botSpinSeconds } from "./botOpener";
-import { priceOf } from "./content/cases";
+import { CASES, priceOf } from "./content/cases";
 import { DEFAULT_SETUP, Run } from "./run";
-import { BOT_SPIN_SECONDS, BOT_WAKE_COST } from "./tuning";
+import { BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS, COMBO_STEP } from "./tuning";
 
 const DT = 1 / 30;
 const tickFor = (run: Run, s: number) => {
@@ -44,6 +44,29 @@ describe("the bot opens its own cases", () => {
     expect(run.wakeBot()).toEqual({ ok: false, reason: "the bot is already awake" });
   });
 
+  it("rests BOT_WAKE_SECONDS after waking before its first spin", () => {
+    const run = new Run(1);
+    run.state.cash = 1e6;
+    expect(run.wakeBot().ok).toBe(true);
+    tickFor(run, BOT_WAKE_SECONDS - 0.15);
+    expect(run.state.bot.spin).toBeNull();
+    tickFor(run, 0.3);
+    expect(run.state.bot.spin).not.toBeNull();
+  });
+
+  it("an awake bot spinning first does not consume the dev board's forced rarity", () => {
+    const run = awake();
+    run.state.cash = 1e6;
+    run.forceNextRarity("gold");
+    run.tick(DT);
+    expect(run.state.bot.spin).not.toBeNull();
+    expect(run.state.bot.spin!.drop.rarity).not.toBe("gold");
+    run.buyCase("bootcamp");
+    run.insertKey();
+    const b = run.state.bench;
+    expect(b.phase === "spinning" && b.reels[0]!.drop.rarity).toBe("gold");
+  });
+
   it("buys a case with your cash and spins it on its own reel, leaving your bench alone", () => {
     const run = awake();
     run.state.cash = 20;
@@ -65,7 +88,7 @@ describe("the bot opens its own cases", () => {
     const d = run.state.bot.card!;
     const cash = run.state.cash;
     expect(run.sellBotCard().ok).toBe(true);
-    expect(run.state.cash - cash).toBeCloseTo(run.payout(d, false) * 1.02); // a hand sale: combo
+    expect(run.state.cash - cash).toBeCloseTo(run.payout(d, false) * (1 + COMBO_STEP)); // a hand sale: combo
     const sold = run.drainEvents().find((e) => e.type === "sold");
     expect(sold).toMatchObject({ source: "bot", from: "bot" });
     expect(run.sellBotCard()).toEqual({ ok: false, reason: "the bot has nothing to sell" });
@@ -103,6 +126,22 @@ describe("the bot opens its own cases", () => {
     run.state.cash = 0;
     expect(run.dayJobAvailable()).toBe(true);
     expect(run.sellBotCard().ok).toBe(true);
+  });
+
+  it("cashes in a spin still in flight when the vault is bought, as a machine sale", () => {
+    const run = awake();
+    run.state.unlocked = CASES.map((c) => c.id);
+    run.state.cash = 1e9;
+    run.tick(DT);
+    const spin = run.state.bot.spin!;
+    expect(spin).not.toBeNull();
+    run.drainEvents();
+    const cash = run.state.cash;
+    expect(run.buyVault().ok).toBe(true);
+    const sold = run.drainEvents().find((e) => e.type === "sold");
+    expect(sold).toMatchObject({ source: "seller", from: "bot", amount: run.payout(spin.drop, false) });
+    expect(run.state.cash - cash).toBeCloseTo(run.payout(spin.drop, false) - run.setup.vaultPrice);
+    expect(run.state.bot.spin).toBeNull();
   });
 
   it("counts its opens (Lucky Seven) and its reveals heat the room", () => {

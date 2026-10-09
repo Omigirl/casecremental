@@ -124,10 +124,11 @@ export const DAY_JOB_SECONDS = 3;
 export const DAY_JOB_PAY = 2;
 export const DAY_JOB_PAY_CHANCE = 0.9;
 
-/** The bot as an opener (rework spec §1). */
 /** The bot opens its own cases (rework spec §1): one spin on its reel takes this long at Speed ×1. */
 export const BOT_SPIN_SECONDS = 4;
 export const BOT_WAKE_COST = 22;
+/** A bot just woken rests this long before its first spin, so its waking-up plays out. */
+export const BOT_WAKE_SECONDS = 0.8;
 /** Run 1's cap: Speed levels and the speed at the last one. */
 export const BOT_SPEED_LEVELS = 5;
 export const BOT_MAX_SPEED = 8;
@@ -160,7 +161,7 @@ export const PERK_COSTS = {
 } as const;
 
 /** The auto-seller machine (rework spec §1): unlocked in Run 1, then it takes any waiting card. */
-export const SELLER_COST = 150;
+export const SELLER_COST = 300;
 /** Seconds a card waits before the machine takes it, per Speed level (Run 1: 4 levels). */
 export const SELLER_HOLD_SECONDS = [2.5, 1.8, 1.2, 0.8, 0.5] as const;
 /** A Covert or ★ waits this long, so its reveal (the knife's showcase) plays first. */
