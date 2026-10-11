@@ -45,6 +45,15 @@ export const SOUNDS = {
   "reward-chime": { bus: "sfx", gain: 0.8 },
   "count-tick": { bus: "sfx", gain: 0.35, maxSeconds: 0.3 },
   "count-ding": { bus: "sfx", gain: 0.8 },
+  // Runs 2–3 (M3): gains set from the measured mean levels against seller-power-on / tray-store.
+  "locker-power-on": { bus: "sfx", gain: 0.15 },
+  "locker-store": { bus: "sfx", gain: 0.45 },
+  "tradeup-press": { bus: "sfx", gain: 0.4 },
+  "tradeup-reveal": { bus: "sfx", gain: 0.45 },
+  "grid-power-on": { bus: "sfx", gain: 0.5 },
+  "grid-buy": { bus: "sfx", gain: 0.35 },
+  "grid-open": { bus: "sfx", gain: 0.5 },
+  "grid-breakout": { bus: "sfx", gain: 0.5 },
 } as const satisfies Record<string, { bus: Bus; gain: number; maxSeconds?: number }>;
 
 export type SoundId = keyof typeof SOUNDS;
