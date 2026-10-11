@@ -22,7 +22,11 @@
     { "id": "bot-sleep", "source": "bot-sleep-sheet.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 48, "eyes": false },
     { "id": "bot-open", "source": "bot-open-sheet-2x4.png", "kind": "sheet", "frames": 8, "rows": 2, "targetH": 48, "eyes": true },
     { "id": "vault-case", "source": "vault-case-sheet-1x4.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 64 },
-    { "id": "devil-key", "source": "devil-key-sheet-1x4.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 24 }
+    { "id": "devil-key", "source": "devil-key-sheet-1x4.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 24 },
+    { "id": "locker", "source": "locker-sheet-1x4.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 30 },
+    { "id": "auto-buyer", "source": "auto-buyer-sheet-1x2.png", "kind": "sheet", "frames": 2, "rows": 1, "targetH": 18 },
+    { "id": "vault-case-2", "source": "vault-case-2-sheet-1x4.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 64 },
+    { "id": "vault-case-3", "source": "vault-case-3-sheet-1x4.png", "kind": "sheet", "frames": 4, "rows": 1, "targetH": 64 }
   ],
   "audio": [
     {"id":"case-latch","kind":"sfx","variants":2,"duration":0.6,"prompt":"A sturdy plastic weapon case set down on a wooden workbench, its metal latch snapping shut. Crisp, close-miked, tactile foley for a cozy, well-made desktop game; clean and dry; no music, no voice; not retro, not 8-bit, not chiptune."},
