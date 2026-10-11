@@ -17,14 +17,14 @@ export function buyVault(ctx: RunCtx): ActionResult {
   if (s.bench.phase !== "empty") return fail("bench is busy");
   if (s.cash < ctx.setup.vaultPrice) return fail("not enough cash");
   s.cash -= ctx.setup.vaultPrice;
-  // the bot's waiting card and its spin in flight are cashed in as machine sales; then it freezes
-  for (const d of [s.bot.card, s.bot.spin?.drop]) {
-    if (!d) continue;
+  // the bot's waiting cards and its spin in flight are cashed in as machine sales; then it freezes
+  [...s.bot.cards, ...(s.bot.spin?.drops ?? [])].forEach((d, slot) => {
+    if (!d) return;
     const amount = ctx.payout(d, false);
     ctx.earn(amount);
-    ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from: "bot", slot: 0 });
-  }
-  s.bot.card = null;
+    ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from: "bot", slot });
+  });
+  s.bot.cards = [];
   s.bot.spin = null;
   if (s.held === "bot") ctx.release();
   s.dayJob = null; // a shift still running has no bench to come back to

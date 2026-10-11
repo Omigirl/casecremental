@@ -1,3 +1,4 @@
+import { botWaiting } from "./botOpener";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETUP, Run } from "./run";
 
@@ -12,7 +13,7 @@ describe("run snapshots", () => {
     a.state.cash = 1e6;
     a.buyCase("bootcamp");
     a.insertKey();
-    for (let i = 0; i < 900 && !(a.state.bot.card && a.state.bench.phase === "revealed"); i++) a.tick(DT);
+    for (let i = 0; i < 900 && !(botWaiting(a.state.bot) && a.state.bench.phase === "revealed"); i++) a.tick(DT);
     a.sellBotCard();
     a.tick(DT); // the bot starts its next spin
     expect(a.state.bot.spin).not.toBeNull();

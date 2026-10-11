@@ -8,11 +8,12 @@ import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 // The local save (M2b spec §9): the meta and the run in progress under one localStorage key, versioned.
 // Version 2 (rework): the bot opens, the auto-seller sells; a version-1 save starts fresh.
 // Version 3: the bench holds several cases (multi-open); a version-2 save is migrated.
+// Version 4 (campaign): the bot holds several cards (its multi-open) and the setup knows its run; a version-3 save is migrated.
 // A save that is missing, broken or from another version never stops the game — it is dropped with a
 // warning and a fresh run starts; storage errors are swallowed. M4 moves the same data to the server.
 
 export const SAVE_KEY = "casecremental.save";
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface SaveData {
   v: typeof SAVE_VERSION;
@@ -65,6 +66,24 @@ function migrateV2(d: unknown): unknown {
   return { ...d, v: 3, run: { ...d.run, state: { ...s, bench, heldSlot: 0 } } };
 }
 
+/** A version-3 save's bot held one card and spun one drop; it becomes a list of both, in Run 1. */
+function migrateV3(d: unknown): unknown {
+  if (!isObj(d) || d.v !== 3 || !isObj(d.run) || !isObj(d.run.state)) return d;
+  const s = d.run.state;
+  let bot = s.bot;
+  if (isObj(bot)) {
+    const { card, spin, ...rest } = bot;
+    let next = spin;
+    if (isObj(spin)) {
+      const { drop, ...spinRest } = spin;
+      next = { ...spinRest, drops: [drop] };
+    }
+    bot = { ...rest, spin: next ?? null, cards: card ? [card] : [], multiLevel: 0 };
+  }
+  const setup = isObj(d.run.setup) ? { ...d.run.setup, run: 1 } : d.run.setup;
+  return { ...d, v: 4, run: { ...d.run, setup, state: { ...s, bot } } };
+}
+
 const ZERO_UPGRADES = Object.fromEntries(UPGRADE_IDS.map((id) => [id, 0])) as Record<UpgradeId, number>;
 
 /** Fills in what an older or partial save leaves out (a perk or setup field added later). */
@@ -106,6 +125,7 @@ function isSave(d: unknown): d is SaveData {
     isBench(s.bench) &&
     Array.isArray(s.tray) &&
     isObj(s.bot) &&
+    Array.isArray(s.bot.cards) &&
     isObj(s.seller) &&
     Array.isArray(s.unlocked)
   );
@@ -116,7 +136,7 @@ export const encodeSave = (data: SaveData): string => JSON.stringify(data);
 export function decodeSave(raw: string | null): SaveData | null {
   if (raw === null) return null;
   try {
-    const d: unknown = migrateV2(JSON.parse(raw));
+    const d: unknown = migrateV3(migrateV2(JSON.parse(raw)));
     if (isSave(d)) return normalize(d);
   } catch {
     // fall through to the warning

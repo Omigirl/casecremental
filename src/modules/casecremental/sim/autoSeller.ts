@@ -1,4 +1,4 @@
-import type { CardSpot } from "./botOpener";
+import { takeBotCard, type CardSpot } from "./botOpener";
 import { RARITY_ORDER } from "./rarity";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import { SELLER_BIG_HOLD, SELLER_COST, SELLER_HOLD_SECONDS, SELLER_SPEED_COSTS } from "./tuning";
@@ -72,9 +72,11 @@ export function tickSeller(ctx: RunCtx): void {
       if (s.time - s.revealedAt < sellerHold(d.rarity, seller.speedLevel)) return;
       if (autoTake(ctx, d, "bench", slot)) ctx.takeBenchCard(slot);
     });
-  const d = s.bot.card;
-  if (d && s.held !== "bot" && s.time - s.bot.cardAt >= sellerHold(d.rarity, seller.speedLevel))
-    if (autoTake(ctx, d, "bot")) s.bot.card = null;
+  s.bot.cards.forEach((d, slot) => {
+    if (!d || (s.held === "bot" && s.heldSlot === slot)) return;
+    if (s.time - s.bot.cardAt < sellerHold(d.rarity, seller.speedLevel)) return;
+    if (autoTake(ctx, d, "bot", slot)) takeBotCard(ctx, slot);
+  });
 }
 
 /** Sell it (at or below the threshold) or set it aside in the tray; false when the tray is full. */

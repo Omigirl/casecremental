@@ -159,6 +159,8 @@ export const BOT_SPEED_ANCHORS: ReadonlyArray<readonly [level: number, speed: nu
   [8, 20],
   [11, 50],
 ];
+/** Run 2: the bot opens two cases per spin on stacked reels. */
+export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */

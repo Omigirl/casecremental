@@ -1,3 +1,4 @@
+import { botWaiting } from "./botOpener";
 import { describe, expect, it } from "vitest";
 import { sellerHold, sellerSpeedCost, sellsAt } from "./autoSeller";
 import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
@@ -55,10 +56,10 @@ describe("the auto-seller", () => {
 
   it("sells the bot's card too", () => {
     const run = withSeller({ botAwake: true });
-    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(DT);
+    for (let i = 0; i < 900 && !botWaiting(run.state.bot); i++) run.tick(DT);
     run.drainEvents();
     tickFor(run, SELLER_HOLD_SECONDS[0] + 0.1);
-    expect(run.state.bot.card).toBeNull();
+    expect(botWaiting(run.state.bot)).toBe(false);
     expect(run.drainEvents().find((e) => e.type === "sold")).toMatchObject({ source: "seller", from: "bot" });
   });
 
@@ -78,9 +79,9 @@ describe("the auto-seller", () => {
     const run = new Run(1, { ...DEFAULT_SETUP, botAwake: true });
     run.state.cash = 1e6;
     revealOnBench(run, "milspec");
-    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(DT);
+    for (let i = 0; i < 900 && !botWaiting(run.state.bot); i++) run.tick(DT);
     expect(run.state.bench.phase).toBe("revealed"); // both are waiting: no seller yet
-    expect(run.state.bot.card).not.toBeNull();
+    expect(botWaiting(run.state.bot)).toBe(true);
     expect(run.buySeller().ok).toBe(true);
     run.drainEvents();
     const events: string[] = [];

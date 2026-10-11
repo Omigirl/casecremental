@@ -1,12 +1,12 @@
 import { SELLER_SPEED_LEVELS, sellerSpeedCost } from "../sim/autoSeller";
 import { botSpeed, botSpeedCost, botSpeedLevels } from "../sim/botOpener";
-import { capRaisedLater, runNumber } from "../sim/campaign";
+import { capRaisedLater, runContent, runNumber } from "../sim/campaign";
 import type { CharmId } from "../sim/charms";
 import { caseById, unlockCostOf } from "../sim/content/cases";
 import { STAGE_NAMES } from "../sim/intensity";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
-import { BOT_WAKE_COST, DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, SELLER_COST, VAULT_OPENING_SECONDS } from "../sim/tuning";
+import { BOT_MULTI_COST, BOT_WAKE_COST, DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, SELLER_COST, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import type { Drop, RarityId } from "../sim/types";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
 
@@ -51,8 +51,13 @@ export interface BotView {
   /** The case it opens; null = the dearest you can afford. */
   caseChoice: string | null;
   spinning: boolean;
-  /** Its card waiting at its station. */
-  card: TrayItemView | null;
+  /** Its cards waiting at its station, side by side; null once sold or taken. */
+  cards: (TrayItemView | null)[];
+  /** This run lets it open several cases per spin. */
+  multiAvailable: boolean;
+  multiLevel: number;
+  multiCost: number;
+  canBuyMulti: boolean;
 }
 
 export interface SellerView {
@@ -177,7 +182,11 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     canBuySpeed: open && b.awake && speedCost !== null && s.cash >= speedCost,
     caseChoice: b.caseChoice,
     spinning: b.spin !== null,
-    card: b.card ? item(b.card) : null,
+    cards: b.cards.map((d) => (d ? item(d) : null)),
+    multiAvailable: runContent(r).botMultiOpen > 1,
+    multiLevel: b.multiLevel,
+    multiCost: BOT_MULTI_COST,
+    canBuyMulti: open && b.awake && runContent(r).botMultiOpen > 1 && b.multiLevel === 0 && s.cash >= BOT_MULTI_COST,
   };
   const sc = sellerSpeedCost(s.seller.speedLevel);
   const seller: SellerView = {

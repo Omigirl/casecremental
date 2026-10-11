@@ -1,8 +1,9 @@
 import { sellerSpeedCost } from "./autoSeller";
-import { botSpeedCost } from "./botOpener";
+import { botSpeedCost, botWaiting } from "./botOpener";
+import { runContent } from "./campaign";
 import { unlockCostOf } from "./content/cases";
 import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
-import { BOT_WAKE_COST, SELLER_COST } from "./tuning";
+import { BOT_MULTI_COST, BOT_WAKE_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
 // A greedy player at human speed, used by the pacing test to check how fast a run unfolds. It claims tray
@@ -67,8 +68,8 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     if (s.tray.length > 0) {
       run.claim(0);
       busyUntil = s.time + timings.sell;
-    } else if (s.bot.card) {
-      run.sellBotCard();
+    } else if (botWaiting(s.bot)) {
+      run.sellBotCard(s.bot.cards.findIndex((d) => d !== null));
       busyUntil = s.time + timings.sell;
     } else if (b.phase === "revealed") {
       run.sell(b.cards.findIndex((d) => d !== null));
@@ -102,6 +103,10 @@ function spend(run: Run): void {
   }
   if (s.bot.awake && !s.seller.on && s.cash >= SELLER_COST * 2) {
     run.buySeller();
+    return;
+  }
+  if (s.bot.awake && s.bot.multiLevel === 0 && runContent(run.setup.run).botMultiOpen > 1 && s.cash >= BOT_MULTI_COST * 2) {
+    run.buyBotMulti();
     return;
   }
   let cheapest: { buy: () => void; cost: number } | null = null;

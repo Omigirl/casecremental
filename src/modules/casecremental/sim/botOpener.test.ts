@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { botCaseFor, botSpeed, botSpeedCost, botSpinSeconds } from "./botOpener";
+import { botCaseFor, botWaiting, botSpeed, botSpeedCost, botSpinSeconds } from "./botOpener";
 import { CASES, priceOf } from "./content/cases";
 import { DEFAULT_SETUP, Run } from "./run";
-import { BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS, COMBO_STEP } from "./tuning";
+import { BOT_MULTI_COST, BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS, COMBO_STEP } from "./tuning";
 
 const DT = 1 / 30;
 const tickFor = (run: Run, s: number) => {
@@ -10,8 +10,8 @@ const tickFor = (run: Run, s: number) => {
 };
 const awake = () => new Run(1, { ...DEFAULT_SETUP, botAwake: true });
 const untilCard = (run: Run) => {
-  for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(DT);
-  expect(run.state.bot.card).not.toBeNull();
+  for (let i = 0; i < 900 && !botWaiting(run.state.bot); i++) run.tick(DT);
+  expect(botWaiting(run.state.bot)).toBe(true);
 };
 
 describe("bot opener helpers", () => {
@@ -60,7 +60,7 @@ describe("the bot opens its own cases", () => {
     run.forceNextRarity("gold");
     run.tick(DT);
     expect(run.state.bot.spin).not.toBeNull();
-    expect(run.state.bot.spin!.drop.rarity).not.toBe("gold");
+    expect(run.state.bot.spin!.drops[0]!.rarity).not.toBe("gold");
     run.buyCase("bootcamp");
     run.insertKey();
     const b = run.state.bench;
@@ -85,7 +85,7 @@ describe("the bot opens its own cases", () => {
     expect(run.drainEvents().map((e) => e.type)).toContain("botRevealed");
     tickFor(run, 10);
     expect(run.state.bot.spin).toBeNull(); // waits while its card waits
-    const d = run.state.bot.card!;
+    const d = run.state.bot.cards[0]!;
     const cash = run.state.cash;
     expect(run.sellBotCard().ok).toBe(true);
     expect(run.state.cash - cash).toBeCloseTo(run.payout(d, false) * (1 + COMBO_STEP)); // a hand sale: combo
@@ -139,8 +139,8 @@ describe("the bot opens its own cases", () => {
     const cash = run.state.cash;
     expect(run.buyVault().ok).toBe(true);
     const sold = run.drainEvents().find((e) => e.type === "sold");
-    expect(sold).toMatchObject({ source: "seller", from: "bot", amount: run.payout(spin.drop, false) });
-    expect(run.state.cash - cash).toBeCloseTo(run.payout(spin.drop, false) - run.setup.vaultPrice);
+    expect(sold).toMatchObject({ source: "seller", from: "bot", amount: run.payout(spin.drops[0]!, false) });
+    expect(run.state.cash - cash).toBeCloseTo(run.payout(spin.drops[0]!, false) - run.setup.vaultPrice);
     expect(run.state.bot.spin).toBeNull();
   });
 
@@ -150,5 +150,68 @@ describe("the bot opens its own cases", () => {
     untilCard(run);
     expect(run.state.opened).toBe(1);
     expect(run.state.heat).toBeGreaterThan(0);
+  });
+});
+
+describe("the bot's second reel (Run 2)", () => {
+  const awakeRun = (run: number, cash = 1e6) => new Run(3, { ...DEFAULT_SETUP, run, startCash: cash, botAwake: true });
+
+  it("bot multi-open is a Run 2 machine", () => {
+    expect(awakeRun(1).buyBotMulti().ok).toBe(false);
+    const r = awakeRun(2);
+    expect(r.buyBotMulti().ok).toBe(true);
+    expect(r.buyBotMulti().ok).toBe(false); // one level
+  });
+
+  it("opens two cases per spin, pays for both, and lands two cards", () => {
+    const r = awakeRun(2);
+    r.buyBotMulti();
+    const cash = r.state.cash;
+    tickFor(r, 1.2);
+    expect(r.state.bot.spin?.drops).toHaveLength(2);
+    expect(cash - r.state.cash).toBeCloseTo(2 * r.casePrice(r.state.bot.spin!.caseId), 6);
+    tickFor(r, 5);
+    expect(r.state.bot.cards.filter(Boolean)).toHaveLength(2);
+  });
+
+  it("opens only what you can afford", () => {
+    const r = awakeRun(2, BOT_MULTI_COST + 3); // $3 left after the upgrade: one Boot Camp case
+    r.buyBotMulti();
+    tickFor(r, 1.2);
+    expect(r.state.bot.spin?.drops).toHaveLength(1);
+  });
+
+  it("sells the cards one by one by hand and waits for both before the next spin", () => {
+    const r = awakeRun(2);
+    r.buyBotMulti();
+    tickFor(r, 6);
+    expect(r.sellBotCard(1).ok).toBe(true);
+    expect(r.state.bot.cards[1]).toBeNull();
+    tickFor(r, 6);
+    expect(r.state.bot.spin).toBeNull(); // card 0 still waits
+    expect(r.sellBotCard(0).ok).toBe(true);
+    expect(r.state.bot.cards).toEqual([]);
+  });
+
+  it("the auto-seller leaves a held bot card and takes the other", () => {
+    const r = awakeRun(2);
+    r.buyBotMulti();
+    r.buySeller();
+    r.setSellerThreshold("gold");
+    tickFor(r, 5.5);
+    r.setHeld("bot", 0);
+    tickFor(r, 3);
+    expect(r.state.bot.cards[0]).not.toBeNull();
+    expect(r.state.bot.cards[1] ?? null).toBeNull();
+  });
+
+  it("a snapshot mid double spin resumes the same", () => {
+    const r = awakeRun(2);
+    r.buyBotMulti();
+    tickFor(r, 2);
+    const back = Run.fromSnapshot(structuredClone(r.snapshot()));
+    tickFor(r, 3);
+    tickFor(back, 3);
+    expect(back.state.bot).toEqual(r.state.bot);
   });
 });

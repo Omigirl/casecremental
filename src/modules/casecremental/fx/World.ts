@@ -241,7 +241,7 @@ export class World {
     this.bot.update(gameMs, bot);
     const spin = bot.spin;
     this.botReel.update(spin ? { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 } : null);
-    this.botCard.update(bot.card);
+    this.botCard.update(bot.cards[0] ?? null);
     this.room.setBotOnline(bot.awake);
     this.botReel.visible = !!this.l.bot.reel && bot.awake;
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
@@ -463,13 +463,14 @@ export class World {
         break;
       case "botSpinStarted":
         this.bot.open();
-        this.botReel.start(caseById(e.caseId), skinById(e.drop.skinId), this.rng);
+        this.botReel.start(caseById(e.caseId), skinById(e.drops[0]!.skinId), this.rng);
         this.audio.play("bot-reel-spin");
         break;
       case "botRevealed": {
+        const drop = e.drops[0]!; // M3-D draws the second card
         const at = this.hd.toScreen(this.botCard.centre());
-        this.hd.particles.burst(at, RARITY_INFO[e.drop.rarity].color, 18, 160 * (this.vp.scale / 6));
-        this.audio.play("reveal-chime", { gain: 0.5, rate: 2 ** (RARITY_ORDER.indexOf(e.drop.rarity) / 6) });
+        this.hd.particles.burst(at, RARITY_INFO[drop.rarity].color, 18, 160 * (this.vp.scale / 6));
+        this.audio.play("reveal-chime", { gain: 0.5, rate: 2 ** (RARITY_ORDER.indexOf(drop.rarity) / 6) });
         break;
       }
       case "dayJobDone": {

@@ -1,3 +1,4 @@
+import { botWaiting } from "../sim/botOpener";
 import { describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { freshMeta } from "../sim/meta";
@@ -99,10 +100,10 @@ describe("GameController — the campaign", () => {
     expect(c.run.state.held).toBe("bench");
     expect(c.act({ type: "holdCard", spot: null }).ok).toBe(true);
     expect(c.act({ type: "wakeBot" }).ok).toBe(true);
-    for (let i = 0; i < 900 && !c.run.state.bot.card; i++) c.run.tick(1 / 30);
-    expect(c.run.state.bot.card).not.toBeNull();
+    for (let i = 0; i < 900 && !botWaiting(c.run.state.bot); i++) c.run.tick(1 / 30);
+    expect(botWaiting(c.run.state.bot)).toBe(true);
     expect(c.act({ type: "sellBot" }).ok).toBe(true);
-    expect(c.run.state.bot.card).toBeNull();
+    expect(botWaiting(c.run.state.bot)).toBe(false);
   });
 
   it("pays the vault into the meta exactly once, then prestiges into a fresh boosted run", () => {

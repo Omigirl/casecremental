@@ -124,6 +124,39 @@ describe("the local save", () => {
     expect(locked(5)).not.toBeNull();
   });
 
+  it("migrates a version-3 save: the bot's card and spin become lists, multi-open is off, the run is 1", () => {
+    const drop = { id: 1, skinId: CASES[0]!.skins[0]!.id, caseId: "bootcamp", rarity: "milspec", float: 0.2, statTrak: false, value: 1 };
+    const v3 = (bot: Record<string, unknown>) => {
+      const d = JSON.parse(encodeSave(data()));
+      d.v = 3;
+      delete d.run.setup.run;
+      const { cards, multiLevel, ...rest } = d.run.state.bot;
+      void cards;
+      void multiLevel;
+      d.run.state.bot = { ...rest, ...bot };
+      return JSON.stringify(d);
+    };
+    const waiting = decodeSave(v3({ card: drop, spin: null }))!;
+    expect(waiting.v).toBe(4);
+    expect(waiting.run.state.bot.cards).toEqual([drop]);
+    expect(waiting.run.state.bot.multiLevel).toBe(0);
+    expect(waiting.run.state.bot).not.toHaveProperty("card");
+    expect(waiting.run.setup.run).toBe(1);
+    expect(decodeSave(v3({ card: null, spin: null }))!.run.state.bot.cards).toEqual([]);
+    const spinning = decodeSave(v3({ card: null, spin: { caseId: "bootcamp", drop, elapsed: 1, duration: 3 } }))!;
+    expect(spinning.run.state.bot.spin).toEqual({ caseId: "bootcamp", drops: [drop], elapsed: 1, duration: 3 });
+  });
+
+  it("round-trips a version-4 save with a double spin and two cards", () => {
+    const r = new Run(3, { ...DEFAULT_SETUP, run: 2, startCash: 1e6, botAwake: true });
+    r.buyBotMulti();
+    for (let i = 0; i < 60; i++) r.tick(1 / 30);
+    expect(r.state.bot.spin?.drops).toHaveLength(2);
+    const d: SaveData = { v: SAVE_VERSION, meta: freshMeta(), run: r.snapshot() };
+    expect(decodeSave(encodeSave(d))).toEqual(d);
+    expect(SAVE_VERSION).toBe(4);
+  });
+
   it("migrates a version-2 save: a single card, a single reel, no multi-open (Review Focus 3)", () => {
     const v3 = data();
     const drop = { id: 1, skinId: CASES[0]!.skins[0]!.id, caseId: "bootcamp", rarity: "milspec", float: 0.2, statTrak: false, value: 1 };
@@ -136,7 +169,7 @@ describe("the local save", () => {
       return JSON.stringify(d);
     };
     const revealed = decodeSave(v2({ phase: "revealed", caseId: "bootcamp", drop }))!;
-    expect(revealed.v).toBe(3);
+    expect(revealed.v).toBe(4);
     expect(revealed.run.state.bench).toEqual({ phase: "revealed", caseId: "bootcamp", cards: [drop] });
     expect(revealed.run.state.upgrades.multiOpen).toBe(0);
     expect(revealed.run.state.heldSlot).toBe(0);

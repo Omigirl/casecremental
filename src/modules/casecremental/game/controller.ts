@@ -20,7 +20,8 @@ export type Action =
   | { type: "claim"; index: number }
   | { type: "wakeBot" }
   | { type: "buyBotSpeed" }
-  | { type: "sellBot" }
+  | { type: "buyBotMulti" }
+  | { type: "sellBot"; slot?: number }
   | { type: "setBotCase"; caseId: string | null }
   | { type: "buySeller" }
   | { type: "buySellerSpeed" }
@@ -155,8 +156,10 @@ export class GameController {
         return run.wakeBot();
       case "buyBotSpeed":
         return run.buyBotSpeed();
+      case "buyBotMulti":
+        return run.buyBotMulti();
       case "sellBot":
-        return run.sellBotCard();
+        return run.sellBotCard(a.slot ?? 0);
       case "setBotCase":
         return run.setBotCase(a.caseId);
       case "buySeller":

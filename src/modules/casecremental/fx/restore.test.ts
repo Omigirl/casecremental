@@ -84,12 +84,12 @@ describe("restorePlan", () => {
   it("restores the bot's reel: its spin under way, or landed on the drop its waiting card shows", () => {
     const run = new Run(1);
     const s = run.state;
-    s.bot.spin = { caseId: "bootcamp", drop: { ...DROP, id: 7 }, elapsed: 1, duration: 3 };
+    s.bot.spin = { caseId: "bootcamp", drops: [{ ...DROP, id: 7 }], elapsed: 1, duration: 3 };
     expect(restorePlan(s).botReel).toEqual({ caseId: "bootcamp", skinId: DROP.skinId, landed: false });
     s.bot.spin = null;
-    s.bot.card = { ...DROP, id: 8, caseId: "bootcamp" };
+    s.bot.cards = [{ ...DROP, id: 8, caseId: "bootcamp" }];
     expect(restorePlan(s).botReel).toEqual({ caseId: "bootcamp", skinId: DROP.skinId, landed: true });
-    s.bot.card = null;
+    s.bot.cards = [];
     expect(restorePlan(s).botReel).toBeNull();
   });
 });

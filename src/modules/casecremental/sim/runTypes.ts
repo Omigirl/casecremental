@@ -83,8 +83,9 @@ export type SimEvent =
   | { type: "sellerUpgraded"; level: number }
   | { type: "botWoke" }
   | { type: "botUpgraded"; level: number }
-  | { type: "botSpinStarted"; caseId: string; drop: Drop; duration: number }
-  | { type: "botRevealed"; drop: Drop }
+  | { type: "botSpinStarted"; caseId: string; drops: Drop[]; duration: number }
+  | { type: "botRevealed"; drops: Drop[] }
+  | { type: "botMultiBought" }
   | { type: "vaultBought"; price: number }
   | { type: "vaultKeyTurned"; drops: Drop[] }
   | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
@@ -131,7 +132,7 @@ export interface RunState {
   seller: SellerState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
-  /** Which bench card is held (when held is "bench"). */
+  /** Which card is held (a bench slot, or a bot slot). */
   heldSlot: number;
   /** Vault Case I is out (rework spec §4), or null. */
   vault: VaultState | null;

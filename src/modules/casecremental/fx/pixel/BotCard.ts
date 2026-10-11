@@ -9,7 +9,7 @@ import { DragTracker } from "./drag";
 import { ITEM_SIZE, type Pt, type TableLayout } from "./layout";
 
 // The bot's card (rework spec §1): its drop waits at its station until you drag it to the SELL bin (or tap
-// it) — a hand sale, so it feeds the combo — or the auto-seller takes it. It follows the sim's bot.card.
+// it) — a hand sale, so it feeds the combo — or the auto-seller takes it. It follows the sim's first bot card (bot.cards[0]).
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 

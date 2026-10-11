@@ -1,3 +1,4 @@
+import { botWaiting } from "../sim/botOpener";
 import { skinName, wearName, weaponName } from "../i18n/content";
 import { getLang, type StringKey } from "../i18n/index";
 import { skinById } from "../sim/content/cases";
@@ -43,6 +44,6 @@ export function trayFull(state: { seller: { on: boolean }; tray: readonly unknow
 }
 
 /** The sell bin's light calls while a card waits to be sold: on your bench or at the bot's station. */
-export function binCalling(state: { bench: Bench; bot: Pick<RunState["bot"], "card"> }): boolean {
-  return state.bench.phase === "revealed" || state.bot.card !== null;
+export function binCalling(state: { bench: Bench; bot: Pick<RunState["bot"], "cards"> }): boolean {
+  return state.bench.phase === "revealed" || botWaiting(state.bot);
 }

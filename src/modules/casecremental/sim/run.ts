@@ -373,9 +373,14 @@ export class Run implements RunCtx {
     return bot.setBotCase(this, caseId);
   }
 
-  /** Sell the bot's card by hand (feeds the combo). */
-  sellBotCard(): ActionResult {
-    return bot.sellBotCard(this);
+  /** Run 2: the bot opens two cases per spin. */
+  buyBotMulti(): ActionResult {
+    return bot.buyBotMulti(this);
+  }
+
+  /** Sell one of the bot's cards by hand (feeds the combo). */
+  sellBotCard(slot = 0): ActionResult {
+    return bot.sellBotCard(this, slot);
   }
 
   buySeller(): ActionResult {
@@ -394,9 +399,9 @@ export class Run implements RunCtx {
   setHeld(spot: CardSpot | null, slot = 0): ActionResult {
     const s = this.state;
     const b = s.bench;
-    const waiting = spot === "bench" ? b.phase === "revealed" && !!b.cards[slot] : spot === "bot" ? s.bot.card !== null : true;
+    const waiting = spot === "bench" ? b.phase === "revealed" && !!b.cards[slot] : spot === "bot" ? !!s.bot.cards[slot] : true;
     s.held = waiting ? spot : null;
-    s.heldSlot = waiting && spot === "bench" ? slot : 0;
+    s.heldSlot = waiting && (spot === "bench" || spot === "bot") ? slot : 0;
     return OK;
   }
 

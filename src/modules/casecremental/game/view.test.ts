@@ -1,3 +1,4 @@
+import { botWaiting } from "../sim/botOpener";
 import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
@@ -73,16 +74,16 @@ describe("buildView — M2b", () => {
       wakeCost: BOT_WAKE_COST,
       speed: 1,
       spinning: false,
-      card: null,
+      cards: [],
       caseChoice: null,
     });
     run.state.cash = 1e6;
     run.wakeBot();
     for (let i = 0; i < 40; i++) run.tick(1 / 30); // the bot rests a moment after waking
     expect(buildView(run).bot.spinning).toBe(true);
-    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(1 / 30);
+    for (let i = 0; i < 900 && !botWaiting(run.state.bot); i++) run.tick(1 / 30);
     v = buildView(run);
-    expect(v.bot.card).toMatchObject({ skinId: run.state.bot.card!.skinId });
+    expect(v.bot.cards[0]).toMatchObject({ skinId: run.state.bot.cards[0]!.skinId });
   });
 
   it("shows the auto-seller to buy, then its speed and threshold", () => {

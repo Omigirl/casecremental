@@ -29,7 +29,8 @@ export function restorePlan(s: RunState): RestorePlan {
 }
 
 function botReel(s: RunState): RestorePlan["botReel"] {
-  const { spin, card } = s.bot;
-  if (spin) return { caseId: spin.caseId, skinId: spin.drop.skinId, landed: false };
+  const { spin } = s.bot;
+  const card = s.bot.cards[0]; // M3-D draws the second reel and card
+  if (spin) return { caseId: spin.caseId, skinId: spin.drops[0]!.skinId, landed: false };
   return card ? { caseId: card.caseId, skinId: card.skinId, landed: true } : null;
 }

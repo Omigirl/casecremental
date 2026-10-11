@@ -1,19 +1,18 @@
-import { runContent } from "./campaign";
-import { CASES } from "./content/cases";
+import { runCaseIds, runContent } from "./campaign";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
-import { BOT_SPEED_ANCHORS, BOT_SPEED_COSTS, BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS } from "./tuning";
+import { BOT_MULTI_COST, BOT_SPEED_ANCHORS, BOT_SPEED_COSTS, BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS } from "./tuning";
 import type { Drop } from "./types";
 
 // The bot as an opener (rework spec §1): once woken it buys a case with your cash and spins it on its own
-// reel; its drop waits at its station as a card until it is sold (by you, or by the auto-seller). It does not
-// open again while its card waits. Speed makes its spin faster.
+// reel; its drops wait at its station as cards until they are sold (by you, or by the auto-seller). It does not
+// open again while a card waits. In Run 2 and later its multi-open upgrade opens two cases per spin on stacked reels. Speed makes its spin faster.
 
 /** Where a revealed card waits: your bench or the bot's station. */
 export type CardSpot = "bench" | "bot";
 
 export interface BotSpin {
   caseId: string;
-  drop: Drop;
+  drops: Drop[];
   elapsed: number;
   duration: number;
 }
@@ -21,12 +20,14 @@ export interface BotSpin {
 export interface BotState {
   awake: boolean;
   speedLevel: number;
+  /** Bot multi-open bought (0/1): one spin opens up to runContent.botMultiOpen cases. */
+  multiLevel: number;
   /** The case it opens; null = the dearest one you can afford. */
   caseChoice: string | null;
   spin: BotSpin | null;
-  /** Its drop, waiting at its station to be sold. */
-  card: Drop | null;
-  /** When that card landed. */
+  /** Its drops, side by side at its station; null once sold or taken. Empty when none wait. */
+  cards: (Drop | null)[];
+  /** When those cards landed. */
   cardAt: number;
   /** Seconds a just-woken bot still rests before its first spin. */
   wakeLeft: number;
@@ -35,9 +36,10 @@ export interface BotState {
 export const freshBot = (awake: boolean): BotState => ({
   awake,
   speedLevel: 0,
+  multiLevel: 0,
   caseChoice: null,
   spin: null,
-  card: null,
+  cards: [],
   cardAt: 0,
   wakeLeft: 0,
 });
@@ -52,6 +54,9 @@ export function botSpeed(level: number): number {
   const [l1, s1] = BOT_SPEED_ANCHORS[i]!;
   return s0 * (s1 / s0) ** ((Math.max(level, 0) - l0) / (l1 - l0));
 }
+
+/** A card waits at the bot's station. */
+export const botWaiting = (bot: Pick<BotState, "cards">): boolean => bot.cards.some((d) => d !== null);
 
 export const botSpeedLevels = (run: number): number => runContent(run).botSpeedLevels;
 
@@ -96,26 +101,46 @@ export function buyBotSpeed(ctx: RunCtx): ActionResult {
   return OK;
 }
 
+export function buyBotMulti(ctx: RunCtx): ActionResult {
+  if (ctx.locked()) return fail("the vault is open");
+  const s = ctx.state;
+  if (!s.bot.awake) return fail("wake the bot first");
+  if (runContent(ctx.setup.run).botMultiOpen <= 1) return fail("not in this run");
+  if (s.bot.multiLevel >= 1) return fail("already bought");
+  if (s.cash < BOT_MULTI_COST) return fail("not enough cash");
+  s.cash -= BOT_MULTI_COST;
+  s.bot.multiLevel = 1;
+  ctx.emit({ type: "botMultiBought" });
+  return OK;
+}
+
 /** The case the bot opens (null = the dearest you can afford). */
 export function setBotCase(ctx: RunCtx, caseId: string | null): ActionResult {
-  if (caseId !== null && !CASES.some((c) => c.id === caseId)) return fail(`unknown case: ${caseId}`);
+  if (caseId !== null && !runCaseIds(ctx.setup.run).includes(caseId)) return fail(`unknown case: ${caseId}`);
   ctx.state.bot.caseChoice = caseId;
   return OK;
 }
 
-/** Sell the bot's card by hand (feeds the combo). */
-export function sellBotCard(ctx: RunCtx): ActionResult {
+/** Sell one of the bot's cards by hand (feeds the combo). */
+export function sellBotCard(ctx: RunCtx, slot = 0): ActionResult {
   if (ctx.locked()) return fail("the vault is open");
   const s = ctx.state;
-  const d = s.bot.card;
+  const d = s.bot.cards[slot];
   if (!d) return fail("the bot has nothing to sell");
   ctx.bumpCombo();
   const amount = ctx.payout(d, true);
   ctx.earn(amount);
-  s.bot.card = null;
-  if (s.held === "bot") ctx.release();
-  ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "bot", from: "bot", slot: 0 });
+  takeBotCard(ctx, slot);
+  ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "bot", from: "bot", slot });
   return OK;
+}
+
+/** A bot card leaves (sold or taken); the station empties with the last one. */
+export function takeBotCard(ctx: RunCtx, slot: number): void {
+  const s = ctx.state;
+  s.bot.cards[slot] = null;
+  if (s.held === "bot" && s.heldSlot === slot) ctx.release();
+  if (s.bot.cards.every((d) => d === null)) s.bot.cards = [];
 }
 
 /** The bot's own reel (rework spec §1): finish a spin into its card, or start the next one. */
@@ -130,21 +155,24 @@ export function tickBot(ctx: RunCtx, dt: number): void {
   if (bot.spin) {
     bot.spin.elapsed += dt;
     if (bot.spin.elapsed < bot.spin.duration) return;
-    const d = bot.spin.drop;
+    const drops = bot.spin.drops;
     bot.spin = null;
-    bot.card = d;
+    bot.cards = [...drops];
     bot.cardAt = s.time;
-    ctx.onReveal(d, "bot");
-    ctx.countReveals(1);
-    ctx.emit({ type: "botRevealed", drop: d });
+    for (const d of drops) ctx.onReveal(d, "bot");
+    ctx.countReveals(drops.length);
+    ctx.emit({ type: "botRevealed", drops });
     return;
   }
-  if (bot.card || ctx.locked()) return;
+  if (botWaiting(bot) || ctx.locked()) return;
   const caseId = botCaseFor(bot.caseChoice, s.unlocked, s.cash, (id) => ctx.casePrice(id));
   if (!caseId) return;
-  s.cash -= ctx.casePrice(caseId);
-  const drop = ctx.rollFor(caseId);
+  const price = ctx.casePrice(caseId);
+  const count = Math.max(1, Math.min(1 + bot.multiLevel * (runContent(ctx.setup.run).botMultiOpen - 1), Math.floor(s.cash / price)));
+  s.cash -= price * count;
+  const drops: Drop[] = [];
+  for (let i = 0; i < count; i++) drops.push(ctx.rollFor(caseId));
   const duration = botSpinSeconds(bot.speedLevel);
-  bot.spin = { caseId, drop, elapsed: 0, duration };
-  ctx.emit({ type: "botSpinStarted", caseId, drop, duration });
+  bot.spin = { caseId, drops, elapsed: 0, duration };
+  ctx.emit({ type: "botSpinStarted", caseId, drops, duration });
 }
