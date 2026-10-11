@@ -114,6 +114,17 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                       }
                     : undefined
                 }
+                onDevRun={
+                  import.meta.env.DEV
+                    ? (run) => {
+                        controller.devStartRun(run);
+                        setSettings(false);
+                      }
+                    : undefined
+                }
+                onDevCash={
+                  import.meta.env.DEV ? () => controller.devAddCash(Math.max(1_000_000, 10 * controller.run.state.cash)) : undefined
+                }
               />
             ) : null}
             {import.meta.env.DEV && soundBoard ? (

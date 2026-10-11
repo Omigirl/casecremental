@@ -12,11 +12,17 @@ export function Settings({
   onClose,
   onSoundBoard,
   onReset,
+  onDevRun,
+  onDevCash,
 }: {
   onClose: () => void;
   onSoundBoard?: () => void;
   /** Dev builds: forget the save and start a fresh campaign. */
   onReset?: () => void;
+  /** Dev builds: start Run 2 or 3 right away. */
+  onDevRun?: (run: number) => void;
+  /** Dev builds: add cash. */
+  onDevCash?: () => void;
 }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const prefs = usePrefs();
@@ -68,6 +74,13 @@ export function Settings({
         {slider(t("settings.sfx"), prefs.sfx, (sfx) => setPrefs({ sfx }))}
         {onSoundBoard ? <PxButton onClick={onSoundBoard}>SOUND BOARD (DEV)</PxButton> : null}
         {onReset ? <PxButton onClick={onReset}>RESET PROGRESS (DEV)</PxButton> : null}
+        {onDevRun ? (
+          <div className="cc-tabs">
+            <PxButton onClick={() => onDevRun(2)}>{t("settings.devRun2")}</PxButton>
+            <PxButton onClick={() => onDevRun(3)}>{t("settings.devRun3")}</PxButton>
+            {onDevCash ? <PxButton onClick={onDevCash}>{t("settings.devCash")}</PxButton> : null}
+          </div>
+        ) : null}
         <PxButton onClick={onClose}>{t("settings.close")}</PxButton>
       </div>
     </div>

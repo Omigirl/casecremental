@@ -1,6 +1,7 @@
 import { botWaiting } from "../sim/botOpener";
 import { describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
+import { runCaseIds } from "../sim/campaign";
 import { freshMeta } from "../sim/meta";
 import { Run, type SimEvent } from "../sim/run";
 import { VAULT_OPENING_SECONDS } from "../sim/tuning";
@@ -213,6 +214,23 @@ describe("GameController — the campaign", () => {
     expect(c.act({ type: "sell", slot: 1 }).ok).toBe(true);
     expect(c.act({ type: "sell" }).ok).toBe(true); // slot 0 by default
     expect(c.run.state.bench.phase).toBe("empty");
+  });
+
+  it("dev: devStartRun(3) starts Run 3 keeping the meta, devAddCash adds cash but not earnings", () => {
+    const c = new GameController(1);
+    c.meta.clout = 7;
+    c.meta.offer = [];
+    c.devStartRun(3);
+    expect(c.run.setup.run).toBe(3);
+    expect(c.getView().cases.length).toBe(runCaseIds(3).length);
+    expect(c.meta.loops).toBe(2);
+    expect(c.meta.clout).toBe(7);
+    expect(c.meta.offer).toBeNull();
+    const cash = c.run.state.cash;
+    const life = c.run.state.lifetimeEarnings;
+    c.devAddCash(1000);
+    expect(c.run.state.cash).toBe(cash + 1000);
+    expect(c.run.state.lifetimeEarnings).toBe(life);
   });
 });
 

@@ -114,6 +114,22 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       },
       pickCharm: (args: Args) => run({ type: "pickCharm", id: String(args?.id ?? "") as CharmId }),
       startNextRun: () => run({ type: "startNextRun" }),
+      ...(import.meta.env.DEV
+        ? {
+            devStartRun: async (args: Args) => {
+              const n = Number(args?.run);
+              if (!Number.isInteger(n) || n < 1 || n > 3) throw new Error("run must be 1, 2 or 3");
+              c.devStartRun(n);
+              return { ok: true } as ActionResult;
+            },
+            devAddCash: async (args: Args) => {
+              const n = Number(args?.amount);
+              if (!Number.isFinite(n) || n <= 0) throw new Error("amount must be a positive number");
+              c.devAddCash(n);
+              return { ok: true } as ActionResult;
+            },
+          }
+        : {}),
     },
     describeActions: {
       buyCase: "Buy a case onto the empty bench: { caseId } - a case id on this run's shelf (state().cases / unlocked).",
@@ -136,6 +152,12 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       buyPerk: "Between runs: buy a perk with CLOUT: { id: startCash|luck|charmSlot|botAwake|biggerTray }.",
       pickCharm: "Between runs: toggle an offered charm for the next run: { id }.",
       startNextRun: "Between runs: start the next run.",
+      ...(import.meta.env.DEV
+        ? {
+            devStartRun: "Dev builds: jump to a run with the meta kept: { run: 1|2|3 }.",
+            devAddCash: "Dev builds: add cash: { amount }.",
+          }
+        : {}),
     },
   };
 }

@@ -120,6 +120,24 @@ export class GameController {
     this.refreshView();
   }
 
+  /** Dev: jump to a run (1-3) with the meta kept (CLOUT, perks, trophies); offer and picks are cleared. */
+  devStartRun(run: number): void {
+    this.meta.loops = Math.max(0, Math.floor(run) - 1);
+    this.meta.offer = null;
+    this.meta.picked = [];
+    this.current = new Run((this.current.seed + 1) >>> 0, setupFor(this.meta));
+    this.emit({ type: "runStarted" });
+    this.save();
+    this.refreshView();
+  }
+
+  /** Dev: add cash (not lifetime earnings). */
+  devAddCash(amount: number): void {
+    this.current.state.cash += amount;
+    this.save();
+    this.refreshView();
+  }
+
   /** Save now (the page is closing): autosave runs only about once a second. */
   saveNow(): void {
     this.save();
