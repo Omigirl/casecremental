@@ -1,0 +1,166 @@
+import type { BotState, CardSpot } from "./botOpener";
+import type { CharmId } from "./charms";
+import type { Rng } from "./rng";
+import type { SellerState } from "./autoSeller";
+import type { Tease } from "./tease";
+import { START_CASH, TRAY_BASE_CAPACITY, VAULT_BASE_PRICE } from "./tuning";
+import type { Drop, RarityId } from "./types";
+import type { UpgradeId } from "./upgrades";
+
+// The run's shared types and the RunCtx the machines (bot, auto-seller, vault, day job) are functions over.
+
+/** One of your bench's reels: its drop, its own tease, and how long it runs (its crawl included). */
+export interface BenchReel {
+  drop: Drop;
+  tease: Tease | null;
+  duration: number;
+}
+
+export type Bench =
+  | { phase: "empty" }
+  | { phase: "locked"; caseId: string; free: boolean; /** Cases this open holds (multi-open). */ count: number }
+  | {
+      phase: "spinning";
+      caseId: string;
+      reels: BenchReel[];
+      elapsed: number;
+      /** The longest reel: the cards come up when it lands. There is no brake. */
+      fullDuration: number;
+    }
+  | { phase: "revealed"; caseId: string; /** Side by side, left to right; null once sold or taken. */ cards: (Drop | null)[] };
+
+export type VaultState = { phase: "key" } | { phase: "opening"; t: number; drops: Drop[]; landed: number };
+
+export type SaleSource = "bench" | "bot" | "tray" | "seller";
+
+/** What the prestige meta hands a new run (M2b spec §8). */
+export interface RunSetup {
+  startCash: number;
+  /** Extra Luck levels (meta perk). */
+  luckBonus: number;
+  /** Charms picked on the prestige screen for this run. */
+  charms: CharmId[];
+  botAwake: boolean;
+  trayCapacity: number;
+  /** Catch-up boost: every sale is multiplied by this. */
+  valueBoost: number;
+  vaultPrice: number;
+}
+
+export const DEFAULT_SETUP: RunSetup = {
+  startCash: START_CASH,
+  luckBonus: 0,
+  charms: [],
+  botAwake: false,
+  trayCapacity: TRAY_BASE_CAPACITY,
+  valueBoost: 1,
+  vaultPrice: VAULT_BASE_PRICE,
+};
+
+/** Everything needed to rebuild a run exactly (the local save, M2b spec §9). */
+export interface RunSnapshot {
+  seed: number;
+  rng: number;
+  setup: RunSetup;
+  state: RunState;
+}
+
+export type SimEvent =
+  | { type: "caseBought"; caseId: string; free: boolean; count: number }
+  | { type: "spinStarted"; caseId: string; reels: BenchReel[]; fullDuration: number }
+  | { type: "revealed"; drops: Drop[] }
+  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | null; slot: number }
+  | { type: "caseUnlocked"; caseId: string }
+  | { type: "upgradeBought"; id: UpgradeId; level: number }
+  | { type: "stageChanged"; stage: number }
+  | { type: "dayJobStarted" }
+  | { type: "dayJobDone"; amount: number }
+  | { type: "stored"; drop: Drop; from: CardSpot; slot: number }
+  | { type: "sellerBought" }
+  | { type: "sellerUpgraded"; level: number }
+  | { type: "botWoke" }
+  | { type: "botUpgraded"; level: number }
+  | { type: "botSpinStarted"; caseId: string; drop: Drop; duration: number }
+  | { type: "botRevealed"; drop: Drop }
+  | { type: "vaultBought"; price: number }
+  | { type: "vaultKeyTurned"; drops: Drop[] }
+  | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
+  | { type: "vaultOpened"; trophy: string; drop: Drop; lifetimeEarnings: number }
+  /** Emitted by the controller when a new run begins. */
+  | { type: "runStarted" }
+  /** Emitted by the controller (prestige screen). */
+  | { type: "charmPicked" }
+  | { type: "perkBought" };
+
+export type ActionResult = { ok: true } | { ok: false; reason: string };
+
+export interface RunState {
+  time: number;
+  cash: number;
+  lifetimeEarnings: number;
+  unlocked: string[];
+  upgrades: Record<UpgradeId, number>;
+  bench: Bench;
+  combo: number;
+  /** The combo's share of intensity: jumps up with the combo, fades smoothly after it breaks. */
+  comboHeat: number;
+  /** When the combo window started: the last sell, pushed forward by every spin since (the reel
+   *  turning is never the player being slow — only buying, keying and selling count). */
+  lastSellAt: number;
+  /** Seconds into a day-job shift, or null when not working. */
+  dayJob: number | null;
+  heat: number;
+  lastTier: number;
+  stage: number;
+  nextDropId: number;
+  opened: number;
+  /** When the card on the bench was revealed. */
+  revealedAt: number;
+  /** Pity Jar: Mil-Specs since the last Covert or ★. */
+  pity: number;
+  /** Gold Rush: the Golden Hour lasts until this time. */
+  goldenHourUntil: number;
+  /** Ricochet: free cases waiting for the bench. */
+  freeCases: string[];
+  /** Drops the auto-seller set aside for the player to claim (above its threshold). */
+  tray: Drop[];
+  bot: BotState;
+  seller: SellerState;
+  /** The card the player is dragging, if any: machines leave it alone. */
+  held: CardSpot | null;
+  /** Which bench card is held (when held is "bench"). */
+  heldSlot: number;
+  /** Vault Case I is out (rework spec §4), or null. */
+  vault: VaultState | null;
+  /** The vault has opened: the run is over. */
+  over: boolean;
+}
+
+/** Where a reveal happened; the charms that react to it care. */
+export type RevealSpot = CardSpot; // widened in Tasks 5 and 6
+
+export const OK: ActionResult = { ok: true };
+export const fail = (reason: string): ActionResult => ({ ok: false, reason });
+
+/** What a machine may touch of the run: its state and the few shared operations. Implemented by `Run`. */
+export interface RunCtx {
+  readonly state: RunState;
+  readonly setup: RunSetup;
+  readonly rng: Rng;
+  emit(e: SimEvent): void;
+  /** Adds to cash and to lifetime earnings. */
+  earn(amount: number): void;
+  payout(d: Drop, byHand: boolean): number;
+  casePrice(caseId: string): number;
+  /** Rolls one case's drop with Luck, Pity, the Golden Hour and the charms; counts the open. */
+  rollFor(caseId: string, forced?: RarityId | null): Drop;
+  /** The charms that react to a reveal; `spot` "bench" also stamps revealedAt. */
+  onReveal(d: Drop, spot: RevealSpot): void;
+  /** Reveals this tick, for heat. */
+  countReveals(n: number): void;
+  bumpCombo(): void;
+  /** Nobody holds a card any more. */
+  release(): void;
+  takeBenchCard(slot: number): void;
+  locked(): boolean;
+}
