@@ -1,3 +1,4 @@
+import { runCaseIds } from "./campaign";
 import { CASES, VAULT_LEGEND, priceOf } from "./content/cases";
 import { STAGE_NAMES } from "./intensity";
 import { rollDrop } from "./roll";
@@ -7,7 +8,7 @@ import { VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REE
 // Vault Case I (rework spec §4): bought once every case is unlocked, opened with the devil key; its five reels
 // land on a timeline, then the run ends.
 
-export const vaultShown = (ctx: RunCtx): boolean => CASES.every((c) => ctx.state.unlocked.includes(c.id));
+export const vaultShown = (ctx: RunCtx): boolean => runCaseIds(ctx.setup.run).every((id) => ctx.state.unlocked.includes(id));
 
 export function buyVault(ctx: RunCtx): ActionResult {
   const s = ctx.state;

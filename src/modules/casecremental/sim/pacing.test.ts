@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HUMAN, playGreedy } from "./bot";
 import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
+import { VAULT_GROWTH, VAULT_PRICES } from "./tuning";
 
 // Spec §9.6 targets for milestone 1's slice (cases 1–3). Median of five seeds so one lucky knife
 // doesn't decide the result. When this fails, tune sim/tuning.ts — never the bot or the logic.
@@ -31,7 +32,7 @@ describe("pacing (greedy bot, human-speed actions)", () => {
   });
 });
 
-describe("pacing — the whole of Run 1 and a boosted second run", () => {
+describe("pacing — the whole of Run 1 and a boosted Run 1 replay", () => {
   const first = SEEDS.map((s) => playGreedy(s, 900));
   const med = (pick: (r: (typeof first)[number]) => number | undefined, rs = first) =>
     median(rs.map((r) => pick(r) ?? Number.POSITIVE_INFINITY));
@@ -56,13 +57,14 @@ describe("pacing — the whole of Run 1 and a boosted second run", () => {
     for (const r of first) expect(r.longestTrayFull).toBeLessThan(10);
   });
 
-  it("a boosted second run (one vault, cheapest perk) catches up in 1–2 min and vaults again by 5–7 min", () => {
+  it("a boosted Run 1 replay (one vault, cheapest perk) catches up in 1–2 min and vaults again by 5–7 min", () => {
     const second = SEEDS.map((s, i) => {
       const meta = freshMeta();
       completeVault(meta, first[i]!.lifetimeEarnings, "vault1", s);
       const cheapest = [...PERK_IDS].sort((a, b) => (perkCost(a, 0) ?? Infinity) - (perkCost(b, 0) ?? Infinity))[0]!;
       buyPerk(meta, cheapest);
-      return playGreedy(s + 100, 900, HUMAN, setupFor(meta));
+      // the Run 1 replay: Run 2 has its own content and tests (Task 9)
+      return playGreedy(s + 100, 900, HUMAN, { ...setupFor(meta), run: 1, vaultPrice: VAULT_PRICES[0] * VAULT_GROWTH });
     });
     const caughtUp = med((r) => r.allUnlockedAt, second);
     expect(caughtUp).toBeGreaterThan(60);

@@ -3,7 +3,7 @@ import type { CharmId } from "./charms";
 import type { Rng } from "./rng";
 import type { SellerState } from "./autoSeller";
 import type { Tease } from "./tease";
-import { START_CASH, TRAY_BASE_CAPACITY, VAULT_BASE_PRICE } from "./tuning";
+import { START_CASH, TRAY_BASE_CAPACITY, VAULT_PRICES } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import type { UpgradeId } from "./upgrades";
 
@@ -35,6 +35,8 @@ export type SaleSource = "bench" | "bot" | "tray" | "seller";
 
 /** What the prestige meta hands a new run (M2b spec §8). */
 export interface RunSetup {
+  /** The campaign run this is (1 to LAST_RUN). */
+  run: number;
   startCash: number;
   /** Extra Luck levels (meta perk). */
   luckBonus: number;
@@ -48,13 +50,14 @@ export interface RunSetup {
 }
 
 export const DEFAULT_SETUP: RunSetup = {
+  run: 1,
   startCash: START_CASH,
   luckBonus: 0,
   charms: [],
   botAwake: false,
   trayCapacity: TRAY_BASE_CAPACITY,
   valueBoost: 1,
-  vaultPrice: VAULT_BASE_PRICE,
+  vaultPrice: VAULT_PRICES[0],
 };
 
 /** Everything needed to rebuild a run exactly (the local save, M2b spec §9). */

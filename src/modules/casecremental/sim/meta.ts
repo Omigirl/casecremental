@@ -1,4 +1,5 @@
-import { RUN1_CHARMS, type CharmId } from "./charms";
+import { runNumber, vaultPriceFor } from "./campaign";
+import { charmPool, type CharmId } from "./charms";
 import { createRng } from "./rng";
 import type { ActionResult, RunSetup } from "./run";
 import {
@@ -10,8 +11,6 @@ import {
   START_CASH,
   TRAY_BASE_CAPACITY,
   TRAY_PER_PERK,
-  VAULT_BASE_PRICE,
-  VAULT_GROWTH,
 } from "./tuning";
 
 // What outlives a run (M2b spec §8): CLOUT, the perks bought with it, trophies, how many vaults have been
@@ -58,9 +57,9 @@ export function perkCost(id: PerkId, level: number): number | null {
 export const charmSlots = (m: MetaState): number => 1 + m.perks.charmSlot;
 
 /** Three distinct charms from the run's pool — the same for the same seed and loop. */
-export function offerCharms(seed: number, loops: number): CharmId[] {
+export function offerCharms(seed: number, loops: number, run: number): CharmId[] {
   const rng = createRng((seed ^ Math.imul(loops + 1, 0x9e3779b1)) >>> 0);
-  const pool = [...RUN1_CHARMS];
+  const pool = [...charmPool(run)];
   const out: CharmId[] = [];
   while (out.length < CHARM_OFFER_SIZE && pool.length > 0) out.push(pool.splice(Math.floor(rng.next() * pool.length), 1)[0]!);
   return out;
@@ -73,7 +72,7 @@ export function completeVault(m: MetaState, lifetimeEarnings: number, trophy: st
   m.lastGain = gain;
   m.loops += 1;
   if (!m.trophies.includes(trophy)) m.trophies.push(trophy);
-  m.offer = offerCharms(seed, m.loops);
+  m.offer = offerCharms(seed, m.loops, runNumber(m.loops));
   m.picked = [];
 }
 
@@ -102,12 +101,13 @@ export function pickCharm(m: MetaState, id: CharmId): ActionResult {
 
 export function setupFor(m: MetaState): RunSetup {
   return {
+    run: runNumber(m.loops),
     startCash: START_CASH + PERK_START_CASH * m.perks.startCash,
     luckBonus: m.perks.luck,
     charms: [...m.picked],
     botAwake: m.perks.botAwake > 0,
     trayCapacity: TRAY_BASE_CAPACITY + TRAY_PER_PERK * m.perks.biggerTray,
     valueBoost: CATCH_UP_PER_VAULT ** m.loops,
-    vaultPrice: VAULT_BASE_PRICE * VAULT_GROWTH ** m.loops,
+    vaultPrice: vaultPriceFor(m.loops),
   };
 }

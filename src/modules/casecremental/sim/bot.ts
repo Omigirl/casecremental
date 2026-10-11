@@ -1,6 +1,6 @@
 import { sellerSpeedCost } from "./autoSeller";
 import { botSpeedCost } from "./botOpener";
-import { CASES, unlockCostOf } from "./content/cases";
+import { unlockCostOf } from "./content/cases";
 import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
 import { BOT_WAKE_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
@@ -91,9 +91,9 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
 
 function spend(run: Run): void {
   const s = run.state;
-  const next = CASES.find((c) => !s.unlocked.includes(c.id));
-  if (next && s.cash >= unlockCostOf(next.id) + run.casePrice(next.id)) {
-    run.unlockCase(next.id);
+  const nextId = run.runCases().find((id) => !s.unlocked.includes(id));
+  if (nextId && s.cash >= unlockCostOf(nextId) + run.casePrice(nextId)) {
+    run.unlockCase(nextId);
     return;
   }
   if (!s.bot.awake && s.cash >= BOT_WAKE_COST * 2) {
@@ -106,10 +106,10 @@ function spend(run: Run): void {
   }
   let cheapest: { buy: () => void; cost: number } | null = null;
   for (const id of UPGRADE_IDS) {
-    const cost = upgradeCost(id, s.upgrades[id]);
+    const cost = upgradeCost(id, s.upgrades[id], run.setup.run);
     if (cost !== null && (cheapest === null || cost < cheapest.cost)) cheapest = { buy: () => run.buyUpgrade(id), cost };
   }
-  const speed = s.bot.awake ? botSpeedCost(s.bot.speedLevel) : null;
+  const speed = s.bot.awake ? botSpeedCost(s.bot.speedLevel, run.setup.run) : null;
   if (speed !== null && (cheapest === null || speed < cheapest.cost)) cheapest = { buy: () => run.buyBotSpeed(), cost: speed };
   const sellerSpeed = s.seller.on ? sellerSpeedCost(s.seller.speedLevel) : null;
   if (sellerSpeed !== null && (cheapest === null || sellerSpeed < cheapest.cost))

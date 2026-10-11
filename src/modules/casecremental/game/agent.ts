@@ -1,5 +1,5 @@
 import type { ModuleAgentApi } from "@idosgames/module-sdk";
-import { CASES, skinById, skinDisplayName } from "../sim/content/cases";
+import { skinById, skinDisplayName } from "../sim/content/cases";
 import type { CharmId } from "../sim/charms";
 import { PERK_IDS, type PerkId } from "../sim/meta";
 import { RARITY_ORDER } from "../sim/rarity";
@@ -26,16 +26,20 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         time: Math.round(s.time * 10) / 10,
         cash: cents(s.cash),
         lifetimeEarnings: cents(s.lifetimeEarnings),
+        run: c.run.setup.run,
         stage: s.stage,
         combo: s.combo,
         timeScale: c.timeScale,
         unlocked: [...s.unlocked],
         upgrades: { ...s.upgrades },
         tray: s.tray.length,
-        cases: CASES.filter((x) => s.unlocked.includes(x.id)).map((x) => {
-          const count = c.run.openCount(x.id);
-          return { id: x.id, count, charge: cents(c.run.casePrice(x.id) * count) };
-        }),
+        cases: c.run
+          .runCases()
+          .filter((id) => s.unlocked.includes(id))
+          .map((id) => {
+            const count = c.run.openCount(id);
+            return { id, count, charge: cents(c.run.casePrice(id) * count) };
+          }),
         bot: {
           awake: s.bot.awake,
           speedLevel: s.bot.speedLevel,
@@ -110,7 +114,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       startNextRun: () => run({ type: "startNextRun" }),
     },
     describeActions: {
-      buyCase: "Buy a case onto the empty bench: { caseId: bootcamp|wildwood|bedrock }.",
+      buyCase: "Buy a case onto the empty bench: { caseId } - a case id on this run's shelf (state().cases / unlocked).",
       insertKey: "Turn the key of the case on the bench; the reel starts spinning.",
       sell: "Sell a revealed skin: { slot? } (default 0; the slots are listed in the bench state).",
       unlockCase: "Unlock the next case in the ladder: { caseId }.",

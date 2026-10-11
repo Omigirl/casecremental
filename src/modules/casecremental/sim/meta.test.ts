@@ -1,16 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RUN1_CHARMS } from "./charms";
 import { buyPerk, charmSlots, cloutFor, completeVault, freshMeta, offerCharms, perkCost, pickCharm, setupFor } from "./meta";
-import {
-  CATCH_UP_PER_VAULT,
-  CLOUT_DIVISOR,
-  PERK_START_CASH,
-  START_CASH,
-  TRAY_BASE_CAPACITY,
-  TRAY_PER_PERK,
-  VAULT_BASE_PRICE,
-  VAULT_GROWTH,
-} from "./tuning";
+import { CATCH_UP_PER_VAULT, CLOUT_DIVISOR, PERK_START_CASH, START_CASH, TRAY_BASE_CAPACITY, TRAY_PER_PERK, VAULT_PRICES } from "./tuning";
 
 /** Lifetime earnings that pay exactly 10 CLOUT. */
 const TEN_CLOUT = (10 * CLOUT_DIVISOR) ** 2;
@@ -33,7 +24,7 @@ describe("prestige meta", () => {
     expect(m.offer).toHaveLength(3);
     expect(new Set(m.offer).size).toBe(3);
     for (const c of m.offer!) expect(RUN1_CHARMS).toContain(c);
-    expect(offerCharms(42, 2)).toEqual(m.offer); // same seed and loop → same offer
+    expect(offerCharms(42, 2, 3)).toEqual(m.offer); // same seed and loop → same offer
   });
 
   it("picks charms up to the slot count; picking again un-picks", () => {
@@ -49,6 +40,10 @@ describe("prestige meta", () => {
     expect(m.picked).toEqual([b]);
     const outside = RUN1_CHARMS.find((c) => !m.offer!.includes(c))!;
     expect(pickCharm(m, outside)).toEqual({ ok: false, reason: "not offered" });
+  });
+
+  it("a second charm slot costs 15 CLOUT and a third 30", () => {
+    expect([perkCost("charmSlot", 0), perkCost("charmSlot", 1), perkCost("charmSlot", 2)]).toEqual([15, 30, null]);
   });
 
   it("buys perks with CLOUT up to their max", () => {
@@ -68,13 +63,14 @@ describe("prestige meta", () => {
     m.offer = ["insider", "doubleTap", "ricochet"];
     m.picked = ["insider"];
     expect(setupFor(m)).toEqual({
+      run: 3,
       startCash: START_CASH + 2 * PERK_START_CASH,
       luckBonus: 3,
       charms: ["insider"],
       botAwake: true,
       trayCapacity: TRAY_BASE_CAPACITY + TRAY_PER_PERK,
       valueBoost: CATCH_UP_PER_VAULT ** 2,
-      vaultPrice: VAULT_BASE_PRICE * VAULT_GROWTH ** 2,
+      vaultPrice: VAULT_PRICES[2],
     });
   });
 });

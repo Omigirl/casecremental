@@ -5,6 +5,29 @@ import type { RarityId, WearId } from "./types";
 
 export const START_CASH = 6;
 
+/** The campaign has this many runs; after the last, a vault replays it. */
+export const LAST_RUN = 3;
+
+/** What each run (index = run - 1) offers: the shelf, the caps and the machines that arrive with it. */
+export interface RunContent {
+  /** How many cases of the ladder this run's shelf has. */
+  cases: number;
+  /** Your widest multi-open. */
+  multiOpen: number;
+  /** The bot's Speed levels this run. */
+  botSpeedLevels: number;
+  /** Cases one bot spin opens at most (1 = no bot multi-open). */
+  botMultiOpen: number;
+  locker: boolean;
+  grid: boolean;
+  autoContract: boolean;
+}
+export const RUN_CONTENT: readonly RunContent[] = [
+  { cases: 3, multiOpen: 2, botSpeedLevels: 5, botMultiOpen: 1, locker: false, grid: false, autoContract: false },
+  { cases: 5, multiOpen: 3, botSpeedLevels: 8, botMultiOpen: 2, locker: true, grid: false, autoContract: false },
+  { cases: 7, multiOpen: 5, botSpeedLevels: 11, botMultiOpen: 2, locker: true, grid: true, autoContract: true },
+];
+
 /** Price and one-time unlock cost per case id, in ladder order. */
 export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: number }>> = {
   bootcamp: { price: 2, unlockCost: 0 },
@@ -77,8 +100,8 @@ export const UPGRADE_COSTS = {
   luck: { baseCost: 15, growth: 1.6, maxLevel: 25 },
   appraiser: { baseCost: 10, growth: 1.55, maxLevel: 25 },
   quickHands: { baseCost: 8, growth: 1.7, maxLevel: 10 },
-  /** Run 1 cap x2 (rework spec 2): one level. */
-  multiOpen: { baseCost: 500, growth: 1, maxLevel: 1 },
+  /** Each level opens one more case; the run caps it (RUN_CONTENT.multiOpen: x2, x3, x5). */
+  multiOpen: { baseCost: 500, growth: 25, maxLevel: 4 },
 } as const;
 
 /** The widest multi-open in the campaign (×5 in Run 3, rework spec §2): a bench of more is a corrupt save. */
@@ -117,7 +140,6 @@ export const MANIAC_MILSPEC_MULT = 4;
 export const MANIAC_OTHER_MULT = 0.5;
 
 export const TRAY_BASE_CAPACITY = 12;
-export const VAULT_BASE_PRICE = 1_000_000;
 
 /** Broke with an empty bench: a day job (campaign spec §6.1). */
 export const DAY_JOB_SECONDS = 3;
@@ -130,12 +152,18 @@ export const BOT_WAKE_COST = 22;
 /** A bot just woken rests this long before its first spin, so its waking-up plays out: at least the length of
  *  fx/pixel/anims.ts `botWake` (1.11 s; anims.test.ts pins it), else its first spin cuts the hop's end. */
 export const BOT_WAKE_SECONDS = 1.15;
-/** Run 1's cap: Speed levels and the speed at the last one. */
-export const BOT_SPEED_LEVELS = 5;
-export const BOT_MAX_SPEED = 8;
+/** The bot's speed at these levels; geometric in between (Run 1's x1 to x8 over 5 levels is unchanged). */
+export const BOT_SPEED_ANCHORS: ReadonlyArray<readonly [level: number, speed: number]> = [
+  [0, 1],
+  [5, 8],
+  [8, 20],
+  [11, 50],
+];
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
-/** Vault Case I: its price grows this much per completed loop. */
+/** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */
+export const VAULT_PRICES = [1_000_000, 50_000_000, 2_500_000_000] as const;
+/** A replay of the last run: its vault price grows this much per completed loop. */
 export const VAULT_GROWTH = 4;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
@@ -160,7 +188,7 @@ export const TRAY_PER_PERK = 4;
 export const PERK_COSTS = {
   startCash: { baseCost: 3, growth: 1.8, maxLevel: 5 },
   luck: { baseCost: 5, growth: 2, maxLevel: 5 },
-  charmSlot: { baseCost: 15, growth: 1, maxLevel: 1 },
+  charmSlot: { baseCost: 15, growth: 2, maxLevel: 2 },
   botAwake: { baseCost: 8, growth: 1, maxLevel: 1 },
   biggerTray: { baseCost: 4, growth: 2, maxLevel: 3 },
 } as const;

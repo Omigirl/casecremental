@@ -1,3 +1,4 @@
+import { runContent } from "./campaign";
 import { APPRAISER_PER_LEVEL, QUICK_HANDS_FACTOR, SPIN_BASE_SECONDS, SPIN_MIN_SECONDS, UPGRADE_COSTS } from "./tuning";
 
 export type UpgradeId = keyof typeof UPGRADE_COSTS;
@@ -10,10 +11,15 @@ export const UPGRADE_INFO: Readonly<Record<UpgradeId, { name: string; descriptio
   multiOpen: { name: "Multi-open", description: "One BUY opens 2 cases" },
 };
 
-/** Price of the next level, or null when maxed. */
-export function upgradeCost(id: UpgradeId, level: number): number | null {
+/** The highest level this run lets you buy: multi-open follows the run's widest open, the rest never change. */
+export function upgradeCap(id: UpgradeId, run = 1): number {
+  return id === "multiOpen" ? runContent(run).multiOpen - 1 : UPGRADE_COSTS[id].maxLevel;
+}
+
+/** Price of the next level, or null at this run's cap. */
+export function upgradeCost(id: UpgradeId, level: number, run = 1): number | null {
   const c = UPGRADE_COSTS[id];
-  if (level >= c.maxLevel) return null;
+  if (level >= upgradeCap(id, run)) return null;
   return Math.ceil(c.baseCost * c.growth ** level);
 }
 

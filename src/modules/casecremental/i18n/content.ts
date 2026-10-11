@@ -133,7 +133,7 @@ const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
     desc: { en: "+$20 at the start of a run", ru: "+$20 в начале забега" },
   },
   luck: { name: { en: "Four-Leaf", ru: "Клевер" }, desc: { en: "+1 Luck level every run", ru: "+1 уровень удачи в забеге" } },
-  charmSlot: { name: { en: "Charm Slot", ru: "Слот талисмана" }, desc: { en: "Carry 2 charms", ru: "Носить 2 талисмана" } },
+  charmSlot: { name: { en: "Charm Slot", ru: "Слот талисмана" }, desc: { en: "+1 charm slot", ru: "+1 слот талисмана" } },
   botAwake: { name: { en: "Early Bird", ru: "Ранняя пташка" }, desc: { en: "The bot starts awake", ru: "Бот просыпается сразу" } },
   biggerTray: { name: { en: "Bigger Tray", ru: "Большой лоток" }, desc: { en: "+4 claim tray slots", ru: "+4 места в лотке" } },
 };

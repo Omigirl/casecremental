@@ -1,13 +1,14 @@
 import { SELLER_SPEED_LEVELS, sellerSpeedCost } from "../sim/autoSeller";
-import { botSpeed, botSpeedCost } from "../sim/botOpener";
+import { botSpeed, botSpeedCost, botSpeedLevels } from "../sim/botOpener";
+import { capRaisedLater, runNumber } from "../sim/campaign";
 import type { CharmId } from "../sim/charms";
-import { CASES, unlockCostOf } from "../sim/content/cases";
+import { caseById, unlockCostOf } from "../sim/content/cases";
 import { STAGE_NAMES } from "../sim/intensity";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
-import { BOT_WAKE_COST, DAY_JOB_SECONDS, PERK_COSTS, SELLER_COST, UPGRADE_COSTS, VAULT_OPENING_SECONDS } from "../sim/tuning";
+import { BOT_WAKE_COST, DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, SELLER_COST, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import type { Drop, RarityId } from "../sim/types";
-import { UPGRADE_IDS, UPGRADE_INFO, upgradeCost, type UpgradeId } from "../sim/upgrades";
+import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
 
 // What the React overlay shows — derived from the run, never stored separately.
 
@@ -32,6 +33,8 @@ export interface UpgradeView {
   level: number;
   maxLevel: number;
   cost: number | null;
+  /** At this run's cap, but a later run lifts it: the UI says NEXT RUN, not MAX. */
+  nextRun: boolean;
   canBuy: boolean;
 }
 
@@ -42,6 +45,8 @@ export interface BotView {
   speed: number;
   speedLevel: number;
   speedCost: number | null;
+  /** At this run's last Speed level, but a later run adds more. */
+  speedNextRun: boolean;
   canBuySpeed: boolean;
   /** The case it opens; null = the dearest you can afford. */
   caseChoice: string | null;
@@ -80,6 +85,10 @@ export interface PrestigeView {
   clout: number;
   gained: number;
   loops: number;
+  /** The run that starts next. */
+  nextRun: number;
+  /** The next run repeats the last one. */
+  replay: boolean;
   perks: PerkView[];
   offer: CharmId[];
   picked: CharmId[];
@@ -87,6 +96,8 @@ export interface PrestigeView {
 }
 
 export interface GameView {
+  /** The campaign run this is. */
+  run: number;
   cash: number;
   combo: number;
   comboMult: number;
@@ -122,9 +133,11 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
   const s = run.state;
   const benchFree = s.bench.phase === "empty";
   const open = !run.locked();
-  const cases = CASES.map((c, i): CaseView => {
+  const r = run.setup.run;
+  const cases = run.runCases().map((id, i, ids): CaseView => {
+    const c = caseById(id);
     const unlocked = s.unlocked.includes(c.id);
-    const previousUnlocked = i === 0 || s.unlocked.includes(CASES[i - 1]!.id);
+    const previousUnlocked = i === 0 || s.unlocked.includes(ids[i - 1]!);
     return {
       id: c.id,
       name: c.name,
@@ -139,18 +152,19 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {
-    const cost = upgradeCost(id, s.upgrades[id]);
+    const cost = upgradeCost(id, s.upgrades[id], r);
     return {
       id,
       ...UPGRADE_INFO[id],
       level: s.upgrades[id],
-      maxLevel: UPGRADE_COSTS[id].maxLevel,
+      maxLevel: upgradeCap(id, r),
       cost,
+      nextRun: cost === null && capRaisedLater((x) => upgradeCap(id, x), s.upgrades[id], r),
       canBuy: open && cost !== null && s.cash >= cost,
     };
   });
   const b = s.bot;
-  const speedCost = botSpeedCost(b.speedLevel);
+  const speedCost = botSpeedCost(b.speedLevel, r);
   const item = (d: Drop) => ({ skinId: d.skinId, rarity: d.rarity, value: run.payout(d, false) });
   const bot: BotView = {
     awake: b.awake,
@@ -159,6 +173,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     speed: botSpeed(b.speedLevel),
     speedLevel: b.speedLevel,
     speedCost,
+    speedNextRun: speedCost === null && capRaisedLater((x) => botSpeedLevels(x), b.speedLevel, r),
     canBuySpeed: open && b.awake && speedCost !== null && s.cash >= speedCost,
     caseChoice: b.caseChoice,
     spinning: b.spin !== null,
@@ -199,6 +214,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
         clout: meta.clout,
         gained: meta.lastGain,
         loops: meta.loops,
+        nextRun: runNumber(meta.loops),
+        replay: meta.loops >= LAST_RUN,
         perks: PERK_IDS.map((id) => {
           const cost = perkCost(id, meta.perks[id]);
           return { id, level: meta.perks[id], maxLevel: PERK_COSTS[id].maxLevel, cost, canBuy: cost !== null && meta.clout >= cost };
@@ -209,6 +226,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       }
     : null;
   return {
+    run: r,
     cash: s.cash,
     combo: s.combo,
     comboMult: run.comboMultiplier(),

@@ -2,6 +2,7 @@ import * as seller from "./autoSeller";
 import { freshSeller } from "./autoSeller";
 import * as bot from "./botOpener";
 import { freshBot, type CardSpot } from "./botOpener";
+import { runCaseIds } from "./campaign";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import * as dayJob from "./dayJob";
@@ -160,9 +161,15 @@ export class Run implements RunCtx {
     return Math.max(1, Math.min(this.effects().openCount, Math.floor(this.state.cash / price)));
   }
 
+  /** The case ids on this run's shelf, cheapest first. */
+  runCases(): string[] {
+    return runCaseIds(this.setup.run);
+  }
+
   buyCase(caseId: string): ActionResult {
     if (this.locked()) return fail("the vault is open");
     const s = this.state;
+    if (!this.runCases().includes(caseId)) return fail("not in this run");
     if (s.bench.phase !== "empty") return fail("bench is busy");
     if (!s.unlocked.includes(caseId)) return fail(`case ${caseId} is locked`);
     const price = this.casePrice(caseId);
@@ -262,6 +269,7 @@ export class Run implements RunCtx {
     const s = this.state;
     const index = CASES.findIndex((c) => c.id === caseId);
     if (index < 0) return fail(`unknown case: ${caseId}`);
+    if (!this.runCases().includes(caseId)) return fail("not in this run");
     if (s.unlocked.includes(caseId)) return fail("already unlocked");
     if (!s.unlocked.includes(CASES[index - 1]!.id)) return fail("unlock the previous case first");
     const cost = unlockCostOf(caseId);
@@ -275,7 +283,7 @@ export class Run implements RunCtx {
   buyUpgrade(id: UpgradeId): ActionResult {
     if (this.locked()) return fail("the vault is open");
     const s = this.state;
-    const cost = upgradeCost(id, s.upgrades[id]);
+    const cost = upgradeCost(id, s.upgrades[id], this.setup.run);
     if (cost === null) return fail("max level");
     if (s.cash < cost) return fail("not enough cash");
     s.cash -= cost;

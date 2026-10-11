@@ -3,6 +3,7 @@ import {
   DOUBLE_TAP_MULT,
   GOLD_RUSH_MULT,
   INSIDER_PRICE_MULT,
+  LAST_RUN,
   LUCKY_SEVEN_EVERY,
   MANIAC_MILSPEC_MULT,
   MANIAC_OTHER_MULT,
@@ -26,6 +27,10 @@ export const RUN1_CHARMS: readonly CharmId[] = [
   "insider",
   "milSpecManiac",
 ];
+
+/** The charms each run offers (Task 7 fills the later pools). */
+export const CHARM_POOLS: Readonly<Record<number, readonly CharmId[]>> = { 1: RUN1_CHARMS, 2: RUN1_CHARMS, 3: RUN1_CHARMS };
+export const charmPool = (run: number): readonly CharmId[] => CHARM_POOLS[Math.min(Math.max(run, 1), LAST_RUN)]!;
 
 const wearMult = (id: WearId) => WEAR_TABLE.find((w) => w.id === id)!.mult;
 

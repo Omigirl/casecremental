@@ -19,7 +19,7 @@ describe("bot opener helpers", () => {
     expect(botSpeed(0)).toBe(1);
     expect(botSpeed(5)).toBeCloseTo(8);
     expect(botSpinSeconds(5)).toBeCloseTo(BOT_SPIN_SECONDS / 8);
-    expect(botSpeedCost(5)).toBeNull();
+    expect(botSpeedCost(5, 1)).toBeNull();
   });
 
   it("opens the dearest case you can afford, or its chosen one when you can", () => {

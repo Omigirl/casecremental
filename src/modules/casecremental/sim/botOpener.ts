@@ -1,6 +1,7 @@
+import { runContent } from "./campaign";
 import { CASES } from "./content/cases";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
-import { BOT_MAX_SPEED, BOT_SPEED_COSTS, BOT_SPEED_LEVELS, BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS } from "./tuning";
+import { BOT_SPEED_ANCHORS, BOT_SPEED_COSTS, BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS } from "./tuning";
 import type { Drop } from "./types";
 
 // The bot as an opener (rework spec §1): once woken it buys a case with your cash and spins it on its own
@@ -41,12 +42,22 @@ export const freshBot = (awake: boolean): BotState => ({
   wakeLeft: 0,
 });
 
-/** ×1 at level 0 up to ×BOT_MAX_SPEED at the run's last level, geometric in between. */
-export const botSpeed = (level: number): number => BOT_MAX_SPEED ** (Math.min(level, BOT_SPEED_LEVELS) / BOT_SPEED_LEVELS);
+/** The bot's speed: geometric between BOT_SPEED_ANCHORS, flat past the last one. */
+export function botSpeed(level: number): number {
+  const last = BOT_SPEED_ANCHORS[BOT_SPEED_ANCHORS.length - 1]!;
+  if (level >= last[0]) return last[1];
+  let i = 1;
+  while (BOT_SPEED_ANCHORS[i]![0] < level) i++;
+  const [l0, s0] = BOT_SPEED_ANCHORS[i - 1]!;
+  const [l1, s1] = BOT_SPEED_ANCHORS[i]!;
+  return s0 * (s1 / s0) ** ((Math.max(level, 0) - l0) / (l1 - l0));
+}
+
+export const botSpeedLevels = (run: number): number => runContent(run).botSpeedLevels;
 
 /** Price of the next Speed level, or null at this run's cap. */
-export function botSpeedCost(level: number): number | null {
-  if (level >= BOT_SPEED_LEVELS) return null;
+export function botSpeedCost(level: number, run = 1): number | null {
+  if (level >= botSpeedLevels(run)) return null;
   return Math.ceil(BOT_SPEED_COSTS.baseCost * BOT_SPEED_COSTS.growth ** level);
 }
 
@@ -76,7 +87,7 @@ export function buyBotSpeed(ctx: RunCtx): ActionResult {
   if (ctx.locked()) return fail("the vault is open");
   const s = ctx.state;
   if (!s.bot.awake) return fail("wake the bot first");
-  const cost = botSpeedCost(s.bot.speedLevel);
+  const cost = botSpeedCost(s.bot.speedLevel, ctx.setup.run);
   if (cost === null) return fail("max level for this run");
   if (s.cash < cost) return fail("not enough cash");
   s.cash -= cost;
