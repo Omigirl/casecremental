@@ -4,16 +4,28 @@ import type { Action } from "../game/controller";
 import type { PrestigeView } from "../game/view";
 import { charmDesc, charmName, perkDesc, perkName } from "../i18n/content";
 import { t } from "../i18n/index";
+import type { VaultDef } from "../sim/content/vaults";
 import { PixelGear, PxButton, UiEnvContext } from "./parts";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
-import { charmChoices } from "./prestigeRules";
+import { charmChoices, vaultNumeral } from "./prestigeRules";
 
-// After the vault (M2b spec §8): the CLOUT it paid, the Vault I trophy, three charms to pick for the next
+// After the vault (M2b spec §8): the CLOUT it paid, the opened vault's trophy, three charms to pick for the next
 // run, the perks to buy with CLOUT, and "Start next run".
 
 type Act = (a: Action) => void;
 
-export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; onSettings: () => void }): ReactNode {
+export function Prestige({
+  p,
+  vault,
+  act,
+  onSettings,
+}: {
+  p: PrestigeView;
+  vault: VaultDef["id"];
+  act: Act;
+  onSettings: () => void;
+}): ReactNode {
+  const n = vaultNumeral(vault);
   const { scale } = useContext(UiEnvContext);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -24,7 +36,7 @@ export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; on
       <div
         ref={box}
         role="dialog"
-        aria-label={t("prestige.title")}
+        aria-label={t("prestige.title", { n })}
         style={{
           display: "grid",
           gap: 3 * scale,
@@ -36,7 +48,7 @@ export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; on
         }}
       >
         <div className="cc-row-line">
-          <div className="cc-title">{t("prestige.title")}</div>
+          <div className="cc-title">{t("prestige.title", { n })}</div>
           {/* the HUD is gone here, and this screen waits with its own music: mute or switch language from it */}
           <PxButton onClick={onSettings} title={t("hud.settings")} style={{ lineHeight: 1 }}>
             <PixelGear />
@@ -46,7 +58,7 @@ export function Prestige({ p, act, onSettings }: { p: PrestigeView; act: Act; on
           <span className="cc-gold">{t("prestige.gained", { n: p.gained })}</span>
           <span className="cc-dim">{t("prestige.total", { n: p.clout })}</span>
         </div>
-        <div style={{ color: "#ffd34d" }}>{t("prestige.trophy")}</div>
+        <div style={{ color: "#ffd34d" }}>{t("prestige.trophy", { n })}</div>
         <div className="cc-title">{t("prestige.charms", { n: p.slots })}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(10em, 1fr))", gap: 2 * scale }}>
           {charmChoices(p).map((c) => (
