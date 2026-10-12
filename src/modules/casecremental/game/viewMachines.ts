@@ -1,13 +1,12 @@
 import { SELLER_SPEED_LEVELS, sellerSpeedCost } from "../sim/autoSeller";
 import { botSpeed, botSpeedCost, botSpeedLevels } from "../sim/botOpener";
 import { capRaisedLater, runContent } from "../sim/campaign";
-import { gridRateCost, gridSize, gridSizeCost, gridStalled } from "../sim/grid";
 import { lockerCapacity, lockerCounts, lockerSizeCost, lockerWaiting, tradeUpRarity } from "../sim/locker";
 import type { Run } from "../sim/run";
-import { AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, GRID_COST, LOCKER_COST, SELLER_COST, TRADE_UP_SECONDS } from "../sim/tuning";
+import { AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LOCKER_COST, SELLER_COST, TRADE_UP_SECONDS } from "../sim/tuning";
 import type { Drop, RarityId } from "../sim/types";
 
-// The machines' part of the view (the bot, the auto-seller, the locker, the auto-buyer grid) — derived from the
+// The machines' part of the view (the bot, the auto-seller, the locker) — derived from the
 // run, never stored separately. buildView (view.ts) puts them in the GameView.
 
 export interface TrayItemView {
@@ -77,31 +76,6 @@ export interface LockerView {
   auto: boolean;
   autoCost: number;
   canBuyAuto: boolean;
-}
-
-export interface GridView {
-  /** This run has the auto-buyer grid. */
-  available: boolean;
-  on: boolean;
-  cost: number;
-  canBuy: boolean;
-  /** It can't be bought before the auto-seller (its drops need an output). */
-  needsSeller: boolean;
-  /** Cells on the board. */
-  size: number;
-  rateLevel: number;
-  rateCost: number | null;
-  canBuyRate: boolean;
-  sizeLevel: number;
-  sizeCost: number | null;
-  canBuySize: boolean;
-  /** The share of your cash it never spends. */
-  reserve: number;
-  ticks: string[];
-  /** Each cell: its case, and once opened (a stalled cell) its drop's rarity; null = empty. */
-  cells: Array<{ caseId: string; open: boolean; rarity: RarityId | null } | null>;
-  /** A cell holds a drop the tray had no room for: it buys nothing until the tray has room. */
-  stalled: boolean;
 }
 
 export const trayItem = (run: Run, d: Drop): TrayItemView => ({ skinId: d.skinId, rarity: d.rarity, value: run.payout(d, false) });
@@ -177,32 +151,5 @@ export function lockerView(run: Run): LockerView {
     auto: lk.auto,
     autoCost: AUTO_CONTRACT_COST,
     canBuyAuto: open && autoAvailable && lk.on && !lk.auto && s.cash >= AUTO_CONTRACT_COST,
-  };
-}
-
-export function gridView(run: Run): GridView {
-  const s = run.state;
-  const open = !run.locked();
-  const g = s.grid;
-  const available = runContent(run.setup.run).grid;
-  const rateCost = gridRateCost(g.rateLevel);
-  const sizeCost = gridSizeCost(g.sizeLevel);
-  return {
-    available,
-    on: g.on,
-    cost: GRID_COST,
-    canBuy: open && available && !g.on && s.seller.on && s.cash >= GRID_COST,
-    needsSeller: !s.seller.on,
-    size: gridSize(g.sizeLevel),
-    rateLevel: g.rateLevel,
-    rateCost,
-    canBuyRate: open && g.on && rateCost !== null && s.cash >= rateCost,
-    sizeLevel: g.sizeLevel,
-    sizeCost,
-    canBuySize: open && g.on && sizeCost !== null && s.cash >= sizeCost,
-    reserve: g.reserve,
-    ticks: [...g.ticks],
-    cells: g.cells.map((c) => (c ? { caseId: c.caseId, open: c.drop !== null, rarity: c.drop?.rarity ?? null } : null)),
-    stalled: gridStalled(g),
   };
 }

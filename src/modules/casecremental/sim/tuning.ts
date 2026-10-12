@@ -19,13 +19,12 @@ export interface RunContent {
   /** Cases one bot spin opens at most (1 = no bot multi-open). */
   botMultiOpen: number;
   locker: boolean;
-  grid: boolean;
   autoContract: boolean;
 }
 export const RUN_CONTENT: readonly RunContent[] = [
-  { cases: 3, multiOpen: 2, botSpeedLevels: 5, botMultiOpen: 1, locker: false, grid: false, autoContract: false },
-  { cases: 5, multiOpen: 3, botSpeedLevels: 8, botMultiOpen: 2, locker: true, grid: false, autoContract: false },
-  { cases: 7, multiOpen: 5, botSpeedLevels: 11, botMultiOpen: 2, locker: true, grid: true, autoContract: true },
+  { cases: 3, multiOpen: 2, botSpeedLevels: 5, botMultiOpen: 1, locker: false, autoContract: false },
+  { cases: 5, multiOpen: 3, botSpeedLevels: 8, botMultiOpen: 2, locker: true, autoContract: false },
+  { cases: 7, multiOpen: 5, botSpeedLevels: 11, botMultiOpen: 2, locker: true, autoContract: true },
 ];
 
 /** Price and one-time unlock cost per case id, in ladder order. */
@@ -178,7 +177,7 @@ export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */
-export const VAULT_PRICES = [1_200_000, 2_000_000_000, 420_000_000_000] as const;
+export const VAULT_PRICES = [1_200_000, 2_000_000_000, 450_000_000_000] as const;
 /** A replay of the last run: its vault price grows this much per completed loop. Only a little above
  *  CATCH_UP_PER_VAULT: by Run 3 the upgrades are cheap and bought one click at a time, so a replay's ×3 sales
  *  barely speed it up, and a much steeper vault would make the replay slower than the run it replays. */
@@ -236,16 +235,3 @@ export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>>
 };
 /** Run 3: the locker presses on its own. */
 export const AUTO_CONTRACT_COST = 250_000_000;
-
-/** The auto-buyer grid (Run 3, spec §6): buys ticked cases into a board of cells and opens each after a delay. */
-export const GRID_COST = 40_000_000;
-/** Cells per Size level (rows of ten). */
-export const GRID_SIZES = [10, 20, 30, 50] as const;
-export const GRID_SIZE_COSTS = { baseCost: 100_000_000, growth: 4 } as const;
-/** Seconds between purchases, per Rate level. */
-export const GRID_BUY_INTERVALS = [1, 0.6, 0.35, 0.2, 0.12] as const;
-export const GRID_RATE_COSTS = { baseCost: 60_000_000, growth: 3 } as const;
-/** A filled cell opens this long after it was bought. */
-export const GRID_OPEN_SECONDS = 1.5;
-/** The share of your cash the grid never spends (a free setting; spec §6 default 50 %). */
-export const GRID_RESERVES = [0.25, 0.5, 0.75] as const;

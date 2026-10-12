@@ -50,10 +50,6 @@ export const SOUNDS = {
   "locker-store": { bus: "sfx", gain: 0.45 },
   "tradeup-press": { bus: "sfx", gain: 0.4 },
   "tradeup-reveal": { bus: "sfx", gain: 0.45 },
-  "grid-power-on": { bus: "sfx", gain: 0.5 },
-  "grid-buy": { bus: "sfx", gain: 0.35 },
-  "grid-open": { bus: "sfx", gain: 0.5 },
-  "grid-breakout": { bus: "sfx", gain: 0.5 },
 } as const satisfies Record<string, { bus: Bus; gain: number; maxSeconds?: number }>;
 
 export type SoundId = keyof typeof SOUNDS;

@@ -1,12 +1,12 @@
 import type { RarityId } from "../../sim/types";
 import type { Juice } from "./juice";
 
-/** The once-only juice of a big card coming up — your bench's best card, a contract's result, a grid breakout:
+/** The once-only juice of a big card coming up — your bench's best card, a contract's result:
  *  Classified shakes; Covert hits (hit-stop, impact, duck); ★ slows time and flashes. `zoom` punches the camera in —
  *  only your bench asks for it (the camera centres there). `time: false` (machine reveals) skips the hit-stop, slow-mo
  *  and music duck - those belong to the player's own reveals; shake, punch, sound and flash stay. */
 export function bigReveal(j: Juice, rarity: RarityId, zoom: boolean, opts: { time?: boolean } = {}): void {
-  const time = opts.time !== false; // a machine's reveal (grid breakout, locker result) passes time: false
+  const time = opts.time !== false; // a machine's reveal (locker result) passes time: false
   switch (rarity) {
     case "classified":
       j.shake.add(0.2);

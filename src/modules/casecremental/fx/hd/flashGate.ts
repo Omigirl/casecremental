@@ -1,6 +1,6 @@
 // Photosensitivity is a hard rule (spec §7, M2b): at most three full-screen flashes in any one second. The table's
 // full-screen flash (HdLayer.flash) asks this gate first, so a ★ on your bench, a stage-up, a station's power-on
-// and a grid breakout can never stack past the limit.
+// and the vault's flashes can never stack past the limit.
 
 export const MAX_FLASHES_PER_SECOND = 3;
 

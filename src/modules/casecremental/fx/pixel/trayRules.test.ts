@@ -104,7 +104,7 @@ describe("TrayMotion", () => {
     expect(m.flying(2)).toBe(false);
   });
 
-  it("shows a card with no spot to come from (the grid's) in place, without a slide", () => {
+  it("shows a card with no spot to come from in place, without a slide", () => {
     const m = new TrayMotion();
     m.update([], 0.016, centre);
     m.update([7], 0.016, centre);

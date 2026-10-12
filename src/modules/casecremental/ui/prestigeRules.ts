@@ -29,7 +29,7 @@ export const prestigeDelayMs = (sawRunEnd: boolean): number => (sawRunEnd ? PRES
 
 export type Bring =
   | { kind: "case"; caseId: string }
-  | { kind: "machine"; id: "botMulti" | "locker" | "grid" | "autoContract" }
+  | { kind: "machine"; id: "botMulti" | "locker" | "autoContract" }
   | { kind: "cap"; id: "multiOpen" | "botSpeed"; value: number };
 
 /** What run `run` adds over the one before it (spec §8): its new cases, its new machines, its raised caps. */
@@ -42,7 +42,6 @@ export function runBrings(run: number): Bring[] {
     .map((caseId) => ({ kind: "case", caseId }));
   if (now.botMultiOpen > before.botMultiOpen) out.push({ kind: "machine", id: "botMulti" });
   if (now.locker && !before.locker) out.push({ kind: "machine", id: "locker" });
-  if (now.grid && !before.grid) out.push({ kind: "machine", id: "grid" });
   if (now.autoContract && !before.autoContract) out.push({ kind: "machine", id: "autoContract" });
   if (now.multiOpen > before.multiOpen) out.push({ kind: "cap", id: "multiOpen", value: now.multiOpen });
   if (now.botSpeedLevels > before.botSpeedLevels)

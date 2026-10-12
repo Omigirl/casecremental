@@ -5,12 +5,11 @@ import { getLang, t } from "../i18n/index";
 import { formatCash } from "../sim/format";
 import { RARITY_INFO } from "../sim/rarity";
 import { cssColor, nextThreshold } from "./botBoard";
-import { GridRows } from "./GridRows";
 import { LockerRows } from "./LockerRows";
 import { boardOpen, type Act } from "./machineRules";
 import { PxButton } from "./parts";
 
-// The Machines tab: the auto-seller (Run 1), the locker (Run 2+), the auto-buyer grid (Run 3+). A machine of a later
+// The Machines tab: the auto-seller (Run 1), the locker (Run 2+). A machine of a later
 // run has no rows until its run (spec §2).
 
 function SellerRows({ view, act }: { view: GameView; act: Act }): ReactNode {
@@ -56,7 +55,6 @@ export function MachinesPanel({ view, act }: { view: GameView; act: Act }): Reac
     <>
       <SellerRows view={view} act={act} />
       <LockerRows view={view} act={act} />
-      <GridRows view={view} act={act} />
     </>
   );
 }

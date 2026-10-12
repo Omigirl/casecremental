@@ -1,7 +1,6 @@
 import { runCaseIds } from "./campaign";
 import { caseById, priceOf } from "./content/cases";
 import { vaultFor } from "./content/vaults";
-import { cashInGrid } from "./grid";
 import { STAGE_NAMES } from "./intensity";
 import { rollDrop } from "./roll";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
@@ -39,8 +38,6 @@ export function buyVault(ctx: RunCtx): ActionResult {
   s.locker.cards = [];
   s.locker.press = null;
   if (s.held === "locker") ctx.release();
-  // the grid's unopened cells are refunded and its stalled drops cashed in; then it stops
-  cashInGrid(ctx);
   s.dayJob = null; // a shift still running has no bench to come back to
   s.vault = { phase: "key" };
   ctx.emit({ type: "vaultBought", price: ctx.setup.vaultPrice });

@@ -9,18 +9,16 @@ import { DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, VAULT_OPENING_SECONDS } from "..
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
 import {
   botView,
-  gridView,
   lockerView,
   sellerView,
   trayItem,
   type BotView,
-  type GridView,
   type LockerView,
   type SellerView,
   type TrayItemView,
 } from "./viewMachines";
 
-export type { BotView, GridView, LockerView, SellerView, TrayItemView } from "./viewMachines";
+export type { BotView, LockerView, SellerView, TrayItemView } from "./viewMachines";
 
 // What the React overlay shows — derived from the run, never stored separately.
 
@@ -36,8 +34,6 @@ export interface CaseView {
   count: number;
   canBuy: boolean;
   canUnlock: boolean;
-  /** Ticked for the auto-buyer grid. */
-  ticked: boolean;
 }
 
 export interface UpgradeView {
@@ -93,7 +89,6 @@ export interface GameView {
   bot: BotView;
   seller: SellerView;
   locker: LockerView;
-  grid: GridView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
   vault: {
@@ -131,7 +126,6 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       count: run.openCount(c.id),
       canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
       canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
-      ticked: s.grid.ticks.includes(c.id),
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {
@@ -196,7 +190,6 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     bot: botView(run),
     seller: sellerView(run),
     locker: lockerView(run),
-    grid: gridView(run),
     tray,
     dayJob,
     vault,

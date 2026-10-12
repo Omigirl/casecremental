@@ -7,7 +7,6 @@ import {
   BOT_WAKE_COST,
   CLOUT_DIVISOR,
   DAY_JOB_SECONDS,
-  GRID_COST,
   LOCKER_BASE_CAPACITY,
   LOCKER_COST,
   SELLER_COST,
@@ -131,26 +130,6 @@ describe("buildView — M2b", () => {
     expect(v.locker.pressProgress).toBeCloseTo(0.4, 5);
     run.tick(2);
     expect(buildView(run).locker.cards).toEqual([expect.objectContaining({ rarity: "restricted" })]);
-  });
-
-  it("shows the auto-buyer grid from Run 3: it needs the auto-seller, then its board and the shelf's ticks", () => {
-    expect(buildView(new Run(1)).grid).toMatchObject({ available: false, canBuy: false });
-    const run = new Run(1, { ...DEFAULT_SETUP, run: 3, startCash: 1e12 });
-    let v = buildView(run);
-    expect(v.grid).toMatchObject({ available: true, on: false, cost: GRID_COST, canBuy: false, needsSeller: true });
-    run.buySeller();
-    v = buildView(run);
-    expect(v.grid).toMatchObject({ canBuy: true, needsSeller: false });
-    run.buyGrid();
-    run.toggleGridTick("bootcamp");
-    for (let i = 0; i < 35; i++) run.tick(1 / 30);
-    v = buildView(run);
-    expect(v.grid).toMatchObject({ on: true, canBuy: false, size: 10, rateLevel: 0, canBuyRate: true, canBuySize: true, reserve: 0.5 });
-    expect(v.grid.ticks).toEqual(["bootcamp"]);
-    expect(v.grid.cells).toHaveLength(10);
-    expect(v.grid.cells[0]).toEqual({ caseId: "bootcamp", open: false, rarity: null });
-    expect(v.grid.stalled).toBe(false);
-    expect(v.cases.map((c) => c.ticked)).toEqual([true, false, false, false, false, false, false]);
   });
 
   it("shows the tray and the day job", () => {

@@ -107,11 +107,10 @@ describe("pacing — Runs 2 and 3 (spec §10)", () => {
     expect(v).toBeLessThan(600);
     expect(median(chain.map((c) => c[0]!.topStage))).toBeGreaterThanOrEqual(3);
   });
-  it("Run 3 catches up to Run 2's shelf in 1–2 min, buys the grid by 2–4 min, Vault III at 6–10 min, reaching Tripping", () => {
+  it("Run 3 catches up to Run 2's shelf in 1–2 min, Vault III at 6–10 min, reaching Tripping", () => {
     const t = med(1, (r) => r.runCasesAt[2]);
     expect(t).toBeGreaterThan(60);
     expect(t).toBeLessThan(120);
-    expect(med(1, (r) => r.gridAt)).toBeLessThan(240);
     const v = med(1, (r) => r.vaultAt);
     expect(v).toBeGreaterThan(360);
     expect(v).toBeLessThan(600);

@@ -87,7 +87,7 @@ export function tickSeller(ctx: RunCtx): void {
 }
 
 /** Collect it into the locker, sell it (at or below the threshold) or set it aside in the tray; false when the tray is full. */
-export function autoTake(ctx: RunCtx, d: Drop, from: CardSpot | "grid", slot = 0): boolean {
+export function autoTake(ctx: RunCtx, d: Drop, from: CardSpot, slot = 0): boolean {
   const s = ctx.state;
   if (collectInto(ctx, d, from, slot)) return true;
   if (sellsAt(s.seller.threshold, d.rarity)) {

@@ -33,8 +33,6 @@ export interface TableLayout {
   binR: number;
   /** The locker's cabinet (spec §5; dark before Run 2): the front edge, between the tray and the bin. */
   locker: Rect;
-  /** The auto-buyer machine (spec §6; dark before Run 3): the table's middle, in front of the stations, behind the tray. */
-  grid: Rect;
 }
 
 /** Nominal on-table sizes in world px (sprites are built to roughly these). */
@@ -45,7 +43,6 @@ export const ITEM_SIZE = {
   seller: { w: 24, h: 30 },
   reveal: { w: 44, h: 30 },
   locker: { w: 24, h: 30 },
-  grid: { w: 54, h: 18 },
 } as const;
 
 /** World px a side panel loses to chrome across its width: the frame (6 + 6), the panel padding
@@ -55,7 +52,7 @@ export const PANEL_CHROME = 18;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const r = Math.round;
 
-type Base = Omit<TableLayout, "locker" | "grid">;
+type Base = Omit<TableLayout, "locker">;
 
 export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portrait">): TableLayout {
   const b = baseLayout(vp);
@@ -63,25 +60,7 @@ export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portr
   const locker: Rect = { x: b.bin.x - b.binR - 3 - lw, y: b.bin.y + b.binR - lh, w: lw, h: lh };
   // the tray gives its right end to the locker (since M3)
   const tray: Rect = { ...b.tray, w: Math.min(b.tray.w, locker.x - 2 - b.tray.x) };
-  const withLocker = { ...b, tray, locker };
-  return { ...withLocker, grid: gridRect(withLocker) };
-}
-
-/** The auto-buyer's machine: centred between your mat and the bot, in the band in front of them and behind the
- *  front row (the seller, the tray, the locker), clear of the bin and of the locker's results. */
-function gridRect(l: Omit<TableLayout, "grid">): Rect {
-  const { w, h } = ITEM_SIZE.grid;
-  const sellerLeft = l.seller.x - ITEM_SIZE.seller.w / 2;
-  const sellerTop = l.seller.y - ITEM_SIZE.seller.h;
-  const results = Math.min(...lockerCardSpots(l, 2).map((p) => p.x - ITEM_SIZE.reveal.w / 2));
-  const top = Math.max(l.you.mat.y + l.you.mat.h, l.bot.spot.y, l.you.caseSpot.y) + 2;
-  const zone = l.portrait
-    ? { x0: sellerLeft + ITEM_SIZE.seller.w + 2, x1: Math.min(l.locker.x, results) - 2, y1: l.tray.y - 2 }
-    : { x0: l.table.x + 2, x1: Math.min(l.bin.x - l.binR, results) - 2, y1: Math.min(sellerTop, l.locker.y, l.tray.y) - 2 };
-  const between = Math.round((l.you.mat.x + l.you.mat.w + l.bot.spot.x - ITEM_SIZE.bot.w / 2) / 2 - w / 2);
-  const x = clamp(between, zone.x0, zone.x1 - w);
-  const y = top + Math.max(0, Math.min(4, Math.floor((zone.y1 - top - h) / 2)));
-  return { x, y, w, h };
+  return { ...b, tray, locker };
 }
 
 function baseLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portrait">): Base {

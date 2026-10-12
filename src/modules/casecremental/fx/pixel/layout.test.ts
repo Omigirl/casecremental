@@ -57,7 +57,6 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     seller: box(l.seller.x, l.seller.y, ITEM_SIZE.seller.w, ITEM_SIZE.seller.h),
     bin: { x: l.bin.x - l.binR, y: l.bin.y - l.binR, w: l.binR * 2, h: l.binR * 2 },
     locker: l.locker,
-    grid: l.grid,
   };
 
   it("keeps every item on the table and inside the world", () => {
@@ -128,15 +127,6 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
       }
   });
 
-  it("puts the grid machine in the table's middle, clear of every card spot and both reel windows", () => {
-    const g = l.grid;
-    expect([g.w, g.h]).toEqual([ITEM_SIZE.grid.w, ITEM_SIZE.grid.h]);
-    expect(overlap(g, items.case!)).toBe(false);
-    const spots = [1, 2].flatMap((n) => [...revealSpots(l, n), ...botRevealSpots(l, n), ...lockerCardSpots(l, n)]);
-    for (const p of spots) expect(overlap(g, cardBox(p)), `card at ${p.x},${p.y}`).toBe(false);
-    for (const r of [l.you.reel, benchReelArea(l, 2, true), botReelArea(l, 2)]) if (r) expect(overlap(g, r)).toBe(false);
-  });
-
   it("sets the locker's results on the locker, on the table, clear of the stations and of the other cards", () => {
     const others = [1, 2].flatMap((n) => [...revealSpots(l, n), ...botRevealSpots(l, n)]).map(cardBox);
     for (const n of [1, 2])
@@ -145,7 +135,7 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
         expect(c.x).toBeGreaterThanOrEqual(l.table.x);
         expect(c.x + c.w).toBeLessThanOrEqual(l.table.x + l.table.w);
         expect(overlap(c, l.locker)).toBe(true); // it sits on the cabinet
-        for (const name of ["bot", "seller", "mat", "key", "case", "grid"]) expect(overlap(c, items[name]!), name).toBe(false);
+        for (const name of ["bot", "seller", "mat", "key", "case"]) expect(overlap(c, items[name]!), name).toBe(false);
         for (const o of others) expect(overlap(c, o)).toBe(false);
       }
   });

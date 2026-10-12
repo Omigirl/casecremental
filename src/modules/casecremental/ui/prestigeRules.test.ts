@@ -63,11 +63,10 @@ describe("what the next run brings (spec §8)", () => {
     ]);
   });
 
-  it("Run 3: Deep Space and Inferno, the grid, the auto contract, multi-open to x5, bot speed to x50", () => {
+  it("Run 3: Deep Space and Inferno, the auto contract, multi-open to x5, bot speed to x50", () => {
     expect(runBrings(3)).toEqual([
       { kind: "case", caseId: "deepspace" },
       { kind: "case", caseId: "inferno" },
-      { kind: "machine", id: "grid" },
       { kind: "machine", id: "autoContract" },
       { kind: "cap", id: "multiOpen", value: 5 },
       { kind: "cap", id: "botSpeed", value: 50 },

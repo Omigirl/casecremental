@@ -7,15 +7,14 @@ import type { Pt, TableLayout } from "../pixel/layout";
 import type { RestorePlan } from "../restore";
 import { BotStation } from "./BotStation";
 import type { StationDeps } from "./deps";
-import { GridStation } from "./GridStation";
 import { LockerStation } from "./LockerStation";
 
-// The stations beside your bench (M3: the bot's pair, the locker, the auto-buyer grid): drawn from the sim every
+// The stations beside your bench (M3: the bot's pair, the locker): drawn from the sim every
 // frame, so a reload or a lobby trip redraws them as they are, each with its own event juice. The World owns your
 // bench, the room and the camera, and asks the stations about their cards and sales.
 
 export class Stations {
-  /** Pixel world, just over the table and under the tray: the grid machine, the locker's cabinet. */
+  /** Pixel world, just over the table and under the tray: the locker's cabinet. */
   readonly under = new Container();
   /** Pixel world, the reel row: the bot's reels. */
   readonly reels = new Container();
@@ -25,7 +24,6 @@ export class Stations {
   readonly hd = new Container();
   private readonly bot: BotStation;
   private readonly locker: LockerStation;
-  private readonly grid: GridStation;
   private l: TableLayout | null = null;
 
   constructor(private readonly d: StationDeps) {
@@ -33,9 +31,6 @@ export class Stations {
     this.reels.addChild(this.bot.reels.root);
     this.over.addChild(this.bot.sprite.root, this.bot.cards.root);
     this.hd.addChild(this.bot.cards.hdRoot);
-    this.grid = new GridStation(d);
-    this.under.addChild(this.grid.under);
-    this.hd.addChild(this.grid.hd);
     this.locker = new LockerStation(d);
     this.under.addChild(this.locker.under);
     this.over.addChild(this.locker.over);
@@ -46,13 +41,11 @@ export class Stations {
     this.l = l;
     this.bot.layout(l);
     this.locker.layout(l);
-    this.grid.layout(l);
   }
 
   update(dt: number, ms: number, s: RunState): void {
     this.bot.update(dt, ms, s);
     this.locker.update(dt, ms, s);
-    this.grid.update(dt, s);
   }
 
   /** A fresh World (a reload, a lobby trip) or a new run: redraw what the sim holds. */
@@ -66,7 +59,6 @@ export class Stations {
     if (e.type === "setCompleted") this.fullSet();
     this.bot.onEvent(e);
     this.locker.onEvent(e);
-    this.grid.onEvent(e);
   }
 
   /** Pick up a waiting card under the pointer (the locker's results first: they sit over the tray's end). */
@@ -96,11 +88,6 @@ export class Stations {
     this.locker.results.cancelKnife();
   }
 
-  /** A station's ★ knife showcase is in the air (the bot's, the locker's, a grid breakout's). */
-  knifeFlying(): boolean {
-    return this.bot.cards.knifeFlying || this.locker.results.knifeFlying || this.grid.knifeFlying;
-  }
-
   /** Where a station's card is (coins start there). */
   cardCentre(spot: "bot" | "locker", slot: number): Pt {
     return (spot === "locker" ? this.locker.results : this.bot.cards).centre(slot);
@@ -111,11 +98,6 @@ export class Stations {
     return this.locker.tap(p, s.locker.on);
   }
 
-  /** A sale the stations draw themselves (a grid drop's throttled spark): true when they did. */
-  machineSale(e: Extract<SimEvent, { type: "sold" }>): boolean {
-    return this.grid.sold(e);
-  }
-
   /** A card the auto-seller's Collect sent into the locker flies there from `from` (world px). */
   storedFrom(from: Pt, rarity: RarityId): void {
     this.locker.storedFrom(from, rarity);
@@ -124,7 +106,6 @@ export class Stations {
   destroy(): void {
     this.bot.cards.destroy();
     this.locker.destroy();
-    this.grid.destroy();
   }
 
   private clearAll(): void {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { GRID_RESERVES, TRADE_UP_COUNT } from "../sim/tuning";
+import { TRADE_UP_COUNT } from "../sim/tuning";
 import type { RarityId } from "../sim/types";
-import { capKey, COLLECT_CYCLE, nextCollect, nextReserve, percent, tradeUpProgress } from "./machineRules";
+import { capKey, COLLECT_CYCLE, nextCollect, tradeUpProgress } from "./machineRules";
 
 const counts = (c: Partial<Record<RarityId, number>>): Record<RarityId, number> => ({
   milspec: 0,
@@ -19,13 +19,6 @@ describe("the Machines tab's helpers", () => {
     for (let i = 0; i < COLLECT_CYCLE.length; i++) seen.push((r = nextCollect(r)));
     expect(seen).toEqual([null, "milspec", "restricted", "classified", "covert", null]);
     expect(COLLECT_CYCLE).not.toContain("gold");
-  });
-
-  it("cycles the grid's reserve 25 → 50 → 75 → 25 %", () => {
-    expect(GRID_RESERVES).toEqual([0.25, 0.5, 0.75]);
-    expect([0.25, 0.5, 0.75].map(nextReserve)).toEqual([0.5, 0.75, 0.25]);
-    expect(nextReserve(0.4)).toBe(0.25); // an unknown value starts the cycle over
-    expect(percent(0.75)).toBe(75);
   });
 
   it("counts TRADE UP toward the ready rarity, else the Collect one, else the fullest below ★", () => {

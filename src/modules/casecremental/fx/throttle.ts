@@ -1,5 +1,4 @@
-// A gate for an effect a machine can fire ten times a second (the grid's buys and opens, its coin sparks, a stream
-// of machine stores): at most one per `gap` seconds of the clock it is given.
+// A gate for an effect a machine can fire ten times a second (a stream of machine stores, a machine's sound): at most one per `gap` seconds of the clock it is given.
 
 export class Throttle {
   private last = -Infinity;

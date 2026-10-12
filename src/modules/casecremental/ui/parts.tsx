@@ -81,7 +81,7 @@ export function PixelGear(): ReactNode {
   return <PixelGlyph runs={GEAR_RUNS} size={9} />;
 }
 
-/** The shelf's tick box (the auto-buyer buys a ticked case). */
+/** A pixel tick box (a shelf pick box). */
 export function PixelTick({ on }: { on: boolean }): ReactNode {
   return <PixelGlyph runs={on ? TICK_ON : TICK_OFF} size={7} />;
 }

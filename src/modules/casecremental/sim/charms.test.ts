@@ -92,13 +92,13 @@ describe("Run 2 and 3 charms", () => {
     expect(queued).toBeLessThanOrEqual(FREE_CASE_QUEUE_MAX);
   });
 
-  it("Chain Reaction fires on Classified, Covert and ★ at the bench, bot and grid, never on a contract result or a Restricted", () => {
-    const hits = (rarity: Drop["rarity"], spot: "bench" | "bot" | "grid" | "locker"): number => {
+  it("Chain Reaction fires on Classified, Covert and ★ at the bench and the bot, never on a contract result or a Restricted", () => {
+    const hits = (rarity: Drop["rarity"], spot: "bench" | "bot" | "locker"): number => {
       const r = new Run(3, { ...DEFAULT_SETUP, run: 2, charms: ["chainReaction"] });
       for (let i = 0; i < 200; i++) r.onReveal(drop({ rarity, caseId: "wildwood" }), spot);
       return r.state.freeCases.length;
     };
-    for (const spot of ["bench", "bot", "grid"] as const) {
+    for (const spot of ["bench", "bot"] as const) {
       for (const rarity of ["classified", "covert", "gold"] as const)
         expect(hits(rarity, spot), `${rarity} ${spot}`).toBe(FREE_CASE_QUEUE_MAX);
       expect(hits("restricted", spot)).toBe(0);
@@ -111,7 +111,7 @@ describe("Run 2 and 3 charms", () => {
 
   it("Ricochet shares the free-case queue cap", () => {
     const r = new Run(3, { ...DEFAULT_SETUP, run: 3, charms: ["ricochet"] });
-    for (let i = 0; i < 20; i++) r.onReveal(drop({ rarity: "covert" }), "grid");
+    for (let i = 0; i < 20; i++) r.onReveal(drop({ rarity: "covert" }), "bot");
     expect(r.state.freeCases).toHaveLength(FREE_CASE_QUEUE_MAX);
   });
 
@@ -164,7 +164,7 @@ describe("Run 2 and 3 charms", () => {
   it("Collector's Eye records skins from every reveal source, and does nothing without the charm", () => {
     const r = new Run(2, { ...DEFAULT_SETUP, run: 3, charms: ["collectorsEye"] });
     r.onReveal(drop({ skinId: "a" }), "bot");
-    r.onReveal(drop({ skinId: "a" }), "grid");
+    r.onReveal(drop({ skinId: "a" }), "bench");
     r.onReveal(drop({ skinId: "b" }), "locker");
     expect(r.state.seen.bootcamp).toEqual(["a", "b"]);
     const plain = new Run(2, { ...DEFAULT_SETUP, run: 3 });

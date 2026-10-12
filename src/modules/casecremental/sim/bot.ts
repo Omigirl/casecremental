@@ -2,18 +2,17 @@ import { sellerSpeedCost } from "./autoSeller";
 import { botSpeedCost, botWaiting } from "./botOpener";
 import { runCaseIds, runContent } from "./campaign";
 import { unlockCostOf } from "./content/cases";
-import { gridRateCost, gridSizeCost } from "./grid";
 import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
 import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
-import { AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, GRID_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
+import { AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
 // A greedy player at human speed, used by the pacing test to check how fast a run unfolds. It claims tray
 // items as soon as it can, sells what lands on the bench, the bot's station and the locker, presses a trade-up
 // when one is ready, unlocks the next case as soon as it can afford it plus one case, then — each when it has
 // twice the price — wakes the bot, buys the auto-seller, the locker (Run 2+, collecting Mil-Specs), the bot's
-// multi-open and the grid (Run 3+, every unlocked case ticked); it buys the cheapest remaining upgrade (bot and
-// seller Speed, locker size, grid rate and size, the auto contract included) when it costs at most a quarter of
+// multi-open; it buys the cheapest remaining upgrade (bot and
+// seller Speed, locker size, the auto contract included) when it costs at most a quarter of
 // its cash, takes the day job when broke, and buys the vault as soon as it can.
 
 export interface BotTimings {
@@ -37,8 +36,6 @@ export interface PacingReport {
   runCasesAt: Record<number, number>;
   /** When the locker (Run 2+) was bought. */
   lockerAt?: number;
-  /** When the grid (Run 3+) was bought. */
-  gridAt?: number;
   vaultAt?: number;
   /** The highest stage reached before the vault (which holds the top stage by itself). */
   topStage: number;
@@ -77,7 +74,6 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
         report.caseUnlockedAt[e.caseId] ??= s.time;
         if (run.vaultShown()) report.allUnlockedAt ??= s.time;
         for (let n = 1; n <= LAST_RUN; n++) if (runCaseIds(n).every((id) => s.unlocked.includes(id))) report.runCasesAt[n] ??= s.time;
-        if (s.grid.on && !s.grid.ticks.includes(e.caseId)) run.toggleGridTick(e.caseId);
       }
       if (e.type === "stageChanged") {
         report.stageReachedAt[e.stage] ??= s.time;
@@ -87,7 +83,6 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
       if (e.type === "botWoke") report.botAwakeAt ??= s.time;
       if (e.type === "sellerBought") report.sellerAt ??= s.time;
       if (e.type === "lockerBought") report.lockerAt ??= s.time;
-      if (e.type === "gridBought") report.gridAt ??= s.time;
       if (e.type === "pressStarted") report.contracts++;
       if (e.type === "vaultBought") report.vaultAt ??= s.time;
     }
@@ -156,11 +151,6 @@ function spend(run: Run): void {
     run.buyBotMulti();
     return;
   }
-  if (content.grid && s.seller.on && !s.grid.on && s.cash >= GRID_COST * 2) {
-    run.buyGrid();
-    for (const id of run.runCases()) if (s.unlocked.includes(id)) run.toggleGridTick(id);
-    return;
-  }
   const options: Purchase[] = [];
   const offer = (cost: number | null, buy: () => void) => {
     if (cost !== null) options.push({ buy, cost });
@@ -170,8 +160,6 @@ function spend(run: Run): void {
   if (s.seller.on) offer(sellerSpeedCost(s.seller.speedLevel), () => run.buySellerSpeed());
   if (s.locker.on) offer(lockerSizeCost(s.locker.sizeLevel), () => run.buyLockerSize());
   if (s.locker.on && content.autoContract && !s.locker.auto) offer(AUTO_CONTRACT_COST, () => run.buyAutoContract());
-  if (s.grid.on) offer(gridRateCost(s.grid.rateLevel), () => run.buyGridRate());
-  if (s.grid.on) offer(gridSizeCost(s.grid.sizeLevel), () => run.buyGridSize());
   const cheapest = options.reduce<Purchase | null>((best, o) => (best === null || o.cost < best.cost ? o : best), null);
   if (cheapest && cheapest.cost <= s.cash * 0.25) cheapest.buy();
 }

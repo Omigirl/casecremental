@@ -34,11 +34,6 @@ export type Action =
   | { type: "tradeUp" }
   | { type: "sellLocker"; slot?: number }
   | { type: "buyAutoContract" }
-  | { type: "buyGrid" }
-  | { type: "buyGridRate" }
-  | { type: "buyGridSize" }
-  | { type: "setGridReserve"; reserve: number }
-  | { type: "toggleGridTick"; caseId: string }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "turnVaultKey" }
@@ -214,16 +209,6 @@ export class GameController {
         return run.sellLockerCard(a.slot);
       case "buyAutoContract":
         return run.buyAutoContract();
-      case "buyGrid":
-        return run.buyGrid();
-      case "buyGridRate":
-        return run.buyGridRate();
-      case "buyGridSize":
-        return run.buyGridSize();
-      case "setGridReserve":
-        return run.setGridReserve(a.reserve);
-      case "toggleGridTick":
-        return run.toggleGridTick(a.caseId);
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":

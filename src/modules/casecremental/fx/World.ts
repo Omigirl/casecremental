@@ -131,7 +131,6 @@ export class World {
       rng: this.rng,
       scale: () => this.vp.scale,
       hud: () => ({ x: this.l.worldW / 2, y: this.l.hudH / 2 }),
-      knifeFlying: () => this.benchFx.knifeFlying || this.stations.knifeFlying(),
     });
     this.pixel.world.addChild(
       this.room.back,
@@ -410,10 +409,10 @@ export class World {
   }
 
   /** Where a card waiting at `from` sits (world px). */
-  private spotOf(from: "bench" | "bot" | "locker" | "tray" | "grid", slot: number): Pt {
+  private spotOf(from: "bench" | "bot" | "locker" | "tray", slot: number): Pt {
     if (from === "bench") return this.bench.cardCentre(slot);
     if (from === "bot" || from === "locker") return this.stations.cardCentre(from, slot);
-    const r = from === "tray" ? this.l.tray : this.l.grid;
+    const r = this.l.tray;
     return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
   }
 
@@ -443,7 +442,6 @@ export class World {
         this.benchFx.revealed(e.drops);
         break;
       case "sold": {
-        if (this.stations.machineSale(e)) break; // a grid drop: its own spark, no text, no till
         // only a bench sale clears the card (the stations' cards follow the sim); coins burst from the card sold by
         // hand, the seller, a station's card, or the bin (a tray claim)
         const fromBench = e.from === "bench";
@@ -491,7 +489,6 @@ export class World {
         break;
       }
       case "stored":
-        if (e.from === "grid") break; // the grid's station plays its own (throttled) sound
         this.tray.arriving(e.drop.id, this.spotOf(e.from, e.slot)); // it slides in from its spot; tray-store plays as it lands
         if (e.from === "bench") this.benchFx.left(e.slot, false, this.controller.run.state.bench);
         break;

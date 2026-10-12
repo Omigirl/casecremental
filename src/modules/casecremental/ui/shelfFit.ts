@@ -39,6 +39,3 @@ export function wrapLines(text: string, perLine: number): { lines: number; spill
   }
   return { lines, spills };
 }
-
-/** The shelf shows tick boxes only once the auto-buyer grid is on (the sim accepts ticks earlier; the UI hides them). */
-export const ticksShown = (view: { grid: { on: boolean } }): boolean => view.grid.on;

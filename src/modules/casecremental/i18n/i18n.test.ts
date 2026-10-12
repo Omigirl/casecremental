@@ -58,9 +58,7 @@ describe("M3 strings with their values filled in", () => {
     for (const n of [3, 5, 20, 50])
       for (const key of ["brings.multiOpen", "brings.botSpeed"] as const) expect(fits(key, { n }), `${key} ${n}`).toBe(true);
     expect(fits("locker.count", { n: 50, max: 50 })).toBe(true);
-    for (const n of [9, 12]) for (const key of ["locker.size", "grid.rate"] as const) expect(fits(key, { n }), key).toBe(true);
-    expect(fits("grid.size", { n: 50 })).toBe(true);
-    for (const n of [25, 50, 75]) expect(fits("grid.reserve", { n })).toBe(true);
+    for (const n of [9, 12]) expect(fits("locker.size", { n }), "locker.size").toBe(true);
   });
 
   it.each(["en", "ru"] as const)("every case fits the prestige screen's new-case line (%s)", (lang) => {

@@ -180,7 +180,7 @@ export function storeCard(ctx: RunCtx, from: CardSpot | "tray", slot: number): A
 }
 
 /** Collect routing for the auto-seller: true when it stored the drop (exactly the Collect rarity, locker on, room). */
-export function collectInto(ctx: RunCtx, d: Drop, from: CardSpot | "grid", slot: number): boolean {
+export function collectInto(ctx: RunCtx, d: Drop, from: CardSpot, slot: number): boolean {
   const locker = ctx.state.locker;
   if (!locker.on || locker.collect !== d.rarity || !hasRoom(ctx)) return false;
   locker.items.push(d);

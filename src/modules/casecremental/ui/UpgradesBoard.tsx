@@ -9,7 +9,7 @@ import { MachinesPanel } from "./MachinesPanel";
 import { PxButton } from "./parts";
 
 // The Upgrades board (left panel, or a drawer tab on phones). Tabs You / Bot / Machines: the bot opens its own
-// cases (rework spec §1); the Machines tab holds the auto-seller, the locker and the grid.
+// cases (rework spec §1); the Machines tab holds the auto-seller and the locker.
 
 type Tab = "you" | "bot" | "machines";
 

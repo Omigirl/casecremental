@@ -6,10 +6,10 @@ import { getLang, t } from "../i18n/index";
 import { vaultFor } from "../sim/content/vaults";
 import { formatCash } from "../sim/format";
 import { dayJobButton } from "./dayJob";
-import { boardOpen, type Act } from "./machineRules";
-import { Bar, PixelTick, PxButton, UiEnvContext } from "./parts";
+import type { Act } from "./machineRules";
+import { Bar, PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
-import { shelfIconK, ticksShown } from "./shelfFit";
+import { shelfIconK } from "./shelfFit";
 
 // The Case shelf (right panel, or a drawer tab on phones): each case with its pixel box, BUY at
 // its price or UNLOCK at its unlock cost. Every button sends an Action through the controller.
@@ -25,38 +25,19 @@ function CaseIcon({ c }: { c: CaseView }): ReactNode {
   return <div style={{ ...style, flex: "none", opacity: c.unlocked ? 1 : 0.4 }} />;
 }
 
-/** Run 3+: the auto-buyer buys ticked cases, round-robin (spec §6); a gold frame marks them (campaign spec §3.1). */
-function TickBox({ c, act, open }: { c: CaseView; act: Act; open: boolean }): ReactNode {
+function CaseRow({ c, act }: { c: CaseView; act: Act }): ReactNode {
   return (
-    <PxButton
-      on={c.ticked}
-      disabled={!open}
-      title={t("shelf.tick")}
-      onClick={() => act({ type: "toggleGridTick", caseId: c.id })}
-      style={{ flex: "none", lineHeight: 1 }}
-    >
-      <PixelTick on={c.ticked} />
-    </PxButton>
-  );
-}
-
-function CaseRow({ c, act, grid, open }: { c: CaseView; act: Act; grid: boolean; open: boolean }): ReactNode {
-  const { scale } = useContext(UiEnvContext);
-  return (
-    <div className="cc-row" style={grid && c.ticked ? { boxShadow: `0 0 0 ${scale}px #ffd34d inset` } : undefined}>
+    <div className="cc-row">
       <div className="cc-row-line">
         <CaseIcon c={c} />
         <span style={{ flex: 1 }}>{caseName(c.id)}</span>
       </div>
       {c.unlocked ? (
-        <>
-          <PxButton disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
-            {t("btn.buy")}
-            {c.count > 1 ? ` ×${c.count}` : ""}
-            <span className="cc-btn-sub">{formatCash(c.price * c.count, getLang())}</span>
-          </PxButton>
-          {grid ? <TickBox c={c} act={act} open={open} /> : null}
-        </>
+        <PxButton disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
+          {t("btn.buy")}
+          {c.count > 1 ? ` ×${c.count}` : ""}
+          <span className="cc-btn-sub">{formatCash(c.price * c.count, getLang())}</span>
+        </PxButton>
       ) : (
         <PxButton disabled={!c.canUnlock} onClick={() => act({ type: "unlockCase", caseId: c.id })}>
           {t("btn.unlock")}
@@ -110,7 +91,7 @@ export function CaseShelf({ view, act, title = true }: { view: GameView; act: Ac
       {title ? <div className="cc-title">{t("panel.cases")}</div> : null}
       <div className="cc-scroll">
         {view.cases.map((c) => (
-          <CaseRow key={c.id} c={c} act={act} grid={ticksShown(view)} open={boardOpen(view)} />
+          <CaseRow key={c.id} c={c} act={act} />
         ))}
         <VaultRow view={view} act={act} />
         <DayJobRow view={view} act={act} />

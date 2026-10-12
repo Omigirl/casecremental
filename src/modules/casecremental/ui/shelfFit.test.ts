@@ -6,7 +6,7 @@ import { pixelViewport } from "../fx/pixel/viewport";
 import { caseName } from "../i18n/content";
 import { setLang, t } from "../i18n/index";
 import { CASES } from "../sim/content/cases";
-import { BTN_CHROME, charsBesideIcon, ROW_TEXT_CHROME, ticksShown, wrapLines } from "./shelfFit";
+import { BTN_CHROME, charsBesideIcon, ROW_TEXT_CHROME, wrapLines } from "./shelfFit";
 
 afterEach(() => setLang("en"));
 
@@ -30,13 +30,6 @@ const SIZES: Array<[number, number]> = [
 ];
 const ICON_W = Math.max(27, ...[...spriteIndex().entries()].filter(([id]) => id.startsWith("case-")).map(([, e]) => e.meta.frameW));
 const NAMES = [...CASES.map((c) => c.id), "vault1", "vault2", "vault3"];
-
-describe("ticksShown", () => {
-  it("hides the tick boxes until the grid is on", () => {
-    expect(ticksShown({ grid: { on: false } })).toBe(false);
-    expect(ticksShown({ grid: { on: true } })).toBe(true);
-  });
-});
 
 describe("wrapLines", () => {
   it("wraps at spaces and after hyphens, and knows a word that is too long", () => {
