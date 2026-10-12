@@ -151,9 +151,15 @@ export class GameController {
     this.refreshView();
   }
 
-  /** A server answer (plan F7): merged into the meta, saved, shown. */
+  /** A server answer (plan F7): merged into the meta, saved, shown. A run nothing has happened in yet (a new device
+   *  started a fresh Run 1) is rebuilt for the campaign the server knows, so its vault is the one the server expects. */
   applyServerMeta(doc: ServerDoc, pendingWrites: boolean): void {
     applyServerDoc(this.meta, doc, pendingWrites);
+    const s = this.current.state;
+    if (s.lifetimeEarnings === 0 && !s.over && s.vault === null && setupFor(this.meta).run !== this.current.setup.run) {
+      this.current = new Run(this.current.seed, setupFor(this.meta));
+      this.emit({ type: "runStarted" });
+    }
     this.save();
     this.refreshView();
   }
