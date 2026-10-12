@@ -110,8 +110,13 @@ function normalize(d: SaveData): SaveData {
   const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks }, stats: { ...fresh.stats, ...d.meta.stats } };
   const setup = { ...DEFAULT_SETUP, ...d.run.setup };
   // A save that was replaying Run 3 (loops > 3) before Run 4 existed has never opened The Last Case: roll it back so
-  // it plays a first Run 4 and not a priced replay.
-  if (!meta.trophies.includes(vaultFor(LAST_RUN).trophy)) meta.loops = Math.min(meta.loops, LAST_RUN - 1);
+  // it plays a first Run 4 and not a priced replay. On the prestige screen (over) loops already counts the run just
+  // ended, so the cap is LAST_RUN - 1; mid-run it counts the runs before this one, so the cap is this run's own number
+  // less one (a legacy replay holds setup.run 3 -> 2; a real first Run 4 holds setup.run 4 -> 3, untouched).
+  if (!meta.trophies.includes(vaultFor(LAST_RUN).trophy)) {
+    const cap = d.run.state.over ? LAST_RUN - 1 : Math.max(0, Math.min(LAST_RUN, setup.run) - 1);
+    meta.loops = Math.min(meta.loops, cap);
+  }
   if (!Array.isArray(setup.charms)) setup.charms = [];
   // nobody is holding a card after a reload
   return {

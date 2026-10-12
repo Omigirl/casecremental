@@ -35,13 +35,30 @@ describe("the local save", () => {
     expect(decodeSave(encodeSave(d))!.run.setup).toMatchObject({ vaultPrice: 1_234_567, valueBoost: 9 });
   });
 
-  it("rolls a Run 3 replay save (loops >= 3) back so it plays a first Run 4, but leaves Run 4 players alone", () => {
-    const legacy = data();
-    legacy.meta.loops = 4;
-    legacy.meta.trophies = ["vault1", "vault2", "vault3"];
-    expect(decodeSave(encodeSave(legacy))!.meta.loops).toBe(3); // the next run is Run 4's first
-    legacy.meta.loops = 2;
-    expect(decodeSave(encodeSave(legacy))!.meta.loops).toBe(2);
+  it("rolls a Run 3 replay save back so it plays a first Run 4, but leaves Run 4 players alone", () => {
+    // on the prestige screen (over) loops already counts the run just ended: Run 3's end is 3, a replay's end is 4
+    const ended = data();
+    ended.run.state.over = true;
+    ended.meta.trophies = ["vault1", "vault2", "vault3"];
+    ended.meta.loops = 4;
+    expect(decodeSave(encodeSave(ended))!.meta.loops).toBe(3); // the next run is Run 4's first
+    ended.meta.loops = 2;
+    expect(decodeSave(encodeSave(ended))!.meta.loops).toBe(2);
+    // mid-run loops counts the runs before this one: a legacy Run 3 replay (setup.run 3, loops 3) rolls back to 2, so
+    // finishing it makes loops 3 and the next run Run 4's first
+    const replay = data();
+    replay.run.state.over = false;
+    replay.run.setup = { ...replay.run.setup, run: 3 };
+    replay.meta.trophies = ["vault1", "vault2", "vault3"];
+    replay.meta.loops = 3;
+    expect(decodeSave(encodeSave(replay))!.meta.loops).toBe(2);
+    // a real first Run 4 mid-run (setup.run 4, loops 3, trophy not earned yet) is untouched
+    const first = data();
+    first.run.state.over = false;
+    first.run.setup = { ...first.run.setup, run: 4 };
+    first.meta.trophies = ["vault1", "vault2", "vault3"];
+    first.meta.loops = 3;
+    expect(decodeSave(encodeSave(first))!.meta.loops).toBe(3);
     const done = data();
     done.meta.loops = 6;
     done.meta.trophies = [vaultFor(LAST_RUN).trophy];

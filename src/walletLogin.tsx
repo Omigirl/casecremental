@@ -15,8 +15,8 @@ import {
 // IDOS_WEB3_NETWORK_ID (baked by the platform) wins when it is set; this Title was created as web2, so it is empty.
 //
 // "@idosgames/wallet/react/lazy" keeps Reown AppKit out of the first load until the player taps the button, and
-// inside the idosgames.com frame it signs through the site's wallet. walletConnectProjectId adds phone wallets
-// (QR / deep link); without it only browser-extension wallets (Phantom, Solflare…) are offered.
+// inside the idosgames.com frame it signs through the site's wallet. walletConnectProjectId is required even on
+// desktop (F8 found sign-in does not work without it); it also adds phone wallets (QR / deep link).
 //
 // Guardrail: the wallet is an identity here, nothing else. Cases are bought only with in-game cash; the game has
 // no deposit or withdraw UI (the lobby wallet panel stays hidden on this web2 Title).

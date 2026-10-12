@@ -11,7 +11,8 @@ var CURRENCY = "CLOUT";
 var LEADERBOARD = "best_run";
 var META_KEY = "cc_meta";
 var ANTI_KEY = "cc_anti";
-/** Public String key: the player's verified Solana wallet, shown on the leaderboard (plan F8). */
+/** Public String key: the Solana wallet the client reports, shown on the leaderboard (plan F8). Client-sent and
+ *  cosmetic: CloudCode cannot verify it, and a player can write their own Public keys anyway. */
 var WALLET_KEY = "cc_wallet";
 var KEEP_RUNS = 20;
 /** Whether endRun moves best_run itself. The probe found leaderboard event tokens land in MilestoneTokensEarned, not

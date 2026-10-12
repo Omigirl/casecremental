@@ -56,9 +56,10 @@ describe("M3 strings with their values filled in", () => {
 
   it.each(["en", "ru"] as const)("the run lines fit with every run number and cap (%s)", (lang) => {
     setLang(lang);
-    for (const n of [1, 2, 3])
-      for (const key of ["hud.run", "prestige.nextrun", "prestige.again"] as const) expect(fits(key, { n }), `${key} ${n}`).toBe(true);
-    for (const n of [3, 5, 20, 50])
+    for (const n of [1, 2, 3, 4])
+      for (const key of ["hud.run", "prestige.title", "prestige.trophy", "prestige.nextrun", "prestige.again"] as const)
+        expect(fits(key, { n }), `${key} ${n}`).toBe(true);
+    for (const n of [3, 5, 20, 50, 100])
       for (const key of ["brings.multiOpen", "brings.botSpeed"] as const) expect(fits(key, { n }), `${key} ${n}`).toBe(true);
     expect(fits("locker.count", { n: 50, max: 50 })).toBe(true);
     for (const s of AUTOSPIN_DELAYS) expect(fits("autospin.delay", { s: delaySeconds(s, lang) }), `delay ${s}`).toBe(true);

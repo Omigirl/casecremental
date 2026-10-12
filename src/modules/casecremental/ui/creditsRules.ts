@@ -55,7 +55,7 @@ export function creditLines(stats: CampaignStats, lang: Lang): CreditLine[] {
       { kind: "name", text: `${rarityName(best.rarity)} · ${formatCash(best.value, lang)}` },
     );
   }
-  lines.push({ kind: "stat", text: t("credits.clout", { n: stats.cloutEarned }) });
+  lines.push({ kind: "stat", text: t("credits.clout", { n: stats.cloutEarned.toLocaleString(lang === "ru" ? "ru-RU" : "en-US") }) });
   return lines;
 }
 
