@@ -9,7 +9,7 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
   (`sim/campaign.ts`). After Vault III the campaign replays Run 3 ("RUN 3 AGAIN, BOOSTED"); Run 4 is a later update.
   The run's `setup.run` is written when the run starts, so a save knows which run it is.
 - **`RUN_CONTENT` (`sim/tuning.ts`) is the one table of what each run has:** the number of cases on the shelf (3/5/7),
-  multi-open cap (×2/×3/×5), bot speed levels (5/8/11 → ×8/×20/×50), bot multi-open, locker, grid, auto contract.
+  multi-open cap (×2/×3/×5), bot speed levels (5/8/11 → ×8/×20/×50), bot multi-open, locker, auto contract.
   - Every run starts with all upgrades at level 0 (sim/run.ts); only the level cap is per run.
   - A row at its run's cap shows "NEXT RUN" instead of MAX, so the player sees there is more later.
   - The prestige screen lists what the next run brings from the same table (`ui/prestigeRules.ts`).
@@ -21,13 +21,7 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
   - Results are rolled when the press starts, so a reload mid-press ends the same way.
   - The auto-seller's Collect setting routes one rarity into the locker (never ★).
   - Run 3's auto contract presses on its own.
-- **The grid (Run 3) buys ticked cases round-robin** into empty cells while the case costs at most
-  (1 − reserve) × cash. The reserve is a free setting: 25/50/75 %, default 50 %.
-  - With nothing ticked it buys the dearest case it may.
-  - A cell opens 1.5 s after it fills, and its drop goes through the auto-seller's rules.
-  - A full tray leaves the drop in its cell. The grid is then stalled and buys nothing until the tray has room. This
-    is the reason the tray matters in Run 3.
-  - Grid drops count for heat, never for the combo.
+- **The auto-buyer grid was removed in F2; auto-spin replaced it (see `casecremental-finish.md`).**
 - **Charm pools are per run** (`CHARM_POOLS` in `sim/charms.ts`):
   - Run 1 offers only charms that work with Run 1's systems;
   - Chain Reaction, Contract Killer and Hoarder come with Run 2; Fever and Collector's Eye with Run 3.
@@ -39,21 +33,21 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
     a ×4 vault made the replay slower than the run it replays;
   - so each replay loop is only slightly harder than the last;
   - getting 4 back would need run-scaled upgrade costs.
-  - Vault prices are 1.2M / 2B / 420B.
-- **The save is version 4.** A v3 save is migrated: the bot's single card becomes `cards: [card]`, and the setup gets
-  `run: 1`. Older saves go through v2 → v3 first.
+  - Vault prices were 1.2M / 2B / 420B here; F2 raised them to 1.2M / 2.4B / 800B with auto-spin (see
+    `casecremental-finish.md`).
+- **The save is version 4** (F2 moved it to 5, see `casecremental-finish.md`). A v3 save is migrated: the bot's
+  single card becomes `cards: [card]`, and the setup gets `run: 1`. Older saves go through v2 → v3 first.
 
 ## On screen (M3-D)
 
-- **The stations live in `fx/stations/`** (bot, locker, grid; `Stations.ts` owns them).
+- **The stations live in `fx/stations/`** (bot, locker; `Stations.ts` owns them).
   - Each draws from the sim's state every frame and takes events only for one-shot juice (a stamp, a power-on). The
     reason is reloads and lobby trips: the picture must come back from the save alone.
-  - The rules are pure functions (`lockerRules.ts`, `gridRules.ts`), so a reload mid-press or mid-open lands on the
+  - The rules are pure functions (`lockerRules.ts`), so a reload mid-press or mid-open lands on the
     same frame, and a beat that already happened does not replay. `stampCrossed(null, …)` is false after a reload.
 - **The layout (Task 2):**
   - The locker stands on the front edge, between the tray and the bin. The tray gave up its right end for it and is
     nine-sliced, so its art ends cleanly before the locker.
-  - The grid machine stands in the band in front of the stations, in the table's middle.
   - The locker's results wait on top of the cabinet (`lockerCardSpots`, the card's bottom 6 px into the cabinet). They
     are allowed over the tray's end and the bin's rim, never up into the bot's station.
   - Every viewport is swept in the layout tests.
@@ -63,26 +57,21 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
     Mil-Spec lamp hung beside the press knob, off the cabinet, and a waiting result covered its count. This was fixed
     in the final browser pass.
   - Re-measure if `locker.png` is rebuilt.
-- **The grid's cells are drawn over the art's pigeonholes:** `BOARD_IN_FRAME` (`gridRules.ts`) was measured from
-  `auto-buyer.png`. Re-measure if the art is rebuilt.
-- **The visual budget.** A 50-cell grid at its top rate opens several cases a second, so:
-  - Only one Covert/★ breaks out over the table at a time. The others wait at most `BREAKOUT_MAX_WAIT` (3 s), then
-    only flash their cell.
-  - A ★ waits while another knife showcase (the bench's or a station's) is in the air.
+- **The auto-buyer grid was removed in F2; auto-spin replaced it (see `casecremental-finish.md`).**
+- **The visual budget.**
   - Coins and sparks are pooled and throttled.
   - **Every full-screen table flash asks the flash gate** (`fx/hd/flashGate.ts`, at most 3 a second). The vault's
     flashes go through the same gate.
 - **The shelf's case icon is drawn at `floor(scale / 3)`** (`shelfIconK`). At the full scale, «Мейнфрейм» and
-  «Сейф-кейс III» did not fit beside the icon. In Run 3 the auto-buyer's tick box takes its own line under the case.
+  «Сейф-кейс III» did not fit beside the icon. Since F2, auto-spin's pick box takes its own line under each
+  unlocked case.
 - **The bot's second reel.** The window holds two stacked reels. The room's bot-reel backdrop is hidden while the bot
   is awake, so no stray frame edge shows behind the stack. In portrait the bot has no reel, only its pair of cards.
 - **What the final browser pass found** (2026-10-12, a scratch harness without sign-in plus headless Chrome over CDP):
   - The two fixes: the locker's lamp rows (above), and the prestige charm cards. A word wider than the 10em column
     (Барахольщик, Classified+:) spilled into the next card. The card now hyphenates in the player's language, and
     breaks the word where Chrome has no dictionary.
-  - The full 50-cell grid at its top rate held p50 12 ms / p95 ≤ 18 ms per frame over a minute (desktop, Intel UHD).
-  - A vault cash-in plays the locker's results into the bin with a swallow and the till. A stalled grid drop cashes
-    in with only a spark. Both were accepted.
+  - A vault cash-in plays the locker's results into the bin with a swallow and the till. This was accepted.
   - On a window resize PixiJS warns "textureSource destroyed while still bound". This comes from its own filter
     texture pool and happens in Run 1 too, so it is not from M3.
 

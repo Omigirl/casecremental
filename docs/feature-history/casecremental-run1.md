@@ -14,7 +14,7 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   The first M2b had the bot walking over to sell — it read wrong next to the bot's own reel, so it was replaced.
 - **Stage 5 is "Unhinged"** (was "Cyberpsychosis" — it didn't fit the game).
 - **Content is split across the four runs** (user): Run 1 has the bot opening its own cases (Speed ×1 → ×8) and the auto-seller, the tray, 8 of
-  14 charms, multi-open ×2 (plan M2b-C). Later runs bring the locker and the auto-buyer grid.
+  14 charms, multi-open ×2 (plan M2b-C). Later runs bring the locker; auto-spin (F2) arrives in late Run 1.
 - **The vault is a last-chance ticket, opened like a jackpot** (user, after the first finale felt "down to
   earth", then a Vampire Survivors legendary-chest guide — its animation and music parts, no skip): buying it
   takes the screen (UI hidden) and the player turns a devilish key by hand. Then a fixed 17.4 s sim timeline
@@ -63,7 +63,7 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   big reveal effects play once, for the best card, and the label shows the best waiting card. No "Drag to sell"
   hint over two cards — it covered their tops. Saves went to version 3 (a version-2 save is migrated).
 - **Tuning (pacing tests, medians of 5 greedy players):** bot awake ~2.2 min (132 s), auto-seller ~3.2 min
-  (~193 s, SELLER_COST $300 — raised from $150 so it lands in the spec's 3–5 min), first vault ~8.1 min (487 s, VAULT_PRICES[0] $1.2M - M3's tuning moved Run 1's vault from $1M to $1.2M so the pacing chain holds; current VAULT_PRICES: Run 1 $1.2M, Run 2 $2B, Run 3 $420B, and a replay of the last run multiplies the price by VAULT_GROWTH 3.25), a boosted second run unlocks everything in
+  (~193 s, SELLER_COST $300 — raised from $150 so it lands in the spec's 3–5 min), first vault ~8.1 min (487 s, VAULT_PRICES[0] $1.2M - M3's tuning moved Run 1's vault from $1M to $1.2M so the pacing chain holds; current VAULT_PRICES: see casecremental-finish.md; a replay of the last run multiplies the price by VAULT_GROWTH 3.25), a boosted second run unlocks everything in
   ~67 s and vaults again at ~375 s. A first vault pays ~13–15 CLOUT (CLOUT_DIVISOR 105). Wildwood's unlock
   went $40 → $30 so the bot can be woken right after it. Change numbers only in `sim/tuning.ts`.
 - **Saving:** one versioned localStorage key, written about once a second, after every action and when the
