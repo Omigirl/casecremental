@@ -23,6 +23,8 @@ export class BotReels {
   private spun = false;
   /** Ticks are muted while a reload sets the reels straight onto their drops. */
   private quiet = false;
+  /** The Last Case's free spin has the reels (freeSpin) until the next start: the sim's frozen spin leaves them alone. */
+  private free = false;
   /** The last spin started: reels made later (a rotation out of portrait, a resize) pick it up. */
   private last: { caseId: string; skinIds: string[]; rng: Rng } | null = null;
 
@@ -48,6 +50,7 @@ export class BotReels {
   start(caseId: string, skinIds: readonly string[], rng: Rng, landed = false): void {
     this.last = { caseId, skinIds: [...skinIds], rng };
     this.spun = false;
+    this.free = false;
     const n = Math.max(1, skinIds.length);
     if (n !== this.n) {
       this.n = n;
@@ -57,6 +60,7 @@ export class BotReels {
   }
 
   update(spin: BotSpin | null): void {
+    if (this.free) return;
     if (!spin) {
       if (this.spun) for (let i = 0; i < this.n; i++) this.root.land(i);
       this.spun = false;
@@ -64,6 +68,13 @@ export class BotReels {
     }
     this.spun = true;
     for (let i = 0; i < this.n; i++) this.root.update(i, { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 });
+  }
+
+  /** The Last Case's free spin (Finale.ts): every reel spins on, landing as the lid opens. */
+  freeSpin(caseId: string, skinIds: readonly string[], rng: Rng, start: boolean, elapsed: number, duration: number): void {
+    if (start) this.start(caseId, skinIds.slice(0, this.n), rng);
+    this.free = true;
+    for (let i = 0; i < this.n; i++) this.root.update(i, { elapsed, fullDuration: duration, crawl: 0 });
   }
 
   private apply(): void {

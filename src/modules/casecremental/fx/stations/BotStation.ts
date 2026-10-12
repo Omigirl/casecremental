@@ -45,6 +45,11 @@ export class BotStation {
     this.cards.update(ms, dt, s.bot.cards);
   }
 
+  /** The Last Case's free spin (Finale.ts): the bot's reels spin until the lid opens. */
+  finaleSpin(caseId: string, skinIds: readonly string[], start: boolean, elapsed: number, duration: number): void {
+    this.reels.freeSpin(caseId, skinIds, this.d.rng, start, elapsed, duration);
+  }
+
   /** A fresh World or a new run: its reels where the sim is, or one idle Boot Camp reel. */
   restore(plan: RestorePlan): void {
     const r = plan.botReels;

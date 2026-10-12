@@ -15,6 +15,7 @@ const BY_PREFIX: Array<[string, number]> = [
   ["vault.", 24],
   ["float.", 12],
   ["prestige.", 24],
+  ["credits.", 24], // the credits' scroll: heads and stat lines (names and the best drop wrap by word)
   ["cap.", 11], // a maxed button's NEXT RUN (an 11-character panel line)
   ["locker.", 20],
   ["upgrader.", 20],

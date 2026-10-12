@@ -157,6 +157,11 @@ export class AudioEngine {
     live.clear();
   }
 
+  /** The named track has a file (a credits track may be missing: the prestige loop stands in). */
+  hasTrack(id: TrackId): boolean {
+    return this.files.tracks.has(id);
+  }
+
   /** How many generated files a sound has (the dev sound board lists them). */
   variantCount(id: SoundId): number {
     return this.files.sfx.get(id)?.length ?? 0;

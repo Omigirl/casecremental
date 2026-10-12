@@ -164,6 +164,12 @@ export class HdLayer {
     this.flashAlpha = Math.max(this.flashAlpha, strength);
   }
 
+  /** Ask the flash gate for a full-screen change that is not a flash (a glitch burst, a screen tear): true when it
+   *  may happen now, and it counts toward the three a second. */
+  takeFlash(): boolean {
+    return this.flashGate.take(this.t);
+  }
+
   /** A card is up and waiting to be sold: the bin's light calls for it. */
   setBinCalling(on: boolean): void {
     this.binCalling = on;

@@ -6,7 +6,7 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
 ## The sim (M3-A)
 
 - **The run number is derived, never stored on its own:** `runNumber(loops) = min(loops + 1, LAST_RUN)`
-  (`sim/campaign.ts`). After Vault III the campaign replays Run 3 ("RUN 3 AGAIN, BOOSTED"); Run 4 is a later update.
+  (`sim/campaign.ts`). After Vault III comes Run 4; The Last Case replays Run 4 (see `casecremental-finish.md`, F6).
   The run's `setup.run` is written when the run starts, so a save knows which run it is.
 - **`RUN_CONTENT` (`sim/tuning.ts`) is the one table of what each run has:** the number of cases on the shelf (3/5/7),
   multi-open cap (×2/×3/×5), bot speed levels (5/8/11 → ×8/×20/×50), bot multi-open, locker, auto contract.
