@@ -41,3 +41,9 @@ export function cameraCss(s: CameraState): { transformOrigin: string; transform:
     transform: still ? "none" : `translate(${s.dx}px, ${s.dy}px) scale(${s.zoom})`,
   };
 }
+
+/** A canvas point (screen px) where the camera shows it: the transform cameraCss gives the DOM, for one point
+ *  (finish spec §4: the tutorial points at props on the table from outside the camera's lens). */
+export function cameraPoint(s: CameraState, p: { x: number; y: number }): { x: number; y: number } {
+  return { x: s.focusX + (p.x - s.focusX) * s.zoom + s.dx, y: s.focusY + (p.y - s.focusY) * s.zoom + s.dy };
+}
