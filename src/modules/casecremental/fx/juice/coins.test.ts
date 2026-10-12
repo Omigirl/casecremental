@@ -17,7 +17,7 @@ describe("Coins", () => {
     for (const s of c.flyers.children) expect(s.scale.x).toBe(1);
   });
 
-  it("leave from within 5 world px of the sale, move in whole px, and are gone once landed", () => {
+  it("leave from within 6 world px of the sale, move in whole px, and are gone once landed", () => {
     const c = new Coins([frame()]);
     c.burst({ x: 40, y: 150 }, { x: 160, y: 9 }, 1); // one coin
     c.update(0.001);

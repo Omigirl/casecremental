@@ -57,6 +57,7 @@ export function springElement(el: Element, amount = 0.12): gsap.core.Tween {
  *  of its scroll area and flashed a scrollbar for as long as the spring rang. */
 export const PRESS = { from: 0.92, duration: 0.25, ease: "power3.out" } as const;
 
+/** A panel button's press: it dips to PRESS.from and eases back to its size. */
 export function pressElement(el: Element): gsap.core.Tween {
   return gsap.fromTo(el, { scale: PRESS.from }, { scale: 1, duration: PRESS.duration, ease: PRESS.ease, overwrite: true });
 }

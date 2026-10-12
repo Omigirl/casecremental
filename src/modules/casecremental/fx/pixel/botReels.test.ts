@@ -18,6 +18,12 @@ const landscape = tableLayout({ worldW: 320, worldH: 180, portrait: false });
 /** Reel i's strip of cards (a Reel: frame, thin, back, strip, clip, marker). */
 const strip = (r: BotReels, i: number) => (r.root.children[i] as Container).children[3] as Container;
 
+/** How many draw instructions the winner outline has on reel i (0 until it has landed). */
+const edge = (r: BotReels, i: number) => {
+  const s = strip(r, i);
+  return (s.children[s.children.length - 1] as unknown as { context: { instructions: unknown[] } }).context.instructions.length;
+};
+
 describe("BotReels", () => {
   it("starts reels made after the spin began (portrait → landscape), and the spin carries on", () => {
     const ticks: number[] = [];
@@ -41,5 +47,19 @@ describe("BotReels", () => {
     r.layout(landscape);
     r.start("bootcamp", ["bc_woodland"], createRng(1));
     expect(r.root.rect(0)).toEqual(landscape.bot.reel);
+  });
+
+  it("shows the landed look when the sim ends the spin without a frame at the end (spin cleared), once and silently", () => {
+    const ticks: number[] = [];
+    const r = new BotReels(frameSet, skins, (i) => ticks.push(i));
+    r.layout(landscape);
+    r.setOnline(true);
+    r.start("bootcamp", ["bc_woodland"], createRng(1));
+    r.update({ caseId: "bootcamp", drops: [], elapsed: 2.99, duration: 3 }); // the last spin frame stops short of 1
+    expect(edge(r, 0)).toBe(0);
+    ticks.length = 0;
+    r.update(null); // the sim cleared the spin in the tick that finished it
+    expect(edge(r, 0)).toBeGreaterThan(0);
+    expect(ticks).toEqual([]);
   });
 });

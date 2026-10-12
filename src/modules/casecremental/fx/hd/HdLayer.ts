@@ -11,7 +11,8 @@ import type { LightLevels } from "../vault/lights";
 
 // The full-resolution layer over the pixel world (spec §2): the lamp's warm light, a vignette, dust
 // drifting in the light, the glow under the case / reveal, the sleeping bot's Z's, the powered-off
-// auto-seller's standby LED, sparks and coin amounts (the coins themselves fly in the pixel world, coins.ts). Everything here is in screen (CSS) px.
+// auto-seller's standby LED, sparks and coin amounts (the coins themselves fly in the pixel world, coins.ts). Everything here is in
+// screen (CSS) px.
 
 const MOTES = 36;
 

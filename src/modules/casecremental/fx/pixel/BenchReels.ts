@@ -66,6 +66,8 @@ export class BenchReels {
   private leaning = false;
   /** Last frame's elapsed time of this spin (null until its first frame: a reload lands nothing). */
   private lastElapsed: number | null = null;
+  /** Whether a spin frame was shown since the last start: the first frame after it snaps the reels to their landing. */
+  private spun = false;
 
   constructor(frameSet: SpriteSet, skins: SkinTextures, onTick: (i: number) => void) {
     this.root = new StackedReels(frameSet, skins, onTick);
@@ -96,6 +98,7 @@ export class BenchReels {
     this.leaned = null;
     this.leaning = false;
     this.lastElapsed = null;
+    this.spun = false;
     this.apply();
     const c = caseById(caseId);
     reels.forEach((r, i) => this.root.start(i, c, skinById(r.drop.skinId), rng, r.tease));
@@ -110,8 +113,14 @@ export class BenchReels {
     if (b.phase !== "spinning") {
       this.leaned = null;
       this.leaning = false;
+      if (this.spun) {
+        // the sim leaves `spinning` in the tick that ends the spin, so no frame ever shows fraction 1: land them now
+        this.spun = false;
+        for (let i = 0; i < this.n; i++) this.root.land(i);
+      }
       return { lean: null, landed: [] };
     }
+    this.spun = true;
     b.reels.forEach((r, i) =>
       this.root.update(i, { elapsed: Math.min(b.elapsed, r.duration), fullDuration: r.duration, crawl: crawlSeconds(r.tease, r.duration) }),
     );

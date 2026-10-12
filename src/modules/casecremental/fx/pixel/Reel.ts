@@ -162,6 +162,12 @@ export class Reel extends Container {
     this.place(this.fraction, true);
   }
 
+  /** The spin is over: show the reel stopped on its drop, whatever fraction its last frame reached (silent). */
+  land(): void {
+    this.fraction = 1;
+    this.place(1, false);
+  }
+
   private place(f: number, sound: boolean): void {
     const { x, index } = reelPosition(f, this.rect.w, this.jitter, this.look.cellW);
     this.strip.x = x;

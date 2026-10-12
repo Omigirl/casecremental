@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Bench, BenchReel } from "../../sim/run";
 import type { Drop } from "../../sim/types";
-import { earlyLandings, leanHeld, leanReel, tallWindow } from "./BenchReels";
+import { Texture, TextureSource, type Container } from "pixi.js";
+import { createRng } from "../../sim/rng";
+import type { SkinTextures } from "../skins/pixelSkin";
+import { BenchReels, earlyLandings, leanHeld, leanReel, tallWindow } from "./BenchReels";
+import { tableLayout } from "./layout";
+import type { SpriteSet } from "./sprites";
 
 // Multi-open's stacked reels each carry their own tease; the camera leans toward the strongest one.
 
@@ -72,5 +77,46 @@ describe("tallWindow", () => {
     expect(tallWindow({ phase: "revealed", caseId: "bootcamp", cards: [reel(null).drop, reel(null).drop] })).toBe(false);
     expect(tallWindow({ phase: "locked", caseId: "bootcamp", free: false, count: 2 })).toBe(false);
     expect(tallWindow({ phase: "empty" })).toBe(false);
+  });
+});
+
+describe("BenchReels landing", () => {
+  const tex = new Texture({ source: new TextureSource({ width: 4, height: 4 }) });
+  const frameSet = { frames: [tex] } as unknown as SpriteSet;
+  const skins = { texture: () => tex, size: () => ({ w: 26, h: 10 }), thumb: () => tex } as unknown as SkinTextures;
+  const edge = (r: BenchReels) => {
+    const strip = (r.root.children[0] as Container).children[3] as Container;
+    return (strip.children[strip.children.length - 1] as unknown as { context: { instructions: unknown[] } }).context.instructions.length;
+  };
+  const setup = () => {
+    const ticks: number[] = [];
+    const r = new BenchReels(frameSet, skins, (i) => ticks.push(i));
+    r.layout(tableLayout({ worldW: 320, worldH: 180, portrait: false }));
+    const base = reel(0.8, 5);
+    const reels = [{ ...base, drop: { ...base.drop, skinId: "bc_woodland" } }];
+    r.start("bootcamp", reels, createRng(1));
+    return { r, reels, ticks };
+  };
+  const spinning = (reels: BenchReel[], elapsed: number) => ({ phase: "spinning", caseId: "bootcamp", reels, elapsed }) as unknown as Bench;
+  const revealed = (reels: BenchReel[]) => ({ phase: "revealed", caseId: "bootcamp", cards: [reels[0]!.drop] }) as unknown as Bench;
+
+  it("lands the reels on the first frame after the spin, though no frame reached fraction 1 (a tease, a slow frame)", () => {
+    const { r, reels, ticks } = setup();
+    r.update(spinning(reels, 4.99));
+    expect(edge(r)).toBe(0);
+    ticks.length = 0;
+    r.update(revealed(reels));
+    expect(edge(r)).toBeGreaterThan(0);
+    expect(ticks).toEqual([]); // landing is silent: the early-landing and reveal sounds are the World's
+  });
+
+  it("stays landed on later frames, and a revealed frame with no spin before it (a reload) leaves the reels to start()", () => {
+    const { r, reels } = setup();
+    r.update(revealed(reels));
+    expect(edge(r)).toBe(0);
+    r.update(spinning(reels, 4.99));
+    r.update(revealed(reels));
+    r.update(revealed(reels));
+    expect(edge(r)).toBeGreaterThan(0);
   });
 });

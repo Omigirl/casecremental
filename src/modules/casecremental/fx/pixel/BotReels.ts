@@ -19,6 +19,8 @@ export class BotReels {
   private l: TableLayout | null = null;
   private n = 1;
   private online = false;
+  /** Whether a spin frame was shown: the frame it ends (the sim clears the spin) snaps the reels to their landing. */
+  private spun = false;
   /** Ticks are muted while a reload sets the reels straight onto their drops. */
   private quiet = false;
   /** The last spin started: reels made later (a rotation out of portrait, a resize) pick it up. */
@@ -45,6 +47,7 @@ export class BotReels {
   /** A new spin (or a reload): one reel per case, each landing on its skin; `landed`: already stopped there. */
   start(caseId: string, skinIds: readonly string[], rng: Rng, landed = false): void {
     this.last = { caseId, skinIds: [...skinIds], rng };
+    this.spun = false;
     const n = Math.max(1, skinIds.length);
     if (n !== this.n) {
       this.n = n;
@@ -54,7 +57,12 @@ export class BotReels {
   }
 
   update(spin: BotSpin | null): void {
-    if (!spin) return;
+    if (!spin) {
+      if (this.spun) for (let i = 0; i < this.n; i++) this.root.land(i);
+      this.spun = false;
+      return;
+    }
+    this.spun = true;
     for (let i = 0; i < this.n; i++) this.root.update(i, { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 });
   }
 
