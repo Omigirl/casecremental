@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { freshAutoSpin } from "../sim/autoSpin";
 import { freshEvolutions } from "../sim/evolved";
+import { vaultFor } from "../sim/content/vaults";
+import { LAST_RUN } from "../sim/tuning";
 import { freshMeta } from "../sim/meta";
 import { freshUpgrader } from "../sim/upgrader";
 import { DEFAULT_SETUP, Run } from "../sim/run";
@@ -31,6 +33,19 @@ describe("the local save", () => {
     const d = data();
     d.run.setup = { ...d.run.setup, vaultPrice: 1_234_567, valueBoost: 9 };
     expect(decodeSave(encodeSave(d))!.run.setup).toMatchObject({ vaultPrice: 1_234_567, valueBoost: 9 });
+  });
+
+  it("rolls a Run 3 replay save (loops >= 3) back so it plays a first Run 4, but leaves Run 4 players alone", () => {
+    const legacy = data();
+    legacy.meta.loops = 4;
+    legacy.meta.trophies = ["vault1", "vault2", "vault3"];
+    expect(decodeSave(encodeSave(legacy))!.meta.loops).toBe(3); // the next run is Run 4's first
+    legacy.meta.loops = 2;
+    expect(decodeSave(encodeSave(legacy))!.meta.loops).toBe(2);
+    const done = data();
+    done.meta.loops = 6;
+    done.meta.trophies = [vaultFor(LAST_RUN).trophy];
+    expect(decodeSave(encodeSave(done))!.meta.loops).toBe(6);
   });
 
   it("drops a missing, broken, foreign or old save — with a warning, never a throw", () => {

@@ -1,11 +1,12 @@
 import { freshAutoSpin } from "../sim/autoSpin";
 import { freshSeller } from "../sim/autoSeller";
 import { freshBot } from "../sim/botOpener";
+import { vaultFor } from "../sim/content/vaults";
 import { freshEvolutions } from "../sim/evolved";
 import { freshLocker } from "../sim/locker";
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
-import { BENCH_OPEN_MAX } from "../sim/tuning";
+import { BENCH_OPEN_MAX, LAST_RUN } from "../sim/tuning";
 import { freshUpgrader } from "../sim/upgrader";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 
@@ -105,6 +106,9 @@ function normalize(d: SaveData): SaveData {
   const fresh = freshMeta();
   const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks }, stats: { ...fresh.stats, ...d.meta.stats } };
   const setup = { ...DEFAULT_SETUP, ...d.run.setup };
+  // A save that was replaying Run 3 (loops > 3) before Run 4 existed has never opened The Last Case: roll it back so
+  // it plays a first Run 4 and not a priced replay.
+  if (!meta.trophies.includes(vaultFor(LAST_RUN).trophy)) meta.loops = Math.min(meta.loops, LAST_RUN - 1);
   if (!Array.isArray(setup.charms)) setup.charms = [];
   // nobody is holding a card after a reload
   return {
