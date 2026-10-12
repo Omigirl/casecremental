@@ -7,9 +7,9 @@ import { t } from "../i18n/index";
 import type { VaultDef } from "../sim/content/vaults";
 import { PixelGear, PxButton, UiEnvContext } from "./parts";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
-import { charmChoices, vaultNumeral } from "./prestigeRules";
+import { bringText, charmChoices, runBrings, vaultNumeral } from "./prestigeRules";
 
-// After the vault (M2b spec §8): the CLOUT it paid, the opened vault's trophy, three charms to pick for the next
+// After the vault (M2b spec §8): the CLOUT it paid, the opened vault's trophy, what the next run brings, three charms to pick for the next
 // run, the perks to buy with CLOUT, and "Start next run".
 
 type Act = (a: Action) => void;
@@ -59,6 +59,21 @@ export function Prestige({
           <span className="cc-dim">{t("prestige.total", { n: p.clout })}</span>
         </div>
         <div style={{ color: "#ffd34d" }}>{t("prestige.trophy", { n })}</div>
+        <div className="cc-title">{t("prestige.nextrun", { n: p.nextRun })}</div>
+        {p.replay ? (
+          <>
+            <div className="cc-dim">{t("prestige.later")}</div>
+            <div>{t("prestige.again", { n: p.nextRun })}</div>
+          </>
+        ) : (
+          <div style={{ display: "grid", gap: scale }}>
+            {runBrings(p.nextRun).map((b) => (
+              <div key={b.kind === "case" ? b.caseId : b.id} className="cc-dim">
+                {bringText(b)}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="cc-title">{t("prestige.charms", { n: p.slots })}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(10em, 1fr))", gap: 2 * scale }}>
           {charmChoices(p).map((c) => (

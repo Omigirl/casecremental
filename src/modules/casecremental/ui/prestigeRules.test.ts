@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { BLACKOUT_SECONDS } from "../fx/vault/lights";
 import type { PrestigeView } from "../game/view";
+import { budgetFor, fitsBudget } from "../i18n/budgets";
 import { setLang, t } from "../i18n/index";
 import { VAULTS } from "../sim/content/vaults";
-import { charmChoices, PRESTIGE_DELAY_MS, prestigeDelayMs, vaultNumeral } from "./prestigeRules";
+import { bringText, charmChoices, PRESTIGE_DELAY_MS, prestigeDelayMs, runBrings, vaultNumeral } from "./prestigeRules";
 
 const view = (over: Partial<PrestigeView>): PrestigeView => ({
   clout: 10,
@@ -45,5 +46,40 @@ describe("the prestige screen", () => {
     expect(prestigeDelayMs(false)).toBe(0);
     expect(PRESTIGE_DELAY_MS).toBeGreaterThanOrEqual(BLACKOUT_SECONDS * 1000); // the blackout plays first
     expect(PRESTIGE_DELAY_MS).toBeLessThanOrEqual(BLACKOUT_SECONDS * 1000 + 500); // ...and the screen comes up right after it
+  });
+});
+
+describe("what the next run brings (spec §8)", () => {
+  afterEach(() => setLang("en"));
+
+  it("Run 2: Mainframe and Neon Nights, the bot's x2, the locker, multi-open to x3, bot speed to x20", () => {
+    expect(runBrings(2)).toEqual([
+      { kind: "case", caseId: "mainframe" },
+      { kind: "case", caseId: "neon" },
+      { kind: "machine", id: "botMulti" },
+      { kind: "machine", id: "locker" },
+      { kind: "cap", id: "multiOpen", value: 3 },
+      { kind: "cap", id: "botSpeed", value: 20 },
+    ]);
+  });
+
+  it("Run 3: Deep Space and Inferno, the grid, the auto contract, multi-open to x5, bot speed to x50", () => {
+    expect(runBrings(3)).toEqual([
+      { kind: "case", caseId: "deepspace" },
+      { kind: "case", caseId: "inferno" },
+      { kind: "machine", id: "grid" },
+      { kind: "machine", id: "autoContract" },
+      { kind: "cap", id: "multiOpen", value: 5 },
+      { kind: "cap", id: "botSpeed", value: 50 },
+    ]);
+  });
+
+  it("Run 1 brings nothing new", () => {
+    expect(runBrings(1)).toEqual([]);
+  });
+
+  it.each(["en", "ru"] as const)("every line fits the prestige screen (%s)", (lang) => {
+    setLang(lang);
+    for (const b of [...runBrings(2), ...runBrings(3)]) expect(fitsBudget(bringText(b), budgetFor("brings.case")), bringText(b)).toBe(true);
   });
 });
