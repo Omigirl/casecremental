@@ -1,5 +1,5 @@
 // Casecremental CloudCode — bundled by tools/cloud/bundle.mjs from cloudcode/data.json + cloudcode/casecremental.js.
-var DATA = {"v":1,"trophies":{"bc_commander":{"rarity":"covert","source":"bootcamp","minLoops":0,"vault":false},"bc_warlord":{"rarity":"covert","source":"bootcamp","minLoops":0,"vault":false},"bc_knife":{"rarity":"gold","source":"bootcamp","minLoops":0,"vault":false},"ww_spirit":{"rarity":"covert","source":"wildwood","minLoops":0,"vault":false},"ww_elder":{"rarity":"covert","source":"wildwood","minLoops":0,"vault":false},"ww_knife":{"rarity":"gold","source":"wildwood","minLoops":0,"vault":false},"br_magma":{"rarity":"covert","source":"bedrock","minLoops":0,"vault":false},"br_diamond":{"rarity":"covert","source":"bedrock","minLoops":0,"vault":false},"br_knife":{"rarity":"gold","source":"bedrock","minLoops":0,"vault":false},"mf_root":{"rarity":"covert","source":"mainframe","minLoops":1,"vault":false},"mf_zeroday":{"rarity":"covert","source":"mainframe","minLoops":1,"vault":false},"mf_knife":{"rarity":"gold","source":"mainframe","minLoops":1,"vault":false},"nn_demon":{"rarity":"covert","source":"neon","minLoops":1,"vault":false},"nn_racer":{"rarity":"covert","source":"neon","minLoops":1,"vault":false},"nn_knife":{"rarity":"gold","source":"neon","minLoops":1,"vault":false},"ds_cosmicray":{"rarity":"covert","source":"deepspace","minLoops":2,"vault":false},"ds_blackhole":{"rarity":"covert","source":"deepspace","minLoops":2,"vault":false},"ds_knife":{"rarity":"gold","source":"deepspace","minLoops":2,"vault":false},"in_phoenix":{"rarity":"covert","source":"inferno","minLoops":2,"vault":false},"in_dragon":{"rarity":"covert","source":"inferno","minLoops":2,"vault":false},"in_knife":{"rarity":"gold","source":"inferno","minLoops":2,"vault":false},"gl_fatal":{"rarity":"covert","source":"glitch","minLoops":3,"vault":false},"gl_null":{"rarity":"covert","source":"glitch","minLoops":3,"vault":false},"gl_knife":{"rarity":"gold","source":"glitch","minLoops":3,"vault":false},"fd_lucid":{"rarity":"covert","source":"feverdream","minLoops":3,"vault":false},"fd_feverpitch":{"rarity":"covert","source":"feverdream","minLoops":3,"vault":false},"fd_knife":{"rarity":"gold","source":"feverdream","minLoops":3,"vault":false},"vault1_legend":{"rarity":"gold","source":"vault1","minLoops":0,"vault":true},"vault2_legend":{"rarity":"gold","source":"vault2","minLoops":1,"vault":true},"vault3_legend":{"rarity":"gold","source":"vault3","minLoops":2,"vault":true},"lastcase_legend":{"rarity":"gold","source":"lastcase","minLoops":3,"vault":true}},"vaults":[{"trophy":"vault1","legend":"vault1_legend"},{"trophy":"vault2","legend":"vault2_legend"},{"trophy":"vault3","legend":"vault3_legend"},{"trophy":"lastcase","legend":"lastcase_legend"}],"perks":{"startCash":{"baseCost":3,"growth":1.8,"maxLevel":5},"luck":{"baseCost":5,"growth":2,"maxLevel":5},"charmSlot":{"baseCost":15,"growth":2,"maxLevel":2},"botAwake":{"baseCost":8,"growth":1,"maxLevel":1},"biggerTray":{"baseCost":4,"growth":2,"maxLevel":3}},"charms":["luckySeven","rustBucket","pityJar","doubleTap","ricochet","goldRush","insider","milSpecManiac","chainReaction","contractKiller","hoarder","fever","collectorsEye","loadedDice"],"cloutDivisor":105,"maxCloutPerRun":100000000000,"cap":{"baseLog10":3,"perSqrtSecond":0.3,"perLoop":4,"ceilLog10":300},"minRunSec":[120,45,60,80],"minReplaySec":25,"trophyGapSec":2,"trophiesPerMinute":2,"trophyBurst":3,"maxOpensPerSecond":2000};
+var DATA = {"v":1,"trophies":{"bc_commander":{"rarity":"covert","source":"bootcamp","minLoops":0,"vault":false},"bc_warlord":{"rarity":"covert","source":"bootcamp","minLoops":0,"vault":false},"bc_knife":{"rarity":"gold","source":"bootcamp","minLoops":0,"vault":false},"ww_spirit":{"rarity":"covert","source":"wildwood","minLoops":0,"vault":false},"ww_elder":{"rarity":"covert","source":"wildwood","minLoops":0,"vault":false},"ww_knife":{"rarity":"gold","source":"wildwood","minLoops":0,"vault":false},"br_magma":{"rarity":"covert","source":"bedrock","minLoops":0,"vault":false},"br_diamond":{"rarity":"covert","source":"bedrock","minLoops":0,"vault":false},"br_knife":{"rarity":"gold","source":"bedrock","minLoops":0,"vault":false},"mf_root":{"rarity":"covert","source":"mainframe","minLoops":1,"vault":false},"mf_zeroday":{"rarity":"covert","source":"mainframe","minLoops":1,"vault":false},"mf_knife":{"rarity":"gold","source":"mainframe","minLoops":1,"vault":false},"nn_demon":{"rarity":"covert","source":"neon","minLoops":1,"vault":false},"nn_racer":{"rarity":"covert","source":"neon","minLoops":1,"vault":false},"nn_knife":{"rarity":"gold","source":"neon","minLoops":1,"vault":false},"ds_cosmicray":{"rarity":"covert","source":"deepspace","minLoops":2,"vault":false},"ds_blackhole":{"rarity":"covert","source":"deepspace","minLoops":2,"vault":false},"ds_knife":{"rarity":"gold","source":"deepspace","minLoops":2,"vault":false},"in_phoenix":{"rarity":"covert","source":"inferno","minLoops":2,"vault":false},"in_dragon":{"rarity":"covert","source":"inferno","minLoops":2,"vault":false},"in_knife":{"rarity":"gold","source":"inferno","minLoops":2,"vault":false},"gl_fatal":{"rarity":"covert","source":"glitch","minLoops":3,"vault":false},"gl_null":{"rarity":"covert","source":"glitch","minLoops":3,"vault":false},"gl_knife":{"rarity":"gold","source":"glitch","minLoops":3,"vault":false},"fd_lucid":{"rarity":"covert","source":"feverdream","minLoops":3,"vault":false},"fd_feverpitch":{"rarity":"covert","source":"feverdream","minLoops":3,"vault":false},"fd_knife":{"rarity":"gold","source":"feverdream","minLoops":3,"vault":false},"vault1_legend":{"rarity":"gold","source":"vault1","minLoops":0,"vault":true},"vault2_legend":{"rarity":"gold","source":"vault2","minLoops":1,"vault":true},"vault3_legend":{"rarity":"gold","source":"vault3","minLoops":2,"vault":true},"lastcase_legend":{"rarity":"gold","source":"lastcase","minLoops":3,"vault":true}},"vaults":[{"trophy":"vault1","legend":"vault1_legend"},{"trophy":"vault2","legend":"vault2_legend"},{"trophy":"vault3","legend":"vault3_legend"},{"trophy":"lastcase","legend":"lastcase_legend"}],"perks":{"startCash":{"baseCost":3,"growth":1.8,"maxLevel":5},"luck":{"baseCost":5,"growth":2,"maxLevel":5},"charmSlot":{"baseCost":15,"growth":2,"maxLevel":2},"botAwake":{"baseCost":8,"growth":1,"maxLevel":1},"biggerTray":{"baseCost":4,"growth":2,"maxLevel":3}},"charms":["luckySeven","rustBucket","pityJar","doubleTap","ricochet","goldRush","insider","milSpecManiac","chainReaction","contractKiller","hoarder","fever","collectorsEye","loadedDice"],"cloutDivisor":105,"maxCloutPerRun":100000000000,"cap":{"baseLog10":3,"perSqrtSecond":0.3,"perLoop":4,"perReplay":0.5,"ceilLog10":300},"minRunSec":[120,45,60,80],"minReplaySec":25,"trophyGapSec":2,"trophiesPerMinute":2,"trophyBurst":3,"maxOpensPerSecond":2000};
 // Casecremental CloudCode (plan F7). The platform runs this with the globals `handlers`, `server` and `log`; each
 // handler is (args, context) and its return value is the client's FunctionResult. `DATA` (trophies, perks, caps,
 // charms) is prepended by tools/cloud/bundle.mjs from cloudcode/data.json, which is generated from the game's
@@ -101,7 +101,10 @@ function makeIo(server, context) {
 // ---- the game's rules (mirrors of sim/meta.ts and meta/plausibility.ts, tested against them) ----
 function maxPlausibleLog10(elapsedSec, loops) {
   var c = DATA.cap;
-  return Math.min(c.ceilLog10, c.baseLog10 + c.perSqrtSecond * Math.sqrt(Math.max(0, elapsedSec)) + c.perLoop * Math.max(0, loops));
+  var l = Math.max(0, loops);
+  var v = DATA.vaults.length;
+  var loopTerm = c.perLoop * Math.min(l, v) + c.perReplay * Math.max(0, l - v);
+  return Math.min(c.ceilLog10, c.baseLog10 + c.perSqrtSecond * Math.sqrt(Math.max(0, elapsedSec)) + loopTerm);
 }
 function scoreFor(e) {
   return e > 1 ? Math.floor(Math.log10(e) * 1000) : 0;
@@ -189,7 +192,8 @@ var RULES = {
     var t = has(DATA.trophies, a.skinId) ? DATA.trophies[a.skinId] : null;
     if (!t || t.vault) return fail("not a trophy");
     var meta = readMeta(io);
-    if (t.minLoops > meta.loops) return fail("case not reached yet");
+    // retry: the run that reaches the case may not have counted yet (the client queues the retry behind its endRun)
+    if (t.minLoops > meta.loops) return fail("case not reached yet", true);
     if (io.ownedTrophies().indexOf(a.skinId) >= 0) return view(io, meta);
     var anti = readAnti(io);
     var now = io.now();
@@ -240,16 +244,27 @@ var RULES = {
       for (var j = cur; j <= k; j++) need += minRunSec(j, meta.loops);
       finale = endedAt - (anti.finaleAt === null ? anti.firstSeen : Math.max(anti.firstSeen, anti.finaleAt)) >= need;
     }
-    // a counted catch-up run is capped as the run it was (vault k has k vaults behind it)
-    var capped = Math.min(earnings, Math.pow(10, maxPlausibleLog10(used, finale ? Math.max(meta.loops, k) : meta.loops)));
+    // The loop terms of the cap go only to a run that took the minimum run time in server time: a run that ends at
+    // once (a fresh runId right after the last end) gets the time-only cap, 10^3, which pays 0. A counted catch-up run
+    // is capped as the run it was (vault k has k vaults behind it).
+    var capLoops = finale ? Math.max(meta.loops, k) : used >= minRunSec(cur, meta.loops) ? meta.loops : 0;
+    var capped = Math.min(earnings, Math.pow(10, maxPlausibleLog10(used, capLoops)));
     var gain = Math.min(cloutFor(capped), DATA.maxCloutPerRun);
     var score = scoreFor(capped);
     var grant = { Standard: { Entries: gain > 0 ? [cloutEntry(gain)] : [] } };
-    if (finale && io.ownedTrophies().indexOf(DATA.vaults[k].legend) < 0) grant.Standard.Entries.push(itemEntry(DATA.vaults[k].legend));
     if (SERVER_SCORE && score > 0) grant.Standard.EventTokens = [{ Address: { Type: "Leaderboard", EntityID: LEADERBOARD }, Amount: score, Source: "casecremental:endRun" }];
     // the run's id is the Reason: a retry after a failed meta write is paid only once by the platform
     if ((grant.Standard.Entries.length > 0 || grant.Standard.EventTokens) && !io.apply({ Grant: grant }, "endRun:" + io.userId + ":" + runId))
       return fail("grant failed", true);
+    // every vault the run stands for brings its legend (a catch-up brings the skipped ones too), each with its own Reason
+    if (finale) {
+      var owned = io.ownedTrophies();
+      for (var v = cur; v <= k; v++) {
+        var legend = DATA.vaults[v].legend;
+        if (owned.indexOf(legend) < 0 && !io.apply({ Grant: { Standard: { Entries: [itemEntry(legend)] } } }, "legend:" + io.userId + ":" + legend))
+          return fail("grant failed", true);
+      }
+    }
     if (finale) {
       meta.loops = k > cur ? k + 1 : meta.loops + 1;
       anti.finaleAt = endedAt;

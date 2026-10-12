@@ -255,6 +255,7 @@
     "baseLog10": 3,
     "perSqrtSecond": 0.3,
     "perLoop": 4,
+    "perReplay": 0.5,
     "ceilLog10": 300
   },
   "minRunSec": [

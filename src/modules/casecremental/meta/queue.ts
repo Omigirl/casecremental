@@ -1,6 +1,7 @@
 // The server call queue (plan F7). Every meta call to the Title goes through it, so a call made offline is kept — in
-// localStorage, across reloads, under the signed-in account's own key — and retried with back-off. Strictly first in,
-// first out: an endRun pays the CLOUT a later buyPerk spends. A saveMeta replaces any saveMeta still waiting (only the
+// localStorage, across reloads, under the signed-in account's own key — and retried with back-off. First in, first
+// out, and a write (endRun, buyPerk) is never overtaken: an endRun pays the CLOUT a later buyPerk spends; only a
+// trophy report, save or score waiting for its retry lets the calls behind it go first. A saveMeta replaces any saveMeta still waiting (only the
 // newest stats matter). A broken stored queue is dropped, never thrown.
 // Time offline never counts against a call. An endRun or buyPerk is never given up on (only the handler's own
 // "refused for good" drops it); the other calls are dropped after MAX_TRIES answered failures.
@@ -71,6 +72,8 @@ export class CallQueue {
 
   push(call: { id: string; name: CallName; args: JsonObject }, now: number): void {
     if (this.items.some((c) => c.id === call.id)) return;
+    // one endRun per run, however it was queued (writes are never trimmed, so a blocked queue must not pile them up)
+    if (call.name === "endRun" && this.items.some((c) => c.name === "endRun" && c.args.runId === call.args.runId)) return;
     if (call.name === "saveMeta") this.items = this.items.filter((c) => c.name !== "saveMeta");
     this.items.push({ ...call, tries: 0, strikes: 0, nextAt: now });
     // full: drop the oldest call that may be lost — never an endRun or buyPerk
@@ -82,10 +85,15 @@ export class CallQueue {
     this.persist();
   }
 
-  /** The first call, when it is due (a later call never jumps it). */
+  /** The next call to send: the first due one. An endRun or buyPerk waiting for its retry holds everything behind it
+   *  (CLOUT is paid and spent in order); a trophy report, save or score waiting for its retry holds nothing — a trophy
+   *  for a case the server hasn't counted yet waits for the endRun queued after it. */
   head(now: number): QueuedCall | null {
-    const first = this.items[0];
-    return first && first.nextAt <= now ? first : null;
+    for (const c of this.items) {
+      if (c.nextAt <= now) return c;
+      if (isWrite(c.name)) return null;
+    }
+    return null;
   }
 
   done(id: string): void {

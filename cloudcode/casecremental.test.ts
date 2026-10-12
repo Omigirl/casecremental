@@ -94,7 +94,7 @@ describe("endRun", () => {
     p.st.t += 600;
     const r = end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9, elapsedSec: 400 });
     expect(r).toMatchObject({ ok: true, finale: true, loops: 2, capped: false }); // capped as a Run 2, not a Run 1
-    expect(p.st.owned).toEqual(["vault2_legend"]);
+    expect(p.st.owned.sort()).toEqual(["vault1_legend", "vault2_legend"]); // the skipped vault's legend too
     // and the server keeps counting from there
     p.st.t += 600;
     expect(end({ runId: "r3", trophy: "vault3", lifetimeEarnings: 1e12, elapsedSec: 500 })).toMatchObject({ finale: true, loops: 3 });
@@ -117,9 +117,40 @@ describe("endRun", () => {
     expect(end({ runId: "rep", trophy: "lastcase", elapsedSec: DATA.minReplaySec })).toMatchObject({ finale: true, loops: DATA.vaults.length + 1 });
   });
 
-  it("gives the run's grant one Reason tied to the run", () => {
+  it("gives the run's CLOUT one Reason tied to the run, and each legend its own", () => {
     end();
-    expect(p.st.ops.map((o) => o.reason)).toEqual(["endRun:U1:r1"]);
+    expect(p.st.ops.map((o) => o.reason)).toEqual(["endRun:U1:r1", "legend:U1:vault1_legend"]);
+  });
+
+  it("pays nothing for a run that ends at once, however many loops are behind it", () => {
+    p.st.data.ReadOnly!.cc_meta = { v: 1, loops: 7 };
+    p.st.data.Internal!.cc_anti = { firstSeen: p.st.t - 99999, lastEndAt: p.st.t, finaleAt: p.st.t };
+    const r = end({ runId: "zero", elapsedSec: 0, lifetimeEarnings: 1e300, trophy: "lastcase" });
+    expect(r).toMatchObject({ ok: true, gained: 0, finale: false, loops: 7 });
+    expect(p.st.clout).toBe(0);
+  });
+
+  it("scripted rapid replays can't escalate: under the minimum time each pays nothing and counts no loop", () => {
+    p.st.data.ReadOnly!.cc_meta = { v: 1, loops: DATA.vaults.length };
+    p.st.data.Internal!.cc_anti = { firstSeen: p.st.t - 99999, lastEndAt: p.st.t, finaleAt: p.st.t };
+    for (let i = 0; i < 50; i++) {
+      p.st.t += DATA.minReplaySec - 1;
+      const r = end({ runId: `rep${i}`, elapsedSec: 99999, lifetimeEarnings: 1e300, trophy: "lastcase" });
+      expect(r).toMatchObject({ finale: false, loops: DATA.vaults.length });
+    }
+    // each paid at most the time-only cap of its 24 s
+    expect(p.st.clout).toBeLessThanOrEqual(50 * cloutFor(10 ** maxPlausibleLog10(DATA.minReplaySec - 1, 0)));
+  });
+
+  it("replays at the minimum time raise the cap by perReplay a loop, not perLoop", () => {
+    p.st.data.ReadOnly!.cc_meta = { v: 1, loops: DATA.vaults.length };
+    p.st.data.Internal!.cc_anti = { firstSeen: p.st.t - 99999, lastEndAt: p.st.t, finaleAt: p.st.t };
+    const scores: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      p.st.t += DATA.minReplaySec;
+      scores.push(end({ runId: `rep${i}`, elapsedSec: 99999, lifetimeEarnings: 1e300, trophy: "lastcase" }).score);
+    }
+    for (let i = 1; i < scores.length; i++) expect(scores[i]! - scores[i - 1]!).toBeLessThanOrEqual(DATA.cap.perReplay * 1000 + 1);
   });
 
   it("asks for a retry when the meta write fails, and the retry pays once", () => {
@@ -150,18 +181,20 @@ describe("reportTrophy", () => {
     expect(p.st.owned).toEqual(["bc_knife"]);
   });
 
-  it("refuses a vault legend, an unknown skin, a prototype key and a case not reached yet", () => {
+  it("refuses a vault legend, an unknown skin and a prototype key, defers a case not reached yet", () => {
     for (const skinId of ["vault1_legend", "nope", "constructor", "__proto__", "toString"])
       expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: false, retry: false });
     const late = Object.entries(DATA.trophies).find(([, t]: any) => !t.vault && t.minLoops > 0)![0];
-    expect(RULES.reportTrophy!(p.io, { skinId: late })).toMatchObject({ ok: false, retry: false });
+    // not reached yet: asked to retry (the run that reaches it may not have counted yet), nothing granted
+    expect(RULES.reportTrophy!(p.io, { skinId: late })).toMatchObject({ ok: false, retry: true });
+    expect(p.st.owned).toEqual([]);
   });
 
   it("grants a Run 4 case's trophy (a drop or an Upgrader win) once three vaults are opened", () => {
     const run4 = Object.entries(DATA.trophies).filter(([, t]: any) => !t.vault && t.minLoops === 3);
     expect(run4.map(([, t]: any) => t.source).sort()).toEqual(["feverdream", "feverdream", "feverdream", "glitch", "glitch", "glitch"]);
     const [skinId] = run4[0]!;
-    expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: false, retry: false });
+    expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: false, retry: true });
     p.st.data.ReadOnly!.cc_meta = { v: 1, loops: 3 };
     expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: true, trophies: [skinId] });
   });

@@ -126,10 +126,16 @@ export class ServerMeta {
       const r = await this.safe(() =>
         c.name === "submitScore" ? this.port.submitScore(Number(c.args.score)) : this.port.call(c.name, this.sendArgs(c.name, c.args)),
       );
-      if (r.kind === "offline" || (r.kind === "refused" && r.retry)) {
-        if (r.kind === "offline") this.setStatus("offline");
-        this.queue.retryLater(c.id, this.clock(), r.kind === "offline");
+      if (r.kind === "offline") {
+        this.setStatus("offline");
+        this.queue.retryLater(c.id, this.clock(), true);
         return;
+      }
+      if (r.kind === "refused" && r.retry) {
+        this.setStatus("online");
+        this.queue.retryLater(c.id, this.clock(), false);
+        if (c.name === "endRun" || c.name === "buyPerk") return;
+        continue; // a trophy report, save or score waiting for its retry holds nothing up
       }
       this.setStatus("online");
       this.queue.done(c.id);

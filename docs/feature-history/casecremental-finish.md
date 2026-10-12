@@ -374,8 +374,9 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   loadMeta wake the queue. After a write is refused for good the client loads the server's meta. A loadMeta answer
   that a write's answer overtook is ignored.
 - **A lost endRun no longer stalls the meta.** endRun accepts the vault the trophy names when it is at or past the one
-  the server expects (`k ≥ min(loops, 3)`), sets `loops = k + 1`, and caps that run as the run it was. A failed meta
-  write answers `retry: true`.
+  the server expects (`k ≥ min(loops, 3)`), sets `loops = k + 1`, caps that run as the run it was, and grants every
+  skipped vault's legend too (each with its own Reason `legend:<user>:<legend>`). A failed meta write answers
+  `retry: true`. The queue holds one endRun per run id.
 - **Reason idempotency holds across executions** (DEV probe, revisions 10–11, findings in `cloudcode/probe.js`): the same
   Reason in three separate executions applied once, even with another amount; a failed op does not use its Reason up;
   a replayed consume is still checked against the balance first. How long the platform remembers a Reason is unknown.
@@ -388,14 +389,25 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   A vault counts only after a minimum run time (`SERVER_MIN_VAULT_SEC` = 120/45/60/80 s, replays 25 s — the FAST bot's
   fastest vaults ÷ 1.25, and at most a third of the CASUAL medians; `meta/plausibility.test.ts` holds both), and a
   catch-up only when the time since the last counted vault covers every vault it stands for.
-- **Trophy reports** use a token bucket in server time (2 a minute, 3 at once, ≥ 2 s apart); over the limit they are
-  asked to retry, never refused for good. The client's run id and elapsed time are no longer trusted for it.
-- **What this guarantees, and what not.** The server cannot verify that a run was played: there is no server-side RNG.
-  A scripted client using the raw API can still claim CLOUT up to the plausibility cap of the real time that passed,
-  the vault legends no faster than the minimum run times (≥ 305 s from the first loadMeta to all four), and case
-  trophies only for cases its loops have reached, at ≤ 2 a minute. It cannot pay twice for a run, buy a perk twice,
-  claim anything for time that did not pass, or touch another player's data. CLOUT has no outside value; **before
-  trophies become Solana NFTs (F8) they need a stronger proof than this** (e.g. server-side drops).
+- **Trophy reports** use a token bucket in server time (2 a minute, 3 at once, ≥ 2 s apart); over the limit, or for a
+  case the server's loops haven't reached yet, they are asked to retry, never refused for good. The client's run id and
+  elapsed time are no longer trusted for it. A trophy report, save or score waiting for its retry no longer holds up the
+  queue (only a waiting endRun/buyPerk does), so a trophy for a new case waits for the endRun queued after it.
+- **What this guarantees, and what not** (revision 14). The server cannot verify that a run was played: there is no
+  server-side RNG. What it enforces, all in server time:
+  - one endRun pays at most cloutFor(10^cap) with cap = 3 + 0.3·√used (+ 4 per loop up to 4, + 0.5 per replay loop
+    after), `used` = seconds since the previous endRun (or the first loadMeta), capped at 1e11 CLOUT a run and by the
+    Title's policy at 1e12 CLOUT a day. The loop terms count only when `used` ≥ the minimum run time, so an endRun that
+    comes at once pays 0 (under 25 s: ≤ 1 CLOUT), and firing many runIds back to back pays nothing;
+  - loops (and the vault legends) advance by one counted vault at a time, each needing its minimum run time: ≥ 305 s from
+    the first loadMeta to all four legends, then ≥ 25 s per replay loop;
+  - so a scripted client can still out-earn a real player: at loops 4, one run every 25 s claims up to ~1.7e8 CLOUT
+    (a real Run 4 replay pays ~4e5), growing ×1.78 per counted replay until the 1e11-a-run and 1e12-a-day caps. What
+    it cannot do is earn anything without the time passing, pay a run twice, buy a perk level twice, or touch another
+    player's data;
+  - case trophies only for cases its loops have reached, at ≤ 2 a minute (3 at once).
+  CLOUT has no outside value; **before trophies become Solana NFTs (F8) they need a stronger proof than this** (e.g.
+  server-side drops).
 - **Accounts.** The call queue (`casecremental.serverQueue.<userID>`) and the local save (`casecremental.save.<userID>`)
   are per account; the first account that loads after the update adopts the browser's unkeyed save and queue
   (`meta/account.ts`). The port sends nothing while another account is signed in (a sign-out runs the module's setup

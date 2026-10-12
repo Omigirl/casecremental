@@ -239,12 +239,16 @@ export const PERK_COSTS = {
 
 /**
  * Server plausibility (plan F7): the most a run can earn after `t` seconds with `loops` vaults behind it is
- * 10^min(ceilLog10, baseLog10 + perSqrtSecond·√t + perLoop·loops). Calibrated in meta/plausibility.test.ts against
- * a superhuman greedy player with ×3 headroom; CloudCode applies the same curve (cloudcode/data.json). Calibrated
- * 2026-10-13 (Runs 1–3): that player vaults Run 1 at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at
- * ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump from a short run, so it is steep.
+ * 10^min(ceilLog10, baseLog10 + perSqrtSecond·√t + perLoop·min(loops, V) + perReplay·max(0, loops − V)), V = the
+ * campaign's vaults. Calibrated in meta/plausibility.test.ts against a superhuman greedy player with ×3 headroom;
+ * CloudCode applies the same curve (cloudcode/data.json). Calibrated 2026-10-13 (Runs 1–3): that player vaults Run 1
+ * at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump
+ * from a short run, so it is steep. Replays of the last run grow only ~0.3 log10 each (F7 review, 2026-10-13: the FAST
+ * bot's replays 10^15.2 → 10^19.4 over 15), so past the campaign each loop adds perReplay, not perLoop. The server
+ * gives the loop terms only to a run that took the minimum run time (SERVER_MIN_VAULT_SEC): a run that ends at once
+ * gets the time-only cap (10^3 → 0 CLOUT).
  */
-export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, ceilLog10: 300 } as const;
+export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, perReplay: 0.5, ceilLog10: 300 } as const;
 /** The most CLOUT one endRun pays: a capped claim near 10^ceilLog10 would otherwise overflow the Title's int64 balance
  *  (and the CloudCode policy's daily CLOUT cap, 1e12). A real run pays thousands. */
 export const SERVER_MAX_CLOUT_PER_RUN = 1e11;

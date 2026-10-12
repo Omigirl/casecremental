@@ -1,3 +1,4 @@
+import { VAULTS } from "../sim/content/vaults";
 import { SERVER_CAP, SERVER_MIN_REPLAY_SEC, SERVER_MIN_VAULT_SEC } from "../sim/tuning";
 
 // The leaderboard score and the server's plausibility cap (plan F7). Lifetime earnings outgrow safe integers, so the
@@ -12,7 +13,9 @@ export const earningsFromScore = (score: number): number => 10 ** (score / 1000)
 /** log10 of the most a run can have earned after `elapsedSec` with `loops` vaults behind it. */
 export function maxPlausibleLog10(elapsedSec: number, loops: number): number {
   const c = SERVER_CAP;
-  return Math.min(c.ceilLog10, c.baseLog10 + c.perSqrtSecond * Math.sqrt(Math.max(0, elapsedSec)) + c.perLoop * Math.max(0, loops));
+  const l = Math.max(0, loops);
+  const loopTerm = c.perLoop * Math.min(l, VAULTS.length) + c.perReplay * Math.max(0, l - VAULTS.length);
+  return Math.min(c.ceilLog10, c.baseLog10 + c.perSqrtSecond * Math.sqrt(Math.max(0, elapsedSec)) + loopTerm);
 }
 
 /** Earnings clamped to [0, the plausible maximum]. */

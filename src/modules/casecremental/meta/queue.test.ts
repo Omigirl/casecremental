@@ -79,6 +79,26 @@ describe("CallQueue", () => {
     expect(q.head(0)!.id).toBe("e");
   });
 
+  it("holds one endRun per run", () => {
+    const q = new CallQueue(null);
+    q.push({ id: "end-r1", name: "endRun", args: { runId: "r1" } }, 0);
+    q.push({ id: "end-r1-again", name: "endRun", args: { runId: "r1" } }, 0);
+    q.push({ id: "end-r2", name: "endRun", args: { runId: "r2" } }, 0);
+    expect(q.size).toBe(2);
+  });
+
+  it("lets calls overtake a trophy report waiting for its retry, never a waiting write", () => {
+    const q = new CallQueue(null);
+    q.push({ id: "t", name: "reportTrophy", args: {} }, 0);
+    q.push({ id: "e", name: "endRun", args: { runId: "r1" } }, 0);
+    q.push({ id: "p", name: "buyPerk", args: {} }, 0);
+    q.retryLater("t", 0, false);
+    expect(q.head(0)!.id).toBe("e"); // the endRun that reaches the trophy's case goes first
+    q.retryLater("e", 0, false);
+    expect(q.head(0)).toBeNull(); // the buyPerk waits for the endRun
+    expect(q.head(1e9)!.id).toBe("t"); // all due again: in order
+  });
+
   it("keeps each account's calls under its own key", () => {
     const store = memory();
     new CallQueue(store, accountKey(QUEUE_KEY, "A")).push({ id: "a", name: "endRun", args: {} }, 0);

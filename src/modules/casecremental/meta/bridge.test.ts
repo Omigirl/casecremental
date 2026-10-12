@@ -145,6 +145,19 @@ describe("ServerMeta", () => {
     expect(docs).toEqual([9]);
   });
 
+  it("sends the endRun behind a trophy report the server asked to retry (its case not counted yet)", async () => {
+    const { port, calls } = fakePort({
+      reportTrophy: [{ kind: "refused", reason: "case not reached yet", retry: true }],
+      endRun: [{ kind: "ok", data: doc({ serverScore: true }) }],
+    });
+    const s = new ServerMeta(port, new CallQueue(null), () => 0);
+    s.enqueue("reportTrophy", { skinId: "mf_root" }, "t");
+    s.enqueue("endRun", { runId: "r1" }, "e");
+    await s.pump();
+    expect(calls).toEqual(["reportTrophy", "endRun"]);
+    expect(s.hasPendingWrites()).toBe(false);
+  });
+
   it("does not submit the score when the server did", async () => {
     const { port, calls } = fakePort({ endRun: [{ kind: "ok", data: doc({ score: 6079, serverScore: true }) }] });
     const s = new ServerMeta(port, new CallQueue(null), () => 0);
