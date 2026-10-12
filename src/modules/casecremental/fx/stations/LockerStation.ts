@@ -168,7 +168,7 @@ export class LockerStation {
         this.cards.revealed(e.results);
         audio.play("tradeup-reveal");
         const best = e.results[bestSlot(e.results) ?? 0];
-        if (best) bigReveal(this.d.juice, best.rarity, false); // Covert: the red hit; ★: the slow-mo and the knife
+        if (best) bigReveal(this.d.juice, best.rarity, false, { time: false }); // Covert: the red hit; ★: the slow-mo and the knife
         break;
       }
       case "runStarted":

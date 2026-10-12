@@ -5,7 +5,7 @@ import type { Juice } from "./juice";
 
 // The bench's Covert/★ juice, moved out of BenchFx.revealed: the same calls, in the same order, as before.
 
-function record(rarity: RarityId, zoom: boolean): string[] {
+function record(rarity: RarityId, zoom: boolean, opts?: { time?: boolean }): string[] {
   const calls: string[] = [];
   const log =
     (name: string) =>
@@ -18,7 +18,7 @@ function record(rarity: RarityId, zoom: boolean): string[] {
     zoom: { punch: log("punch") },
     time: { hitStop: log("hitStop"), slowMo: log("slowMo") },
   } as unknown as Juice;
-  bigReveal(j, rarity, zoom);
+  bigReveal(j, rarity, zoom, opts);
   return calls;
 }
 
@@ -41,5 +41,14 @@ describe("bigReveal", () => {
   it("punches the camera in only when asked (away from your bench it stays put)", () => {
     expect(record("covert", false).some((c) => c.startsWith("punch"))).toBe(false);
     expect(record("gold", false).some((c) => c.startsWith("punch"))).toBe(false);
+  });
+
+  it("a machine's reveal (time: false) never hit-stops, slows time or ducks the music, but keeps the rest", () => {
+    expect(record("classified", false, { time: false })).toEqual(["shake(0.2)"]);
+    expect(record("covert", false, { time: false })).toEqual(["shake(0.55)", "play(covert-impact)"]);
+    expect(record("gold", false, { time: false })).toEqual(["shake(0.8)", `flash(${0xffd700},0.7)`, "play(jackpot-swell)"]);
+    for (const r of ["covert", "gold"] as const) {
+      expect(record(r, true, { time: false }).some((c) => /^(hitStop|slowMo|duck)/.test(c))).toBe(false);
+    }
   });
 });

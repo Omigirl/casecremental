@@ -192,7 +192,7 @@ export class GridStation {
     audio.play("grid-breakout");
     const b = cardBurst(drop.rarity, k);
     hd.particles.burst(peak, RARITY_INFO[drop.rarity].color, b.count, b.speed);
-    bigReveal(this.d.juice, drop.rarity, false);
+    bigReveal(this.d.juice, drop.rarity, false, { time: false });
   }
 
   private bake(art: Texture | null, drop: Drop): Texture {

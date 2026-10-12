@@ -9,7 +9,7 @@ import { dayJobButton } from "./dayJob";
 import { boardOpen, type Act } from "./machineRules";
 import { Bar, PixelTick, PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
-import { shelfIconK, ticksShown, TICK_CHROME } from "./shelfFit";
+import { shelfIconK, ticksShown } from "./shelfFit";
 
 // The Case shelf (right panel, or a drawer tab on phones): each case with its pixel box, BUY at
 // its price or UNLOCK at its unlock cost. Every button sends an Action through the controller.

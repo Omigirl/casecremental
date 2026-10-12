@@ -12,8 +12,6 @@ export const shelfIconK = (scale: number): number => Math.max(1, Math.floor(scal
 export const ROW_TEXT_CHROME = PANEL_CHROME - 2;
 /** A skinned button's chrome in world px (`.cc-btn.skinned` in ui/styles.ts: a 4 px border + 1 px padding per side). */
 export const BTN_CHROME = 10;
-/** The tick box is a flat box (1 px padding per side) on its own line below BUY. */
-export const TICK_CHROME = 2;
 /** `.cc-row-line`'s gap (ui/styles.ts): 2 world px. */
 export const ROW_GAP = 2;
 

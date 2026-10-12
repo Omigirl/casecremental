@@ -10,7 +10,7 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
   The run's `setup.run` is written when the run starts, so a save knows which run it is.
 - **`RUN_CONTENT` (`sim/tuning.ts`) is the one table of what each run has:** the number of cases on the shelf (3/5/7),
   multi-open cap (×2/×3/×5), bot speed levels (5/8/11 → ×8/×20/×50), bot multi-open, locker, grid, auto contract.
-  - Upgrades keep their levels across a prestige but are capped per run.
+  - Every run starts with all upgrades at level 0 (sim/run.ts); only the level cap is per run.
   - A row at its run's cap shows "NEXT RUN" instead of MAX, so the player sees there is more later.
   - The prestige screen lists what the next run brings from the same table (`ui/prestigeRules.ts`).
 - **The locker presses ten skins of one rarity into one of the next, by CS trade-up rules** (`sim/locker.ts`):
