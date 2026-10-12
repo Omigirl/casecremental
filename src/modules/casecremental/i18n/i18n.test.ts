@@ -5,6 +5,8 @@ import { detectLang, getLang, onLangChange, setLang, t } from "./index";
 import { RU } from "./ru";
 import { CASES } from "../sim/content/cases";
 import { caseName } from "./content";
+import { AUTOSPIN_DELAYS } from "../sim/tuning";
+import { delaySeconds } from "../ui/autoSpinRules";
 
 afterEach(() => setLang("en"));
 
@@ -58,6 +60,7 @@ describe("M3 strings with their values filled in", () => {
     for (const n of [3, 5, 20, 50])
       for (const key of ["brings.multiOpen", "brings.botSpeed"] as const) expect(fits(key, { n }), `${key} ${n}`).toBe(true);
     expect(fits("locker.count", { n: 50, max: 50 })).toBe(true);
+    for (const s of AUTOSPIN_DELAYS) expect(fits("autospin.delay", { s: delaySeconds(s, lang) }), `delay ${s}`).toBe(true);
     for (const n of [9, 12]) expect(fits("locker.size", { n }), "locker.size").toBe(true);
   });
 

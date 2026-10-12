@@ -5,11 +5,13 @@ import { caseName } from "../i18n/content";
 import { getLang, t } from "../i18n/index";
 import { vaultFor } from "../sim/content/vaults";
 import { formatCash } from "../sim/format";
+import { AutoSpinSwitch } from "./AutoSpinRows";
+import { statusKey } from "./autoSpinRules";
 import { dayJobButton } from "./dayJob";
-import type { Act } from "./machineRules";
-import { Bar, PxButton, UiEnvContext } from "./parts";
+import { boardOpen, type Act } from "./machineRules";
+import { Bar, PixelTick, PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
-import { shelfIconK } from "./shelfFit";
+import { picksShown, shelfIconK } from "./shelfFit";
 
 // The Case shelf (right panel, or a drawer tab on phones): each case with its pixel box, BUY at
 // its price or UNLOCK at its unlock cost. Every button sends an Action through the controller.
@@ -25,9 +27,38 @@ function CaseIcon({ c }: { c: CaseView }): ReactNode {
   return <div style={{ ...style, flex: "none", opacity: c.unlocked ? 1 : 0.4 }} />;
 }
 
-function CaseRow({ c, act }: { c: CaseView; act: Act }): ReactNode {
+/** Auto-spin buys the case picked here (a hand BUY picks too); a gold frame marks it (finish spec §3). */
+function PickBox({ c, act, open }: { c: CaseView; act: Act; open: boolean }): ReactNode {
+  return (
+    <PxButton
+      on={c.picked}
+      disabled={!open}
+      title={t("shelf.pick")}
+      onClick={() => act({ type: "setAutoSpinCase", caseId: c.id })}
+      style={{ flex: "none", lineHeight: 1 }}
+    >
+      <PixelTick on={c.picked} />
+    </PxButton>
+  );
+}
+
+/** Auto-spin's switch beside the BUY buttons (finish spec §3), and BROKE or "Waits: vault" under it. */
+function AutoSpinRow({ view, act }: { view: GameView; act: Act }): ReactNode {
+  const a = view.autoSpin;
+  if (!a.owned) return null;
   return (
     <div className="cc-row">
+      <div>{t("autospin.name")}</div>
+      <AutoSpinSwitch a={a} act={act} />
+      {a.status === "broke" || a.status === "vault" ? <div className="cc-dim">{t(statusKey(a.status))}</div> : null}
+    </div>
+  );
+}
+
+function CaseRow({ c, act, picks, open }: { c: CaseView; act: Act; picks: boolean; open: boolean }): ReactNode {
+  const { scale } = useContext(UiEnvContext);
+  return (
+    <div className="cc-row" style={picks && c.picked ? { boxShadow: `0 0 0 ${scale}px #ffd34d inset` } : undefined}>
       <div className="cc-row-line">
         <CaseIcon c={c} />
         <span style={{ flex: 1 }}>{caseName(c.id)}</span>
@@ -44,6 +75,7 @@ function CaseRow({ c, act }: { c: CaseView; act: Act }): ReactNode {
           <span className="cc-btn-sub">{formatCash(c.unlockCost, getLang())}</span>
         </PxButton>
       )}
+      {picks && c.unlocked ? <PickBox c={c} act={act} open={open} /> : null}
     </div>
   );
 }
@@ -90,8 +122,9 @@ export function CaseShelf({ view, act, title = true }: { view: GameView; act: Ac
     <>
       {title ? <div className="cc-title">{t("panel.cases")}</div> : null}
       <div className="cc-scroll">
+        <AutoSpinRow view={view} act={act} />
         {view.cases.map((c) => (
-          <CaseRow key={c.id} c={c} act={act} />
+          <CaseRow key={c.id} c={c} act={act} picks={picksShown(view)} open={boardOpen(view)} />
         ))}
         <VaultRow view={view} act={act} />
         <DayJobRow view={view} act={act} />

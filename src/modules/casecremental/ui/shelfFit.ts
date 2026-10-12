@@ -5,6 +5,9 @@ import { hdFontSize } from "../fx/pixel/screen";
 // least 64 world px wide (fx/pixel/layout.ts); these numbers keep seven cases' names and the vault's on two lines
 // beside their icons, in both languages (spec §3: names up to 12 characters, the vault's up to 14).
 
+/** The shelf shows auto-spin's pick boxes once auto-spin is bought (the sim takes a pick earlier; the UI hides it). */
+export const picksShown = (view: { autoSpin: { owned: boolean } }): boolean => view.autoSpin.owned;
+
 /** A shelf icon's CSS px per sprite px. */
 export const shelfIconK = (scale: number): number => Math.max(1, Math.floor(scale / 3));
 

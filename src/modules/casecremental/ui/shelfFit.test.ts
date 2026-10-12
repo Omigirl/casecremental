@@ -6,7 +6,7 @@ import { pixelViewport } from "../fx/pixel/viewport";
 import { caseName } from "../i18n/content";
 import { setLang, t } from "../i18n/index";
 import { CASES } from "../sim/content/cases";
-import { BTN_CHROME, charsBesideIcon, ROW_TEXT_CHROME, wrapLines } from "./shelfFit";
+import { BTN_CHROME, charsBesideIcon, picksShown, ROW_TEXT_CHROME, wrapLines } from "./shelfFit";
 
 afterEach(() => setLang("en"));
 
@@ -60,5 +60,12 @@ describe.each(SIZES)("the case shelf at %i×%i (Review Focus 4)", (w, h) => {
     const charW = hdFontSize(vp.scale) / vp.scale;
     const button = `${t("btn.buy")} ×5`.length * charW + BTN_CHROME;
     expect(button).toBeLessThanOrEqual(panelW - ROW_TEXT_CHROME);
+  });
+});
+
+describe("picksShown", () => {
+  it("shows the shelf's pick boxes once auto-spin is bought", () => {
+    expect(picksShown({ autoSpin: { owned: false } })).toBe(false);
+    expect(picksShown({ autoSpin: { owned: true } })).toBe(true);
   });
 });

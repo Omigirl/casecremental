@@ -16,6 +16,7 @@ const BY_PREFIX: Array<[string, number]> = [
   ["prestige.", 24],
   ["cap.", 11], // a maxed button's NEXT RUN (an 11-character panel line)
   ["locker.", 20],
+  ["autospin.", 20],
   ["brings.", 24], // the prestige screen's "what the next run brings" lines
   ["shelf.", 20],
   // content names (content.ts)
