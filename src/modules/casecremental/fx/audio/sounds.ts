@@ -51,6 +51,8 @@ export const SOUNDS = {
   "locker-store": { bus: "sfx", gain: 0.45 },
   "tradeup-press": { bus: "sfx", gain: 0.4 },
   "tradeup-reveal": { bus: "sfx", gain: 0.45 },
+  // Run 4 (F6): the Upgrader's loss; mean -27.1 dB, gain set against tradeup-press (-18.1 dB at 0.4).
+  "upgrader-shred": { bus: "sfx", gain: 1.1, maxSeconds: 1.6 },
 } as const satisfies Record<string, { bus: Bus; gain: number; maxSeconds?: number }>;
 
 export type SoundId = keyof typeof SOUNDS;
