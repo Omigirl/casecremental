@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TROPHIES } from "../../meta/trophies";
-import { boardRows, ownedTrophyIds, shortAddress, trophyGroups } from "./lobbyRules";
+import { boardRows, isSolanaAddress, ownedTrophyIds, rowLabel, shortAddress, trophyGroups, walletsFrom } from "./lobbyRules";
 
 describe("trophy case", () => {
   it("reads the owned Trophies items, ignoring other catalogs", () => {
@@ -50,5 +50,33 @@ describe("leaderboard", () => {
   it("copes with an empty board and missing fields", () => {
     expect(boardRows([], {}, null)).toEqual([]);
     expect(boardRows([{ UserID: "x" }], {}, null)[0]).toMatchObject({ rank: 1, earnings: 1 });
+  });
+});
+
+describe("wallets on the board", () => {
+  const wallet = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+
+  it("shows a wallet only when it looks like a Solana address", () => {
+    const w = walletsFrom([
+      { UserID: "a", Public: { cc_wallet: { Value: wallet } } },
+      { UserID: "b", Public: { cc_wallet: { Value: "<script>" } } },
+      { UserID: "c", Public: {} },
+      { UserID: "d", Public: { cc_wallet: { Value: "" } } },
+      { UserID: "e", Public: null },
+      { UserID: null, Public: { cc_wallet: { Value: wallet } } },
+    ]);
+    expect(w).toEqual({ a: wallet });
+    expect(walletsFrom(undefined)).toEqual({});
+    expect(walletsFrom(null)).toEqual({});
+    expect(isSolanaAddress("0x1234")).toBe(false);
+    expect(isSolanaAddress("0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl")).toBe(false); // not base58
+    expect(isSolanaAddress(42)).toBe(false);
+  });
+
+  it("names a row: name ◎, ◎ short address, the name, or Player", () => {
+    expect(rowLabel({ name: "neo", wallet }, "Player")).toBe("neo ◎");
+    expect(rowLabel({ name: null, wallet }, "Player")).toBe("◎ 7xKX…gAsU");
+    expect(rowLabel({ name: "neo", wallet: null }, "Player")).toBe("neo");
+    expect(rowLabel({ name: null, wallet: null }, "Player")).toBe("Player");
   });
 });

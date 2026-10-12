@@ -31,17 +31,27 @@ export function fakeIo(now = 1_000_000) {
     ops: [] as Array<{ op: any; reason: string }>,
     reasons: new Set<string>(),
     failWrites: false,
+    /** The account's verified Solana address, as makeIo's walletAddress() reads it from the platform (plan F8). */
+    wallet: null as string | null,
+    /** Every successful user-data write, as "bucket:key". */
+    writes: [] as string[],
   };
   const copy = <T>(x: T): T => JSON.parse(JSON.stringify(x));
   const io = {
     userId: "U1",
     now: () => st.t,
     readData: (bucket: string, key: string) => (key in st.data[bucket]! ? copy(st.data[bucket]![key]) : null),
+    readRaw: (bucket: string, key: string) => {
+      const v = st.data[bucket]![key];
+      return typeof v === "string" ? v : null;
+    },
     writeData: (bucket: string, key: string, v: unknown) => {
       if (st.failWrites) return false;
       st.data[bucket]![key] = copy(v);
+      st.writes.push(`${bucket}:${key}`);
       return true;
     },
+    walletAddress: () => st.wallet,
     clout: () => st.clout,
     ownedTrophies: () => [...st.owned],
     // as the platform does (DEV probe): a Reason is applied once per player across executions; a failed op does not

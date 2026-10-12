@@ -54,6 +54,30 @@ export interface BoardRow {
 
 export const shortAddress = (address: string): string => (address.length > 10 ? `${address.slice(0, 4)}…${address.slice(-4)}` : address);
 
+/** A base58 Solana address (32–44 characters, no 0, O, I or l). */
+export const isSolanaAddress = (s: unknown): s is string => typeof s === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+
+/** The Public user-data key CloudCode's endRun fills with the player's verified Solana wallet (plan F8). */
+export const WALLET_KEY = "cc_wallet";
+
+/** userId → wallet, from batchGetPublicUserCustomDataOf's results. Anything odd is skipped. */
+export function walletsFrom(
+  results: ReadonlyArray<{ UserID?: string | null; Public?: Record<string, { Value?: string | null }> | null }> | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of results ?? []) {
+    const v = r.Public?.[WALLET_KEY]?.Value;
+    if (r.UserID && isSolanaAddress(v)) out[r.UserID] = v;
+  }
+  return out;
+}
+
+/** A row's player: "name ◎" for a named wallet player, "◎ abcd…wxyz" for an unnamed one, else the name or `anonymous`. */
+export function rowLabel(row: Pick<BoardRow, "name" | "wallet">, anonymous: string): string {
+  if (row.name) return row.wallet ? `${row.name} ◎` : row.name;
+  return row.wallet ? `◎ ${shortAddress(row.wallet)}` : anonymous;
+}
+
 /** best_run's top entries as rows, best first; the score (floor(log10 × 1000)) back as money. */
 export function boardRows(entries: readonly BoardEntry[], wallets: Readonly<Record<string, string>>, myId: string | null): BoardRow[] {
   return [...entries]

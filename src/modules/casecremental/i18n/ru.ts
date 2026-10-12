@@ -18,6 +18,7 @@ export const RU: Record<StringKey, string> = {
   "lobby.best": "Лучший забег",
   "lobby.you": "Ты",
   "lobby.player": "Игрок",
+  "lobby.wallet": "Вход через кошелёк Solana",
   "lobby.offline": "Нет связи с сервером. Попробуй позже.",
   "lobby.empty": "Пока пусто. Открой сейф, чтобы попасть в таблицу.",
   "lobby.loading": "Загрузка…",

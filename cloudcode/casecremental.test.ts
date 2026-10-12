@@ -254,6 +254,57 @@ describe("saveMeta", () => {
   });
 });
 
+const WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+
+describe("wallet on the board (F8)", () => {
+  const walletWrites = () => p.st.writes.filter((w) => w === "Public:cc_wallet").length;
+
+  it("endRun publishes the verified wallet once", () => {
+    p.st.wallet = WALLET;
+    end();
+    expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
+    p.st.t += 900;
+    end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9 });
+    expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
+    expect(walletWrites()).toBe(1);
+  });
+
+  it("a player without a wallet gets no key", () => {
+    end();
+    expect(p.st.data.Public!.cc_wallet).toBeUndefined();
+    expect(walletWrites()).toBe(0);
+  });
+
+  it("writes the verified wallet back over one the player set themselves", () => {
+    p.st.wallet = WALLET;
+    p.st.data.Public!.cc_wallet = "So11111111111111111111111111111111111111112";
+    end();
+    expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
+  });
+
+  it("clears a wallet the player set themselves when the account has none", () => {
+    p.st.data.Public!.cc_wallet = WALLET;
+    end();
+    expect(p.st.data.Public!.cc_wallet).toBe("");
+  });
+
+  it("publishes on a duplicate endRun too (a player who linked a wallet after the run)", () => {
+    end();
+    p.st.wallet = WALLET;
+    expect(end()).toMatchObject({ duplicate: true });
+    expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
+  });
+
+  it("a failed wallet write does not fail the run", () => {
+    p.st.wallet = WALLET;
+    const io = { ...p.io, writeData: (b: string, k: string, v: unknown) => (k === "cc_wallet" ? false : p.io.writeData(b, k, v)) };
+    expect(RULES.endRun!(io, { runId: "r1", lifetimeEarnings: 1.2e6, elapsedSec: 480, endedAgoSec: 0, finaleReached: true, trophy: "vault1" })).toMatchObject({
+      ok: true,
+      loops: 1,
+    });
+  });
+});
+
 describe("handlers", () => {
   it("wrap the rules, turn a throw into a retryable refusal", () => {
     const thrower = {
@@ -297,6 +348,31 @@ describe("handlers", () => {
     expect(calls).toContainEqual(["ReadUserData", ["InventoryV2"]]);
     expect(calls).toContainEqual(["Set", "ReadOnly", "cc_meta", '{"loops":3}']);
     expect(calls).toContainEqual(["Apply", { Operation: { Grant: {} }, Reason: "why" }]);
+  });
+
+  it("makeIo reads the account's verified Solana wallet from the Blockchain user data", () => {
+    const ioWith = (blockchain: unknown) => {
+      const fields: unknown[] = [];
+      const server = {
+        ReadUserData: (f: unknown) => (fields.push(f), { Blockchain: blockchain }),
+        GetUserCustomData: () => ({ Success: true, Data: { Public: { cc_wallet: { Value: WALLET } } } }),
+      };
+      return { io: makeIo(server, { UserID: "U1" }), fields };
+    };
+    const login = ioWith({ LastWalletLogin: { NetworkID: "solana", Address: WALLET }, LinkedWallets: {} });
+    expect(login.io.walletAddress()).toBe(WALLET);
+    expect(login.fields).toEqual([["Blockchain"]]);
+    expect(login.io.readRaw("Public", "cc_wallet")).toBe(WALLET); // a String key, not JSON
+    expect(login.io.readRaw("Public", "nope")).toBeNull();
+    // a wallet linked by signature on the Solana network, whatever the map is keyed by
+    expect(ioWith({ LinkedWallets: { solana: { NetworkID: "solana", Address: WALLET, IsSignatureVerified: true } } }).io.walletAddress()).toBe(WALLET);
+    expect(ioWith({ LinkedWallets: { [WALLET]: { NetworkID: "solana", Address: WALLET, LinkType: "SignatureVerified" } } }).io.walletAddress()).toBe(WALLET);
+    // not a Solana wallet, not proven by a signature, not an address, or nothing at all
+    expect(ioWith({ LastWalletLogin: { NetworkID: "bsc", Address: "0x12ab" }, LinkedWallets: {} }).io.walletAddress()).toBeNull();
+    expect(ioWith({ LinkedWallets: { solana: { NetworkID: "solana", Address: WALLET, LinkType: "AutoLinkedFromTransaction" } } }).io.walletAddress()).toBeNull();
+    expect(ioWith({ LastWalletLogin: { NetworkID: "solana", Address: "<script>" } }).io.walletAddress()).toBeNull();
+    expect(ioWith(null).io.walletAddress()).toBeNull();
+    expect(makeIo({ ReadUserData: () => ({}) }, {}).walletAddress()).toBeNull();
   });
 
   it("the committed bundle is data.json + casecremental.js (run `npm run cloud`)", () => {

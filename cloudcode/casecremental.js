@@ -11,6 +11,10 @@ var CURRENCY = "CLOUT";
 var LEADERBOARD = "best_run";
 var META_KEY = "cc_meta";
 var ANTI_KEY = "cc_anti";
+/** Public String key: the player's verified Solana wallet, shown on the leaderboard (plan F8). */
+var WALLET_KEY = "cc_wallet";
+/** The Titles' Solana network key (cfg.Blockchain.Networks; src/walletLogin.tsx SOLANA_NETWORK_ID). */
+var SOLANA = "solana";
 var KEEP_RUNS = 20;
 /** Whether endRun moves best_run itself. The probe found leaderboard event tokens land in MilestoneTokensEarned, not
  *  in the BestScore, so the client submits the score (client.leaderboard.submitScore) after endRun answers. */
@@ -29,6 +33,10 @@ function clamp(x, lo, hi) {
 function has(table, key) {
   return typeof key === "string" && Object.prototype.hasOwnProperty.call(table, key);
 }
+/** A base58 Solana address (32-44 characters, no 0, O, I or l) - the client's isSolanaAddress. */
+function isSolanaAddress(s) {
+  return typeof s === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+}
 
 // ---- the server API (only here) ----
 // ReadUserData(["InventoryV2"]) answers the data itself (no {Success, Data}); Items are keyed by ItemID.
@@ -37,6 +45,8 @@ function has(table, key) {
 // idempotency key per player ACROSS executions (DEV probe, 2026-10-13: the same Reason in three executions applied
 // once, even with another amount; an op that FAILED does not use its Reason up; a replay of an applied consume is still
 // checked against the balance first). So a retried endRun / reportTrophy / buyPerk never pays or charges twice.
+// ReadUserData(["Blockchain"]) is read the same way as the inventory (plan F8): the platform's UserBlockchainState,
+// whose LastWalletLogin / LinkedWallets the platform fills only after the wallet signed its challenge.
 function makeIo(server, context) {
   var custom = null;
   var inv = null;
@@ -68,6 +78,26 @@ function makeIo(server, context) {
       } catch (e) {
         return null;
       }
+    },
+    /** A String key's value as stored (no JSON parse), or null. */
+    readRaw: function (bucket, key) {
+      var b = customData()[bucket];
+      var rec = b && b[key];
+      return rec && typeof rec.Value === "string" ? rec.Value : null;
+    },
+    /** The account's Solana address, proven by a signed challenge (a wallet sign-in or a signature link), or null. */
+    walletAddress: function () {
+      var r = server.ReadUserData(["Blockchain"]);
+      var b = r && (r.Blockchain || (r.Data && r.Data.Blockchain));
+      if (!b || typeof b !== "object") return null;
+      var last = b.LastWalletLogin;
+      if (last && last.NetworkID === SOLANA && isSolanaAddress(last.Address)) return last.Address;
+      var linked = b.LinkedWallets && typeof b.LinkedWallets === "object" ? b.LinkedWallets : {};
+      for (var key in linked) {
+        var w = has(linked, key) ? linked[key] : null;
+        if (w && w.NetworkID === SOLANA && isSolanaAddress(w.Address) && (w.IsSignatureVerified === true || w.LinkType === "SignatureVerified")) return w.Address;
+      }
+      return null;
     },
     writeData: function (bucket, key, value) {
       var s = typeof value === "string" ? value : JSON.stringify(value);
@@ -172,6 +202,15 @@ function readAnti(io) {
     trophyTokens: num(a.trophyTokens),
   };
 }
+/** Puts the verified wallet (or nothing) in the Public key the leaderboard reads. The player can write their own Public
+ *  keys, so this runs on every endRun and replaces whatever is there. Cosmetic: a failed write never fails the run. */
+function publishWallet(io) {
+  var wallet = io.walletAddress();
+  var stored = io.readRaw("Public", WALLET_KEY);
+  if (wallet) {
+    if (stored !== wallet) io.writeData("Public", WALLET_KEY, wallet);
+  } else if (stored) io.writeData("Public", WALLET_KEY, "");
+}
 function view(io, meta) {
   return { ok: true, clout: io.clout(), trophies: io.ownedTrophies(), perks: meta.perks, loops: meta.loops, stats: meta.stats, picked: meta.picked };
 }
@@ -211,6 +250,7 @@ var RULES = {
     var meta = readMeta(io);
     var paid = findRun(meta, runId);
     if (paid) {
+      publishWallet(io);
       var dup = view(io, meta);
       dup.duplicate = true;
       dup.gained = paid.gained;
@@ -258,6 +298,7 @@ var RULES = {
     anti.lastEndAt = endedAt;
     if (!io.writeData("ReadOnly", META_KEY, meta)) return fail("save failed", true);
     io.writeData("Internal", ANTI_KEY, anti);
+    publishWallet(io);
     var out = view(io, meta);
     out.gained = gain;
     out.score = score;
