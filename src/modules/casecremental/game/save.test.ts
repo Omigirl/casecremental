@@ -79,6 +79,13 @@ describe("the local save", () => {
     expect(loaded.run.state.locker).toEqual(new Run(3).state.locker);
   });
 
+  it("gives a v4 save from before the auto-buyer grid a fresh one", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.run.state.grid;
+    const loaded = decodeSave(JSON.stringify(d))!;
+    expect(loaded.run.state.grid).toEqual(new Run(3).state.grid);
+  });
+
   it("merges the bot and seller defaults into a v3 save that lacks fields, so none becomes NaN", () => {
     const d = JSON.parse(encodeSave(data()));
     delete d.run.state.bot.speedLevel;

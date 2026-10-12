@@ -1,5 +1,6 @@
 import type { BotState, CardSpot } from "./botOpener";
 import type { CharmId } from "./charms";
+import type { GridState } from "./grid";
 import type { LockerState } from "./locker";
 import type { Rng } from "./rng";
 import type { SellerState } from "./autoSeller";
@@ -8,7 +9,7 @@ import { START_CASH, TRAY_BASE_CAPACITY, VAULT_PRICES } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import type { UpgradeId } from "./upgrades";
 
-// The run's shared types and the RunCtx the machines (bot, auto-seller, locker, vault, day job) are functions over.
+// The run's shared types and the RunCtx the machines (bot, auto-seller, locker, grid, vault, day job) are functions over.
 
 /** One of your bench's reels: its drop, its own tease, and how long it runs (its crawl included). */
 export interface BenchReel {
@@ -32,7 +33,7 @@ export type Bench =
 
 export type VaultState = { phase: "key" } | { phase: "opening"; t: number; drops: Drop[]; landed: number };
 
-export type SaleSource = "bench" | "bot" | "tray" | "seller" | "locker";
+export type SaleSource = "bench" | "bot" | "tray" | "seller" | "locker" | "grid";
 
 /** What the prestige meta hands a new run (M2b spec §8). */
 export interface RunSetup {
@@ -73,13 +74,13 @@ export type SimEvent =
   | { type: "caseBought"; caseId: string; free: boolean; count: number }
   | { type: "spinStarted"; caseId: string; reels: BenchReel[]; fullDuration: number }
   | { type: "revealed"; drops: Drop[] }
-  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | null; slot: number }
+  | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | "grid" | null; slot: number }
   | { type: "caseUnlocked"; caseId: string }
   | { type: "upgradeBought"; id: UpgradeId; level: number }
   | { type: "stageChanged"; stage: number }
   | { type: "dayJobStarted" }
   | { type: "dayJobDone"; amount: number }
-  | { type: "stored"; drop: Drop; from: CardSpot; slot: number }
+  | { type: "stored"; drop: Drop; from: CardSpot | "grid"; slot: number }
   | { type: "sellerBought" }
   | { type: "sellerUpgraded"; level: number }
   | { type: "botWoke" }
@@ -93,6 +94,11 @@ export type SimEvent =
   | { type: "pressStarted"; rarity: RarityId; inputs: Drop[]; results: Drop[] }
   | { type: "pressDone"; results: Drop[] }
   | { type: "autoContractBought" }
+  | { type: "gridBought" }
+  | { type: "gridUpgraded"; what: "rate" | "size"; level: number }
+  | { type: "gridFilled"; cell: number; caseId: string }
+  /** A grid cell opened (fx: a flash in the cell, or a breakout for Covert/★). */
+  | { type: "gridOpened"; cell: number; drop: Drop }
   | { type: "vaultBought"; price: number }
   | { type: "vaultKeyTurned"; drops: Drop[] }
   | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
@@ -138,6 +144,8 @@ export interface RunState {
   bot: BotState;
   seller: SellerState;
   locker: LockerState;
+  /** The auto-buyer grid (Run 3). */
+  grid: GridState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
   /** Which card is held (a bench, bot or locker slot). */
@@ -149,7 +157,7 @@ export interface RunState {
 }
 
 /** Where a reveal happened; the charms that react to it care. */
-export type RevealSpot = CardSpot; // Task 6 adds "grid"
+export type RevealSpot = CardSpot | "grid";
 
 export const OK: ActionResult = { ok: true };
 export const fail = (reason: string): ActionResult => ({ ok: false, reason });

@@ -1,26 +1,25 @@
-import { SELLER_SPEED_LEVELS, sellerSpeedCost } from "../sim/autoSeller";
-import { botSpeed, botSpeedCost, botSpeedLevels } from "../sim/botOpener";
-import { capRaisedLater, runContent, runNumber } from "../sim/campaign";
+import { capRaisedLater, runNumber } from "../sim/campaign";
 import type { CharmId } from "../sim/charms";
 import { caseById, unlockCostOf } from "../sim/content/cases";
 import { STAGE_NAMES } from "../sim/intensity";
-import { lockerCapacity, lockerCounts, lockerSizeCost, lockerWaiting, tradeUpRarity } from "../sim/locker";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
-import {
-  AUTO_CONTRACT_COST,
-  BOT_MULTI_COST,
-  BOT_WAKE_COST,
-  DAY_JOB_SECONDS,
-  LAST_RUN,
-  LOCKER_COST,
-  PERK_COSTS,
-  SELLER_COST,
-  TRADE_UP_SECONDS,
-  VAULT_OPENING_SECONDS,
-} from "../sim/tuning";
-import type { Drop, RarityId } from "../sim/types";
+import { DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
+import {
+  botView,
+  gridView,
+  lockerView,
+  sellerView,
+  trayItem,
+  type BotView,
+  type GridView,
+  type LockerView,
+  type SellerView,
+  type TrayItemView,
+} from "./viewMachines";
+
+export type { BotView, GridView, LockerView, SellerView, TrayItemView } from "./viewMachines";
 
 // What the React overlay shows — derived from the run, never stored separately.
 
@@ -36,6 +35,8 @@ export interface CaseView {
   count: number;
   canBuy: boolean;
   canUnlock: boolean;
+  /** Ticked for the auto-buyer grid. */
+  ticked: boolean;
 }
 
 export interface UpgradeView {
@@ -48,75 +49,6 @@ export interface UpgradeView {
   /** At this run's cap, but a later run lifts it: the UI says NEXT RUN, not MAX. */
   nextRun: boolean;
   canBuy: boolean;
-}
-
-export interface BotView {
-  awake: boolean;
-  wakeCost: number;
-  canWake: boolean;
-  speed: number;
-  speedLevel: number;
-  speedCost: number | null;
-  /** At this run's last Speed level, but a later run adds more. */
-  speedNextRun: boolean;
-  canBuySpeed: boolean;
-  /** The case it opens; null = the dearest you can afford. */
-  caseChoice: string | null;
-  spinning: boolean;
-  /** Its cards waiting at its station, side by side; null once sold or taken. */
-  cards: (TrayItemView | null)[];
-  /** This run lets it open several cases per spin. */
-  multiAvailable: boolean;
-  multiLevel: number;
-  multiCost: number;
-  canBuyMulti: boolean;
-}
-
-export interface SellerView {
-  on: boolean;
-  cost: number;
-  canBuy: boolean;
-  speedLevel: number;
-  maxLevel: number;
-  speedCost: number | null;
-  canBuySpeed: boolean;
-  threshold: RarityId;
-}
-
-export interface LockerView {
-  /** This run has the locker. */
-  available: boolean;
-  on: boolean;
-  cost: number;
-  canBuy: boolean;
-  count: number;
-  capacity: number;
-  counts: Record<RarityId, number>;
-  sizeLevel: number;
-  sizeCost: number | null;
-  canBuySize: boolean;
-  /** The rarity the auto-seller sends here; null = off. */
-  collect: RarityId | null;
-  pressing: boolean;
-  /** The press's progress 0–1. */
-  pressProgress: number;
-  /** Contract results waiting on top of the locker; null once sold or taken. */
-  cards: (TrayItemView | null)[];
-  /** The rarity a press would take now, or null. */
-  tradeUp: RarityId | null;
-  canTradeUp: boolean;
-  /** This run has the auto contract. */
-  autoAvailable: boolean;
-  auto: boolean;
-  autoCost: number;
-  canBuyAuto: boolean;
-}
-
-export interface TrayItemView {
-  skinId: string;
-  rarity: RarityId;
-  /** What it pays sold by hand right now, before combo. */
-  value: number;
 }
 
 export interface PerkView {
@@ -160,6 +92,7 @@ export interface GameView {
   bot: BotView;
   seller: SellerView;
   locker: LockerView;
+  grid: GridView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
   vault: {
@@ -196,6 +129,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       count: run.openCount(c.id),
       canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
       canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
+      ticked: s.grid.ticks.includes(c.id),
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {
@@ -210,66 +144,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       canBuy: open && cost !== null && s.cash >= cost,
     };
   });
-  const b = s.bot;
-  const speedCost = botSpeedCost(b.speedLevel, r);
-  const item = (d: Drop) => ({ skinId: d.skinId, rarity: d.rarity, value: run.payout(d, false) });
-  const bot: BotView = {
-    awake: b.awake,
-    wakeCost: BOT_WAKE_COST,
-    canWake: open && !b.awake && s.cash >= BOT_WAKE_COST,
-    speed: botSpeed(b.speedLevel),
-    speedLevel: b.speedLevel,
-    speedCost,
-    speedNextRun: speedCost === null && capRaisedLater((x) => botSpeedLevels(x), b.speedLevel, r),
-    canBuySpeed: open && b.awake && speedCost !== null && s.cash >= speedCost,
-    caseChoice: b.caseChoice,
-    spinning: b.spin !== null,
-    cards: b.cards.map((d) => (d ? item(d) : null)),
-    multiAvailable: runContent(r).botMultiOpen > 1,
-    multiLevel: b.multiLevel,
-    multiCost: BOT_MULTI_COST,
-    canBuyMulti: open && b.awake && runContent(r).botMultiOpen > 1 && b.multiLevel === 0 && s.cash >= BOT_MULTI_COST,
-  };
-  const sc = sellerSpeedCost(s.seller.speedLevel);
-  const seller: SellerView = {
-    on: s.seller.on,
-    cost: SELLER_COST,
-    canBuy: open && !s.seller.on && s.cash >= SELLER_COST,
-    speedLevel: s.seller.speedLevel,
-    maxLevel: SELLER_SPEED_LEVELS,
-    speedCost: sc,
-    canBuySpeed: open && s.seller.on && sc !== null && s.cash >= sc,
-    threshold: s.seller.threshold,
-  };
-  const lk = s.locker;
-  const lockerAvailable = runContent(r).locker;
-  const sizeCost = lockerSizeCost(lk.sizeLevel);
-  const ready = tradeUpRarity(lk.items);
-  const autoAvailable = runContent(r).autoContract;
-  const locker: LockerView = {
-    available: lockerAvailable,
-    on: lk.on,
-    cost: LOCKER_COST,
-    canBuy: open && lockerAvailable && !lk.on && s.cash >= LOCKER_COST,
-    count: lk.items.length,
-    capacity: lockerCapacity(lk.sizeLevel),
-    counts: lockerCounts(lk.items),
-    sizeLevel: lk.sizeLevel,
-    sizeCost,
-    canBuySize: open && lk.on && sizeCost !== null && s.cash >= sizeCost,
-    collect: lk.collect,
-    pressing: lk.press !== null,
-    pressProgress: lk.press ? Math.min(1, lk.press.elapsed / TRADE_UP_SECONDS) : 0,
-    cards: lk.cards.map((d) => (d ? item(d) : null)),
-    tradeUp: ready,
-    canTradeUp: open && lk.on && ready !== null && lk.press === null && !lockerWaiting(lk),
-    autoAvailable,
-    auto: lk.auto,
-    autoCost: AUTO_CONTRACT_COST,
-    canBuyAuto: open && autoAvailable && lk.on && !lk.auto && s.cash >= AUTO_CONTRACT_COST,
-  };
   const tray = {
-    items: s.tray.map(item),
+    items: s.tray.map((d) => trayItem(run, d)),
     capacity: run.setup.trayCapacity,
   };
   const dayJob = {
@@ -314,9 +190,10 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     cases,
     upgrades,
     nextGoal: nextGoal(s.cash, cases, upgrades, vault),
-    bot,
-    seller,
-    locker,
+    bot: botView(run),
+    seller: sellerView(run),
+    locker: lockerView(run),
+    grid: gridView(run),
     tray,
     dayJob,
     vault,

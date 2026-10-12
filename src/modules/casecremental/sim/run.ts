@@ -6,6 +6,8 @@ import { runCaseIds } from "./campaign";
 import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import * as dayJob from "./dayJob";
+import * as grid from "./grid";
+import { freshGrid } from "./grid";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import * as locker from "./locker";
 import { freshLocker } from "./locker";
@@ -43,7 +45,7 @@ export * from "./runTypes";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
 // upgrades, combo and intensity. Pure and deterministic from its seed; the renderer and the UI read
-// `state` and consume `drainEvents()`. The bot, auto-seller, locker, vault and day job are functions over this
+// `state` and consume `drainEvents()`. The bot, auto-seller, locker, grid, vault and day job are functions over this
 // run as a `RunCtx` (their own files); the bench, upgrades and the tick order live here.
 
 export class Run implements RunCtx {
@@ -88,6 +90,7 @@ export class Run implements RunCtx {
       bot: freshBot(this.setup.botAwake),
       seller: freshSeller(),
       locker: freshLocker(),
+      grid: freshGrid(),
       held: null,
       heldSlot: 0,
       vault: null,
@@ -325,6 +328,7 @@ export class Run implements RunCtx {
     bot.tickBot(this, dt);
     seller.tickSeller(this);
     locker.tickLocker(this, dt);
+    grid.tickGrid(this, dt);
     dayJob.tickDayJob(this, dt);
     vault.tickVault(this, dt);
 
@@ -447,6 +451,29 @@ export class Run implements RunCtx {
   /** Run 3: the locker presses on its own. */
   buyAutoContract(): ActionResult {
     return locker.buyAutoContract(this);
+  }
+
+  /** Run 3: the auto-buyer grid (needs the auto-seller). */
+  buyGrid(): ActionResult {
+    return grid.buyGrid(this);
+  }
+
+  buyGridRate(): ActionResult {
+    return grid.buyGridRate(this);
+  }
+
+  buyGridSize(): ActionResult {
+    return grid.buyGridSize(this);
+  }
+
+  /** The share of your cash the grid never spends: one of GRID_RESERVES. */
+  setGridReserve(reserve: number): ActionResult {
+    return grid.setGridReserve(this, reserve);
+  }
+
+  /** Tick or untick an unlocked case for the grid to buy. */
+  toggleGridTick(caseId: string): ActionResult {
+    return grid.toggleGridTick(this, caseId);
   }
 
   /** Sell a tray item by hand (feeds the combo). */

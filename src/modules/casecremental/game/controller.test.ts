@@ -126,6 +126,20 @@ describe("GameController — the campaign", () => {
     expect(c.act({ type: "buyAutoContract" })).toEqual({ ok: false, reason: "not in this run" });
   });
 
+  it("routes the auto-buyer grid's actions", () => {
+    const c = new GameController(1);
+    c.devStartRun(3);
+    c.devAddCash(1e12);
+    expect(c.act({ type: "buyGrid" })).toEqual({ ok: false, reason: "buy the auto-seller first" });
+    expect(c.act({ type: "buySeller" }).ok).toBe(true);
+    expect(c.act({ type: "buyGrid" }).ok).toBe(true);
+    expect(c.act({ type: "buyGridRate" }).ok).toBe(true);
+    expect(c.act({ type: "buyGridSize" }).ok).toBe(true);
+    expect(c.act({ type: "setGridReserve", reserve: 0.75 }).ok).toBe(true);
+    expect(c.act({ type: "toggleGridTick", caseId: "bootcamp" }).ok).toBe(true);
+    expect(c.run.state.grid).toMatchObject({ on: true, rateLevel: 1, sizeLevel: 1, reserve: 0.75, ticks: ["bootcamp"] });
+  });
+
   it("pays the vault into the meta exactly once, then prestiges into a fresh boosted run", () => {
     const c = new GameController(1);
     const events: string[] = [];

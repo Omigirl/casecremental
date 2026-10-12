@@ -1,5 +1,6 @@
 import { freshSeller } from "../sim/autoSeller";
 import { freshBot } from "../sim/botOpener";
+import { freshGrid } from "../sim/grid";
 import { freshLocker } from "../sim/locker";
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
@@ -106,6 +107,7 @@ function normalize(d: SaveData): SaveData {
         bot: { ...freshBot(false), ...d.run.state.bot },
         seller: { ...freshSeller(), ...d.run.state.seller },
         locker: { ...freshLocker(), ...d.run.state.locker },
+        grid: { ...freshGrid(), ...d.run.state.grid },
         held: null,
         heldSlot: 0,
         vault: d.run.state.vault ?? null,

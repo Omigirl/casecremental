@@ -221,3 +221,16 @@ export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>>
 };
 /** Run 3: the locker presses on its own. */
 export const AUTO_CONTRACT_COST = 250_000_000;
+
+/** The auto-buyer grid (Run 3, spec §6): buys ticked cases into a board of cells and opens each after a delay. */
+export const GRID_COST = 40_000_000;
+/** Cells per Size level (rows of ten). */
+export const GRID_SIZES = [10, 20, 30, 50] as const;
+export const GRID_SIZE_COSTS = { baseCost: 100_000_000, growth: 4 } as const;
+/** Seconds between purchases, per Rate level. */
+export const GRID_BUY_INTERVALS = [1, 0.6, 0.35, 0.2, 0.12] as const;
+export const GRID_RATE_COSTS = { baseCost: 60_000_000, growth: 3 } as const;
+/** A filled cell opens this long after it was bought. */
+export const GRID_OPEN_SECONDS = 1.5;
+/** The share of your cash the grid never spends (a free setting; spec §6 default 50 %). */
+export const GRID_RESERVES = [0.25, 0.5, 0.75] as const;

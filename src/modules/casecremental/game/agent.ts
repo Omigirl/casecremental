@@ -1,10 +1,12 @@
 import type { ModuleAgentApi } from "@idosgames/module-sdk";
 import { skinById, skinDisplayName } from "../sim/content/cases";
 import type { CharmId } from "../sim/charms";
+import { gridSize, gridStalled } from "../sim/grid";
 import { lockerCapacity, lockerCounts, tradeUpRarity } from "../sim/locker";
 import { PERK_IDS, type PerkId } from "../sim/meta";
 import { RARITY_ORDER } from "../sim/rarity";
 import type { ActionResult, CardSpot } from "../sim/run";
+import { GRID_RESERVES } from "../sim/tuning";
 import type { RarityId } from "../sim/types";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 import type { Action, GameController } from "./controller";
@@ -62,6 +64,14 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
           press: s.locker.press ? { rarity: s.locker.press.rarity, elapsed: s.locker.press.elapsed } : null,
           cards: s.locker.cards.map((d) => d?.rarity ?? null),
           auto: s.locker.auto,
+        },
+        grid: {
+          on: s.grid.on,
+          size: gridSize(s.grid.sizeLevel),
+          filled: s.grid.cells.filter((c) => c !== null).length,
+          stalled: gridStalled(s.grid),
+          ticks: [...s.grid.ticks],
+          reserve: s.grid.reserve,
         },
         dayJob: s.dayJob,
         vault: s.vault?.phase ?? null,
@@ -136,6 +146,16 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       tradeUp: () => run({ type: "tradeUp" }),
       sellLocker: (args: Args) => run({ type: "sellLocker", slot: Number(args?.slot ?? 0) }),
       buyAutoContract: () => run({ type: "buyAutoContract" }),
+      buyGrid: () => run({ type: "buyGrid" }),
+      buyGridRate: () => run({ type: "buyGridRate" }),
+      buyGridSize: () => run({ type: "buyGridSize" }),
+      setGridReserve: async (args: Args) => {
+        const reserve = Number(args?.reserve);
+        if (!(GRID_RESERVES as readonly number[]).includes(reserve))
+          throw new Error(`reserve must be one of ${GRID_RESERVES.join(", ")} (got ${JSON.stringify(args?.reserve)})`);
+        return c.act({ type: "setGridReserve", reserve });
+      },
+      toggleGridTick: (args: Args) => run({ type: "toggleGridTick", caseId: String(args?.caseId ?? "") }),
       startDayJob: () => run({ type: "startDayJob" }),
       buyVault: () => run({ type: "buyVault" }),
       turnVaultKey: () => run({ type: "turnVaultKey" }),
@@ -186,6 +206,11 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       tradeUp: "Press the oldest ten of the lowest ready rarity in the locker into one skin of the next rarity.",
       sellLocker: "Sell a contract result waiting on the locker by hand: { slot? } (default 0).",
       buyAutoContract: "Run 3: the locker presses on its own (the Collect rarity, else the lowest ready).",
+      buyGrid: "Run 3: buy the auto-buyer grid (needs the auto-seller): it buys ticked cases into cells and opens them on its own.",
+      buyGridRate: "Buy one auto-buyer Rate level (it buys more often).",
+      buyGridSize: "Buy one auto-buyer Size level (10 -> 20 -> 30 -> 50 cells).",
+      setGridReserve: "The share of your cash the auto-buyer never spends: { reserve: 0.25|0.5|0.75 }.",
+      toggleGridTick: "Tick or untick an unlocked case for the auto-buyer: { caseId } (none ticked = the dearest it may).",
       startDayJob: "Broke with an empty bench: take a ~3 s day job.",
       buyVault: "Buy Vault Case I (all cases unlocked); then turn its key, and the opening ends the run.",
       turnVaultKey: "Turn the devil key in Vault Case I's lock (opens it).",

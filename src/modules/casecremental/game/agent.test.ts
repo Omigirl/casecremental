@@ -46,6 +46,16 @@ describe("agent surface", () => {
     expect(after.bench).toMatchObject({ phase: "spinning", reels: 2 });
   });
 
+  it("reports the auto-buyer grid and checks its reserve", async () => {
+    const c = new GameController(1);
+    const api = createAgentApi(c);
+    expect((api.state() as { grid: unknown }).grid).toEqual({ on: false, size: 10, filled: 0, stalled: false, ticks: [], reserve: 0.5 });
+    await expect(api.actions!.setGridReserve!({ reserve: 0.4 })).rejects.toThrow(/0.25, 0.5, 0.75/);
+    expect(await api.actions!.setGridReserve!({ reserve: 0.25 })).toEqual({ ok: true });
+    expect(await api.actions!.toggleGridTick!({ caseId: "bootcamp" })).toEqual({ ok: true });
+    expect((api.state() as { grid: { ticks: string[]; reserve: number } }).grid).toMatchObject({ ticks: ["bootcamp"], reserve: 0.25 });
+  });
+
   it("documents every action", () => {
     const api = createAgentApi(new GameController(1));
     expect(Object.keys(api.describeActions ?? {}).sort()).toEqual(Object.keys(api.actions ?? {}).sort());
