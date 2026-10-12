@@ -67,6 +67,17 @@ describe("the timing profiles (finish spec §5)", () => {
     expect(Math.min(...purchaseGaps(HUMAN))).toBeLessThan(CASUAL.shopEvery);
   });
 
+  it("a due look comes before selling: CASUAL still shops every ~8 s while a fast bot always has a card waiting", () => {
+    // Run 3 with cash for everything (the vault out of reach): each look buys one thing, the bot is soon at ×50 with
+    // multi-open, and its cards wait for whoever sells first — the player's 1.2 s sale must not keep the shop waiting
+    const at: number[] = [];
+    const setup = { ...DEFAULT_SETUP, run: 3, startCash: 1e15, botAwake: true, vaultPrice: Number.POSITIVE_INFINITY };
+    playGreedy(1, 400, CASUAL, setup, { onEvent: (e, t) => void (PURCHASES.has(e.type) && at.push(t)) });
+    const gaps = at.slice(1).map((t, i) => t - at[i]!);
+    expect(at.length).toBeGreaterThan(40);
+    expect(Math.max(...gaps)).toBeLessThan(CASUAL.shopEvery + 2); // a look waits only for the action in hand
+  });
+
   it("the vault waits for no look at the shop: CASUAL buys it as soon as it can", () => {
     const r = playGreedy(1, RUN_SECONDS, CASUAL, { ...DEFAULT_SETUP, vaultPrice: 1 });
     expect(r.vaultAt).toBeDefined();

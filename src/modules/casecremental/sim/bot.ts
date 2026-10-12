@@ -19,8 +19,8 @@ import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 // seller Speed, auto-spin's Delay, locker size, the auto contract included) when it costs at most a quarter of
 // its cash, takes the day job when broke, and buys the vault as soon as it can.
 // Two timing profiles (finish spec §5): HUMAN is the GREEDY player, a perfect one who never pauses; CASUAL has a real
-// player's slower hands and looks at the shop only every 8 s, never holding back the vault. `playCampaign` chains the
-// runs and `playToFull` measures the 90 s rule's income.
+// player's slower hands and looks at the shop every 8 s (a due look comes before selling), never holding back the
+// vault. `playCampaign` chains the runs and `playToFull` measures the 90 s rule's income.
 
 export interface BotTimings {
   buy: number;
@@ -156,6 +156,13 @@ export function playGreedy(
     if (s.time < busyUntil || run.locked()) continue;
     const b = s.bench;
     if (b.phase === "empty" && run.buyVault().ok) continue; // the vault as soon as it can
+    if (timings.shopEvery > 0 && s.time >= nextShop) {
+      // a due look comes before selling (finish spec §5: "every 8 s"), else a fast bot's waiting cards keep CASUAL's
+      // 1.2 s hands selling forever and the shop never gets its look
+      shop();
+      busyUntil = s.time + timings.buy;
+      continue;
+    }
 
     if (s.tray.length > 0) {
       run.claim(0);
