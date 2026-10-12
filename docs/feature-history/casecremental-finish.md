@@ -393,7 +393,7 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   case the server's loops haven't reached yet, they are asked to retry, never refused for good. The client's run id and
   elapsed time are no longer trusted for it. A trophy report, save or score waiting for its retry no longer holds up the
   queue (only a waiting endRun/buyPerk does), so a trophy for a new case waits for the endRun queued after it.
-- **What this guarantees, and what not** (revision 14). The server cannot verify that a run was played: there is no
+- **What this guarantees, and what not** (revision 17; with F8 merged, revision 19). The server cannot verify that a run was played: there is no
   server-side RNG. What it enforces, all in server time:
   - one endRun pays at most cloutFor(10^cap) with cap = 3 + 0.3·√used (+ 4 per loop up to 4, + 0.5 per replay loop
     after), `used` = seconds since the previous endRun (or the first loadMeta), capped at 1e11 CLOUT a run and by the
@@ -547,8 +547,14 @@ players marked on the board, and a devnet spike for ★ trophies as NFTs — **c
   keypair signed in with `loginWithWalletSolana` from Node (`client.blockchain.getUserState()` answered
   `LastWalletLogin { NetworkID: "solana", Address }` and `LinkedWallets.solana { LinkType: "SignatureVerified",
   IsSignatureVerified: true }`), ended a run → `cc_wallet` = its address, and the board's batch read shows it; a
-  device-id guest that wrote a fake `cc_wallet` itself had it cleared to "" by its next endRun. Revision 17 does not
-  exist on DEV (skipped by the platform); 15–16 were the throwaway probes.
+  device-id guest that wrote a fake `cc_wallet` itself had it cleared to "" by its next endRun. 15–16 were the
+  throwaway probes; revision 17 was F7 round 2's publish, made in parallel (it carried no wallet code).
+- **Merged with F7 round 2 — DEV revision 19** (2026-10-13, CodeHash 0b42a1c2… = sha256 of the committed bundle; the
+  rollback snapshot of revision 18 is in the F7 stream's `rollback/`). Re-checked on DEV with Node clients against
+  revision 19: a later case's trophy before its vault → `retry: true`; a counted Run 1, then 5 zero-time endRuns
+  claiming 1e300 for vault2 → each paid 0, loops stayed 1; a catch-up of Run 2 175 s after loadMeta → loops 2,
+  `vault1_legend` + `vault2_legend`; a throwaway Solana keypair's endRun → `cc_wallet` = its address; a guest's forged
+  `cc_wallet` survived an endRun with no `wallet` field and was cleared to "" by one with `wallet: null`.
 - **★ trophy → Solana NFT spike: CUT** (2026-10-13, ~15 minutes, no on-chain step, nothing spent, no Title change to
   roll back). Cut rule 1 at Step 1: DEV's `solana` network has no `RewardPoolAddress` (nor `VaultDepositAddress`,
   `RpcUrl`, `ChainTicker`) — the engine filled none of them when the devnet network was saved, so the platform has no

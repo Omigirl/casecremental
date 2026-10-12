@@ -6,6 +6,12 @@
 
 **Architecture:** Sign-in is the SDK's ready-made `LazySolanaWalletLogin` (`@idosgames/wallet/react/lazy`) dropped into the existing wallet seam `src/walletLogin.tsx`, challenged on the Title's Solana network `solana`. The leaderboard learns who is a wallet player from the server: F7's `endRun` copies the player's verified Solana address (from `server.ReadUserData`) into the Public user-data key `cc_wallet`, and the Leaderboard tab reads those keys for the listed players (`client.userCustomData.batchGetPublicUserCustomDataOf`). The NFT spike uses `client.blockchain.requestNFTWithdrawal` on `ZVKC34TR-DEV` with devnet and decides by a written cut rule.
 
+> **Outcome (2026-10-13): the wallet mark is NOT server-verified.** A DEV probe found CloudCode cannot read a player's
+> Blockchain data (`server.ReadUserData(["Blockchain"])` answers `{}`), so `endRun` publishes the address the client
+> reads from `client.blockchain.getUserState()` and sends with the call; CloudCode checks only its format. The ◎ mark is
+> client-sent and cosmetic, like best_run. Where this plan (and commit f50f574's subject) says the server verifies the
+> address, read it that way — see `docs/feature-history/casecremental-finish.md` § F8.
+
 **Tech Stack:** `@idosgames/wallet` 0.6.2 (`LazySolanaWalletLogin`, `loginWithWalletSolana`), `@idosgames/core` 0.21.2 (`client.blockchain.*`, `client.userCustomData.*`, `NoopPlatformAdapter`), `@solana/web3.js` 1.98.4, Reown AppKit 1.8.23 (already in `package.json`), the idosgames MCP (`get_blockchain` / `save_blockchain`, `publish_cloud_code`), Vitest.
 
 **Spec:** `docs/superpowers/specs/2026-10-12-casecremental-finish-design.md` §9 (binding: wallet sign-in; wallet-linked players on the leaderboard; the ★ NFT spike on devnet via `client.blockchain.requestNFTWithdrawal`, cut if it fails, reason in the feature history; the guardrail), with §1 and §11. The original design: base spec `docs/superpowers/specs/2026-10-07-casecremental-design.md` §11. **F7 lands first** (`docs/superpowers/plans/2026-10-12-casecremental-f7-server-meta.md`): this plan extends its `cloudcode/casecremental.js`, its `ui/lobby/Leaderboard.tsx` and its user-data key `cc_wallet`. Before Task 1 read the F7 section of `docs/feature-history/casecremental-finish.md` and `cloudcode/probe.js`'s verdict.
@@ -197,6 +203,8 @@
 ---
 
 ### Task 2: Wallet players on the leaderboard
+
+> Superseded in part: the server cannot read the wallet, so the client sends it (see the Outcome note at the top).
 
 The server, not the client, says who is a wallet player: `endRun` copies the verified address into the Public key `cc_wallet` (registered by F7). The Leaderboard tab fetches `cc_wallet` for the listed players and shows `◎ 7xKX…gAsU` (or the name with a ◎ mark).
 
