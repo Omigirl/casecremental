@@ -132,6 +132,7 @@ export class World {
       rng: this.rng,
       scale: () => this.vp.scale,
       hud: () => ({ x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }),
+      knifeFlying: () => this.benchFx.knifeFlying || this.stations.knifeFlying(),
     });
     this.pixel.world.addChild(
       this.room.back,

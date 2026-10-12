@@ -96,6 +96,11 @@ export class Stations {
     this.locker.results.cancelKnife();
   }
 
+  /** A station's ★ knife showcase is in the air (the bot's, the locker's, a grid breakout's). */
+  knifeFlying(): boolean {
+    return this.bot.cards.knifeFlying || this.locker.results.knifeFlying || this.grid.knifeFlying;
+  }
+
   /** Where a station's card is (coins start there). */
   cardCentre(spot: "bot" | "locker", slot: number): Pt {
     return (spot === "locker" ? this.locker.results : this.bot.cards).centre(slot);

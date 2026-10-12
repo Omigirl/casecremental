@@ -6,7 +6,8 @@ import { FLIGHT_SECONDS, KnifeFlight } from "./knifeFlight";
 // Covert and ★ grid drops break out (spec §6): a full-size card pops out of its cell to a spot over the table, holds
 // there with the big reveal's juice (a ★ plays its knife showcase), then shrinks away to where the drop went. At most
 // one plays at a time; the others wait their turn but never longer than BREAKOUT_MAX_WAIT — past that they show as a
-// big flash in their cell. One breakout every 2 s at most keeps their full-screen ★ flashes far under 3 a second.
+// big flash in their cell. One breakout every 2 s at most keeps their full-screen ★ flashes far under 3 a second, and a
+// ★ waits while another knife showcase (your bench's, a station's) is in the air, so two knives never overlap.
 
 export const BREAKOUT_MAX_WAIT = 3;
 export const POP_SECONDS = 0.25;
@@ -31,13 +32,16 @@ export class BreakoutQueue {
     this.queue.push(w);
   }
 
-  /** At `now`: the ones that waited too long (show them as flashes), and the next to play if none is playing. */
-  step(now: number): { start: Waiting | null; expired: Waiting[] } {
+  /** At `now`: the ones that waited too long (show them as flashes), and the next to play if none is playing — not a
+   *  ★ while `knifeFlying` (another knife showcase is in the air). */
+  step(now: number, knifeFlying = false): { start: Waiting | null; expired: Waiting[] } {
     const expired: Waiting[] = [];
     while (this.queue.length && now - this.queue[0]!.at > BREAKOUT_MAX_WAIT) expired.push(this.queue.shift()!);
     let start: Waiting | null = null;
-    if (now >= this.busyUntil && this.queue.length) {
-      start = this.queue.shift()!;
+    // a ★ never shows its knife over another one: it keeps waiting (a Covert behind it may go first)
+    const next = this.queue.findIndex((w) => !knifeFlying || w.drop.rarity !== "gold");
+    if (now >= this.busyUntil && next >= 0) {
+      start = this.queue.splice(next, 1)[0]!;
       this.busyUntil = now + breakoutSeconds(start.drop.rarity);
     }
     return { start, expired };
@@ -122,6 +126,11 @@ export class BreakoutCard {
 
   get playing(): boolean {
     return this.show !== null;
+  }
+
+  /** Its ★ knife's showcase is in the air. */
+  get knifeFlying(): boolean {
+    return this.knife.flying;
   }
 
   start(s: BreakoutShow): void {

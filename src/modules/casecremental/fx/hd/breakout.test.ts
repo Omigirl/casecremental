@@ -69,6 +69,33 @@ describe("the grid's breakouts (spec §6's visual budget)", () => {
     for (const w of waits) expect(w).toBeLessThanOrEqual(BREAKOUT_MAX_WAIT);
   });
 
+  it("holds a ★ back while another knife is in the air: it waits, then flashes in its cell after BREAKOUT_MAX_WAIT", () => {
+    const q = new BreakoutQueue();
+    q.push({ drop: drop("gold"), cell: 0, at: 0 });
+    expect(q.step(0, true).start).toBeNull();
+    expect(q.step(2, true)).toEqual({ start: null, expired: [] });
+    const later = q.step(BREAKOUT_MAX_WAIT + 0.01, true);
+    expect(later.start).toBeNull();
+    expect(later.expired.map((w) => w.cell)).toEqual([0]);
+  });
+
+  it("starts the held ★ once the other knife lands", () => {
+    const q = new BreakoutQueue();
+    q.push({ drop: drop("gold"), cell: 0, at: 0 });
+    expect(q.step(0, true).start).toBeNull();
+    expect(q.step(1, false).start?.cell).toBe(0);
+  });
+
+  it("still starts a Covert while another knife is in the air, even one behind a held ★", () => {
+    const q = new BreakoutQueue();
+    q.push({ drop: drop("covert"), cell: 0, at: 0 });
+    expect(q.step(0, true).start?.cell).toBe(0);
+    q.push({ drop: drop("gold"), cell: 1, at: 1 });
+    q.push({ drop: drop("covert"), cell: 2, at: 1 });
+    expect(q.step(breakoutSeconds("covert"), true).start?.cell).toBe(2);
+    expect(q.step(breakoutSeconds("covert") * 2, false).start?.cell).toBe(1); // the ★ waited 3.0 s: still in time
+  });
+
   it("pops out of its cell, holds at the peak, then shrinks away", () => {
     const total = breakoutSeconds("covert");
     expect(breakoutPose(0, total)).toMatchObject({ leg: 0, mix: 0 });

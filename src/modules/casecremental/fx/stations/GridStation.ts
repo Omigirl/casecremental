@@ -72,6 +72,11 @@ export class GridStation {
     this.stall.position.set((l.grid.x + l.grid.w / 2) * k, (l.grid.y - 1) * k);
   }
 
+  /** Its breakout's ★ knife is in the air. */
+  get knifeFlying(): boolean {
+    return this.card.knifeFlying;
+  }
+
   /** World centre of cell i, screen px (sparks and breakouts start there). */
   cellCentre(i: number): Pt {
     const r = this.rects[i] ?? this.l?.grid ?? { x: 0, y: 0, w: 0, h: 0 };
@@ -94,7 +99,7 @@ export class GridStation {
     }
     this.board.update(dt, g.cells, g.on, this.powerT, caseColor);
     this.state = s;
-    const { start, expired } = this.queue.step(this.t);
+    const { start, expired } = this.queue.step(this.t, this.d.knifeFlying()); // a ★ waits for another knife to land
     for (const w of expired) this.board.opened(w.cell, RARITY_INFO[w.drop.rarity].color, true); // waited too long: a big flash
     if (start) this.breakOut(start.drop, start.cell);
     this.card.update(dt);

@@ -87,6 +87,11 @@ export class CardStation {
     this.refreshGlows();
   }
 
+  /** Its ★ knife's showcase is in the air. */
+  get knifeFlying(): boolean {
+    return this.knife.flying;
+  }
+
   /** World centre of one card (coins and sparks start here). */
   centre(slot: number): Pt {
     return this.cards.centre(slot);
