@@ -1,6 +1,7 @@
 import type { PatternSpec } from "../../sim/types";
 import { fbm, hash2, voronoi } from "./noise";
 import { hexToRgb, pick, ramp, spread, type PatternPoint, type Rgb } from "./paint";
+import { carbon, circuit, hex } from "./patternsLate";
 
 // The skin finishes: each maps a point of the texture to a colour of the skin's palette. Cases 1-3's ten live
 // here (army: camo, digital, tiger; forest: leaves, bark, moss; rocks: marble, granite, crystal, lava); cases
@@ -55,6 +56,12 @@ export function patternColor(spec: PatternSpec, pal: readonly Rgb[], u: number, 
       if (crack < 0.08) return ramp(pal.slice(half), 1 - crack / 0.08);
       return pick(pal.slice(0, half), fbm(x, y, seed));
     }
+    case "circuit":
+      return circuit(pal, p, phase);
+    case "hex":
+      return hex(pal, p, phase);
+    case "carbon":
+      return carbon(pal, p);
   }
 }
 

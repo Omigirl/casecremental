@@ -5,7 +5,20 @@ export type WearId = "FN" | "MW" | "FT" | "WW" | "BS";
 export type WeaponId = "rifle" | "sniper" | "pistol" | "heavyPistol" | "smg" | "shotgun" | "mg" | "knife";
 export type PatternKind =
   // cases 1-3
-  "camo" | "digital" | "tiger" | "leaves" | "bark" | "moss" | "marble" | "granite" | "crystal" | "lava";
+  | "camo"
+  | "digital"
+  | "tiger"
+  | "leaves"
+  | "bark"
+  | "moss"
+  | "marble"
+  | "granite"
+  | "crystal"
+  | "lava"
+  // Mainframe
+  | "circuit"
+  | "hex"
+  | "carbon";
 
 /** A moving finish (spec: animated skins §4; `rise`: M3 spec §3). */
 export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise";

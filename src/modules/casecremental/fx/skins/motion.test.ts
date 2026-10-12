@@ -103,6 +103,14 @@ describe("finishes that draw their own motion", () => {
   const spec = (kind: PatternKind): PatternSpec => ({ kind, palette: PAL, scale: 4, seed: 7 });
   const points = [0.1, 0.35, 0.6, 0.85].flatMap((u) => [0.2, 0.5, 0.8].map((v) => [u, v] as const));
 
+  it.each(Object.entries(OWN_MOTION) as [PatternKind, PatternMotion][])(
+    "%s draws its own %s: the phase goes in, nothing generic on top",
+    (kind, motion) => {
+      for (const t of [0, 0.3, 0.7])
+        for (const [u, v] of points) expect(finishAt(spec(kind), RGB, motion, u, v, t)).toEqual(patternColor(spec(kind), RGB, u, v, t));
+    },
+  );
+
   it("a finish without its own rise drifts instead, so its loop never pops", () => {
     for (const t of [0, 0.3, 0.7])
       for (const [u, v] of points)
