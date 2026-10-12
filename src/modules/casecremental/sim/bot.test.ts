@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CASUAL, fullyBought, HUMAN, INCOME_WINDOW, playCampaign, playGreedy, playToFull, RUN_SECONDS, type BotTimings } from "./bot";
 import { VAULTS } from "./content/vaults";
-import { DEFAULT_SETUP, Run, type SimEvent } from "./run";
+import { DEFAULT_SETUP, Run, type RunSetup, type SimEvent } from "./run";
 import { LAST_RUN } from "./tuning";
 import { UPGRADE_IDS } from "./upgrades";
 
@@ -44,12 +44,17 @@ function buyEverything(run: Run): void {
   for (let guard = 0; guard < 1000 && buys.some((buy) => buy().ok); guard++);
 }
 
-/** Seconds between the shop purchases of a 400 s Run 1. */
-function purchaseGaps(timings: BotTimings): number[] {
-  const at: number[] = [];
-  playGreedy(1, 400, timings, DEFAULT_SETUP, { onEvent: (e, t) => void (PURCHASES.has(e.type) && at.push(t)) });
-  return at.slice(1).map((t, i) => t - at[i]!);
+/** When a player looked at the shop and when it bought something, over `seconds` of a run. */
+function shopTimes(timings: BotTimings, setup: RunSetup = DEFAULT_SETUP, seconds = 400): { looks: number[]; buys: number[] } {
+  const looks: number[] = [];
+  const buys: number[] = [];
+  playGreedy(1, seconds, timings, setup, {
+    onLook: (t) => void looks.push(t),
+    onEvent: (e, t) => void (PURCHASES.has(e.type) && buys.push(t)),
+  });
+  return { looks, buys };
 }
+const gaps = (ts: number[]) => ts.slice(1).map((t, i) => t - ts[i]!);
 
 describe("the timing profiles (finish spec §5)", () => {
   it("CASUAL is the spec's real player: slower hands, a look at the shop every 8 s", () => {
@@ -60,22 +65,27 @@ describe("the timing profiles (finish spec §5)", () => {
     expect(HUMAN).toEqual({ buy: 0.3, key: 0.4, sell: 0.5, reveal: 0.25, shopEvery: 0 });
   });
 
-  it("the CASUAL player buys at most one thing per look at the shop; the GREEDY one never waits", () => {
-    const casual = purchaseGaps(CASUAL);
-    expect(casual.length).toBeGreaterThan(5);
-    expect(Math.min(...casual)).toBeGreaterThanOrEqual(CASUAL.shopEvery - 1e-6);
-    expect(Math.min(...purchaseGaps(HUMAN))).toBeLessThan(CASUAL.shopEvery);
+  it("the CASUAL player buys only at its looks, at least 8 s apart, often several rows at once; the GREEDY one never waits", () => {
+    const casual = shopTimes(CASUAL);
+    expect(casual.buys.length).toBeGreaterThan(5);
+    // a purchase's event is drained on the next tick, one frame after its look
+    for (const t of casual.buys)
+      expect(
+        casual.looks.some((l) => t - l >= 0 && t - l < 0.05),
+        `bought at ${t}`,
+      ).toBe(true);
+    expect(Math.min(...gaps(casual.looks))).toBeGreaterThanOrEqual(CASUAL.shopEvery - 1e-6);
+    expect(new Set(casual.buys).size).toBeLessThan(casual.buys.length); // some look bought more than one row
+    expect(Math.min(...gaps(shopTimes(HUMAN).buys))).toBeLessThan(CASUAL.shopEvery);
   });
 
-  it("a due look comes before selling: CASUAL still shops every ~8 s while a fast bot always has a card waiting", () => {
-    // Run 3 with cash for everything (the vault out of reach): each look buys one thing, the bot is soon at ×50 with
-    // multi-open, and its cards wait for whoever sells first — the player's 1.2 s sale must not keep the shop waiting
-    const at: number[] = [];
+  it("a due look comes before selling: CASUAL still looks every ~8 s while a fast bot always has a card waiting", () => {
+    // Run 3 with cash for everything (the vault out of reach): the first look buys the bot ×50 and its multi-open, and
+    // its cards wait for whoever sells first — the player's 1.2 s sale must not keep the shop waiting
     const setup = { ...DEFAULT_SETUP, run: 3, startCash: 1e15, botAwake: true, vaultPrice: Number.POSITIVE_INFINITY };
-    playGreedy(1, 400, CASUAL, setup, { onEvent: (e, t) => void (PURCHASES.has(e.type) && at.push(t)) });
-    const gaps = at.slice(1).map((t, i) => t - at[i]!);
-    expect(at.length).toBeGreaterThan(40);
-    expect(Math.max(...gaps)).toBeLessThan(CASUAL.shopEvery + 2); // a look waits only for the action in hand
+    const { looks } = shopTimes(CASUAL, setup);
+    expect(looks.length).toBeGreaterThan(40);
+    expect(Math.max(...gaps(looks))).toBeLessThan(CASUAL.shopEvery + 2); // a look waits only for the action in hand
   });
 
   it("the vault waits for no look at the shop: CASUAL buys it as soon as it can", () => {

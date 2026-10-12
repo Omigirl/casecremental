@@ -6,7 +6,7 @@ import { unlockCostOf } from "./content/cases";
 import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
 import { VAULTS } from "./content/vaults";
 import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
-import { DEFAULT_SETUP, Run, type RunSetup, type SimEvent } from "./run";
+import { DEFAULT_SETUP, Run, type ActionResult, type RunSetup, type SimEvent } from "./run";
 import { AUTOSPIN_COST, AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
@@ -19,8 +19,9 @@ import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 // seller Speed, auto-spin's Delay, locker size, the auto contract included) when it costs at most a quarter of
 // its cash, takes the day job when broke, and buys the vault as soon as it can.
 // Two timing profiles (finish spec §5): HUMAN is the GREEDY player, a perfect one who never pauses; CASUAL has a real
-// player's slower hands and looks at the shop every 8 s (a due look comes before selling), never holding back the
-// vault. `playCampaign` chains the runs and `playToFull` measures the 90 s rule's income.
+// player's slower hands and looks at the shop every 8 s (a due look comes before selling, and buys everything the
+// quarter-of-cash rule allows, one row after another), never holding back the vault. `playCampaign` chains the runs
+// and `playToFull` measures the 90 s rule's income.
 
 export interface BotTimings {
   buy: number;
@@ -50,6 +51,8 @@ export interface PlayOptions {
   untilIncome?: boolean;
   /** Sees every sim event with its sim time (the shop-cadence test). */
   onEvent?: (e: SimEvent, time: number) => void;
+  /** Sees every look at the shop with its sim time (the shop-cadence tests). */
+  onLook?: (time: number) => void;
 }
 
 export interface PacingReport {
@@ -116,7 +119,10 @@ export function playGreedy(
   const shop = () => {
     if (run.state.time < nextShop) return;
     nextShop = run.state.time + timings.shopEvery;
-    spend(run);
+    opts.onLook?.(run.state.time);
+    // GREEDY buys one thing per free moment; a CASUAL look buys everything it can afford, as a player glancing at the
+    // shop clicks several rows
+    while (spend(run) && timings.shopEvery > 0);
     if (report.fullAt === undefined && fullyBought(run)) {
       report.fullAt = run.state.time;
       fullCash = run.state.cash;
@@ -198,42 +204,31 @@ export function playGreedy(
 }
 
 interface Purchase {
-  buy: () => void;
+  buy: () => ActionResult;
   cost: number;
 }
 
-function spend(run: Run): void {
+/** One purchase, the first that applies; false when nothing was bought. */
+function spend(run: Run): boolean {
   const s = run.state;
   const content = runContent(run.setup.run);
   const nextId = run.runCases().find((id) => !s.unlocked.includes(id));
-  if (nextId && s.cash >= unlockCostOf(nextId) + run.casePrice(nextId)) {
-    run.unlockCase(nextId);
-    return;
-  }
-  if (!s.bot.awake && s.cash >= BOT_WAKE_COST * 2) {
-    run.wakeBot();
-    return;
-  }
-  if (s.bot.awake && !s.seller.on && s.cash >= SELLER_COST * 2) {
-    run.buySeller();
-    return;
-  }
+  if (nextId && s.cash >= unlockCostOf(nextId) + run.casePrice(nextId)) return run.unlockCase(nextId).ok;
+  if (!s.bot.awake && s.cash >= BOT_WAKE_COST * 2) return run.wakeBot().ok;
+  if (s.bot.awake && !s.seller.on && s.cash >= SELLER_COST * 2) return run.buySeller().ok;
   if (s.seller.on && !s.autoSpin.owned && s.cash >= AUTOSPIN_COST * 2) {
-    run.buyAutoSpin();
+    if (!run.buyAutoSpin().ok) return false;
     run.setAutoSpin(true);
-    return;
+    return true;
   }
   if (content.locker && !s.locker.on && s.cash >= LOCKER_COST * 2) {
-    run.buyLocker();
+    if (!run.buyLocker().ok) return false;
     run.setCollect("milspec");
-    return;
+    return true;
   }
-  if (s.bot.awake && s.bot.multiLevel === 0 && content.botMultiOpen > 1 && s.cash >= BOT_MULTI_COST * 2) {
-    run.buyBotMulti();
-    return;
-  }
+  if (s.bot.awake && s.bot.multiLevel === 0 && content.botMultiOpen > 1 && s.cash >= BOT_MULTI_COST * 2) return run.buyBotMulti().ok;
   const options: Purchase[] = [];
-  const offer = (cost: number | null, buy: () => void) => {
+  const offer = (cost: number | null, buy: () => ActionResult) => {
     if (cost !== null) options.push({ buy, cost });
   };
   for (const id of UPGRADE_IDS) offer(upgradeCost(id, s.upgrades[id], run.setup.run), () => run.buyUpgrade(id));
@@ -243,7 +238,7 @@ function spend(run: Run): void {
   if (s.locker.on) offer(lockerSizeCost(s.locker.sizeLevel), () => run.buyLockerSize());
   if (s.locker.on && content.autoContract && !s.locker.auto) offer(AUTO_CONTRACT_COST, () => run.buyAutoContract());
   const cheapest = options.reduce<Purchase | null>((best, o) => (best === null || o.cost < best.cost ? o : best), null);
-  if (cheapest && cheapest.cost <= s.cash * 0.25) cheapest.buy();
+  return cheapest !== null && cheapest.cost <= s.cash * 0.25 && cheapest.buy().ok;
 }
 
 /** Every case of the shelf unlocked and every upgrade and machine at this run's cap (finish spec §5's "every case and
