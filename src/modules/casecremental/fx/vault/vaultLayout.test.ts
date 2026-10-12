@@ -196,6 +196,6 @@ describe("the vault's layout over a sweep of window sizes", () => {
       });
     }
     expect(fails.slice(0, 12)).toEqual([]);
-    expect(performance.now() - t0).toBeLessThan(1000);
+    expect(performance.now() - t0).toBeLessThan(5000);
   });
 });

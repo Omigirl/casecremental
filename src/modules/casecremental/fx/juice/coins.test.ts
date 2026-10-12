@@ -1,5 +1,5 @@
 import { Texture, TextureSource } from "pixi.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Coins } from "./coins";
 
 // F1 #3: the sale coins (12×22 spinning frames, the "golden bullets" at ×5) fly in the pixel world, in a layer the World
@@ -19,6 +19,7 @@ describe("Coins", () => {
 
   it("leave from within 6 world px of the sale, move in whole px, and are gone once landed", () => {
     const c = new Coins([frame()]);
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.5); // fixed scatter: the bound has no slack
     c.burst({ x: 40, y: 150 }, { x: 160, y: 9 }, 1); // one coin
     c.update(0.001);
     const s = c.flyers.children[0]!;
@@ -27,6 +28,7 @@ describe("Coins", () => {
     expect(Math.abs(s.y - 150)).toBeLessThanOrEqual(6);
     c.update(2);
     expect(c.flyers.children).toHaveLength(0);
+    rnd.mockRestore();
   });
 
   it("keep their path in world px when the text size changes (a resize mid-flight)", () => {

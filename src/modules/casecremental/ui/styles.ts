@@ -16,7 +16,7 @@ export const UI_CSS = `
 .cc-panel { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: calc(var(--px) * 3px); overflow: hidden; }
 .cc-title { color: #ffd34d; text-align: center; text-shadow: 0 calc(var(--px) * 1px) 0 #120e10; }
 .cc-dim { color: #a89a8c; }
-.cc-scroll { overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; padding-block: calc(var(--px) * 2px); display: flex; flex-direction: column; gap: calc(var(--px) * 3px); min-height: 0; }
+.cc-scroll { overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable both-edges; padding-block: calc(var(--px) * 2px); display: flex; flex-direction: column; gap: calc(var(--px) * 3px); min-height: 0; }
 .cc-row { display: grid; gap: calc(var(--px) * 1px); padding: calc(var(--px) * 1px); background: rgba(18, 14, 16, 0.55); box-shadow: 0 0 0 var(--px) #120e10 inset; }
 .cc-row-line { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--px) * 2px); }
 .cc-btn { font: inherit; color: #fff6d5; background: #8a4b2a; border: 0; cursor: pointer; white-space: nowrap;

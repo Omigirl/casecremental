@@ -10,6 +10,7 @@ import { Throttle } from "../throttle";
 import { cardFace } from "./cardFace";
 import { DragTracker } from "./drag";
 import { dropTarget } from "./dropTargets";
+import { LIFT } from "../hd/Lifted";
 import type { Pt, Rect, TableLayout } from "./layout";
 import { glows, popLook, slideAt, slotArtBox, throb, TRAY_LOOK, TrayMotion } from "./trayRules";
 import { slotAt, traySlots } from "./traySlots";
@@ -27,8 +28,6 @@ export interface TrayDeps {
   onLand: () => void;
 }
 
-/** Lifted's LIFT: a dragged card's pop starts at its lifted size. */
-const LIFT = 1.15;
 const FULL_RED = 0xff3b3b;
 
 /** A tray card w×h: a dark edge, its rarity colour, the skin's still frame fitted inside. */

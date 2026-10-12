@@ -12,7 +12,7 @@ export interface LiftInfo {
   center: Pt;
 }
 
-const LIFT = 1.15;
+export const LIFT = 1.15;
 
 export class Lifted {
   readonly root = new Container();

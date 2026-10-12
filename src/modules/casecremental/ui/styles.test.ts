@@ -14,7 +14,7 @@ describe("the overlay's stylesheet", () => {
     const s = rule(".cc-scroll");
     expect(s).toContain("overflow-y: auto");
     expect(s).toContain("overflow-x: hidden");
-    expect(s).toContain("scrollbar-gutter: stable");
+    expect(s).toContain("scrollbar-gutter: stable both-edges");
     expect(s).toContain("padding-block: calc(var(--px) * 2px)"); // room for a pressed button's 1-px dip in the last row
   });
 

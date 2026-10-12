@@ -380,7 +380,7 @@ export class World {
     this.labelSpan = { lo: (tb.x + 2) * k, hi: (tb.x + tb.w - 2) * k };
     this.placeLabels();
     const tr = this.l.tray;
-    this.trayFullLabel.position.set((tr.x + tr.w / 2) * k, (tr.y - 1) * k);
+    this.trayFullLabel.position.set((tr.x + tr.w / 2) * k, (tr.y - 3) * k);
     const br = this.l.bot.reel;
     if (br) this.offline.position.set((br.x + br.w / 2) * k, (br.y + br.h / 2) * k - size / 2);
   }

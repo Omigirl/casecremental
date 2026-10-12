@@ -35,14 +35,11 @@ Spec: docs/superpowers/specs/2026-10-12-casecremental-finish-design.md · Plans:
     overflow, so their scrollbar is always there. That is real scrolling, not the flash, and it happens without F1's
     padding too. `user-select` is `none` on the root and the canvas. The console shows only the old PixiJS
     "destroyed while still bound" warning on a resize.
-  - Found open at this check: (1) the reel that lands last only shows the winner outline and dimming when a frame
-    happens to catch a sim step with `elapsed < fullDuration` and `reelFraction ≥ 1`. The sim's 1/30 s steps reach
-    2.999… for a 3 s spin, and that is the only reason a plain spin ever shows it. A spin that is not a whole number of
-    sim steps long (a tease's extra seconds) or a frame that runs two sim steps lands with no outline, and ×2 never
-    showed it in headless Chrome. (2) A tapped tray
-    claim's coins and "+$" start at the tray's centre, not at the slot: `TrayView.items` is the sim's own `state.tray`
-    array, so `claimed()` looks the card up after `claim()` has already spliced it out. The pop itself grows and fades
-    at the slot.
+  - Found open at this check, fixed in 7f68f2d (the last reel to land got no landed look) and 2bfe0bd (a tapped tray
+    claim's coins started at the tray centre). Constraint worth keeping: the sim leaves `spinning` (and the bot clears
+    its `spin`) in the tick that ends the spin, so no frame ever reaches fraction 1. Reel views must snap on the first
+    frame after the spin (the `spun` flag and `Reel.land()`); a new spin started in the same frame as the old one ends
+    must call `land()` first or keep one frame of `revealed`.
   - Harness notes: headless SwiftShader renders about 5 fps, so the sim crawls (one frame is capped at
     `MAX_FRAME_SECONDS`). A frame-sized effect can be slowed by importing its module at the same URL Vite serves it and
     wrapping its prototype (`TrayView.prototype.update` with `dt × 0.08`). Headless windows will not go narrower than
