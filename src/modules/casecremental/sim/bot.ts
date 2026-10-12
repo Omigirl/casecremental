@@ -4,7 +4,9 @@ import { botSpeedCost, botWaiting } from "./botOpener";
 import { runCaseIds, runContent } from "./campaign";
 import { unlockCostOf } from "./content/cases";
 import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
-import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
+import { VAULTS } from "./content/vaults";
+import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
+import { DEFAULT_SETUP, Run, type RunSetup, type SimEvent } from "./run";
 import { AUTOSPIN_COST, AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
@@ -16,6 +18,9 @@ import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 // multi-open; it buys the cheapest remaining upgrade (bot and
 // seller Speed, auto-spin's Delay, locker size, the auto contract included) when it costs at most a quarter of
 // its cash, takes the day job when broke, and buys the vault as soon as it can.
+// Two timing profiles (finish spec §5): HUMAN is the GREEDY player, a perfect one who never pauses; CASUAL has a real
+// player's slower hands and looks at the shop only every 8 s, never holding back the vault. `playCampaign` chains the
+// runs and `playToFull` measures the 90 s rule's income.
 
 export interface BotTimings {
   buy: number;
@@ -23,9 +28,29 @@ export interface BotTimings {
   sell: number;
   /** Seeing the card land before reaching for it. */
   reveal: number;
+  /** Seconds between looks at the shop (unlocks, machines, upgrades); 0 = at every free moment. */
+  shopEvery: number;
 }
 
-export const HUMAN: BotTimings = { buy: 0.3, key: 0.4, sell: 0.5, reveal: 0.25 };
+/** The GREEDY profile: a perfect player who never pauses (the pacing player of M1–M3). */
+export const HUMAN: BotTimings = { buy: 0.3, key: 0.4, sell: 0.5, reveal: 0.25, shopEvery: 0 };
+/** The CASUAL profile (finish spec §5): a real player's slower hands, and a look at the shop only every 8 s. It runs
+ *  auto-spin once owned, like GREEDY. */
+export const CASUAL: BotTimings = { buy: 0.8, key: 0.8, sell: 1.2, reveal: 0.8, shopEvery: 8 };
+
+/** How long a pacing run plays at most (s). */
+export const RUN_SECONDS = 900;
+/** The 90 s rule's income window (s) after a run is fully bought: long enough that one knife doesn't decide it. */
+export const INCOME_WINDOW = 60;
+/** How long playToFull plays at most to get a run fully bought (s). */
+export const PROBE_SECONDS = 3600;
+
+export interface PlayOptions {
+  /** Stop once the full-income window is measured (playToFull). */
+  untilIncome?: boolean;
+  /** Sees every sim event with its sim time (the shop-cadence test). */
+  onEvent?: (e: SimEvent, time: number) => void;
+}
 
 export interface PacingReport {
   caseUnlockedAt: Record<string, number>;
@@ -49,11 +74,26 @@ export interface PacingReport {
   longestTrayFull: number;
   lifetimeEarnings: number;
   finalCash: number;
+  /** When every case, upgrade and machine of the run was first bought, each at its run's cap (fullyBought). */
+  fullAt?: number;
+  /** Net cash per second over the INCOME_WINDOW after fullAt: the 90 s rule's income. Left out when a vault was bought
+   *  inside the window (only playToFull, whose vault is out of reach, is sure to measure it). */
+  fullIncome?: number;
+  /** The run's vault price (playToFull reports the real one, not its out-of-reach stand-in). */
+  vaultPrice: number;
+  /** Sim seconds played. */
+  endedAt: number;
 }
 
 const DT = 1 / 30;
 
-export function playGreedy(seed: number, seconds: number, timings: BotTimings = HUMAN, setup: RunSetup = DEFAULT_SETUP): PacingReport {
+export function playGreedy(
+  seed: number,
+  seconds: number,
+  timings: BotTimings = HUMAN,
+  setup: RunSetup = DEFAULT_SETUP,
+  opts: PlayOptions = {},
+): PacingReport {
   const run = new Run(seed, setup);
   const report: PacingReport = {
     caseUnlockedAt: {},
@@ -64,16 +104,32 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     longestTrayFull: 0,
     lifetimeEarnings: 0,
     finalCash: 0,
+    vaultPrice: setup.vaultPrice,
+    endedAt: 0,
   };
   if (setup.botAwake) report.botAwakeAt = 0;
   let busyUntil = 0;
+  let nextShop = 0;
+  let fullCash = 0;
+  /** A look at the shop when one is due (CASUAL every shopEvery s, GREEDY at every free moment); the vault is never
+   *  part of it (Review Focus 3). */
+  const shop = () => {
+    if (run.state.time < nextShop) return;
+    nextShop = run.state.time + timings.shopEvery;
+    spend(run);
+    if (report.fullAt === undefined && fullyBought(run)) {
+      report.fullAt = run.state.time;
+      fullCash = run.state.cash;
+    }
+  };
   let fullFor = 0;
 
-  while (run.state.time < seconds && !run.state.over) {
+  while (run.state.time < seconds && !run.state.over && !(opts.untilIncome && report.fullIncome !== undefined)) {
     if (run.state.vault?.phase === "key") run.turnVaultKey();
     run.tick(DT);
     const s = run.state;
     for (const e of run.drainEvents()) {
+      opts.onEvent?.(e, s.time);
       if (e.type === "caseUnlocked") {
         report.caseUnlockedAt[e.caseId] ??= s.time;
         run.setAutoSpinCase(e.caseId); // a player picks the new case for auto-spin
@@ -94,6 +150,9 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     }
     fullFor = s.tray.length >= setup.trayCapacity ? fullFor + DT : 0;
     report.longestTrayFull = Math.max(report.longestTrayFull, fullFor);
+    const since = report.fullAt === undefined ? null : s.time - report.fullAt;
+    if (since !== null && since >= INCOME_WINDOW && report.fullIncome === undefined && report.vaultAt === undefined)
+      report.fullIncome = (s.cash - fullCash) / INCOME_WINDOW;
     if (s.time < busyUntil || run.locked()) continue;
     const b = s.bench;
     if (b.phase === "empty" && run.buyVault().ok) continue; // the vault as soon as it can
@@ -113,13 +172,13 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     } else if (s.locker.on && tradeUpRarity(s.locker.items) && run.tradeUp().ok) {
       busyUntil = s.time + timings.sell;
     } else if (s.autoSpin.on) {
-      spend(run); // the bench is the machine's: shop whenever free
+      shop(); // the bench is the machine's: shop whenever free
       busyUntil = s.time + timings.buy;
     } else if (b.phase === "locked") {
       run.insertKey();
       busyUntil = s.time + timings.key;
     } else if (b.phase === "empty") {
-      spend(run);
+      shop();
       const target = [...s.unlocked].reverse().find((id) => run.casePrice(id) <= s.cash);
       if (target && run.buyCase(target).ok) busyUntil = s.time + timings.buy;
       else if (run.startDayJob().ok) busyUntil = s.time + timings.buy;
@@ -127,6 +186,7 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
   }
   report.lifetimeEarnings = run.state.lifetimeEarnings;
   report.finalCash = run.state.cash;
+  report.endedAt = run.state.time;
   return report;
 }
 
@@ -177,4 +237,61 @@ function spend(run: Run): void {
   if (s.locker.on && content.autoContract && !s.locker.auto) offer(AUTO_CONTRACT_COST, () => run.buyAutoContract());
   const cheapest = options.reduce<Purchase | null>((best, o) => (best === null || o.cost < best.cost ? o : best), null);
   if (cheapest && cheapest.cost <= s.cash * 0.25) cheapest.buy();
+}
+
+/** Every case of the shelf unlocked and every upgrade and machine at this run's cap (finish spec §5's "every case and
+ *  upgrade of a run is bought"; the Machines rows are upgrades too). The vault is not counted; F6-A adds the
+ *  Upgrader; evolutions never count, since a recipe may never complete. */
+export function fullyBought(run: Run): boolean {
+  const s = run.state;
+  const n = run.setup.run;
+  const content = runContent(n);
+  return (
+    run.vaultShown() &&
+    UPGRADE_IDS.every((id) => upgradeCost(id, s.upgrades[id], n) === null) &&
+    s.bot.awake &&
+    botSpeedCost(s.bot.speedLevel, n) === null &&
+    (content.botMultiOpen <= 1 || s.bot.multiLevel > 0) &&
+    s.seller.on &&
+    sellerSpeedCost(s.seller.speedLevel) === null &&
+    s.autoSpin.owned &&
+    autoSpinDelayCost(s.autoSpin.delayLevel) === null &&
+    (!content.locker || (s.locker.on && lockerSizeCost(s.locker.sizeLevel) === null)) &&
+    (!content.autoContract || s.locker.auto)
+  );
+}
+
+/** The 90 s rule's measure (finish spec §5): the same seed and setup with the vault out of reach, played until every
+ *  case, upgrade and machine is bought and then INCOME_WINDOW seconds more. An unaffordable vault changes no
+ *  decision, so this is the real run up to its vault, carried on. `fullIncome` is the run's net income once there is
+ *  nothing left to buy; `vaultPrice` is the real price. */
+export function playToFull(seed: number, timings: BotTimings, setup: RunSetup, seconds = PROBE_SECONDS): PacingReport {
+  const report = playGreedy(seed, seconds, timings, { ...setup, vaultPrice: Number.POSITIVE_INFINITY }, { untilIncome: true });
+  report.vaultPrice = setup.vaultPrice;
+  return report;
+}
+
+/** One run of a campaign the pacing player played: its seed and setup (to probe it again) and what happened. */
+export interface Leg {
+  run: number;
+  seed: number;
+  setup: RunSetup;
+  report: PacingReport;
+}
+
+/** Run 1, then the next run after each vault (in VAULTS order, so F6-A's Run 4 joins by itself), the last one a replay
+ *  of LAST_RUN; the cheapest perk is bought after each vault. legs[0] is Run 1, legs[n - 1] Run n, the last leg the
+ *  replay. */
+export function playCampaign(seed: number, timings: BotTimings = HUMAN, seconds = RUN_SECONDS): Leg[] {
+  const meta = freshMeta();
+  const legs: Leg[] = [{ run: 1, seed, setup: DEFAULT_SETUP, report: playGreedy(seed, seconds, timings) }];
+  for (const v of VAULTS) {
+    completeVault(meta, legs.at(-1)!.report.lifetimeEarnings, v.trophy, seed);
+    const cheapest = [...PERK_IDS].sort((a, b) => (perkCost(a, meta.perks[a]) ?? Infinity) - (perkCost(b, meta.perks[b]) ?? Infinity))[0]!;
+    buyPerk(meta, cheapest);
+    const setup = setupFor(meta);
+    const legSeed = seed + 100 * meta.loops; // the seeds the M3 chain used, so medians stay comparable
+    legs.push({ run: setup.run, seed: legSeed, setup, report: playGreedy(legSeed, seconds, timings, setup) });
+  }
+  return legs;
 }
