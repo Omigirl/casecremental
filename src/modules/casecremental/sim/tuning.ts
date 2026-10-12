@@ -199,12 +199,12 @@ export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 // measures ~30–75 s); each run's middle — its unlocks — sets how long the run takes instead. F6-A: The Last Case 450T
 // (its 90 s rule ~65 s, replays included).
 export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000, 450_000_000_000_000] as const;
-/** A replay of the last run: its vault price grows this much per completed loop, a little above the replay's boost
- *  (The Last Case's CATCH_UP_PER_VAULT), so each replay's vault costs about as many seconds of its income as the last
- *  (F6-A: 2.05 / 2; F4's 3.4 / 2.8 made each loop ~21 % dearer, and the 90 s rule broke by the third replay). Replay
- *  after replay the fixed costs (unlocks, upgrades) shrink against the income, so later replays get shorter (~2.5 min
- *  by the fifth). */
-export const VAULT_GROWTH = 2.05;
+/** A replay of the last run: its vault price grows this much per completed loop, about the replay's boost
+ *  (The Last Case's CATCH_UP_PER_VAULT), so each replay's vault costs about as many seconds of its income as the last.
+ *  Spec §5's replay band holds for the FIRST replay only; later replays run faster (a post-credits victory lap:
+ *  ~4.5 min for the first, ~2 min by the fifth, ~1.6 min by the fifteenth) while the 90 s rule holds for at least 15 CASUAL
+ *  replays (pacing.test.ts; measured 61-74 s of income). F4's 3.4 broke the rule by the third replay. */
+export const VAULT_GROWTH = 2.0;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;

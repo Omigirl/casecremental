@@ -28,7 +28,7 @@ const VAULT_INCOME_SECONDS = 90;
 const REPLAY = LAST_RUN;
 /** The last run's replay is endless (after The Last Case, finish spec §7): CASUAL plays this many replays, and every one
  *  of them keeps the 90 s rule (each replay's vault grows by VAULT_GROWTH, its income by The Last Case's CATCH_UP_PER_VAULT). */
-const REPLAYS = 5;
+const REPLAYS = 15;
 
 const mins = ([a, b]: Band) => `${a / 60}–${b / 60} min`;
 const campaigns: Record<Profile, Leg[][]> = {
