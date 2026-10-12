@@ -441,8 +441,9 @@ export class World {
         this.benchFx.revealed(e.drops);
         break;
       case "sold": {
+        if (this.stations.machineSale(e)) break; // a grid drop: its own spark, no text, no till
         // only a bench sale clears the card (the stations' cards follow the sim); coins burst from the card sold by
-        // hand, the seller, the grid's machine (its vault cash-in), or the bin (a tray claim)
+        // hand, the seller, a station's card, or the bin (a tray claim)
         const fromBench = e.from === "bench";
         const src =
           fromBench && e.source === "bench"
@@ -451,9 +452,7 @@ export class World {
               ? this.stations.cardCentre(e.source, e.slot)
               : e.source === "seller"
                 ? this.l.seller
-                : e.source === "grid"
-                  ? { x: this.l.grid.x + this.l.grid.w / 2, y: this.l.grid.y }
-                  : this.l.bin;
+                : this.l.bin;
         const at = this.hd.toScreen(src);
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
@@ -488,6 +487,7 @@ export class World {
         break;
       }
       case "stored":
+        if (e.from === "grid") break; // the grid's station plays its own (throttled) sound
         if (e.from === "bench") this.benchFx.left(e.slot, false, this.controller.run.state.bench);
         this.audio.play("tray-store");
         break;
