@@ -32,6 +32,7 @@ export const renderWalletLogin: LoginScreenExtras["renderWalletLogin"] = ({
   onAuthenticated,
   disabled,
   style,
+  label,
 }) => (
   <LazySolanaWalletLogin
     client={client}
@@ -39,6 +40,7 @@ export const renderWalletLogin: LoginScreenExtras["renderWalletLogin"] = ({
     onAuthenticated={onAuthenticated}
     disabled={disabled}
     style={style}
+    label={label}
     appName="Casecremental"
     walletConnectProjectId={projectId()}
   />
