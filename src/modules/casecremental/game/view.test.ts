@@ -3,7 +3,16 @@ import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, SELLER_COST, START_CASH, VAULT_OPENING_SECONDS } from "../sim/tuning";
+import {
+  BOT_WAKE_COST,
+  CLOUT_DIVISOR,
+  DAY_JOB_SECONDS,
+  LOCKER_BASE_CAPACITY,
+  LOCKER_COST,
+  SELLER_COST,
+  START_CASH,
+  VAULT_OPENING_SECONDS,
+} from "../sim/tuning";
 import { buildView } from "./view";
 
 describe("buildView", () => {
@@ -95,6 +104,32 @@ describe("buildView — M2b", () => {
     run.state.cash = 1e6;
     v = buildView(run);
     expect(v.seller).toMatchObject({ on: true, canBuy: false, speedLevel: 0, canBuySpeed: true, threshold: "classified" });
+  });
+
+  it("shows the locker from Run 2: to buy, then what a press would take, the press, and its result", () => {
+    expect(buildView(new Run(1)).locker).toMatchObject({ available: false, canBuy: false, autoAvailable: false });
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 2, startCash: 1e9 });
+    let v = buildView(run);
+    expect(v.locker).toMatchObject({ available: true, on: false, cost: LOCKER_COST, canBuy: true, autoAvailable: false });
+    run.buyLocker();
+    for (let i = 0; i < 10; i++) run.state.locker.items.push(run.rollFor("bootcamp", "milspec"));
+    v = buildView(run);
+    expect(v.locker).toMatchObject({
+      on: true,
+      canBuy: false,
+      count: 10,
+      capacity: LOCKER_BASE_CAPACITY,
+      tradeUp: "milspec",
+      canTradeUp: true,
+    });
+    expect(v.locker.counts.milspec).toBe(10);
+    run.tradeUp();
+    run.tick(1);
+    v = buildView(run);
+    expect(v.locker).toMatchObject({ pressing: true, tradeUp: null, canTradeUp: false, count: 0 });
+    expect(v.locker.pressProgress).toBeCloseTo(0.4, 5);
+    run.tick(2);
+    expect(buildView(run).locker.cards).toEqual([expect.objectContaining({ rarity: "restricted" })]);
   });
 
   it("shows the tray and the day job", () => {

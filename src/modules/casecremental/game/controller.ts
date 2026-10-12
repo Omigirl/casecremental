@@ -27,6 +27,13 @@ export type Action =
   | { type: "buySellerSpeed" }
   | { type: "setSellerThreshold"; rarity: RarityId }
   | { type: "holdCard"; spot: CardSpot | null; slot?: number }
+  | { type: "buyLocker" }
+  | { type: "buyLockerSize" }
+  | { type: "setCollect"; rarity: RarityId | null }
+  | { type: "storeCard"; from: CardSpot | "tray"; slot: number }
+  | { type: "tradeUp" }
+  | { type: "sellLocker"; slot?: number }
+  | { type: "buyAutoContract" }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "turnVaultKey" }
@@ -188,6 +195,20 @@ export class GameController {
         return run.setSellerThreshold(a.rarity);
       case "holdCard":
         return run.setHeld(a.spot, a.slot ?? 0);
+      case "buyLocker":
+        return run.buyLocker();
+      case "buyLockerSize":
+        return run.buyLockerSize();
+      case "setCollect":
+        return run.setCollect(a.rarity);
+      case "storeCard":
+        return run.storeCard(a.from, a.slot);
+      case "tradeUp":
+        return run.tradeUp();
+      case "sellLocker":
+        return run.sellLockerCard(a.slot ?? 0);
+      case "buyAutoContract":
+        return run.buyAutoContract();
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":

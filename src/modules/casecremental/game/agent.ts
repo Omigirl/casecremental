@@ -1,9 +1,10 @@
 import type { ModuleAgentApi } from "@idosgames/module-sdk";
 import { skinById, skinDisplayName } from "../sim/content/cases";
 import type { CharmId } from "../sim/charms";
+import { lockerCapacity, lockerCounts, tradeUpRarity } from "../sim/locker";
 import { PERK_IDS, type PerkId } from "../sim/meta";
 import { RARITY_ORDER } from "../sim/rarity";
-import type { ActionResult } from "../sim/run";
+import type { ActionResult, CardSpot } from "../sim/run";
 import type { RarityId } from "../sim/types";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 import type { Action, GameController } from "./controller";
@@ -13,6 +14,7 @@ import type { Action, GameController } from "./controller";
 
 type Args = Record<string, unknown> | undefined;
 const cents = (n: number) => Math.round(n * 100) / 100;
+const STORE_FROM: readonly (CardSpot | "tray")[] = ["bench", "bot", "locker", "tray"];
 
 export function createAgentApi(c: GameController): ModuleAgentApi {
   const run = async (action: Action): Promise<ActionResult> => c.act(action);
@@ -49,6 +51,18 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
           cards: s.bot.cards.map((d) => d?.rarity ?? null),
         },
         seller: { ...s.seller },
+        locker: {
+          on: s.locker.on,
+          items: s.locker.items.length,
+          counts: lockerCounts(s.locker.items),
+          capacity: lockerCapacity(s.locker.sizeLevel),
+          sizeLevel: s.locker.sizeLevel,
+          collect: s.locker.collect,
+          ready: tradeUpRarity(s.locker.items),
+          press: s.locker.press ? { rarity: s.locker.press.rarity, elapsed: s.locker.press.elapsed } : null,
+          cards: s.locker.cards.map((d) => d?.rarity ?? null),
+          auto: s.locker.auto,
+        },
         dayJob: s.dayJob,
         vault: s.vault?.phase ?? null,
         over: s.over,
@@ -104,6 +118,24 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         if (!RARITY_ORDER.includes(r as RarityId)) throw new Error(`unknown rarity "${r}"; valid: ${RARITY_ORDER.join(", ")}`);
         return c.act({ type: "setSellerThreshold", rarity: r as RarityId });
       },
+      buyLocker: () => run({ type: "buyLocker" }),
+      buyLockerSize: () => run({ type: "buyLockerSize" }),
+      setCollect: async (args: Args) => {
+        if (args?.rarity == null) return c.act({ type: "setCollect", rarity: null });
+        const r = String(args.rarity);
+        if (!RARITY_ORDER.includes(r as RarityId)) throw new Error(`unknown rarity "${r}"; valid: ${RARITY_ORDER.join(", ")} or null`);
+        return c.act({ type: "setCollect", rarity: r as RarityId });
+      },
+      storeCard: async (args: Args) => {
+        const from = String(args?.from ?? "");
+        if (!STORE_FROM.includes(from as CardSpot | "tray")) throw new Error(`unknown spot "${from}"; valid: ${STORE_FROM.join(", ")}`);
+        const slot = Number(args?.slot ?? 0);
+        if (!Number.isInteger(slot)) throw new Error(`slot must be a whole number (got ${JSON.stringify(args?.slot)})`);
+        return c.act({ type: "storeCard", from: from as CardSpot | "tray", slot });
+      },
+      tradeUp: () => run({ type: "tradeUp" }),
+      sellLocker: (args: Args) => run({ type: "sellLocker", slot: Number(args?.slot ?? 0) }),
+      buyAutoContract: () => run({ type: "buyAutoContract" }),
       startDayJob: () => run({ type: "startDayJob" }),
       buyVault: () => run({ type: "buyVault" }),
       turnVaultKey: () => run({ type: "turnVaultKey" }),
@@ -146,6 +178,14 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       buySeller: "Buy the auto-seller (sells waiting cards, sets good ones aside in the tray).",
       buySellerSpeed: "Buy one auto-seller Speed level.",
       setSellerThreshold: "The rarest drop the auto-seller sells: { rarity: milspec|restricted|classified|covert|gold }.",
+      buyLocker: "Run 2 and later: buy the locker (keeps skins; ten of a rarity trade up into one of the next).",
+      buyLockerSize: "Buy one locker Size level (+10 slots).",
+      setCollect:
+        "The rarity the auto-seller sends to the locker instead of selling: { rarity: milspec|restricted|classified|covert } or { rarity: null } for off.",
+      storeCard: "Put a card in the locker by hand (feeds the combo): { from: bench|bot|locker|tray, slot }.",
+      tradeUp: "Press the oldest ten of the lowest ready rarity in the locker into one skin of the next rarity.",
+      sellLocker: "Sell a contract result waiting on the locker by hand: { slot? } (default 0).",
+      buyAutoContract: "Run 3: the locker presses on its own (the Collect rarity, else the lowest ready).",
       startDayJob: "Broke with an empty bench: take a ~3 s day job.",
       buyVault: "Buy Vault Case I (all cases unlocked); then turn its key, and the opening ends the run.",
       turnVaultKey: "Turn the devil key in Vault Case I's lock (opens it).",

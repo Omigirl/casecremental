@@ -72,6 +72,13 @@ describe("the local save", () => {
     expect(loaded.run.state.held).toBeNull(); // nobody is holding a card after a reload
   });
 
+  it("gives a v4 save from before the locker a fresh one", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.run.state.locker;
+    const loaded = decodeSave(JSON.stringify(d))!;
+    expect(loaded.run.state.locker).toEqual(new Run(3).state.locker);
+  });
+
   it("merges the bot and seller defaults into a v3 save that lacks fields, so none becomes NaN", () => {
     const d = JSON.parse(encodeSave(data()));
     delete d.run.state.bot.speedLevel;

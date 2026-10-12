@@ -107,6 +107,25 @@ describe("GameController — the campaign", () => {
     expect(botWaiting(c.run.state.bot)).toBe(false);
   });
 
+  it("routes the locker's actions", () => {
+    const c = new GameController(1);
+    c.devStartRun(2);
+    c.devAddCash(1e9);
+    expect(c.act({ type: "buyLocker" }).ok).toBe(true);
+    expect(c.act({ type: "buyLockerSize" }).ok).toBe(true);
+    expect(c.act({ type: "setCollect", rarity: "milspec" }).ok).toBe(true);
+    expect(c.act({ type: "setCollect", rarity: "gold" }).ok).toBe(false);
+    for (let i = 0; i < 10; i++) c.run.state.tray.push(c.run.rollFor("bootcamp", "milspec"));
+    for (let i = 0; i < 10; i++) expect(c.act({ type: "storeCard", from: "tray", slot: 0 }).ok).toBe(true);
+    expect(c.act({ type: "tradeUp" }).ok).toBe(true);
+    for (let i = 0; i < 90; i++) c.run.tick(1 / 30);
+    expect(c.act({ type: "holdCard", spot: "locker", slot: 0 }).ok).toBe(true);
+    expect(c.run.state.held).toBe("locker");
+    expect(c.act({ type: "sellLocker" }).ok).toBe(true);
+    expect(c.run.state.held).toBeNull();
+    expect(c.act({ type: "buyAutoContract" })).toEqual({ ok: false, reason: "not in this run" });
+  });
+
   it("pays the vault into the meta exactly once, then prestiges into a fresh boosted run", () => {
     const c = new GameController(1);
     const events: string[] = [];

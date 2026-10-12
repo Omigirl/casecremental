@@ -48,6 +48,24 @@ describe("run snapshots", () => {
     expect(b.state.over).toBe(true);
   });
 
+  it("restores a trade-up press half done, and ends identically", () => {
+    const a = new Run(7, { ...DEFAULT_SETUP, run: 2, startCash: 1e9 });
+    expect(a.buyLocker().ok).toBe(true);
+    for (let i = 0; i < 10; i++) a.state.locker.items.push(a.rollFor("wildwood", "milspec"));
+    expect(a.tradeUp().ok).toBe(true);
+    tickFor(a, 1);
+    expect(a.state.locker.press).not.toBeNull();
+    const b = Run.fromSnapshot(JSON.parse(JSON.stringify(a.snapshot())) as ReturnType<Run["snapshot"]>);
+    expect(b.state).toEqual(a.state);
+    for (const r of [a, b]) {
+      r.drainEvents();
+      tickFor(r, 3);
+      r.sellLockerCard(0);
+    }
+    expect(a.state.locker.cards).toEqual([]);
+    expect(b.state).toEqual(a.state);
+  });
+
   it("restores a two-reel spin and a half-sold pair identically (Review Focus 3)", () => {
     const a = new Run(9);
     a.state.upgrades.multiOpen = 1;

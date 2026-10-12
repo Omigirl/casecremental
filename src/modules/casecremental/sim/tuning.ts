@@ -202,3 +202,22 @@ export const SELLER_HOLD_SECONDS = [2.5, 1.8, 1.2, 0.8, 0.5] as const;
 /** A Covert or ★ waits this long, so its reveal (the knife's showcase) plays first. */
 export const SELLER_BIG_HOLD = 2.6;
 export const SELLER_SPEED_COSTS = { baseCost: 120, growth: 2.4 } as const;
+
+/** The locker (Run 2): keeps skins, by hand or through the auto-seller's Collect setting. */
+export const LOCKER_COST = 6_000;
+export const LOCKER_BASE_CAPACITY = 20;
+export const LOCKER_SIZE_STEP = 10;
+export const LOCKER_SIZE_LEVELS = 3;
+export const LOCKER_SIZE_COSTS = { baseCost: 10_000, growth: 3 } as const;
+/** A trade-up contract presses this many skins of one rarity into one of the next. */
+export const TRADE_UP_COUNT = 10;
+export const TRADE_UP_SECONDS = 2.5;
+/** A contract pays its normal value × this (by its inputs' rarity), so it returns ~1.5× what its inputs would sell for. */
+export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>> = {
+  milspec: 4.5,
+  restricted: 5,
+  classified: 3.6,
+  covert: 3.6,
+};
+/** Run 3: the locker presses on its own. */
+export const AUTO_CONTRACT_COST = 250_000_000;

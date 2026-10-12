@@ -6,7 +6,7 @@ import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import { VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES, VAULT_TROPHY } from "./tuning";
 
 // Vault Case I (rework spec §4): bought once every case is unlocked, opened with the devil key; its five reels
-// land on a timeline, then the run ends.
+// land on a timeline, then the run ends (the tray and the locker are sold with it).
 
 export const vaultShown = (ctx: RunCtx): boolean => runCaseIds(ctx.setup.run).every((id) => ctx.state.unlocked.includes(id));
 
@@ -27,6 +27,16 @@ export function buyVault(ctx: RunCtx): ActionResult {
   s.bot.cards = [];
   s.bot.spin = null;
   if (s.held === "bot") ctx.release();
+  // so are the locker's waiting results and a running press's; its items stay until the run ends
+  [...s.locker.cards, ...(s.locker.press?.results ?? [])].forEach((d, slot) => {
+    if (!d) return;
+    const amount = ctx.payout(d, false);
+    ctx.earn(amount);
+    ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "locker", from: "locker", slot });
+  });
+  s.locker.cards = [];
+  s.locker.press = null;
+  if (s.held === "locker") ctx.release();
   s.dayJob = null; // a shift still running has no bench to come back to
   s.vault = { phase: "key" };
   ctx.emit({ type: "vaultBought", price: ctx.setup.vaultPrice });
@@ -65,8 +75,9 @@ export function tickVault(ctx: RunCtx, dt: number): void {
     v.landed++;
   }
   if (v.t < VAULT_OPENING_SECONDS) return;
-  for (const d of s.tray) ctx.earn(ctx.payout(d, false));
+  for (const d of [...s.tray, ...s.locker.items]) ctx.earn(ctx.payout(d, false));
   s.tray = [];
+  s.locker.items = [];
   s.vault = null;
   s.over = true;
   ctx.emit({

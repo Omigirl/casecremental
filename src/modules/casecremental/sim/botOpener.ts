@@ -7,8 +7,8 @@ import type { Drop } from "./types";
 // reel; its drops wait at its station as cards until they are sold (by you, or by the auto-seller). It does not
 // open again while a card waits. In Run 2 and later its multi-open upgrade opens two cases per spin on stacked reels. Speed makes its spin faster.
 
-/** Where a revealed card waits: your bench or the bot's station. */
-export type CardSpot = "bench" | "bot";
+/** Where a revealed card waits: your bench, the bot's station, or on top of the locker (contract results). */
+export type CardSpot = "bench" | "bot" | "locker";
 
 export interface BotSpin {
   caseId: string;

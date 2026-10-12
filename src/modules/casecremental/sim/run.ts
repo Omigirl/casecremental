@@ -7,6 +7,8 @@ import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, is
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import * as dayJob from "./dayJob";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
+import * as locker from "./locker";
+import { freshLocker } from "./locker";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
 import {
@@ -41,7 +43,7 @@ export * from "./runTypes";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
 // upgrades, combo and intensity. Pure and deterministic from its seed; the renderer and the UI read
-// `state` and consume `drainEvents()`. The bot, auto-seller, vault and day job are functions over this
+// `state` and consume `drainEvents()`. The bot, auto-seller, locker, vault and day job are functions over this
 // run as a `RunCtx` (their own files); the bench, upgrades and the tick order live here.
 
 export class Run implements RunCtx {
@@ -85,6 +87,7 @@ export class Run implements RunCtx {
       tray: [],
       bot: freshBot(this.setup.botAwake),
       seller: freshSeller(),
+      locker: freshLocker(),
       held: null,
       heldSlot: 0,
       vault: null,
@@ -321,6 +324,7 @@ export class Run implements RunCtx {
 
     bot.tickBot(this, dt);
     seller.tickSeller(this);
+    locker.tickLocker(this, dt);
     dayJob.tickDayJob(this, dt);
     vault.tickVault(this, dt);
 
@@ -395,14 +399,54 @@ export class Run implements RunCtx {
     return seller.setSellerThreshold(this, rarity);
   }
 
-  /** The player picks a waiting card up (bench or bot) or lets go (null): machines leave a held card alone. */
+  /** The player picks a waiting card up (bench, bot or locker) or lets go (null): machines leave a held card alone. */
   setHeld(spot: CardSpot | null, slot = 0): ActionResult {
     const s = this.state;
     const b = s.bench;
-    const waiting = spot === "bench" ? b.phase === "revealed" && !!b.cards[slot] : spot === "bot" ? !!s.bot.cards[slot] : true;
+    const waiting =
+      spot === "bench"
+        ? b.phase === "revealed" && !!b.cards[slot]
+        : spot === "bot"
+          ? !!s.bot.cards[slot]
+          : spot === "locker"
+            ? !!s.locker.cards[slot]
+            : true;
     s.held = waiting ? spot : null;
-    s.heldSlot = waiting && (spot === "bench" || spot === "bot") ? slot : 0;
+    s.heldSlot = waiting && spot !== null ? slot : 0;
     return OK;
+  }
+
+  buyLocker(): ActionResult {
+    return locker.buyLocker(this);
+  }
+
+  buyLockerSize(): ActionResult {
+    return locker.buyLockerSize(this);
+  }
+
+  /** The rarity the auto-seller sends to the locker (null = off). */
+  setCollect(rarity: RarityId | null): ActionResult {
+    return locker.setCollect(this, rarity);
+  }
+
+  /** Drag a waiting card or a tray item into the locker by hand (feeds the combo). */
+  storeCard(from: CardSpot | "tray", slot: number): ActionResult {
+    return locker.storeCard(this, from, slot);
+  }
+
+  /** Press the oldest ten of the lowest ready rarity into one of the next. */
+  tradeUp(): ActionResult {
+    return locker.tradeUp(this);
+  }
+
+  /** Sell a contract result waiting on the locker by hand (feeds the combo). */
+  sellLockerCard(slot = 0): ActionResult {
+    return locker.sellLockerCard(this, slot);
+  }
+
+  /** Run 3: the locker presses on its own. */
+  buyAutoContract(): ActionResult {
+    return locker.buyAutoContract(this);
   }
 
   /** Sell a tray item by hand (feeds the combo). */

@@ -1,12 +1,14 @@
 import { takeBotCard, type CardSpot } from "./botOpener";
+import { collectInto, takeLockerCard } from "./locker";
 import { RARITY_ORDER } from "./rarity";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import { SELLER_BIG_HOLD, SELLER_COST, SELLER_HOLD_SECONDS, SELLER_SPEED_COSTS } from "./tuning";
 import type { Drop, RarityId } from "./types";
 
-// The auto-seller machine (rework spec §1): once bought, any card left waiting — yours on the bench or the
-// bot's at its station — is taken after a short hold: sold if it is at or below the threshold (no combo),
-// else put in the claim tray. A held card is left alone; a full tray leaves the card where it is.
+// The auto-seller machine (rework spec §1): once bought, any card left waiting — yours on the bench, the
+// bot's at its station, a contract result on the locker — is taken after a short hold: sent to the locker if it is
+// the Collect rarity (and there is room), else sold if it is at or below the threshold (no combo), else put in the
+// claim tray. A held card is left alone; a full tray leaves the card where it is.
 
 export interface SellerState {
   on: boolean;
@@ -77,11 +79,17 @@ export function tickSeller(ctx: RunCtx): void {
     if (s.time - s.bot.cardAt < sellerHold(d.rarity, seller.speedLevel)) return;
     if (autoTake(ctx, d, "bot", slot)) takeBotCard(ctx, slot);
   });
+  s.locker.cards.forEach((d, slot) => {
+    if (!d || (s.held === "locker" && s.heldSlot === slot)) return;
+    if (s.time - s.locker.cardAt < sellerHold(d.rarity, seller.speedLevel)) return;
+    if (autoTake(ctx, d, "locker", slot)) takeLockerCard(ctx, slot);
+  });
 }
 
-/** Sell it (at or below the threshold) or set it aside in the tray; false when the tray is full. */
+/** Collect it into the locker, sell it (at or below the threshold) or set it aside in the tray; false when the tray is full. */
 export function autoTake(ctx: RunCtx, d: Drop, from: CardSpot, slot = 0): boolean {
   const s = ctx.state;
+  if (collectInto(ctx, d, from, slot)) return true;
   if (sellsAt(s.seller.threshold, d.rarity)) {
     const amount = ctx.payout(d, false);
     ctx.earn(amount);
