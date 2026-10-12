@@ -143,6 +143,16 @@ export const LUCKY_SEVEN_EVERY = 7;
 export const MANIAC_MILSPEC_MULT = 4;
 export const MANIAC_OTHER_MULT = 0.5;
 
+// Run 2 and 3 charms
+export const CHAIN_REACTION_CHANCE = 0.25;
+/** Ricochet and Chain Reaction free cases waiting for the bench never pile up past this. */
+export const FREE_CASE_QUEUE_MAX = 5;
+export const CONTRACT_KILLER_CHANCE = 0.2;
+export const HOARDER_PER_SKIN = 0.01;
+export const FEVER_PAY_MULT = 1.5;
+export const FEVER_STAGE_BONUS = 1;
+export const COLLECTOR_MULT = 2;
+
 export const TRAY_BASE_CAPACITY = 12;
 
 /** Broke with an empty bench: a day job (campaign spec §6.1). */

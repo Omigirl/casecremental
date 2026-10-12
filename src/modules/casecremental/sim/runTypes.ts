@@ -76,6 +76,8 @@ export type SimEvent =
   | { type: "revealed"; drops: Drop[] }
   | { type: "sold"; drop: Drop; amount: number; combo: number; source: SaleSource; from: CardSpot | "grid" | null; slot: number }
   | { type: "caseUnlocked"; caseId: string }
+  /** Collector's Eye: every non-★ skin of this case has shown up. */
+  | { type: "setCompleted"; caseId: string }
   | { type: "upgradeBought"; id: UpgradeId; level: number }
   | { type: "stageChanged"; stage: number }
   | { type: "dayJobStarted" }
@@ -139,6 +141,8 @@ export interface RunState {
   goldenHourUntil: number;
   /** Ricochet: free cases waiting for the bench. */
   freeCases: string[];
+  /** Collector's Eye: skin ids revealed this run, by case. */
+  seen: Record<string, string[]>;
   /** Drops the auto-seller set aside for the player to claim (above its threshold). */
   tray: Drop[];
   bot: BotState;

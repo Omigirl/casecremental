@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RUN1_CHARMS } from "./charms";
+import { RUN1_CHARMS, RUN3_CHARMS } from "./charms";
 import { buyPerk, charmSlots, cloutFor, completeVault, freshMeta, offerCharms, perkCost, pickCharm, setupFor } from "./meta";
 import { CATCH_UP_PER_VAULT, CLOUT_DIVISOR, PERK_START_CASH, START_CASH, TRAY_BASE_CAPACITY, TRAY_PER_PERK, VAULT_PRICES } from "./tuning";
 
@@ -23,7 +23,7 @@ describe("prestige meta", () => {
     expect(m.trophies).toEqual(["vault1"]);
     expect(m.offer).toHaveLength(3);
     expect(new Set(m.offer).size).toBe(3);
-    for (const c of m.offer!) expect(RUN1_CHARMS).toContain(c);
+    for (const c of m.offer!) expect(RUN3_CHARMS).toContain(c);
     expect(offerCharms(42, 2, 3)).toEqual(m.offer); // same seed and loop → same offer
   });
 

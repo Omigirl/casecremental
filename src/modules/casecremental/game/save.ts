@@ -108,6 +108,7 @@ function normalize(d: SaveData): SaveData {
         seller: { ...freshSeller(), ...d.run.state.seller },
         locker: { ...freshLocker(), ...d.run.state.locker },
         grid: { ...freshGrid(), ...d.run.state.grid },
+        seen: d.run.state.seen ?? {},
         held: null,
         heldSlot: 0,
         vault: d.run.state.vault ?? null,

@@ -7,6 +7,7 @@ import { valueMultOf } from "./roll";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import {
   AUTO_CONTRACT_COST,
+  CONTRACT_KILLER_CHANCE,
   LOCKER_BASE_CAPACITY,
   LOCKER_COST,
   LOCKER_SIZE_COSTS,
@@ -203,7 +204,8 @@ function startPress(ctx: RunCtx, rarity: RarityId): void {
   const kept: Drop[] = [];
   for (const d of s.locker.items) (d.rarity === rarity && inputs.length < TRADE_UP_COUNT ? inputs : kept).push(d);
   s.locker.items = kept;
-  const results = contractResults(inputs, ctx.rng, () => s.nextDropId++, false); // Contract Killer (Task 7) decides `two`
+  const two = ctx.setup.charms.includes("contractKiller") && ctx.rng.next() < CONTRACT_KILLER_CHANCE;
+  const results = contractResults(inputs, ctx.rng, () => s.nextDropId++, two);
   s.locker.press = { rarity, inputs, results, elapsed: 0 };
   ctx.emit({ type: "pressStarted", rarity, inputs, results });
 }
@@ -219,9 +221,13 @@ export function tradeUp(ctx: RunCtx): ActionResult {
 }
 
 /** Sell one of the contract results by hand (feeds the combo). */
-export function sellLockerCard(ctx: RunCtx, slot = 0): ActionResult {
+export function sellLockerCard(ctx: RunCtx, slot?: number): ActionResult {
   if (ctx.locked()) return fail("the vault is open");
   const s = ctx.state;
+  slot ??= Math.max(
+    0,
+    s.locker.cards.findIndex((c) => c !== null),
+  ); // Contract Killer: slot 0 may already be gone
   const d = s.locker.cards[slot];
   if (!d) return fail("nothing waits on the locker");
   ctx.bumpCombo();

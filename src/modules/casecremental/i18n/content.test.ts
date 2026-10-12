@@ -3,7 +3,7 @@ import { CASES } from "../sim/content/cases";
 import { VAULTS } from "../sim/content/vaults";
 import { UPGRADE_IDS } from "../sim/upgrades";
 import { budgetFor, fitsBudget } from "./budgets";
-import { RUN1_CHARMS } from "../sim/charms";
+import { RUN3_CHARMS } from "../sim/charms";
 import { PERK_IDS } from "../sim/meta";
 import {
   CONTENT_KEYS,
@@ -46,10 +46,10 @@ describe("content names", () => {
     expect(stageName(5)).toBe("Без тормозов");
   });
 
-  it("names every Run 1 charm and perk, and the vault, in both languages", () => {
+  it("names every charm and perk, and the vault, in both languages", () => {
     for (const lang of ["en", "ru"] as const) {
       setLang(lang);
-      for (const id of RUN1_CHARMS) {
+      for (const id of RUN3_CHARMS) {
         expect(charmName(id)).not.toBe("");
         expect(charmDesc(id)).not.toBe("");
       }

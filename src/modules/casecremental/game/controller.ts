@@ -211,7 +211,7 @@ export class GameController {
       case "tradeUp":
         return run.tradeUp();
       case "sellLocker":
-        return run.sellLockerCard(a.slot ?? 0);
+        return run.sellLockerCard(a.slot);
       case "buyAutoContract":
         return run.buyAutoContract();
       case "buyGrid":

@@ -3,7 +3,16 @@ import { freshSeller } from "./autoSeller";
 import * as bot from "./botOpener";
 import { freshBot, type CardSpot } from "./botOpener";
 import { runCaseIds } from "./campaign";
-import { charmMinRarity, charmPriceMult, charmStatTrakChance, charmValueMult, isBigRarity } from "./charms";
+import {
+  charmMinRarity,
+  charmPriceMult,
+  charmStatTrakChance,
+  charmValueMult,
+  isBigRarity,
+  queueFreeCase,
+  reactToReveal,
+  setCollected,
+} from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import * as dayJob from "./dayJob";
 import * as grid from "./grid";
@@ -32,6 +41,7 @@ import {
   COMBO_HEAT_DECAY_SECONDS,
   COMBO_STEP,
   COMBO_WINDOW_SECONDS,
+  FEVER_STAGE_BONUS,
   GOLDEN_HOUR_LUCK,
   GOLDEN_HOUR_SECONDS,
   PITY_LUCK_LEVELS,
@@ -86,6 +96,7 @@ export class Run implements RunCtx {
       pity: 0,
       goldenHourUntil: -1,
       freeCases: [],
+      seen: {},
       tray: [],
       bot: freshBot(this.setup.botAwake),
       seller: freshSeller(),
@@ -151,7 +162,12 @@ export class Run implements RunCtx {
   /** What a drop pays: value × Appraiser × charms × catch-up, and × combo when sold by hand. */
   payout(d: Drop, byHand: boolean): number {
     const combo = byHand ? this.comboMultiplier() : 1;
-    return d.value * this.effects().sellMult * charmValueMult(this.setup.charms, d) * this.setup.valueBoost * combo;
+    const s = this.state;
+    const charms = charmValueMult(this.setup.charms, d, {
+      lockerCount: s.locker.items.length,
+      collected: (id) => setCollected(s.seen, id),
+    });
+    return d.value * this.effects().sellMult * charms * this.setup.valueBoost * combo;
   }
 
   bumpCombo(): void {
@@ -334,7 +350,9 @@ export class Run implements RunCtx {
 
     s.heat = updateHeat(s.heat, this.revealsThisTick, dt);
     this.revealsThisTick = 0;
-    const stage = this.locked() ? s.stage : nextStage(s.stage, this.intensity());
+    // Fever shows one stage higher; the hysteresis runs on the stage underneath
+    const bonus = this.setup.charms.includes("fever") ? FEVER_STAGE_BONUS : 0;
+    const stage = this.locked() ? s.stage : Math.min(5, nextStage(s.stage - bonus, this.intensity()) + bonus);
     if (stage !== s.stage) {
       s.stage = stage;
       this.emit({ type: "stageChanged", stage });
@@ -444,7 +462,7 @@ export class Run implements RunCtx {
   }
 
   /** Sell a contract result waiting on the locker by hand (feeds the combo). */
-  sellLockerCard(slot = 0): ActionResult {
+  sellLockerCard(slot?: number): ActionResult {
     return locker.sellLockerCard(this, slot);
   }
 
@@ -497,7 +515,8 @@ export class Run implements RunCtx {
     if (spot === "bench") s.revealedAt = s.time;
     if (s.held === spot) this.release();
     if (charms.includes("pityJar")) s.pity = d.rarity === "milspec" ? s.pity + 1 : isBigRarity(d.rarity) ? 0 : s.pity;
-    if (charms.includes("ricochet") && d.rarity === "covert") s.freeCases.push(d.caseId);
+    if (charms.includes("ricochet") && d.rarity === "covert") queueFreeCase(s, d.caseId);
     if (charms.includes("goldRush") && d.rarity === "gold") s.goldenHourUntil = s.time + GOLDEN_HOUR_SECONDS;
+    reactToReveal(this, d, spot);
   }
 }

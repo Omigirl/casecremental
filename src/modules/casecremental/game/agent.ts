@@ -144,7 +144,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         return c.act({ type: "storeCard", from: from as CardSpot | "tray", slot });
       },
       tradeUp: () => run({ type: "tradeUp" }),
-      sellLocker: (args: Args) => run({ type: "sellLocker", slot: Number(args?.slot ?? 0) }),
+      sellLocker: (args: Args) => run({ type: "sellLocker", slot: args?.slot === undefined ? undefined : Number(args.slot) }),
       buyAutoContract: () => run({ type: "buyAutoContract" }),
       buyGrid: () => run({ type: "buyGrid" }),
       buyGridRate: () => run({ type: "buyGridRate" }),
@@ -204,7 +204,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         "The rarity the auto-seller sends to the locker instead of selling: { rarity: milspec|restricted|classified|covert } or { rarity: null } for off.",
       storeCard: "Put a card in the locker by hand (feeds the combo): { from: bench|bot|locker|tray, slot }.",
       tradeUp: "Press the oldest ten of the lowest ready rarity in the locker into one skin of the next rarity.",
-      sellLocker: "Sell a contract result waiting on the locker by hand: { slot? } (default 0).",
+      sellLocker: "Sell a contract result waiting on the locker by hand: { slot? } (default: the first one waiting).",
       buyAutoContract: "Run 3: the locker presses on its own (the Collect rarity, else the lowest ready).",
       buyGrid: "Run 3: buy the auto-buyer grid (needs the auto-seller): it buys ticked cases into cells and opens them on its own.",
       buyGridRate: "Buy one auto-buyer Rate level (it buys more often).",

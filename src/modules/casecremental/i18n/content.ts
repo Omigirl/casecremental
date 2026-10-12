@@ -185,6 +185,26 @@ const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
     name: { en: "Mil-Spec Maniac", ru: "Армейский маньяк" },
     desc: { en: "Mil-Spec x4, the rest x0.5", ru: "Армейское x4, прочее x0,5" },
   },
+  chainReaction: {
+    name: { en: "Chain Reaction", ru: "Цепная реакция" },
+    desc: { en: "Classified+: 25% a free case", ru: "Засекреч.+: 25% кейс даром" },
+  },
+  contractKiller: {
+    name: { en: "Contract Killer", ru: "Киллер контрактов" },
+    desc: { en: "Trade-ups: 20% two results", ru: "Контракты: 20% два итога" },
+  },
+  hoarder: {
+    name: { en: "Hoarder", ru: "Барахольщик" },
+    desc: { en: "+1% value per locker skin", ru: "+1% цены за скин в шкафу" },
+  },
+  fever: {
+    name: { en: "Fever", ru: "Лихорадка" },
+    desc: { en: "Stage +1, all payouts x1.5", ru: "Стадия +1, выплаты x1,5" },
+  },
+  collectorsEye: {
+    name: { en: "Collector's Eye", ru: "Глаз коллекционера" },
+    desc: { en: "Full set of a case: x2", ru: "Полный набор кейса: x2" },
+  },
 };
 
 const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
