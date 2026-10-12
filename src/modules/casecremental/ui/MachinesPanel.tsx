@@ -7,11 +7,13 @@ import { RARITY_INFO } from "../sim/rarity";
 import { cssColor, nextThreshold } from "./botBoard";
 import { AutoSpinRows } from "./AutoSpinRows";
 import { LockerRows } from "./LockerRows";
+import { EvolutionRows } from "./EvolutionRows";
 import { boardOpen, type Act } from "./machineRules";
 import { PxButton } from "./parts";
+import { UpgraderRows } from "./UpgraderRows";
 
-// The Machines tab: the auto-seller and auto-spin (Run 1), the locker (Run 2+). A machine of a later
-// run has no rows until its run (spec §2).
+// The Machines tab: the auto-seller and auto-spin (Run 1), the locker (Run 2+), the Upgrader and evolutions (Run 4+).
+// A machine of a later run has no rows until its run (spec §2).
 
 function SellerRows({ view, act }: { view: GameView; act: Act }): ReactNode {
   const s = view.seller;
@@ -57,6 +59,8 @@ export function MachinesPanel({ view, act }: { view: GameView; act: Act }): Reac
       <SellerRows view={view} act={act} />
       <AutoSpinRows view={view} act={act} />
       <LockerRows view={view} act={act} />
+      <UpgraderRows view={view} act={act} />
+      <EvolutionRows view={view} act={act} />
     </>
   );
 }

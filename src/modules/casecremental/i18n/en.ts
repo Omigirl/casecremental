@@ -111,6 +111,25 @@ export const EN = {
   "card.run3": "Multi-open goes up to x5. The auto contract presses trade-ups on its own.",
   "card.run4":
     "Two new cases, {glitch} and {fever}. The Upgrader stakes skins for bigger ones, maxed upgrades evolve, and {last} waits at the end.",
+  "upgrader.name": "Upgrader",
+  "upgrader.desc": "Stake skins, go big",
+  "upgrader.needs": "Needs the locker",
+  "upgrader.stake": "Stake:",
+  "upgrader.stakeOf": "{n} for {v}",
+  "upgrader.none": "None",
+  "upgrader.empty": "Locker is empty",
+  "upgrader.target": "Target:",
+  "upgrader.chance": "Win {p}%",
+  "upgrader.rolling": "ROLLING...",
+  "btn.go": "GO",
+  "btn.evolve": "EVOLVE",
+  "btn.evolved": "EVOLVED",
+  "evo.title": "EVOLUTIONS",
+  "evo.part.max": "{name} MAX",
+  "evo.part.combo": "Hand combo {n}/{max}",
+  "evo.part.botSpeed": "Bot Speed",
+  "evo.part.sellerSpeed": "Seller Speed",
+  "evo.part.autoSpinDelay": "Auto-spin Delay",
 } as const;
 
 export type StringKey = keyof typeof EN;

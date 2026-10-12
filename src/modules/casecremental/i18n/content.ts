@@ -1,4 +1,5 @@
 import type { CharmId } from "../sim/charms";
+import type { EvolutionId } from "../sim/evolved";
 import type { PerkId } from "../sim/meta";
 import type { RarityId, WeaponId, WearId } from "../sim/types";
 import type { UpgradeId } from "../sim/upgrades";
@@ -252,6 +253,14 @@ const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
   biggerTray: { name: { en: "Bigger Tray", ru: "Большой лоток" }, desc: { en: "+4 claim tray slots", ru: "+4 места в лотке" } },
 };
 
+const EVOLUTIONS: Record<EvolutionId, { name: Pair; desc: Pair }> = {
+  slotMachine: { name: { en: "Slot Machine", ru: "Игровой автомат" }, desc: { en: "BUY opens x10", ru: "BUY открывает x10" } },
+  cartel: { name: { en: "Cartel", ru: "Картель" }, desc: { en: "Bot keeps the best of 2", ru: "Бот берёт лучший из 2" } },
+  moneyPrinter: { name: { en: "Money Printer", ru: "Денежный станок" }, desc: { en: "Auto-seller sales x3", ru: "Автопродажи x3" } },
+  assemblyLine: { name: { en: "Assembly Line", ru: "Конвейер" }, desc: { en: "No delay, 25th is free", ru: "Без паузы, 25-й даром" } },
+  hotHand: { name: { en: "Hot Hand", ru: "Горячая рука" }, desc: { en: "Combo 25+: +5 Luck", ru: "Комбо 25+: +5 удачи" } },
+};
+
 const STAGES: Pair[] = [
   { en: "Sober", ru: "Трезвый" },
   { en: "Buzzed", ru: "Навеселе" },
@@ -272,6 +281,8 @@ export const charmName = (id: CharmId): string => pick(CHARMS[id]?.name);
 export const charmDesc = (id: CharmId): string => pick(CHARMS[id]?.desc);
 export const perkName = (id: PerkId): string => pick(PERKS[id]?.name);
 export const perkDesc = (id: PerkId): string => pick(PERKS[id]?.desc);
+export const evolutionName = (id: EvolutionId): string => pick(EVOLUTIONS[id]?.name);
+export const evolutionDesc = (id: EvolutionId): string => pick(EVOLUTIONS[id]?.desc);
 /** The names a new-run card's text fills in (`card.run4`: {glitch}, {fever}, {last}), so it always matches the shelf. */
 export const cardFill = (): Record<string, string> => ({
   glitch: caseName("glitch"),
@@ -301,6 +312,10 @@ export function CONTENT_KEYS(): Array<[string, string, string]> {
   for (const [k, p] of Object.entries(PERKS)) {
     rows.push(["perk.name." + k, p.name.en, p.name.ru]);
     rows.push(["perk.desc." + k, p.desc.en, p.desc.ru]);
+  }
+  for (const [k, e] of Object.entries(EVOLUTIONS)) {
+    rows.push(["evo.name." + k, e.name.en, e.name.ru]);
+    rows.push(["evo.desc." + k, e.desc.en, e.desc.ru]);
   }
   STAGES.forEach((p, i) => rows.push(["stage." + (i + 1), p.en, p.ru]));
   return rows;
