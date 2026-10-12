@@ -55,11 +55,6 @@ export class BenchFx {
     this.knifeFlight.update(realSeconds);
   }
 
-  /** Your bench's ★ knife showcase is in the air. */
-  get knifeFlying(): boolean {
-    return this.knifeFlight.flying;
-  }
-
   /** A reel lands before its teasing partner: its own quieter stop and a small shake (the last is revealed()'s). */
   reelLanded(): void {
     this.juice.shake.add(0.05);

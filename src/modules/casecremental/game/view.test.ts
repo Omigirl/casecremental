@@ -1,3 +1,4 @@
+import { AUTOSPIN_DELAY_LEVELS } from "../sim/autoSpin";
 import { botWaiting } from "../sim/botOpener";
 import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
@@ -254,13 +255,14 @@ describe("buildView — M2b", () => {
       status: "off",
       delay: AUTOSPIN_DELAYS[0],
       delayLevel: 0,
-      maxLevel: 5,
+      maxLevel: AUTOSPIN_DELAY_LEVELS,
       delayCost: AUTOSPIN_DELAY_COSTS.baseCost,
       canBuyDelay: true,
       pick: null,
     });
-    run.setAutoSpin(true);
     run.setAutoSpinCase("bootcamp");
+    expect(buildView(run).cases.some((c) => c.buys)).toBe(false); // OFF: nothing is about to be bought, so nothing is framed as such
+    run.setAutoSpin(true);
     const v = buildView(run);
     expect(v.autoSpin).toMatchObject({ on: true, status: "on", pick: "bootcamp" });
     expect(v.cases.find((c) => c.id === "bootcamp")!.picked).toBe(true);

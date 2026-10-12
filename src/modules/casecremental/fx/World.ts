@@ -387,9 +387,9 @@ export class World {
     if (br) this.offline.position.set((br.x + br.w / 2) * k, (br.y + br.h / 2) * k - size / 2);
   }
 
-  /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
+  /** Rebuilt every frame (a language switch shows at once); no hint while the vault is out, the run is over or auto-spin works. */
   private updateText(b: BenchState): void {
-    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait, autoSpinStatus(this.controller.run) === "on"); // none while the vault is out or after the run, nor while auto-spin works (it shows while it waits)
+    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait, autoSpinStatus(this.controller.run) === "on");
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const r = this.benchReels.area ?? this.l.you.reel; // under the reel window, whatever its height

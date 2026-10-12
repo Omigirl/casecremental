@@ -196,7 +196,7 @@ export class Run implements RunCtx {
     if (!s.unlocked.includes(caseId)) return fail(`case ${caseId} is locked`);
     if (s.cash < this.casePrice(caseId)) return fail("not enough cash");
     this.placeCase(caseId);
-    s.autoSpin.pick = caseId; // auto-spin buys the case you bought last
+    Object.assign(s.autoSpin, { pick: caseId, clock: 0 }); // auto-spin buys the case you bought last; its key waits a beat
     return OK;
   }
 
@@ -337,10 +337,10 @@ export class Run implements RunCtx {
       }
     }
 
-    // a Ricochet case takes the bench as soon as it is clear
     if (s.bench.phase === "empty" && s.freeCases.length > 0 && !this.locked()) {
       const caseId = s.freeCases.shift()!;
       s.bench = { phase: "locked", caseId, free: true, count: 1 };
+      s.autoSpin.clock = 0; // a Ricochet case takes the bench once clear; auto-spin's key waits a beat for it
       this.emit({ type: "caseBought", caseId, free: true, count: 1 });
     }
 

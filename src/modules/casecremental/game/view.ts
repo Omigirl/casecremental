@@ -21,7 +21,6 @@ import {
   type TrayItemView,
 } from "./viewMachines";
 
-export { autoSpinView } from "./viewMachines";
 export type { AutoSpinView, BotView, LockerView, SellerView, TrayItemView } from "./viewMachines";
 
 // What the React overlay shows — derived from the run, never stored separately.
@@ -141,7 +140,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
       canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
       picked: s.autoSpin.pick === c.id,
-      buys: s.autoSpin.owned && buys === c.id,
+      buys: s.autoSpin.owned && s.autoSpin.on && buys === c.id,
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {

@@ -48,6 +48,7 @@ export function framedCase(cases: ReadonlyArray<{ id: string; picked: boolean; b
   return (cases.find((c) => c.buys) ?? cases.find((c) => c.picked))?.id ?? null;
 }
 
-/** The vault is affordable, or the day job is on offer (`dayJob`): those rows go to the top of the shelf, in view. */
-export const shelfUrgent = (view: { vault: { shown: boolean; canBuy: boolean } }, dayJob: boolean): boolean =>
-  dayJob || (view.vault.shown && view.vault.canBuy);
+/** The vault is affordable, or the day job is on offer (`dayJob`): those rows go to the top of the shelf, in view. Keyed
+ *  on affordability, not on the bench (`canBuy` flickers with it), so the rows stay put while cases are bought and sold. */
+export const shelfUrgent = (view: { vault: { shown: boolean; canBuy: boolean; blockedBy: string | null } }, dayJob: boolean): boolean =>
+  dayJob || (view.vault.shown && (view.vault.canBuy || view.vault.blockedBy === "bench"));

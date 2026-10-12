@@ -122,6 +122,16 @@ describe("auto-spin at work", () => {
     expect(r.state.bench.phase).toBe("spinning");
   });
 
+  it("makes a hand-bought case wait its key beat even when the clock stood past it", () => {
+    const r = spinning();
+    r.state.autoSpin.clock = AUTOSPIN_KEY_SECONDS + 5; // as if it had stood due on an empty bench
+    r.buyCase("bootcamp");
+    tickFor(r, AUTOSPIN_KEY_SECONDS - 0.1);
+    expect(r.state.bench.phase).toBe("locked");
+    tickFor(r, 0.2);
+    expect(r.state.bench.phase).toBe("spinning");
+  });
+
   it("falls back to the dearest case it can afford without changing your pick, and goes back to the pick when it can", () => {
     const r = spinning();
     r.unlockCase("wildwood");

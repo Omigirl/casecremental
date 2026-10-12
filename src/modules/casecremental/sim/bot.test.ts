@@ -88,6 +88,13 @@ describe("the timing profiles (finish spec §5)", () => {
     expect(Math.max(...gaps(looks))).toBeLessThan(CASUAL.shopEvery + 2); // a look waits only for the action in hand
   });
 
+  it("GREEDY buys before it sells: a fast bot's waiting cards never keep it from the shop", () => {
+    // Run 3 with cash for everything (the vault out of reach): the bot is soon fast, its cards always wait, and a
+    // player that shopped only when nothing waits would never buy the rest
+    const setup = { ...DEFAULT_SETUP, run: 3, startCash: 1e15, botAwake: true, vaultPrice: Number.POSITIVE_INFINITY };
+    expect(playGreedy(1, 120, HUMAN, setup).fullAt).toBeDefined();
+  });
+
   it("takes the day job when broke with the bench empty, auto-spin on or not (finish spec §3)", () => {
     // once auto-spin is on, the run is held broke for 20 s: the bench empties, and the player must take the day job
     const tick = Run.prototype.tick;

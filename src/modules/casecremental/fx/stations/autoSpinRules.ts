@@ -28,5 +28,9 @@ export function lampColor(status: AutoSpinStatus, t: number): number {
   return Math.floor(t * 4) % 2 === 0 ? LAMP_WAIT : LAMP_OFF;
 }
 
+/** The HD glow's colour: the lamp's, except BROKE holds it steady amber (only the 2 px lamp blinks: a 60 px additive
+ *  glow flipping amber/dark red at 2 Hz would swing the light by far more than 0.1 per beat). */
+export const glowColor = (status: AutoSpinStatus, t: number): number => (status === "broke" ? LAMP_WAIT : lampColor(status, t));
+
 /** A tap on the arm, or 1 px around it (it is small), switches it. */
 export const armHit = (r: Rect, p: Pt): boolean => p.x >= r.x - 1 && p.y >= r.y - 1 && p.x < r.x + r.w + 1 && p.y < r.y + r.h + 1;

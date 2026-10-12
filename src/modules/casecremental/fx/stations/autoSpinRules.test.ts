@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARM_PULL_SECONDS, ARM_TURN_SECONDS, armFrame, armHit, LAMP_OFF, LAMP_ON, LAMP_WAIT, lampColor } from "./autoSpinRules";
+import { ARM_PULL_SECONDS, ARM_TURN_SECONDS, armFrame, armHit, LAMP_OFF, LAMP_ON, LAMP_WAIT, glowColor, lampColor } from "./autoSpinRules";
 
 describe("the arm's rules", () => {
   it("rests after a reload (never), pulls after a buy, swings after the key; the latest wins", () => {
@@ -19,6 +19,13 @@ describe("the arm's rules", () => {
     expect(lampColor("broke", 0)).toBe(LAMP_WAIT);
     expect(lampColor("broke", 0.3)).toBe(LAMP_OFF);
     expect(lampColor("broke", 0.5)).toBe(LAMP_WAIT);
+  });
+
+  it("keeps the HD glow steady when BROKE (a pulsing light changes by under 0.1 per beat)", () => {
+    const lum = (c: number) => (((c >> 16) & 255) * 0.2126 + ((c >> 8) & 255) * 0.7152 + (c & 255) * 0.0722) / 255;
+    const ls = [0, 0.1, 0.3, 0.5, 0.8].map((t) => lum(glowColor("broke", t)));
+    expect(Math.max(...ls) - Math.min(...ls)).toBeLessThan(0.1);
+    expect(glowColor("on", 0)).toBe(LAMP_ON);
   });
 
   it("takes a tap on the arm or 1 px around it", () => {

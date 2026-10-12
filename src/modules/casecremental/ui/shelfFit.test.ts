@@ -83,11 +83,16 @@ describe("framedCase", () => {
 });
 
 describe("shelfUrgent", () => {
+  const v = (shown: boolean, canBuy: boolean, blockedBy: "bench" | null = null) => ({ vault: { shown, canBuy, blockedBy } });
   it("lifts the vault and the day job to the top when you can buy the vault or are broke", () => {
-    const v = (shown: boolean, canBuy: boolean) => ({ vault: { shown, canBuy } });
     expect(shelfUrgent(v(true, true), false)).toBe(true);
     expect(shelfUrgent(v(true, false), false)).toBe(false);
     expect(shelfUrgent(v(false, false), true)).toBe(true);
     expect(shelfUrgent(v(false, false), false)).toBe(false);
+  });
+
+  it("stays lifted while the vault is affordable but the bench is busy, so the rows do not jump as cases are bought", () => {
+    expect(shelfUrgent(v(true, false, "bench"), false)).toBe(true);
+    expect(shelfUrgent(v(true, true), false)).toBe(shelfUrgent(v(true, false, "bench"), false));
   });
 });

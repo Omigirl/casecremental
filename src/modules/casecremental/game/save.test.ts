@@ -74,10 +74,19 @@ describe("the local save", () => {
   });
 
   it("gives a v4 save from before the locker a fresh one", () => {
-    const d = JSON.parse(encodeSave(data()));
+    const run = new Run(3);
+    run.state.cash = 1e6;
+    run.unlockCase("wildwood");
+    run.buyCase("wildwood"); // a case on the bench, so the survival checks below see more than defaults
+    const d = JSON.parse(encodeSave({ v: SAVE_VERSION, meta: freshMeta(), run: run.snapshot() }));
     delete d.run.state.locker;
     const loaded = decodeSave(JSON.stringify(d))!;
     expect(loaded.run.state.locker).toEqual(new Run(3).state.locker);
+    expect(loaded.run.state.bench).toEqual(d.run.state.bench);
+    expect(loaded.run.state.tray).toEqual(d.run.state.tray);
+    expect(loaded.run.state.unlocked).toEqual(d.run.state.unlocked);
+    expect(loaded.run.state.bench).toMatchObject({ phase: "locked", caseId: "wildwood" });
+    expect(loaded.run.state.unlocked).toContain("wildwood");
   });
 
   it("merges the bot and seller defaults into a v3 save that lacks fields, so none becomes NaN", () => {

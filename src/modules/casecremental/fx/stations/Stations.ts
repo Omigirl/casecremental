@@ -15,13 +15,13 @@ import { LockerStation } from "./LockerStation";
 // bench, the room and the camera, and asks the stations about their cards and sales.
 
 export class Stations {
-  /** Pixel world, just over the table and under the tray: the locker's cabinet. */
+  /** Pixel world, just over the table and under the tray: the locker's cabinet and auto-spin's arm. */
   readonly under = new Container();
   /** Pixel world, the reel row: the bot's reels. */
   readonly reels = new Container();
   /** Pixel world, over your bench: the bot, its cards, the locker's results. */
   readonly over = new Container();
-  /** HD layer: glows, lamps and counts, flashes, knives, breakouts. */
+  /** HD layer: glows, lamps and counts, flashes, knives, the arm's lamp glow. */
   readonly hd = new Container();
   private readonly bot: BotStation;
   private readonly locker: LockerStation;

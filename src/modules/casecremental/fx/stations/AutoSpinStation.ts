@@ -4,7 +4,7 @@ import type { RunState, SimEvent } from "../../sim/run";
 import { ARM_LAMP, armFrames } from "../pixel/armArt";
 import type { Pt, TableLayout } from "../pixel/layout";
 import { Throttle } from "../throttle";
-import { armFrame, armHit, LAMP_ON, lampColor } from "./autoSpinRules";
+import { armFrame, armHit, glowColor, LAMP_ON, lampColor } from "./autoSpinRules";
 import type { StationDeps } from "./deps";
 
 // Auto-spin's arm (finish spec §3): a small motorised lever bolted to your mat's right end, drawn in code. Hidden until
@@ -63,7 +63,7 @@ export class AutoSpinStation {
       this.lampColor = color;
       this.lamp.clear().rect(0, 0, ARM_LAMP.w, ARM_LAMP.h).fill(color);
     }
-    this.glow.tint = color;
+    this.glow.tint = glowColor(status, this.t);
     this.glow.alpha = status === "off" ? 0 : LAMP_GLOW;
   }
 

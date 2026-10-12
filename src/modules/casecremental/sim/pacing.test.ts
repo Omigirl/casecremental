@@ -47,7 +47,7 @@ describe("pacing — the whole of Run 1 and a boosted Run 1 replay", () => {
     expect(t).toBeLessThanOrEqual(300);
   });
 
-  it("buys auto-spin after the auto-seller and before the vault, and keeps it on", () => {
+  it("buys auto-spin after the auto-seller and before the vault", () => {
     const t = med((r) => r.autoSpinAt);
     expect(t).toBeGreaterThan(med((r) => r.sellerAt));
     expect(t).toBeLessThan(med((r) => r.vaultAt));
