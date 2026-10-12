@@ -43,6 +43,8 @@ sells the ordinary drops and sets the good ones aside in the claim tray) → unl
   edge sparks, 14 kick explosions (`VAULT_CUES.fireworks`). Rewards, labels and the total sit outside the cameras
   so they stay readable. Photosensitivity is a hard rule: at most 3 full-screen flashes a second, and every
   light that throbs on the beat changes by less than 0.1 (`BEAT_LIGHT_AMPLITUDES`, tested).
+- **Vaults II and III (plan M3-E)** are this ticket and timeline in their own look (`fx/vault/vaultLooks.ts`),
+  wilder by count and density only: see `casecremental-runs-2-3.md`, "The vaults".
 - **Music is boosted in code, not in the files** (user: "make music louder"): the music bus runs at
   `MUSIC_BOOST` (1.6×) its slider and each named track has a `TRACK_GAIN` (the DnB drop 1.5×) — re-encoding the
   loops would add mp3 padding at their loop points, and the peaky DnB track barely gains from compression. The
