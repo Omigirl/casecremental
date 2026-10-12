@@ -1,6 +1,7 @@
 import { detectLang, setLang, type Lang } from "../i18n/index";
+import { parseTutorial, type TutorialProgress } from "./tutorialRules";
 
-// Per-player conveniences remembered in this browser (spec §8): language and the two volumes.
+// Per-player conveniences remembered in this browser (spec §8): language, the two volumes, and the tutorial's progress (finish spec §4).
 // Storage may be missing, full or blocked (private windows, embeds) — then the defaults apply and
 // the game carries on.
 
@@ -9,12 +10,14 @@ export interface Prefs {
   lang: Lang | null;
   music: number;
   sfx: number;
+  /** The tutorial's progress; null = never stored (the overlay seeds it from the save). */
+  tutorial: TutorialProgress | null;
 }
 
 type Store = Pick<Storage, "getItem" | "setItem">;
 
 export const PREFS_KEY = "casecremental:prefs";
-export const DEFAULT_PREFS: Prefs = { lang: null, music: 0.6, sfx: 0.8 };
+export const DEFAULT_PREFS: Prefs = { lang: null, music: 0.6, sfx: 0.8, tutorial: null };
 
 const clamp01 = (v: unknown, fallback: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback;
@@ -32,6 +35,7 @@ export function parsePrefs(raw: string | null): Prefs {
     lang: o.lang === "en" || o.lang === "ru" ? o.lang : null,
     music: clamp01(o.music, DEFAULT_PREFS.music),
     sfx: clamp01(o.sfx, DEFAULT_PREFS.sfx),
+    tutorial: parseTutorial(o.tutorial),
   };
 }
 
