@@ -192,7 +192,7 @@ describe("progress", () => {
     expect(whatToShow(P(INTRO), buildView(runOf(3)))).toEqual({ kind: "card", run: 3 });
     expect(whatToShow(P(), buildView(new Run(1)))?.kind).toBe("step");
     expect(NEW_RUN_CARDS).toEqual([2, 3, 4]);
-    expect([2, 3, 4].map(cardText)).toEqual(["card.run2", "card.run3", "card.run4"]); // Run 4's waits for F6
+    expect([2, 3, 4].map(cardText)).toEqual(["card.run2", "card.run3", "card.run4"]);
   });
 
   it("replays from the start but keeps the cards seen", () => {

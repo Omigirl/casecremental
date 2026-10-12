@@ -26,6 +26,7 @@ export const EN = {
   "settings.close": "CLOSE",
   "settings.devRun2": "RUN 2",
   "settings.devRun3": "RUN 3",
+  "settings.devRun4": "RUN 4",
   "settings.devCash": "+CASH",
   "station.offline": "OFFLINE",
   "btn.wake": "WAKE",
@@ -84,7 +85,9 @@ export const EN = {
   "prestige.later": "RUN 4: IN A LATER UPDATE",
   "prestige.again": "RUN {n} AGAIN, BOOSTED",
   "brings.case": "New case: {name}",
-  "brings.botMulti": "Bot opens x2",
+  "brings.botMulti": "Bot opens x{n}",
+  "brings.upgrader": "The Upgrader",
+  "brings.evolutions": "Evolutions",
   "brings.locker": "Locker & trade-ups",
   "brings.autoContract": "Auto contract",
   "brings.multiOpen": "Multi-open up to x{n}",
@@ -107,7 +110,7 @@ export const EN = {
   "card.run2": "The bot gets a second reel: two cases a spin. The locker keeps your skins and trades 10 of one rarity up for a rarer skin.",
   "card.run3": "Multi-open goes up to x5. The auto contract presses trade-ups on its own.",
   "card.run4":
-    "Two new cases, {glitch} and {fever}. The Upgrader stakes skins for bigger ones, maxed upgrades evolve, and The Last Case waits at the end.",
+    "Two new cases, {glitch} and {fever}. The Upgrader stakes skins for bigger ones, maxed upgrades evolve, and {last} waits at the end.",
 } as const;
 
 export type StringKey = keyof typeof EN;

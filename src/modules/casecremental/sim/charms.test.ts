@@ -8,6 +8,7 @@ import {
   RUN1_CHARMS,
   RUN2_CHARMS,
   RUN3_CHARMS,
+  RUN4_CHARMS,
 } from "./charms";
 import { caseById } from "./content/cases";
 import { offerCharms } from "./meta";
@@ -67,6 +68,10 @@ describe("Run 2 and 3 charms", () => {
     expect(charmPool(3)).toBe(RUN3_CHARMS);
     expect([...RUN2_CHARMS]).toEqual([...RUN1_CHARMS, "chainReaction", "contractKiller", "hoarder"]);
     expect([...RUN3_CHARMS]).toEqual([...RUN2_CHARMS, "fever", "collectorsEye"]);
+    expect(charmPool(4)).toBe(RUN4_CHARMS);
+    expect(charmPool(9)).toBe(RUN4_CHARMS);
+    expect([...RUN4_CHARMS]).toEqual([...RUN3_CHARMS, "loadedDice"]);
+    expect(RUN3_CHARMS.includes("loadedDice")).toBe(false);
     expect(new Set(Array.from({ length: 60 }, (_, i) => offerCharms(i, 1, 2)).flat()).size).toBe(RUN2_CHARMS.length);
     expect(offerCharms(5, 2, 3).every((c) => RUN3_CHARMS.includes(c))).toBe(true);
     expect(

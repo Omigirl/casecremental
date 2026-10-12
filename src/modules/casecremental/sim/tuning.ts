@@ -6,7 +6,7 @@ import type { RarityId, WearId } from "./types";
 export const START_CASH = 6;
 
 /** The campaign has this many runs; after the last, a vault replays it. */
-export const LAST_RUN = 3;
+export const LAST_RUN = 4;
 
 /** What each run (index = run - 1) offers: the shelf, the caps and the machines that arrive with it. */
 export interface RunContent {
@@ -20,11 +20,16 @@ export interface RunContent {
   botMultiOpen: number;
   locker: boolean;
   autoContract: boolean;
+  /** Run 4: stake a locker rarity stack on a multiplier (finish spec §7.2). */
+  upgrader: boolean;
+  /** Run 4: a completed recipe can be bought as a big power jump (finish spec §7.3). */
+  evolutions: boolean;
 }
 export const RUN_CONTENT: readonly RunContent[] = [
-  { cases: 3, multiOpen: 2, botSpeedLevels: 5, botMultiOpen: 1, locker: false, autoContract: false },
-  { cases: 5, multiOpen: 3, botSpeedLevels: 8, botMultiOpen: 2, locker: true, autoContract: false },
-  { cases: 7, multiOpen: 5, botSpeedLevels: 11, botMultiOpen: 2, locker: true, autoContract: true },
+  { cases: 3, multiOpen: 2, botSpeedLevels: 5, botMultiOpen: 1, locker: false, autoContract: false, upgrader: false, evolutions: false },
+  { cases: 5, multiOpen: 3, botSpeedLevels: 8, botMultiOpen: 2, locker: true, autoContract: false, upgrader: false, evolutions: false },
+  { cases: 7, multiOpen: 5, botSpeedLevels: 11, botMultiOpen: 2, locker: true, autoContract: true, upgrader: false, evolutions: false },
+  { cases: 9, multiOpen: 5, botSpeedLevels: 14, botMultiOpen: 3, locker: true, autoContract: true, upgrader: true, evolutions: true },
 ];
 
 /** Price and one-time unlock cost per case id, in ladder order. */
@@ -159,6 +164,8 @@ export const HOARDER_PER_SKIN = 0.01;
 export const FEVER_PAY_MULT = 1.5;
 export const FEVER_STAGE_BONUS = 1;
 export const COLLECTOR_MULT = 2;
+/** Loaded Dice (Run 4): the Upgrader's win chance + this. */
+export const LOADED_DICE_BONUS = 0.1;
 
 export const TRAY_BASE_CAPACITY = 12;
 
@@ -179,15 +186,17 @@ export const BOT_SPEED_ANCHORS: ReadonlyArray<readonly [level: number, speed: nu
   [5, 8],
   [8, 20],
   [11, 50],
+  [14, 100],
 ];
 /** Run 2: the bot opens two cases per spin on stacked reels. */
 export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
-/** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */
+/** Each run's vault price (The Last Case is Run 4's) the first time it is reached; a replay of the last run multiplies
+ *  it by VAULT_GROWTH. */
 // F4 (finish spec §5): a vault costs well under 90 s of a fully bought run's income for a real player (the 90 s rule
 // measures 40-75 s); each run's middle — its unlocks — sets how long the run takes instead.
-export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000] as const;
+export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000, 100_000_000_000_000] as const;
 /** A replay of the last run: its vault price grows this much per completed loop. A little above CATCH_UP_PER_VAULT
  *  (F4: the replay of Run 3 lands at ~4 min for a real player, its 90 s rule at ~60 s); each further loop's vault is
  *  ~20 % dearer against its income than the last (3.4 / 2.8), a known drift. */

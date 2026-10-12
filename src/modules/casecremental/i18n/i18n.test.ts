@@ -104,6 +104,7 @@ describe("F3 strings", () => {
     const text = t("card.run4", cardFill());
     expect(text).toContain(caseName("glitch"));
     expect(text).toContain(caseName("feverdream"));
+    expect(text).toContain(caseName("lastcase"));
     expect(fits("card.run4", cardFill())).toBe(true);
   });
 });

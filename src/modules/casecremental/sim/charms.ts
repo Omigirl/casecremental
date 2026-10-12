@@ -20,7 +20,8 @@ import {
 import type { Drop, RarityId, WearId } from "./types";
 
 // Charms (base spec §8.1, M2b spec §8): rules that bend a run, picked on the prestige screen for the next
-// run only. Run 1's pool is the eight that work with Run 1's systems; the rest come with later runs.
+// run only. Run 1's pool is the eight that work with Run 1's systems; the rest come with later runs (Loaded Dice with
+// Run 4's Upgrader).
 
 export type CharmId =
   | "luckySeven"
@@ -35,7 +36,8 @@ export type CharmId =
   | "contractKiller"
   | "hoarder"
   | "fever"
-  | "collectorsEye";
+  | "collectorsEye"
+  | "loadedDice";
 
 export const RUN1_CHARMS: readonly CharmId[] = [
   "luckySeven",
@@ -50,9 +52,10 @@ export const RUN1_CHARMS: readonly CharmId[] = [
 
 export const RUN2_CHARMS: readonly CharmId[] = [...RUN1_CHARMS, "chainReaction", "contractKiller", "hoarder"];
 export const RUN3_CHARMS: readonly CharmId[] = [...RUN2_CHARMS, "fever", "collectorsEye"];
+export const RUN4_CHARMS: readonly CharmId[] = [...RUN3_CHARMS, "loadedDice"];
 
 /** The charms each run offers. */
-export const CHARM_POOLS: Readonly<Record<number, readonly CharmId[]>> = { 1: RUN1_CHARMS, 2: RUN2_CHARMS, 3: RUN3_CHARMS };
+export const CHARM_POOLS: Readonly<Record<number, readonly CharmId[]>> = { 1: RUN1_CHARMS, 2: RUN2_CHARMS, 3: RUN3_CHARMS, 4: RUN4_CHARMS };
 export const charmPool = (run: number): readonly CharmId[] => CHARM_POOLS[Math.min(Math.max(run, 1), LAST_RUN)]!;
 
 const wearMult = (id: WearId) => WEAR_TABLE.find((w) => w.id === id)!.mult;

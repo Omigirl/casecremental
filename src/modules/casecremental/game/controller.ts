@@ -131,7 +131,7 @@ export class GameController {
     this.refreshView();
   }
 
-  /** Dev: jump to a run (1-3) with the meta kept (CLOUT, perks, trophies); offer and picks are cleared. */
+  /** Dev: jump to a run (1-4) with the meta kept (CLOUT, perks, trophies); offer and picks are cleared. */
   devStartRun(run: number): void {
     this.meta.loops = Math.max(0, Math.floor(run) - 1);
     this.meta.offer = null;

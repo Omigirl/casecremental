@@ -226,10 +226,11 @@ describe("VaultBeams per vault", () => {
       expect(drawn(), v.id).toEqual([...vaultLook(v.id).palette]);
     }
     const calls = vi.mocked(drawBeam).mock.calls.length;
-    h.beams.setVault(VAULTS[2]!); // the same vault again (the World sets it every frame)
+    const last = VAULTS.at(-1)!;
+    h.beams.setVault(last); // the same vault again (the World sets it every frame)
     expect(vi.mocked(drawBeam).mock.calls.length).toBe(calls);
     h.beams.layout(h.L, pixelViewport(1324, 824).scale); // a resize keeps the vault's colours
-    expect(drawn()).toEqual([...VAULT_LOOKS.vault3.palette]);
+    expect(drawn()).toEqual([...vaultLook(last.id).palette]);
   });
 
   it("streams the vault's source case and lands its own legend fifth, after a reload too (Review Focus 1, 2)", () => {

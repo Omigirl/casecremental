@@ -21,6 +21,7 @@ const CASES: Record<string, Pair> = {
   vault1: { en: "Vault Case I", ru: "Сейф-кейс I" },
   vault2: { en: "Vault Case II", ru: "Сейф-кейс II" },
   vault3: { en: "Vault Case III", ru: "Сейф-кейс III" },
+  lastcase: { en: "The Last Case", ru: "Последний кейс" },
 };
 
 const WEAPONS: Record<WeaponId, Pair> = {
@@ -103,6 +104,7 @@ const SKINS: Record<string, Pair> = {
   in_knife: { en: "Forgeheart", ru: "Сердце горна" },
   vault2_legend: { en: "Overdrive", ru: "Овердрайв" },
   vault3_legend: { en: "Supernova", ru: "Сверхновая" },
+  lastcase_legend: { en: "Singularity", ru: "Сингулярность" },
   ww_fern: { en: "Fernlight", ru: "Папоротник" },
   ww_bark: { en: "Old Bark", ru: "Старая кора" },
   ww_moss: { en: "Mossback", ru: "Мшистый" },
@@ -233,6 +235,10 @@ const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
     name: { en: "Collector's Eye", ru: "Глаз коллекционера" },
     desc: { en: "Full set of a case: x2", ru: "Полный набор кейса: x2" },
   },
+  loadedDice: {
+    name: { en: "Loaded Dice", ru: "Шулерские кости" },
+    desc: { en: "Upgrader: +10% win chance", ru: "Апгрейдер: +10% к шансу" },
+  },
 };
 
 const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
@@ -266,8 +272,12 @@ export const charmName = (id: CharmId): string => pick(CHARMS[id]?.name);
 export const charmDesc = (id: CharmId): string => pick(CHARMS[id]?.desc);
 export const perkName = (id: PerkId): string => pick(PERKS[id]?.name);
 export const perkDesc = (id: PerkId): string => pick(PERKS[id]?.desc);
-/** The names a new-run card's text fills in (`card.run4`: {glitch}, {fever}), so it always matches the shelf. */
-export const cardFill = (): Record<string, string> => ({ glitch: caseName("glitch"), fever: caseName("feverdream") });
+/** The names a new-run card's text fills in (`card.run4`: {glitch}, {fever}, {last}), so it always matches the shelf. */
+export const cardFill = (): Record<string, string> => ({
+  glitch: caseName("glitch"),
+  fever: caseName("feverdream"),
+  last: caseName("lastcase"),
+});
 
 /** Every content name with its budget key, for the budget test. */
 export function CONTENT_KEYS(): Array<[string, string, string]> {

@@ -87,6 +87,7 @@ export function Settings({
           <div className="cc-tabs">
             <PxButton onClick={() => onDevRun(2)}>{t("settings.devRun2")}</PxButton>
             <PxButton onClick={() => onDevRun(3)}>{t("settings.devRun3")}</PxButton>
+            <PxButton onClick={() => onDevRun(4)}>{t("settings.devRun4")}</PxButton>
             {onDevCash ? <PxButton onClick={onDevCash}>{t("settings.devCash")}</PxButton> : null}
           </div>
         ) : null}

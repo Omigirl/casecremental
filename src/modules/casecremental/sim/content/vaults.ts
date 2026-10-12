@@ -1,12 +1,13 @@
 import type { SkinDef } from "../types";
 import { p, skin } from "./skinHelpers";
 
-// One vault per run (rework spec §4): bought once the run's cases are unlocked, opened with the devil key.
+// One vault per run (rework spec §4); Run 4's is The Last Case (finish spec §7.4). Bought once the run's cases are
+// unlocked, opened with the devil key.
 // Its four ordinary rewards come from `sourceCase`; the fifth is the animated legend knife.
 
 export interface VaultDef {
-  /** Also the vault's case id on its drops, and its name key ("vault1"…). */
-  id: "vault1" | "vault2" | "vault3";
+  /** Also the vault's case id on its drops, and its name key (`vault1`…, `lastcase`). */
+  id: "vault1" | "vault2" | "vault3" | "lastcase";
   run: number;
   /** The trophy kept forever. */
   trophy: string;
@@ -59,6 +60,21 @@ export const VAULTS: readonly VaultDef[] = [
       "knife",
       "gold",
       p("nebula", ["#000000", "#3a0060", "#ff4500", "#ffd700", "#ffffff"], 5, 403),
+      flipFlow,
+    ),
+  },
+  {
+    id: "lastcase",
+    run: 4,
+    trophy: "lastcase",
+    sourceCase: "feverdream",
+    // black glass and gold (finish spec §7.4): the legend's hues turn through white, gold and the void
+    legend: skin(
+      "lastcase_legend",
+      "Singularity",
+      "knife",
+      "gold",
+      p("huecycle", ["#000000", "#1a1a1a", "#ffd700", "#fff6d5", "#ffffff"], 5, 404),
       flipFlow,
     ),
   },

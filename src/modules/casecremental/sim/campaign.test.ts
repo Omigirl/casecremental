@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { botSpeed, botSpeedCost } from "./botOpener";
-import { capRaisedLater, runCaseIds, runNumber, vaultPriceFor } from "./campaign";
+import { botSpeed, botSpeedCost, botSpeedLevels } from "./botOpener";
+import { capRaisedLater, runCaseIds, runContent, runNumber, vaultPriceFor } from "./campaign";
 import { completeVault, freshMeta, setupFor } from "./meta";
 import { DEFAULT_SETUP, Run } from "./run";
 import { BOT_SPEED_ANCHORS, VAULT_GROWTH, VAULT_PRICES } from "./tuning";
@@ -8,14 +8,30 @@ import { upgradeCap, upgradeCost } from "./upgrades";
 
 describe("the campaign", () => {
   it("numbers runs by vaults opened, staying on the last run after it", () => {
-    expect([0, 1, 2, 3, 7].map(runNumber)).toEqual([1, 2, 3, 3, 3]);
+    expect([0, 1, 2, 3, 4, 9].map(runNumber)).toEqual([1, 2, 3, 4, 4, 4]);
   });
 
   it("prices each run's vault, and replays of the last run grow", () => {
-    expect(vaultPriceFor(0)).toBe(VAULT_PRICES[0]);
-    expect(vaultPriceFor(1)).toBe(VAULT_PRICES[1]);
-    expect(vaultPriceFor(2)).toBe(VAULT_PRICES[2]);
-    expect(vaultPriceFor(4)).toBe(VAULT_PRICES[2] * VAULT_GROWTH ** 2);
+    for (let i = 0; i < 4; i++) expect(vaultPriceFor(i)).toBe(VAULT_PRICES[i]);
+    expect(vaultPriceFor(5)).toBe(VAULT_PRICES[3] * VAULT_GROWTH ** 2);
+  });
+
+  it("Run 4: nine cases, multi-open x5, bot speed to x100, the bot opens three, the Upgrader and evolutions", () => {
+    expect(runCaseIds(4)).toHaveLength(9);
+    expect(runCaseIds(4).slice(-2)).toEqual(["glitch", "feverdream"]);
+    expect(runContent(4)).toMatchObject({
+      multiOpen: 5,
+      botMultiOpen: 3,
+      locker: true,
+      autoContract: true,
+      upgrader: true,
+      evolutions: true,
+    });
+    expect([1, 2, 3].every((r) => !runContent(r).upgrader && !runContent(r).evolutions)).toBe(true);
+    expect(botSpeed(14)).toBeCloseTo(100, 9);
+    expect(botSpeedCost(11, 3)).toBeNull();
+    expect(botSpeedCost(11, 4)).not.toBeNull();
+    expect(capRaisedLater((r) => botSpeedLevels(r), 11, 3)).toBe(true); // Run 3's top bot speed says NEXT RUN
   });
 
   it("caps multi-open by run: x2, x3, x5", () => {
@@ -32,7 +48,7 @@ describe("the campaign", () => {
     expect(botSpeed(3)).toBeCloseTo(8 ** (3 / 5), 9);
     expect(botSpeed(8)).toBeCloseTo(20, 9);
     expect(botSpeed(11)).toBeCloseTo(50, 9);
-    expect(BOT_SPEED_ANCHORS.at(-1)).toEqual([11, 50]);
+    expect(BOT_SPEED_ANCHORS.at(-1)).toEqual([14, 100]);
     expect(botSpeedCost(5, 1)).toBeNull();
     expect(botSpeedCost(5, 2)).not.toBeNull();
     expect(botSpeedCost(8, 2)).toBeNull();

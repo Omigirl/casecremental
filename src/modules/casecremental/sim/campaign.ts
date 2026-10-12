@@ -1,8 +1,8 @@
 import { CASES } from "./content/cases";
 import { LAST_RUN, RUN_CONTENT, VAULT_GROWTH, VAULT_PRICES, type RunContent } from "./tuning";
 
-// The campaign: Vault I leads into Run 2, Vault II into Run 3, and Vault III replays Run 3. Run numbers are
-// derived from meta.loops; RUN_CONTENT says what each run has.
+// The campaign: Vault I leads into Run 2, Vault II into Run 3, Vault III into Run 4, and The Last Case replays Run 4.
+// Run numbers are derived from meta.loops; RUN_CONTENT says what each run has.
 
 export const runNumber = (loops: number): number => Math.min(loops + 1, LAST_RUN);
 

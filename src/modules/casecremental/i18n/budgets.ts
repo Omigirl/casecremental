@@ -27,6 +27,7 @@ const BY_PREFIX: Array<[string, number]> = [
   ["card.tap", 24],
   ["card.", 150], // a new-run card's paragraph wraps inside the card
   // content names (content.ts)
+  ["case.lastcase", 14],
   ["case.vault", 14],
   ["case.", 12],
   ["weapon.", 18],

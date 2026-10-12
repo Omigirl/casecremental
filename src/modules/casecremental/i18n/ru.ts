@@ -26,6 +26,7 @@ export const RU: Record<StringKey, string> = {
   "settings.close": "ЗАКРЫТЬ",
   "settings.devRun2": "ЗАБЕГ 2",
   "settings.devRun3": "ЗАБЕГ 3",
+  "settings.devRun4": "ЗАБЕГ 4",
   "settings.devCash": "+ДЕНЬГИ",
   "station.offline": "ВЫКЛЮЧЕН",
   "btn.wake": "РАЗБУДИ",
@@ -84,7 +85,9 @@ export const RU: Record<StringKey, string> = {
   "prestige.later": "ЗАБЕГ 4 — В ОБНОВЛЕНИИ",
   "prestige.again": "СНОВА ЗАБЕГ {n}, СИЛЬНЕЕ",
   "brings.case": "Новый кейс: {name}",
-  "brings.botMulti": "Бот открывает x2",
+  "brings.botMulti": "Бот открывает x{n}",
+  "brings.upgrader": "Апгрейдер",
+  "brings.evolutions": "Эволюции",
   "brings.locker": "Шкафчик и контракты",
   "brings.autoContract": "Автоконтракт",
   "brings.multiOpen": "Мультиоткрытие до x{n}",
@@ -107,5 +110,5 @@ export const RU: Record<StringKey, string> = {
   "card.run2": "У бота второй барабан: два кейса за спин. Шкафчик хранит скины и меняет 10 одной редкости на более редкий.",
   "card.run3": "Мультиоткрытие до x5. Автоконтракт сам жмёт пресс обмена.",
   "card.run4":
-    "Два новых кейса: {glitch} и {fever}. Апгрейдер ставит скины на крупный куш, прокачанные улучшения эволюционируют, а в конце ждёт Последний кейс.",
+    "Два новых кейса: {glitch} и {fever}. Апгрейдер ставит скины на крупный куш, прокачанные улучшения эволюционируют, а в конце ждёт {last}.",
 };

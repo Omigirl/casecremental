@@ -19,7 +19,7 @@ const view = (over: Partial<PrestigeView>): PrestigeView => ({
 
 describe("the prestige screen", () => {
   it("names the vault that just opened, in both languages", () => {
-    expect(VAULTS.map((v) => vaultNumeral(v.id))).toEqual(["I", "II", "III"]);
+    expect(VAULTS.map((v) => vaultNumeral(v.id))).toEqual(["I", "II", "III", "IV"]); // IV: interim (plan F6-C)
     try {
       setLang("en");
       expect(t("prestige.title", { n: vaultNumeral("vault1") })).toBe("VAULT I OPENED");
@@ -52,14 +52,14 @@ describe("the prestige screen", () => {
 describe("what the next run brings (spec §8)", () => {
   afterEach(() => setLang("en"));
 
-  it("Run 2: Mainframe and Neon Nights, the bot's x2, the locker, multi-open to x3, bot speed to x20", () => {
+  it("Run 2: Mainframe and Neon Nights, the locker, multi-open to x3, bot speed to x20, the bot opens x2", () => {
     expect(runBrings(2)).toEqual([
       { kind: "case", caseId: "mainframe" },
       { kind: "case", caseId: "neon" },
-      { kind: "machine", id: "botMulti" },
       { kind: "machine", id: "locker" },
       { kind: "cap", id: "multiOpen", value: 3 },
       { kind: "cap", id: "botSpeed", value: 20 },
+      { kind: "cap", id: "botMulti", value: 2 },
     ]);
   });
 
@@ -73,12 +73,24 @@ describe("what the next run brings (spec §8)", () => {
     ]);
   });
 
+  it("Run 4: Glitch and Fever Dream, the Upgrader, evolutions, bot speed to x100, the bot opens x3", () => {
+    expect(runBrings(4)).toEqual([
+      { kind: "case", caseId: "glitch" },
+      { kind: "case", caseId: "feverdream" },
+      { kind: "machine", id: "upgrader" },
+      { kind: "machine", id: "evolutions" },
+      { kind: "cap", id: "botSpeed", value: 100 },
+      { kind: "cap", id: "botMulti", value: 3 },
+    ]);
+  });
+
   it("Run 1 brings nothing new", () => {
     expect(runBrings(1)).toEqual([]);
   });
 
   it.each(["en", "ru"] as const)("every line fits the prestige screen (%s)", (lang) => {
     setLang(lang);
-    for (const b of [...runBrings(2), ...runBrings(3)]) expect(fitsBudget(bringText(b), budgetFor("brings.case")), bringText(b)).toBe(true);
+    for (const b of [...runBrings(2), ...runBrings(3), ...runBrings(4)])
+      expect(fitsBudget(bringText(b), budgetFor("brings.case")), bringText(b)).toBe(true);
   });
 });

@@ -14,7 +14,7 @@ export type StepId = (typeof STEP_IDS)[number];
 /** The bench loop: in order, and nothing later shows before it is done. */
 const INTRO: readonly StepId[] = ["buy", "key", "sell"];
 
-/** Runs whose first start shows a "what's new" card. Run 4's can only trigger once F6 sets LAST_RUN = 4. */
+/** Runs whose first start shows a "what's new" card. */
 export const NEW_RUN_CARDS: readonly number[] = [2, 3, 4];
 
 const CARD_TEXT: Record<number, StringKey> = { 2: "card.run2", 3: "card.run3", 4: "card.run4" };

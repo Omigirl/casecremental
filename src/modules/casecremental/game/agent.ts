@@ -6,6 +6,7 @@ import { lockerCapacity, lockerCounts, tradeUpRarity } from "../sim/locker";
 import { PERK_IDS, type PerkId } from "../sim/meta";
 import { RARITY_ORDER } from "../sim/rarity";
 import type { ActionResult, CardSpot } from "../sim/run";
+import { LAST_RUN } from "../sim/tuning";
 import type { RarityId } from "../sim/types";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 import type { Action, GameController } from "./controller";
@@ -166,7 +167,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
         ? {
             devStartRun: async (args: Args) => {
               const n = Number(args?.run);
-              if (!Number.isInteger(n) || n < 1 || n > 3) throw new Error("run must be 1, 2 or 3");
+              if (!Number.isInteger(n) || n < 1 || n > LAST_RUN) throw new Error(`run must be 1 to ${LAST_RUN}`);
               c.devStartRun(n);
               return { ok: true } as ActionResult;
             },
@@ -215,7 +216,7 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       startNextRun: "Between runs: start the next run.",
       ...(import.meta.env.DEV
         ? {
-            devStartRun: "Dev builds: jump to a run with the meta kept: { run: 1|2|3 }.",
+            devStartRun: "Dev builds: jump to a run with the meta kept: { run: 1|2|3|4 }.",
             devAddCash: "Dev builds: add cash: { amount }.",
           }
         : {}),
