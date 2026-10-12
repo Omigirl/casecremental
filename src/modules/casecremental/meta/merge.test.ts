@@ -43,11 +43,15 @@ describe("applyServerDoc", () => {
     expect(m.perks.startCash).toBe(2);
   });
 
-  it("never lowers the local loops", () => {
-    const m = freshMeta();
+  it("never lowers the local loops, and keeps the local CLOUT and larger perks while the server is behind on them", () => {
+    const m = freshMeta(); // e.g. a save from before F7: three vaults the server never saw
     m.loops = 3;
+    m.clout = 120;
+    m.perks.luck = 4;
     applyServerDoc(m, doc(), false);
     expect(m.loops).toBe(3);
+    expect(m.clout).toBe(120);
+    expect(m.perks).toMatchObject({ luck: 4, startCash: 2 });
   });
 
   it("grows the campaign stats when the meta has them (F6-A), and never lowers them", () => {

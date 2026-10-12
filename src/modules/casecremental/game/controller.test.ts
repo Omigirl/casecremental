@@ -164,6 +164,37 @@ describe("GameController — the campaign", () => {
     expect(events).toContain("perkBought");
   });
 
+  it("emits perkBought with the perk and its new level", () => {
+    const c = new GameController(1);
+    openVault(c);
+    c.step(1);
+    c.meta.clout = 1e6;
+    const seen: SimEvent[] = [];
+    c.onEvent((e) => seen.push(e));
+    expect(c.act({ type: "buyPerk", id: "luck" }).ok).toBe(true);
+    expect(seen).toContainEqual({ type: "perkBought", id: "luck", level: 1 });
+  });
+
+  it("merges a server answer into the meta and refreshes the view", () => {
+    const c = new GameController(1);
+    let refreshed = 0;
+    c.subscribe(() => refreshed++);
+    c.applyServerMeta(
+      {
+        clout: 77,
+        trophies: ["vault1_legend"],
+        perks: { luck: 2 },
+        loops: 1,
+        stats: { playSeconds: 1, opened: 1, best: null, cloutEarned: 77 },
+        picked: [],
+      },
+      false,
+    );
+    expect(c.meta).toMatchObject({ clout: 77, loops: 1, trophies: ["vault1"] });
+    expect(c.meta.perks.luck).toBe(2);
+    expect(refreshed).toBeGreaterThan(0);
+  });
+
   it("emits charmPicked on a pick, not on an un-pick", () => {
     const c = new GameController(1);
     const events: string[] = [];

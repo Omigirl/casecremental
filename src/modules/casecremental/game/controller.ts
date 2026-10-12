@@ -1,3 +1,5 @@
+import type { ServerDoc } from "../meta/bridge";
+import { applyServerDoc } from "../meta/merge";
 import type { CharmId } from "../sim/charms";
 import { buyPerk, completeVault, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
 import { Run, type ActionResult, type CardSpot, type SimEvent } from "../sim/run";
@@ -149,6 +151,13 @@ export class GameController {
     this.refreshView();
   }
 
+  /** A server answer (plan F7): merged into the meta, saved, shown. */
+  applyServerMeta(doc: ServerDoc, pendingWrites: boolean): void {
+    applyServerDoc(this.meta, doc, pendingWrites);
+    this.save();
+    this.refreshView();
+  }
+
   /** Save now (the page is closing): autosave runs only about once a second. */
   saveNow(): void {
     this.save();
@@ -227,9 +236,12 @@ export class GameController {
         return run.buyVault();
       case "turnVaultKey":
         return run.turnVaultKey();
-      case "buyPerk":
+      case "buyPerk": {
         if (!run.state.over) return { ok: false, reason: "perks are bought between runs" };
-        return this.emitOnOk(buyPerk(this.meta, a.id), { type: "perkBought" });
+        const r = buyPerk(this.meta, a.id);
+        if (r.ok) this.emit({ type: "perkBought", id: a.id, level: this.meta.perks[a.id] });
+        return r;
+      }
       case "pickCharm":
         return this.pickCharm(a.id);
       case "startNextRun":
@@ -262,11 +274,6 @@ export class GameController {
       }
       this.emit(e);
     }
-  }
-
-  private emitOnOk(r: ActionResult, e: SimEvent): ActionResult {
-    if (r.ok) this.emit(e);
-    return r;
   }
 
   private emit(e: SimEvent): void {
