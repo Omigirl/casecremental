@@ -133,6 +133,8 @@ export const EN = {
   "upgrader.target": "Target:",
   "upgrader.chance": "Win {p}%",
   "upgrader.rolling": "ROLLING...",
+  "upgrader.hintResults": "Take results first",
+  "upgrader.hintPress": "Press is busy",
   "btn.go": "GO",
   "btn.evolve": "EVOLVE",
   "btn.evolved": "EVOLVED",

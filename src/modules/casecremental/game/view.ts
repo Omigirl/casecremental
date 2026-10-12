@@ -199,7 +199,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
         picked: [...meta.picked],
         slots: charmSlots(meta),
         credits: meta.credits,
-        stats: meta.stats,
+        stats: { ...meta.stats },
       }
     : null;
   return {

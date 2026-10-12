@@ -132,6 +132,8 @@ export const RU: Record<StringKey, string> = {
   "upgrader.target": "Цель:",
   "upgrader.chance": "Шанс {p}%",
   "upgrader.rolling": "КРУТИТСЯ...",
+  "upgrader.hintResults": "Заберите результат",
+  "upgrader.hintPress": "Пресс занят",
   "btn.go": "ВПЕРЁД",
   "btn.evolve": "РАЗВИТЬ",
   "btn.evolved": "РАЗВИТО",

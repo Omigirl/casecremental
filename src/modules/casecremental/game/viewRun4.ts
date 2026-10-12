@@ -33,6 +33,8 @@ export interface UpgraderView {
   /** The dial's progress 0–1. */
   progress: number;
   canGo: boolean;
+  /** Why GO waits, when the only thing in the way is a result on the locker or the running press. */
+  hint: "results" | "press" | null;
 }
 
 export interface EvolutionView {
@@ -75,6 +77,7 @@ export function upgraderView(run: Run): UpgraderView {
     spinning: u.spin !== null,
     progress: u.spin ? Math.min(1, u.spin.elapsed / UPGRADER_SPIN_SECONDS) : 0,
     canGo: open && u.on && !u.spin && !s.locker.press && !lockerWaiting(s.locker) && items.length > 0,
+    hint: !open || !u.on || u.spin ? null : s.locker.press ? "press" : lockerWaiting(s.locker) ? "results" : null,
   };
 }
 

@@ -6,6 +6,7 @@ import { LOADED_DICE_MULT, MONEY_PRINTER_MULT, UPGRADER_COST, UPGRADER_MULTS, UP
 import type { Drop, RarityId } from "./types";
 import { buyUpgrader, rarityStepsFor, setUpgraderStake, setUpgraderTarget, upgraderChance, upgraderGo, upgraderResult } from "./upgrader";
 import { createRng } from "./rng";
+import { upgraderView } from "../game/viewRun4";
 import { autoTake } from "./autoSeller";
 
 const DT = 1 / 30;
@@ -116,6 +117,17 @@ describe("the Upgrader", () => {
     r.state.locker.press = null;
     r.state.locker.cards = [drop(60, "classified")];
     expect(upgraderGo(r)).toEqual({ ok: false, reason: "take the results first" });
+  });
+
+  it("hints why GO waits: a result on the locker or a running press", () => {
+    const r = run4([drop(1, "milspec")]);
+    setUpgraderStake(r, "milspec");
+    expect(upgraderView(r)).toMatchObject({ canGo: true, hint: null });
+    r.state.locker.cards = [drop(60, "classified")];
+    expect(upgraderView(r)).toMatchObject({ canGo: false, hint: "results" });
+    r.state.locker.cards = [];
+    r.state.locker.press = { elapsed: 0 } as never;
+    expect(upgraderView(r)).toMatchObject({ canGo: false, hint: "press" });
   });
 
   it("refuses an empty stake and keeps it picked (Review Focus 3)", () => {
