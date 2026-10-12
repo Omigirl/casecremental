@@ -1,4 +1,5 @@
 import { takeBotCard, type CardSpot } from "./botOpener";
+import { sellerMult } from "./evolved";
 import { collectInto, takeLockerCard } from "./locker";
 import { RARITY_ORDER } from "./rarity";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
@@ -91,7 +92,7 @@ export function autoTake(ctx: RunCtx, d: Drop, from: CardSpot, slot = 0): boolea
   const s = ctx.state;
   if (collectInto(ctx, d, from, slot)) return true;
   if (sellsAt(s.seller.threshold, d.rarity)) {
-    const amount = ctx.payout(d, false);
+    const amount = ctx.payout(d, false) * sellerMult(s); // Money Printer: x3
     ctx.earn(amount);
     ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from, slot });
     return true;

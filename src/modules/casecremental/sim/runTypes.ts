@@ -1,6 +1,7 @@
 import type { AutoSpinState } from "./autoSpin";
 import type { BotState, CardSpot } from "./botOpener";
 import type { CharmId } from "./charms";
+import type { EvolutionId, EvolutionState } from "./evolved";
 import type { LockerState } from "./locker";
 import type { Rng } from "./rng";
 import type { SellerState } from "./autoSeller";
@@ -110,6 +111,7 @@ export type SimEvent =
   | { type: "upgraderStarted"; rarity: RarityId; inputs: Drop[]; mult: number; chance: number; roll: number; win: boolean }
   /** The dial landed: a win's skin waits on the locker, a loss shreds the stake. */
   | { type: "upgraderDone"; win: boolean; result: Drop | null; inputs: Drop[] }
+  | { type: "evolved"; id: EvolutionId }
   | { type: "vaultBought"; price: number }
   | { type: "vaultKeyTurned"; drops: Drop[] }
   | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
@@ -161,6 +163,8 @@ export interface RunState {
   autoSpin: AutoSpinState;
   /** Run 4: the Upgrader on the locker. */
   upgrader: UpgraderState;
+  /** Run 4: the evolutions bought, Hot Hand's best combo, Assembly Line's count. */
+  evolutions: EvolutionState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
   /** Which card is held (a bench, bot or locker slot). */
@@ -187,8 +191,8 @@ export interface RunCtx {
   earn(amount: number): void;
   payout(d: Drop, byHand: boolean): number;
   casePrice(caseId: string): number;
-  /** Rolls one case's drop with Luck, Pity, the Golden Hour and the charms; counts the open. */
-  rollFor(caseId: string, forced?: RarityId | null): Drop;
+  /** Rolls one case's drop with Luck (+ `extraLuck` levels: Hot Hand), Pity, the Golden Hour and the charms; counts the open. */
+  rollFor(caseId: string, forced?: RarityId | null, extraLuck?: number): Drop;
   /** The charms that react to a reveal; `spot` "bench" also stamps revealedAt. */
   onReveal(d: Drop, spot: RevealSpot): void;
   /** Reveals this tick, for heat. */

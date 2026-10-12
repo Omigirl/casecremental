@@ -15,6 +15,8 @@ import {
 } from "./charms";
 import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import * as dayJob from "./dayJob";
+import * as evolutions from "./evolutions";
+import { benchWidth, freshEvolutions, hotHandLuck } from "./evolved";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import * as locker from "./locker";
 import { createRng, type Rng } from "./rng";
@@ -101,6 +103,7 @@ export class Run implements RunCtx {
       locker: locker.freshLocker(),
       autoSpin: autoSpin.freshAutoSpin(),
       upgrader: upgrader.freshUpgrader(),
+      evolutions: freshEvolutions(),
       held: null,
       heldSlot: 0,
       vault: null,
@@ -175,11 +178,11 @@ export class Run implements RunCtx {
     s.lastSellAt = s.time;
   }
 
-  /** How many cases one BUY opens: the Multi-open level, but only as many as you can afford (never 0 - the
-   *  shelf only offers BUY at one price). Multi-open never applies to the vault. */
+  /** How many cases one BUY opens: the Multi-open level (Slot Machine: ten), but only as many as you can afford (never
+   *  0 - the shelf only offers BUY at one price). Multi-open never applies to the vault. */
   openCount(caseId: string): number {
     const price = this.casePrice(caseId);
-    return Math.max(1, Math.min(this.effects().openCount, Math.floor(this.state.cash / price)));
+    return Math.max(1, Math.min(benchWidth(this.state, this.effects().openCount), Math.floor(this.state.cash / price)));
   }
 
   /** The case ids on this run's shelf, cheapest first. */
@@ -220,13 +223,13 @@ export class Run implements RunCtx {
     this.forcedFake = true;
   }
 
-  /** Roll one case's drop with Luck, Pity, the Golden Hour and the charms; counts the open.
-   *  `forced` is the dev board's rarity, which only your bench's open passes in. */
-  rollFor(caseId: string, forced: RarityId | null = null): Drop {
+  /** Roll one case's drop with Luck (+ `extraLuck` levels: Hot Hand), Pity, the Golden Hour and the charms; counts the
+   *  open. `forced` is the dev board's rarity, which only your bench's open passes in. */
+  rollFor(caseId: string, forced: RarityId | null = null, extraLuck = 0): Drop {
     const s = this.state;
     const c = caseById(caseId);
     s.opened++;
-    const luck = this.effects().luckLevel + this.setup.luckBonus + s.pity * PITY_LUCK_LEVELS;
+    const luck = this.effects().luckLevel + this.setup.luckBonus + s.pity * PITY_LUCK_LEVELS + extraLuck;
     const drop = rollDrop(c, priceOf(c.id), luck, this.rng, s.nextDropId++, forced, {
       luckMult: s.time < s.goldenHourUntil ? GOLDEN_HOUR_LUCK : 1,
       statTrakChance: charmStatTrakChance(this.setup.charms),
@@ -247,7 +250,7 @@ export class Run implements RunCtx {
     const forced = this.forcedRarity; // the dev board's rarity is for your bench's next open alone
     this.forcedRarity = null;
     for (let i = 0; i < b.count; i++) {
-      const drop = this.rollFor(c.id, i === 0 ? forced : null);
+      const drop = this.rollFor(c.id, i === 0 ? forced : null, hotHandLuck(s));
       const tease = rollTease(drop.rarity, c.tier, topTier, fx.spinSeconds, this.rng, this.forcedFake);
       this.forcedFake = false;
       reels.push({ drop, tease, duration: fx.spinSeconds + (tease?.extraSeconds ?? 0) });
@@ -343,6 +346,7 @@ export class Run implements RunCtx {
       this.emit({ type: "caseBought", caseId, free: true, count: 1 });
     }
 
+    evolutions.tickEvolutions(this); // the best combo, before a lapsed combo drops
     if (s.combo > 0 && s.time - s.lastSellAt > COMBO_WINDOW_SECONDS) s.combo = 0;
     s.comboHeat = s.combo >= s.comboHeat ? s.combo : s.comboHeat * Math.exp(-dt / COMBO_HEAT_DECAY_SECONDS);
 

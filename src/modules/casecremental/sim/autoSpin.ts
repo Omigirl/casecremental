@@ -1,5 +1,6 @@
 import { botCaseFor } from "./botOpener";
 import { runCaseIds } from "./campaign";
+import { assemblyFree, evolved, placeFreeCase } from "./evolved";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import { AUTOSPIN_COST, AUTOSPIN_DELAY_COSTS, AUTOSPIN_DELAYS, AUTOSPIN_KEY_SECONDS } from "./tuning";
 import { vaultShown } from "./vault";
@@ -10,7 +11,8 @@ import { vaultShown } from "./vault";
 // can afford when that one is too dear) at your full multi-open width once the bench has stood empty for its delay, and
 // turns the key of any case left locked on the bench after a short beat. It never sells, so it never builds combo. With
 // nothing affordable it waits ON ("BROKE": the day job is yours); with the vault affordable it buys nothing, so it never
-// spends the vault's cash or keeps the bench busy under the vault's BUY.
+// spends the vault's cash or keeps the bench busy under the vault's BUY. With Assembly Line (Run 4) it has no delay, and
+// every 25th buy is a free case one tier up.
 
 export interface AutoSpinState {
   owned: boolean;
@@ -128,12 +130,18 @@ export function tickAutoSpin(ctx: RunCtx, dt: number): void {
     return;
   }
   if (vaultReady(ctx)) return;
-  const delay = autoSpinDelay(a.delayLevel);
+  const delay = evolved(s, "assemblyLine") ? 0 : autoSpinDelay(a.delayLevel); // Assembly Line: no delay
   a.clock = Math.min(a.clock + dt, delay); // broke, it stays due: it buys the moment it can afford a case
   if (a.clock < delay) return;
   const caseId = autoSpinCase(ctx);
   if (!caseId) return;
   a.clock = 0;
+  const free = assemblyFree(ctx, caseId); // Assembly Line: every 25th buy is a free case one tier up
+  if (free) {
+    placeFreeCase(ctx, free);
+    ctx.emit({ type: "autoSpinPulled", caseId: free, count: 1 });
+    return;
+  }
   const count = ctx.placeCase(caseId);
   ctx.emit({ type: "autoSpinPulled", caseId, count });
 }

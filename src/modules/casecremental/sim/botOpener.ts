@@ -1,4 +1,5 @@
 import { runCaseIds, runContent } from "./campaign";
+import { botRoll } from "./evolved";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import { BOT_MULTI_COST, BOT_SPEED_ANCHORS, BOT_SPEED_COSTS, BOT_SPIN_SECONDS, BOT_WAKE_COST, BOT_WAKE_SECONDS } from "./tuning";
 import type { Drop } from "./types";
@@ -171,7 +172,7 @@ export function tickBot(ctx: RunCtx, dt: number): void {
   const count = Math.max(1, Math.min(1 + bot.multiLevel * (runContent(ctx.setup.run).botMultiOpen - 1), Math.floor(s.cash / price)));
   s.cash -= price * count;
   const drops: Drop[] = [];
-  for (let i = 0; i < count; i++) drops.push(ctx.rollFor(caseId));
+  for (let i = 0; i < count; i++) drops.push(botRoll(ctx, caseId)); // Cartel: the better of two
   const duration = botSpinSeconds(bot.speedLevel);
   bot.spin = { caseId, drops, elapsed: 0, duration };
   ctx.emit({ type: "botSpinStarted", caseId, drops, duration });

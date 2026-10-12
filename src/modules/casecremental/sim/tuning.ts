@@ -120,7 +120,7 @@ export const UPGRADE_COSTS = {
   multiOpen: { baseCost: 500, growth: 25, maxLevel: 4 },
 } as const;
 
-/** The widest multi-open in the campaign (×5 in Run 3, rework spec §2): a bench of more is a corrupt save. */
+/** The widest multi-open in the campaign (×5 from Run 3). */
 export const MULTI_OPEN_MAX = 5;
 
 /** Sells closer together than this keep the combo going. */
@@ -271,6 +271,28 @@ export const UPGRADER_RARITY_STEPS: ReadonlyArray<readonly [maxMult: number, ste
   [10, 2],
   [100, 3],
 ];
+
+/** Evolutions (Run 4, finish spec §7.3): each costs one purchase once its recipe is complete. */
+export const EVOLUTION_COSTS = {
+  slotMachine: 5_000_000_000_000,
+  cartel: 8_000_000_000_000,
+  moneyPrinter: 12_000_000_000_000,
+  assemblyLine: 20_000_000_000_000,
+  hotHand: 30_000_000_000_000,
+} as const;
+/** Slot Machine: one BUY opens this many cases. */
+export const SLOT_MACHINE_OPEN = 10;
+/** The widest bench (Slot Machine): a save with more is corrupt. */
+export const BENCH_OPEN_MAX = SLOT_MACHINE_OPEN;
+/** Money Printer: the auto-seller's sales × this. */
+export const MONEY_PRINTER_MULT = 3;
+/** Assembly Line: every this-many-th auto-spin buy is a free case one tier up. */
+export const ASSEMBLY_FREE_EVERY = 25;
+/** Hot Hand: its recipe's hand combo; while the combo is at least HOT_HAND_MIN_COMBO the bench rolls with
+ *  HOT_HAND_LUCK more Luck levels. */
+export const HOT_HAND_RECIPE_COMBO = 50;
+export const HOT_HAND_MIN_COMBO = 25;
+export const HOT_HAND_LUCK = 5;
 
 /** Auto-spin (finish spec §3): your own bench's machine, bought in Run 1 once the auto-seller is on, then switched
  *  ON/OFF. F4: 5K, so both players switch it on well before Vault I (~45 s GREEDY, ~1.5 min CASUAL). */

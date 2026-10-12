@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { freshAutoSpin } from "../sim/autoSpin";
+import { freshEvolutions } from "../sim/evolved";
 import { freshMeta } from "../sim/meta";
 import { freshUpgrader } from "../sim/upgrader";
 import { DEFAULT_SETUP, Run } from "../sim/run";
@@ -228,6 +229,20 @@ describe("the local save", () => {
     const d = JSON.parse(encodeSave(data()));
     delete d.run.state.upgrader;
     expect(decodeSave(JSON.stringify(d))!.run.state.upgrader).toEqual(freshUpgrader());
+  });
+
+  it("gives a v5 save from before evolutions a fresh one", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.run.state.evolutions;
+    expect(decodeSave(JSON.stringify(d))!.run.state.evolutions).toEqual(freshEvolutions());
+  });
+
+  it("a ten-case bench survives the save (Review Focus 4)", () => {
+    const r = new Run(5, { ...DEFAULT_SETUP, run: 4, startCash: 1e18 });
+    r.state.evolutions.owned.push("slotMachine");
+    r.buyCase("bootcamp");
+    const back = decodeSave(encodeSave({ v: SAVE_VERSION, meta: freshMeta(), run: r.snapshot() }));
+    expect(back?.run.state.bench).toMatchObject({ phase: "locked", count: 10 });
   });
 
   it("gives a v5 save that lacks auto-spin a fresh one", () => {

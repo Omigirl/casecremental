@@ -1,10 +1,11 @@
 import { freshAutoSpin } from "../sim/autoSpin";
 import { freshSeller } from "../sim/autoSeller";
 import { freshBot } from "../sim/botOpener";
+import { freshEvolutions } from "../sim/evolved";
 import { freshLocker } from "../sim/locker";
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
-import { MULTI_OPEN_MAX } from "../sim/tuning";
+import { BENCH_OPEN_MAX } from "../sim/tuning";
 import { freshUpgrader } from "../sim/upgrader";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 
@@ -49,7 +50,7 @@ function isBench(b: unknown): boolean {
   if (b.phase === "revealed") {
     return Array.isArray(b.cards) && b.cards.every((c) => c === null || isObj(c)) && b.cards.some((c) => isObj(c));
   }
-  return Number.isInteger(b.count) && (b.count as number) >= 1 && (b.count as number) <= MULTI_OPEN_MAX;
+  return Number.isInteger(b.count) && (b.count as number) >= 1 && (b.count as number) <= BENCH_OPEN_MAX;
 }
 
 /** A version-2 save held one card; it becomes a bench of one (and no multi-open). */
@@ -119,6 +120,7 @@ function normalize(d: SaveData): SaveData {
         locker: { ...freshLocker(), ...d.run.state.locker },
         autoSpin: { ...freshAutoSpin(), ...d.run.state.autoSpin },
         upgrader: { ...freshUpgrader(), ...d.run.state.upgrader },
+        evolutions: { ...freshEvolutions(), ...d.run.state.evolutions },
         seen: d.run.state.seen ?? {},
         held: null,
         heldSlot: 0,
