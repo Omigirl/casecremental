@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Drop } from "../../sim/types";
-import { burstColor, FIREWORK_COLORS, introSpot, kickSpot } from "./bursts";
+import { burstColor, FIREWORK_COLORS, introSpot, kickBursts, kickSpot } from "./bursts";
 import { INTRO_HITS } from "./cues";
 
 const screen = { w: 1000, h: 500 };
@@ -35,5 +35,26 @@ describe("where the vault's bursts go off", () => {
     const gold = [{ rarity: "gold" } as Drop];
     expect(burstColor(gold, () => 0.1)).toBe(RARITY_INFO.gold.color);
     expect(FIREWORK_COLORS).toContain(burstColor(gold, () => 0.7));
+  });
+});
+
+describe("a kick's bursts", () => {
+  const inside = (p: { x: number; y: number }) => p.x > 0 && p.x < screen.w && p.y > 0 && p.y < screen.h;
+
+  it("bursts twice on the kick's own spot on Vault I, as before", () => {
+    for (let index = 0; index < 14; index++)
+      expect(kickBursts(index, 2, screen, still)).toEqual([kickSpot(index, screen, still), kickSpot(index, screen, still)]);
+  });
+
+  it("adds bursts on spots of their own on a wilder vault, every one on screen", () => {
+    for (let index = 0; index < 14; index++)
+      for (const n of [3, 4]) {
+        const pts = kickBursts(index, n, screen, still);
+        expect(pts).toHaveLength(n);
+        expect(pts[0]).toEqual(kickSpot(index, screen, still));
+        expect(pts[1]).toEqual(pts[0]);
+        expect(new Set(pts.slice(1).map((p) => `${p.x},${p.y}`)).size, `kick ${index}, ${n} bursts`).toBe(n - 1);
+        for (const p of pts) expect(inside(p), `kick ${index}`).toBe(true);
+      }
   });
 });

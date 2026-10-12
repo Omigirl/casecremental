@@ -45,6 +45,19 @@ export function introSpot(index: number, screen: { w: number; h: number }, rando
   return kickSpot(index * INTRO_STEP, screen, random);
 }
 
+/** How far along the spots a wilder vault's extra bursts on a kick go: across the screen from the kick's own. */
+const EXTRA_STEPS = [5, 3, 7] as const;
+
+/** Kick `index`'s bursts on a `screen` (screen px): `n` of them (vaultLooks burstsPerKick). The first two on the
+ *  kick's own spot, as Vault I has always burst; any more each on a spot of its own across the screen. Points only:
+ *  a burst is particles, never a flash or a sound (the kick plays its one sound). */
+export function kickBursts(index: number, n: number, screen: { w: number; h: number }, random = Math.random): Pt[] {
+  const own = kickSpot(index, screen, random);
+  const out: Pt[] = n >= 2 ? [own, own] : n === 1 ? [own] : [];
+  for (let e = 0; out.length < n; e++) out.push(kickSpot(index + EXTRA_STEPS[e % EXTRA_STEPS.length]!, screen, random));
+  return out;
+}
+
 /** One of `xs` at random. */
 export function pick<T>(xs: readonly T[], random = Math.random): T {
   return xs[Math.floor(random() * xs.length)]!;
