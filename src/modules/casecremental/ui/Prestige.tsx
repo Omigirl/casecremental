@@ -63,10 +63,11 @@ export function Prestige({
         <div className="cc-title">{t("prestige.nextrun", { n: p.nextRun })}</div>
         {p.replay ? (
           <>
-            <div className="cc-title cc-gold" style={{ fontSize: "calc(var(--fs) * 2)" }}>
+            {/* gold like the HUD's cash: cc-title's shadow would show through the clipped (transparent) text */}
+            <div className="cc-gold" style={{ fontSize: "calc(var(--fs) * 2)", lineHeight: 1.2, textAlign: "center" }}>
               {t("prestige.end")}
             </div>
-            <div>{t("prestige.again", { n: p.nextRun })}</div>
+            <div style={{ textAlign: "center" }}>{t("prestige.again", { n: p.nextRun })}</div>
           </>
         ) : (
           <div style={{ display: "grid", gap: scale }}>
