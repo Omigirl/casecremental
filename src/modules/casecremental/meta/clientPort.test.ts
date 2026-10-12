@@ -6,14 +6,18 @@ type Exec =
   | { ok: true; data: { Error?: { Error: string } | null; FunctionResult?: unknown } }
   | { ok: false; reason: string; error: string };
 
-function fakeClient(user: string | null, exec: Exec) {
+type ChainState = { ok: true; data: { State?: unknown } } | { ok: false; reason: string; error: string };
+
+function fakeClient(user: string | null, exec: Exec, chain: ChainState = { ok: true, data: { State: {} } }) {
   const calls: string[] = [];
+  const sent: unknown[] = [];
   const client = {
     auth: { context: user === null ? null : { userID: user } },
-    cloudCode: { execute: async (name: string) => (calls.push(name), exec) },
+    cloudCode: { execute: async (name: string, args: unknown) => (calls.push(name), sent.push(args), exec) },
     leaderboard: { submitScore: async () => (calls.push("score"), exec) },
+    blockchain: { getUserState: async () => chain },
   };
-  return { client: client as unknown as IDosGamesClient, calls };
+  return { client: client as unknown as IDosGamesClient, calls, sent };
 }
 const ok = (FunctionResult: unknown): Exec => ({ ok: true, data: { Error: null, FunctionResult } });
 
@@ -44,6 +48,20 @@ describe("clientPort", () => {
     });
     expect(await port(ok("not json")).call("endRun", {})).toMatchObject({ kind: "refused", retry: true });
     expect(await port({ ok: false, reason: "server", error: "x" }).submitScore(5)).toMatchObject({ kind: "refused", retry: true });
+  });
+
+  it("tells endRun the Solana wallet the platform verified, null for none, nothing when it could not tell", async () => {
+    const W = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+    const sentWith = async (chain: ChainState, name = "endRun") => {
+      const f = fakeClient("A", ok({ ok: true }), chain);
+      await clientPort(f.client, "A").call(name as "endRun", { runId: "r1" });
+      return f.sent[0];
+    };
+    const signedIn: ChainState = { ok: true, data: { State: { LastWalletLogin: { NetworkID: "solana", Address: W } } } };
+    expect(await sentWith(signedIn)).toEqual({ runId: "r1", wallet: W });
+    expect(await sentWith({ ok: true, data: { State: { LinkedWallets: {} } } })).toEqual({ runId: "r1", wallet: null });
+    expect(await sentWith({ ok: false, reason: "server", error: "no blockchain" })).toEqual({ runId: "r1" });
+    expect(await sentWith(signedIn, "saveMeta")).toEqual({ runId: "r1" }); // only endRun publishes it
   });
 
   it("sends nothing for its account while another one (or no one) is signed in", async () => {

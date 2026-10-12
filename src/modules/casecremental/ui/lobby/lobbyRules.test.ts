@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TROPHIES } from "../../meta/trophies";
-import { boardRows, isSolanaAddress, ownedTrophyIds, rowLabel, shortAddress, trophyGroups, walletsFrom } from "./lobbyRules";
+import { boardRows, ownedTrophyIds, rowLabel, shortAddress, trophyGroups, walletsFrom } from "./lobbyRules";
 
 describe("trophy case", () => {
   it("reads the owned Trophies items, ignoring other catalogs", () => {
@@ -68,9 +68,6 @@ describe("wallets on the board", () => {
     expect(w).toEqual({ a: wallet });
     expect(walletsFrom(undefined)).toEqual({});
     expect(walletsFrom(null)).toEqual({});
-    expect(isSolanaAddress("0x1234")).toBe(false);
-    expect(isSolanaAddress("0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl")).toBe(false); // not base58
-    expect(isSolanaAddress(42)).toBe(false);
   });
 
   it("names a row: name ◎, ◎ short address, the name, or Player", () => {

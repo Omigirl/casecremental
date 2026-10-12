@@ -259,49 +259,53 @@ const WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 describe("wallet on the board (F8)", () => {
   const walletWrites = () => p.st.writes.filter((w) => w === "Public:cc_wallet").length;
 
-  it("endRun publishes the verified wallet once", () => {
-    p.st.wallet = WALLET;
-    end();
+  it("endRun publishes the player's wallet once", () => {
+    end({ wallet: WALLET });
     expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
     p.st.t += 900;
-    end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9 });
+    end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9, wallet: WALLET });
     expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
     expect(walletWrites()).toBe(1);
   });
 
   it("a player without a wallet gets no key", () => {
-    end();
+    end({ wallet: null });
+    p.st.t += 900;
+    end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9 });
     expect(p.st.data.Public!.cc_wallet).toBeUndefined();
     expect(walletWrites()).toBe(0);
   });
 
-  it("writes the verified wallet back over one the player set themselves", () => {
-    p.st.wallet = WALLET;
+  it("replaces a wallet the player set themselves with the one the client read from the platform", () => {
     p.st.data.Public!.cc_wallet = "So11111111111111111111111111111111111111112";
-    end();
+    end({ wallet: WALLET });
     expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
   });
 
-  it("clears a wallet the player set themselves when the account has none", () => {
+  it("clears the key when the account has no wallet, and leaves it when the client could not tell", () => {
     p.st.data.Public!.cc_wallet = WALLET;
     end();
+    expect(p.st.data.Public!.cc_wallet).toBe(WALLET); // no wallet argument: an old client, or the read failed
+    p.st.t += 900;
+    end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9, wallet: null });
     expect(p.st.data.Public!.cc_wallet).toBe("");
+  });
+
+  it("never publishes something that is not a Solana address", () => {
+    for (const wallet of ["<script>alert(1)</script>", "0x12ab", 42, { a: 1 }]) end({ runId: `r${String(wallet).length}`, wallet });
+    expect(walletWrites()).toBe(0);
   });
 
   it("publishes on a duplicate endRun too (a player who linked a wallet after the run)", () => {
     end();
-    p.st.wallet = WALLET;
-    expect(end()).toMatchObject({ duplicate: true });
+    expect(end({ wallet: WALLET })).toMatchObject({ duplicate: true });
     expect(p.st.data.Public!.cc_wallet).toBe(WALLET);
   });
 
   it("a failed wallet write does not fail the run", () => {
-    p.st.wallet = WALLET;
     const io = { ...p.io, writeData: (b: string, k: string, v: unknown) => (k === "cc_wallet" ? false : p.io.writeData(b, k, v)) };
-    expect(RULES.endRun!(io, { runId: "r1", lifetimeEarnings: 1.2e6, elapsedSec: 480, endedAgoSec: 0, finaleReached: true, trophy: "vault1" })).toMatchObject({
-      ok: true,
-      loops: 1,
-    });
+    const args = { runId: "r1", lifetimeEarnings: 1.2e6, elapsedSec: 480, endedAgoSec: 0, finaleReached: true, trophy: "vault1", wallet: WALLET };
+    expect(RULES.endRun!(io, args)).toMatchObject({ ok: true, loops: 1 });
   });
 });
 
@@ -350,29 +354,12 @@ describe("handlers", () => {
     expect(calls).toContainEqual(["Apply", { Operation: { Grant: {} }, Reason: "why" }]);
   });
 
-  it("makeIo reads the account's verified Solana wallet from the Blockchain user data", () => {
-    const ioWith = (blockchain: unknown) => {
-      const fields: unknown[] = [];
-      const server = {
-        ReadUserData: (f: unknown) => (fields.push(f), { Blockchain: blockchain }),
-        GetUserCustomData: () => ({ Success: true, Data: { Public: { cc_wallet: { Value: WALLET } } } }),
-      };
-      return { io: makeIo(server, { UserID: "U1" }), fields };
-    };
-    const login = ioWith({ LastWalletLogin: { NetworkID: "solana", Address: WALLET }, LinkedWallets: {} });
-    expect(login.io.walletAddress()).toBe(WALLET);
-    expect(login.fields).toEqual([["Blockchain"]]);
-    expect(login.io.readRaw("Public", "cc_wallet")).toBe(WALLET); // a String key, not JSON
-    expect(login.io.readRaw("Public", "nope")).toBeNull();
-    // a wallet linked by signature on the Solana network, whatever the map is keyed by
-    expect(ioWith({ LinkedWallets: { solana: { NetworkID: "solana", Address: WALLET, IsSignatureVerified: true } } }).io.walletAddress()).toBe(WALLET);
-    expect(ioWith({ LinkedWallets: { [WALLET]: { NetworkID: "solana", Address: WALLET, LinkType: "SignatureVerified" } } }).io.walletAddress()).toBe(WALLET);
-    // not a Solana wallet, not proven by a signature, not an address, or nothing at all
-    expect(ioWith({ LastWalletLogin: { NetworkID: "bsc", Address: "0x12ab" }, LinkedWallets: {} }).io.walletAddress()).toBeNull();
-    expect(ioWith({ LinkedWallets: { solana: { NetworkID: "solana", Address: WALLET, LinkType: "AutoLinkedFromTransaction" } } }).io.walletAddress()).toBeNull();
-    expect(ioWith({ LastWalletLogin: { NetworkID: "solana", Address: "<script>" } }).io.walletAddress()).toBeNull();
-    expect(ioWith(null).io.walletAddress()).toBeNull();
-    expect(makeIo({ ReadUserData: () => ({}) }, {}).walletAddress()).toBeNull();
+  it("makeIo reads a String key as stored", () => {
+    const server = { GetUserCustomData: () => ({ Success: true, Data: { Public: { cc_wallet: { Value: WALLET } } } }) };
+    const io = makeIo(server, { UserID: "U1" });
+    expect(io.readRaw("Public", "cc_wallet")).toBe(WALLET); // not JSON: readData would answer null
+    expect(io.readData("Public", "cc_wallet")).toBeNull();
+    expect(io.readRaw("Public", "nope")).toBeNull();
   });
 
   it("the committed bundle is data.json + casecremental.js (run `npm run cloud`)", () => {

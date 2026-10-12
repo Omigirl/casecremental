@@ -1,5 +1,6 @@
 import { earningsFromScore } from "../../meta/plausibility";
 import { TROPHIES, TROPHY_CATALOG, trophyById } from "../../meta/trophies";
+import { isSolanaAddress } from "../../meta/wallet";
 
 // What the lobby's Trophy Case and Leaderboard show (plan F7), as pure rules over the SDK's data shapes.
 
@@ -54,10 +55,7 @@ export interface BoardRow {
 
 export const shortAddress = (address: string): string => (address.length > 10 ? `${address.slice(0, 4)}…${address.slice(-4)}` : address);
 
-/** A base58 Solana address (32–44 characters, no 0, O, I or l). */
-export const isSolanaAddress = (s: unknown): s is string => typeof s === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
-
-/** The Public user-data key CloudCode's endRun fills with the player's verified Solana wallet (plan F8). */
+/** The Public user-data key CloudCode's endRun fills with the player's Solana wallet (plan F8; meta/wallet.ts). */
 export const WALLET_KEY = "cc_wallet";
 
 /** userId → wallet, from batchGetPublicUserCustomDataOf's results. Anything odd is skipped. */
