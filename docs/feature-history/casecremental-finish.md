@@ -294,7 +294,7 @@ waits for F6-C. Spec §6; plan `docs/superpowers/plans/2026-10-12-casecremental-
 
 What outlives a run is on the Title now; the run itself stays client-simulated. Spec §8; plan
 `docs/superpowers/plans/2026-10-12-casecremental-f7-server-meta.md` (Tasks 1–7 done on branch `f7-server-meta`
-before F6 merged; Task 8, promotion to the live Title, waits for review).
+before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "F7 on the live Title" below).
 
 - **What the Title holds.** Currency `CLOUT` (initial 0, not tradable or purchasable); item catalog `Trophies` — one
   non-stackable, non-tradable item per Covert and ★ skin of every case plus each vault's legend, ids = skin ids,
@@ -349,8 +349,8 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   here. The server already keeps and caps them.
 - **The DEV seed is gone** from ZVKC34TR-DEV: quests `guide_*` and cycle `guide`, store `shop` and its four offers,
   lootbox `gear_summon`, idle accrual `idle_gold`, characters Knight/Archer/Mage, catalog `Item` (12 items), currencies
-  GOLD and GEMS. The live Title ZVKC34TR still has all of it plus `Main`/`Main_IOU` and its Blockchain section; the
-  user decided the seed goes there too at promotion (Task 8).
+  GOLD and GEMS. The user decided the seed comes off the live Title ZVKC34TR too at promotion (Task 8); `Main`/`Main_IOU`
+  and live's Blockchain section stay. "F7 on the live Title" below says what was removed and what is left.
 - **Verified on DEV** (headless Chrome through the scratch harness, the app in an iframe so the host exposes
   `__IDOS_AGENT__`, fresh guests): the HUD's CLOUT equals loadMeta's; a Covert dropped and was on the server within ~4 s;
   a vault paid the same CLOUT locally and on the server, granted the legend, moved best_run, and the Leaders tab listed
@@ -424,6 +424,27 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   `vault2_legend`, not capped, and its duplicate answered the same score and gain; offline (fetch failing) 15 pumps kept
   reportTrophy/endRun/buyPerk with 0 strikes, then drained: CLOUT 7 = 10 − 3, startCash 1, loops 1, `bc_knife` and
   `vault1_legend`.
+
+### F7 on the live Title (2026-10-13, live CloudCode revision 1)
+
+- **Promoted to ZVKC34TR on 2026-10-13.** It got the same CLOUT, the 31-item `Trophies` catalog, `best_run`, the user-data
+  keys (`cc_meta` / `cc_anti` / `cc_wallet`) and the CloudCode policy (RateLimit, ResourcePolicy, the five-handler
+  whitelist) as DEV, each section copied from DEV as read. The committed bundle went out as **live revision 1**, CodeHash
+  0b42a1c2… — the same code as DEV revision 19 and the sha256 of `cloudcode/casecremental.bundle.js`. Live revision
+  numbers count from 1 and do not match DEV's.
+- **Left as they were:** the FOMO token (`Main` / `Main_IOU`, Solana mint D3Ca3V8n…) and the currency flags, both
+  sent back exactly as read. The Blockchain section was not saved at all: mainnet network `solana`, account safety
+  (7-day minimum age, multi-account check, ban on a shared withdrawal address) and wallet sign-in (on, WalletConnect id
+  02e026fb…). A read-back after the promotion matched the before-snapshot byte for byte.
+- **Idle-rpg seed: partly removed.** Removed: quests `guide_*` and cycle `guide`, store `shop` and its four offers,
+  idle accrual `idle_gold` (TierRewards kept), characters Knight/Archer/Mage. **Still on live:** lootbox `gear_summon`,
+  catalog `Item` (12 items) and currencies GOLD/GEMS. The lootbox save was refused by the agent's permission
+  classifier. The lootbox prices in GEMS and pays out `Item` items, so those stay with it. To finish, save Lootbox
+  `{ "Definitions": {} }`, then Item with only `Trophies`, then Currency without GOLD/GEMS, keeping `Main`/`Main_IOU`
+  exactly as they are. Nothing in the game uses any of these entities.
+- **Smoke on live** (one throwaway device guest, CAWI995KFFV1MPP6ZVKC34TR, `execute(..., "Specific", 1)`): loadMeta
+  answered a fresh view; reportTrophy granted `bc_commander`; a zero-time endRun claiming 1e300 for vault1 paid 0 CLOUT
+  with no loop counted; the same runId again answered `duplicate: true`.
 
 
 ## F6 — Run 4, The Last Case, the credits (2026-10-13)
