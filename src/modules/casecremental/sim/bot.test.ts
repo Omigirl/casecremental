@@ -3,6 +3,7 @@ import { CASUAL, fullyBought, HUMAN, INCOME_WINDOW, playCampaign, playGreedy, pl
 import { VAULTS } from "./content/vaults";
 import { DEFAULT_SETUP, Run, type RunSetup, type SimEvent } from "./run";
 import { LAST_RUN } from "./tuning";
+import { buyUpgrader } from "./upgrader";
 import { UPGRADE_IDS } from "./upgrades";
 
 // The pacing players' own rules (finish spec §5): the two timing profiles, the shop cadence, and the helpers the
@@ -22,6 +23,8 @@ const PURCHASES = new Set<SimEvent["type"]>([
   "autoContractBought",
   "autoSpinBought",
   "autoSpinUpgraded",
+  "upgraderBought",
+  "evolved",
 ]);
 
 /** Buys everything the run sells, with plenty of cash, until nothing more can be bought. */
@@ -39,6 +42,7 @@ function buyEverything(run: Run): void {
     () => run.buyLocker(),
     () => run.buyLockerSize(),
     () => run.buyAutoContract(),
+    () => buyUpgrader(run),
     ...UPGRADE_IDS.map((id) => () => run.buyUpgrade(id)),
   ];
   for (let guard = 0; guard < 1000 && buys.some((buy) => buy().ok); guard++);
@@ -137,6 +141,15 @@ describe("fully bought (the 90 s rule's starting line)", () => {
       expect(fullyBought(r)).toBe(false);
     });
   }
+
+  it("Run 4 needs the Upgrader too (never an evolution: a recipe may never complete)", () => {
+    const r = new Run(1, { ...DEFAULT_SETUP, run: 4 });
+    buyEverything(r);
+    expect(fullyBought(r)).toBe(true);
+    expect(r.state.evolutions.owned).toEqual([]);
+    r.state.upgrader.on = false;
+    expect(fullyBought(r)).toBe(false);
+  });
 });
 
 describe("playToFull", () => {
@@ -159,5 +172,12 @@ describe("playCampaign", () => {
     expect(legs[1]!.setup.valueBoost).toBeGreaterThan(1);
     expect(legs.at(-1)!.setup.vaultPrice).toBeGreaterThan(legs.at(-2)!.setup.vaultPrice);
     expect(new Set(legs.map((l) => l.seed)).size).toBe(legs.length);
+  });
+
+  it("replays the last run as many times as asked, each vault dearer", () => {
+    const legs = playCampaign(1, HUMAN, 30, 3);
+    expect(legs).toHaveLength(VAULTS.length + 3);
+    expect(legs.slice(-3).map((l) => l.run)).toEqual([LAST_RUN, LAST_RUN, LAST_RUN]);
+    for (let i = legs.length - 3; i < legs.length; i++) expect(legs[i]!.setup.vaultPrice).toBeGreaterThan(legs[i - 1]!.setup.vaultPrice);
   });
 });

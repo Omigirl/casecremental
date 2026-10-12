@@ -1,10 +1,9 @@
-import { runNumber, vaultPriceFor } from "./campaign";
+import { catchUpBoost, runNumber, vaultPriceFor } from "./campaign";
 import { charmPool, type CharmId } from "./charms";
 import { vaultFor } from "./content/vaults";
 import { createRng } from "./rng";
 import type { ActionResult, RunSetup, RunState } from "./run";
 import {
-  CATCH_UP_PER_VAULT,
   CHARM_OFFER_SIZE,
   CLOUT_DIVISOR,
   LAST_RUN,
@@ -148,7 +147,7 @@ export function setupFor(m: MetaState): RunSetup {
     charms: [...m.picked],
     botAwake: m.perks.botAwake > 0,
     trayCapacity: TRAY_BASE_CAPACITY + TRAY_PER_PERK * m.perks.biggerTray,
-    valueBoost: CATCH_UP_PER_VAULT ** m.loops,
+    valueBoost: catchUpBoost(m.loops),
     vaultPrice: vaultPriceFor(m.loops),
   };
 }

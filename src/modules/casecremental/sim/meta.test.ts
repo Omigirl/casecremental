@@ -69,7 +69,7 @@ describe("prestige meta", () => {
       charms: ["insider"],
       botAwake: true,
       trayCapacity: TRAY_BASE_CAPACITY + TRAY_PER_PERK,
-      valueBoost: CATCH_UP_PER_VAULT ** 2,
+      valueBoost: CATCH_UP_PER_VAULT[0] * CATCH_UP_PER_VAULT[1],
       vaultPrice: VAULT_PRICES[2],
     });
   });

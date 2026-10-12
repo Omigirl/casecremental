@@ -4,10 +4,23 @@ import { botSpeedCost, botWaiting } from "./botOpener";
 import { runCaseIds, runContent } from "./campaign";
 import { unlockCostOf } from "./content/cases";
 import { VAULTS } from "./content/vaults";
+import { buyEvolution, recipeDone } from "./evolutions";
+import { EVOLUTION_IDS } from "./evolved";
 import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
 import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
 import { DEFAULT_SETUP, Run, type ActionResult, type RunSetup, type SimEvent } from "./run";
-import { AUTO_CONTRACT_COST, AUTOSPIN_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
+import {
+  AUTO_CONTRACT_COST,
+  AUTOSPIN_COST,
+  BOT_MULTI_COST,
+  BOT_WAKE_COST,
+  EVOLUTION_COSTS,
+  LAST_RUN,
+  LOCKER_COST,
+  SELLER_COST,
+  UPGRADER_COST,
+} from "./tuning";
+import { buyUpgrader } from "./upgrader";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
 // A greedy player at human speed, used by the pacing test to check how fast a run unfolds. It claims tray items as
@@ -15,8 +28,9 @@ import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 // ready, unlocks the next case as soon as it can afford it plus one case, then — each when it has twice the price —
 // wakes the bot, buys the auto-seller, then auto-spin (switched on: from then on it leaves the bench to the machine,
 // picks each new case for it and shops whenever free), the locker (Run 2+, collecting Mil-Specs) and the bot's
-// multi-open. It buys the cheapest remaining upgrade (bot and seller Speed, auto-spin's Delay, locker size, the auto
-// contract included) when it costs at most a quarter of its cash, takes the day job when broke with the bench empty
+// multi-open, and in Run 4 the Upgrader (it never gambles with it). It buys the cheapest remaining upgrade (bot and
+// seller Speed, auto-spin's Delay, locker size, the auto contract and, in Run 4, each evolution once its recipe is
+// complete included) when it costs at most a quarter of its cash, takes the day job when broke with the bench empty
 // (auto-spin on or not), and buys the vault as soon as it can.
 // Two timing profiles (finish spec §5): HUMAN is the GREEDY player, a perfect one who never pauses; CASUAL has a real
 // player's slower hands and looks at the shop every 8 s (a due look comes before selling, and buys everything the
@@ -69,6 +83,8 @@ export interface PacingReport {
   runCasesAt: Record<number, number>;
   /** When the locker (Run 2+) was bought. */
   lockerAt?: number;
+  /** When the Upgrader (Run 4) was bought. */
+  upgraderAt?: number;
   vaultAt?: number;
   /** The highest stage reached before the vault (which holds the top stage by itself). */
   topStage: number;
@@ -90,6 +106,9 @@ export interface PacingReport {
 }
 
 const DT = 1 / 30;
+/** A CASUAL look buys row after row; it never buys more than this many in one look (a guard: a row that is always
+ *  affordable must not hang the sim). */
+const MAX_BUYS_PER_LOOK = 1000;
 
 export function playGreedy(
   seed: number,
@@ -124,11 +143,7 @@ export function playGreedy(
     // GREEDY buys one thing per free moment; a CASUAL look buys everything it can afford, as a player glancing at the
     // shop clicks several rows
     let bought = false;
-    while ((timings.shopEvery > 0 || !bought) && spend(run)) bought = true;
-    if (report.fullAt === undefined && fullyBought(run)) {
-      report.fullAt = run.state.time;
-      fullCash = run.state.cash;
-    }
+    for (let n = 0; n < MAX_BUYS_PER_LOOK && (timings.shopEvery > 0 || !bought) && spend(run); n++) bought = true;
     return bought;
   };
   let fullFor = 0;
@@ -154,8 +169,13 @@ export function playGreedy(
       if (e.type === "botWoke") report.botAwakeAt ??= s.time;
       if (e.type === "sellerBought") report.sellerAt ??= s.time;
       if (e.type === "lockerBought") report.lockerAt ??= s.time;
+      if (e.type === "upgraderBought") report.upgraderAt ??= s.time;
       if (e.type === "pressStarted") report.contracts++;
       if (e.type === "vaultBought") report.vaultAt ??= s.time;
+    }
+    if (report.fullAt === undefined && fullyBought(run)) {
+      report.fullAt = s.time;
+      fullCash = s.cash;
     }
     fullFor = s.tray.length >= setup.trayCapacity ? fullFor + DT : 0;
     report.longestTrayFull = Math.max(report.longestTrayFull, fullFor);
@@ -188,14 +208,13 @@ export function playGreedy(
     } else if (s.locker.on && tradeUpRarity(s.locker.items) && run.tradeUp().ok) {
       busyUntil = s.time + timings.sell;
     } else if (s.autoSpin.on) {
-      shop(); // the bench is the machine's: shop whenever free
+      // the bench is the machine's (the look at the shop came first, above)
       run.startDayJob(); // broke with the bench empty: the day job, as without auto-spin (finish spec §3)
       busyUntil = s.time + timings.buy;
     } else if (b.phase === "locked") {
       run.insertKey();
       busyUntil = s.time + timings.key;
     } else if (b.phase === "empty") {
-      shop();
       const target = [...s.unlocked].reverse().find((id) => run.casePrice(id) <= s.cash);
       if (target && run.buyCase(target).ok) busyUntil = s.time + timings.buy;
       else if (run.startDayJob().ok) busyUntil = s.time + timings.buy;
@@ -231,6 +250,7 @@ function spend(run: Run): boolean {
     return true;
   }
   if (s.bot.awake && s.bot.multiLevel === 0 && content.botMultiOpen > 1 && s.cash >= BOT_MULTI_COST * 2) return run.buyBotMulti().ok;
+  if (content.upgrader && s.locker.on && !s.upgrader.on && s.cash >= UPGRADER_COST * 2) return buyUpgrader(run).ok; // it never gambles
   const options: Purchase[] = [];
   const offer = (cost: number | null, buy: () => ActionResult) => {
     if (cost !== null) options.push({ buy, cost });
@@ -241,13 +261,16 @@ function spend(run: Run): boolean {
   if (s.seller.on) offer(sellerSpeedCost(s.seller.speedLevel), () => run.buySellerSpeed());
   if (s.locker.on) offer(lockerSizeCost(s.locker.sizeLevel), () => run.buyLockerSize());
   if (s.locker.on && content.autoContract && !s.locker.auto) offer(AUTO_CONTRACT_COST, () => run.buyAutoContract());
+  if (content.evolutions)
+    for (const id of EVOLUTION_IDS)
+      if (!s.evolutions.owned.includes(id) && recipeDone(run, id)) offer(EVOLUTION_COSTS[id], () => buyEvolution(run, id));
   const cheapest = options.reduce<Purchase | null>((best, o) => (best === null || o.cost < best.cost ? o : best), null);
   return cheapest !== null && cheapest.cost <= s.cash * 0.25 && cheapest.buy().ok;
 }
 
 /** Every case of the shelf unlocked and every upgrade and machine at this run's cap (finish spec §5's "every case and
- *  upgrade of a run is bought"; the Machines rows are upgrades too). The vault is not counted; F6-A adds the
- *  Upgrader; evolutions never count, since a recipe may never complete. */
+ *  upgrade of a run is bought"; the Machines rows are upgrades too), the Upgrader in Run 4. The vault is not counted;
+ *  evolutions never count, since a recipe may never complete. */
 export function fullyBought(run: Run): boolean {
   const s = run.state;
   const n = run.setup.run;
@@ -263,7 +286,8 @@ export function fullyBought(run: Run): boolean {
     s.autoSpin.owned &&
     autoSpinDelayCost(s.autoSpin.delayLevel) === null &&
     (!content.locker || (s.locker.on && lockerSizeCost(s.locker.sizeLevel) === null)) &&
-    (!content.autoContract || s.locker.auto)
+    (!content.autoContract || s.locker.auto) &&
+    (!content.upgrader || s.upgrader.on)
   );
 }
 
@@ -285,14 +309,15 @@ export interface Leg {
   report: PacingReport;
 }
 
-/** Run 1, then the next run after each vault (in VAULTS order, so F6-A's Run 4 joins by itself), the last one a replay
- *  of LAST_RUN; the cheapest perk is bought after each vault. legs[0] is Run 1, legs[n - 1] Run n, the last leg the
+/** Run 1, then the next run after each vault (in VAULTS order), then `replays` replays of LAST_RUN (each after its
+ *  vault); the cheapest perk is bought after each vault. legs[0] is Run 1, legs[n - 1] Run n, legs[LAST_RUN] the first
  *  replay. */
-export function playCampaign(seed: number, timings: BotTimings = HUMAN, seconds = RUN_SECONDS): Leg[] {
+export function playCampaign(seed: number, timings: BotTimings = HUMAN, seconds = RUN_SECONDS, replays = 1): Leg[] {
   const meta = freshMeta();
   const legs: Leg[] = [{ run: 1, seed, setup: DEFAULT_SETUP, report: playGreedy(seed, seconds, timings) }];
-  for (const v of VAULTS) {
-    completeVault(meta, legs.at(-1)!.report.lifetimeEarnings, v.trophy, seed);
+  const trophies = [...VAULTS.map((v) => v.trophy), ...Array.from({ length: replays - 1 }, () => VAULTS.at(-1)!.trophy)];
+  for (const trophy of trophies) {
+    completeVault(meta, legs.at(-1)!.report.lifetimeEarnings, trophy, seed);
     const cheapest = [...PERK_IDS].sort((a, b) => (perkCost(a, meta.perks[a]) ?? Infinity) - (perkCost(b, meta.perks[b]) ?? Infinity))[0]!;
     buyPerk(meta, cheapest);
     const setup = setupFor(meta);

@@ -46,9 +46,10 @@ export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: 
   // replay's at ~3.5 min
   deepspace: { price: 150_000, unlockCost: 1_000_000_000 },
   inferno: { price: 1_500_000, unlockCost: 55_000_000_000 },
-  // F6-A: Run 4's cases (starting values; Run 4's pacing tunes them)
+  // F6-A: Glitch 1.5T and Fever Dream 25T are Run 4's middle: The Last Case shows at ~4.5 min for a real player
+  // (~4 min for a perfect one), its first replay's vault at ~4.5 min
   glitch: { price: 15_000_000, unlockCost: 1_500_000_000_000 },
-  feverdream: { price: 150_000_000, unlockCost: 80_000_000_000_000 },
+  feverdream: { price: 150_000_000, unlockCost: 25_000_000_000_000 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {
@@ -195,12 +196,15 @@ export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 /** Each run's vault price (The Last Case is Run 4's) the first time it is reached; a replay of the last run multiplies
  *  it by VAULT_GROWTH. */
 // F4 (finish spec §5): a vault costs well under 90 s of a fully bought run's income for a real player (the 90 s rule
-// measures 40-75 s); each run's middle — its unlocks — sets how long the run takes instead.
-export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000, 100_000_000_000_000] as const;
-/** A replay of the last run: its vault price grows this much per completed loop. A little above CATCH_UP_PER_VAULT
- *  (F4: the replay of Run 3 lands at ~4 min for a real player, its 90 s rule at ~60 s); each further loop's vault is
- *  ~20 % dearer against its income than the last (3.4 / 2.8), a known drift. */
-export const VAULT_GROWTH = 3.4;
+// measures ~30–75 s); each run's middle — its unlocks — sets how long the run takes instead. F6-A: The Last Case 450T
+// (its 90 s rule ~65 s, replays included).
+export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000, 450_000_000_000_000] as const;
+/** A replay of the last run: its vault price grows this much per completed loop, a little above the replay's boost
+ *  (The Last Case's CATCH_UP_PER_VAULT), so each replay's vault costs about as many seconds of its income as the last
+ *  (F6-A: 2.05 / 2; F4's 3.4 / 2.8 made each loop ~21 % dearer, and the 90 s rule broke by the third replay). Replay
+ *  after replay the fixed costs (unlocks, upgrades) shrink against the income, so later replays get shorter (~2.5 min
+ *  by the fifth). */
+export const VAULT_GROWTH = 2.05;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;
@@ -214,9 +218,12 @@ export const VAULT_REEL_RARITIES = ["classified", "covert", "covert", "gold", "g
 
 /** CLOUT = floor(√(lifetime earnings) / this). */
 export const CLOUT_DIVISOR = 105;
-/** Each opened vault multiplies every later sale by this (the catch-up boost). F4: 2.8, so a replay of Run 3, with
- *  one boost more, is not over before a real player has played it (~4 min against Run 3's ~7). */
-export const CATCH_UP_PER_VAULT = 2.8;
+/** Each opened vault multiplies every later sale by its boost (the catch-up boost), in vault order: Vault I, II, III,
+ *  then The Last Case's, which every replay's vault repeats. F4: 2.8 for Vaults I and II, so Runs 1–3 are as F4 tuned
+ *  them. F6-A: Vault III's is 8, since Run 4 climbs two cases more than Run 3 to catch up (Deep Space and Inferno, ~1.5
+ *  min for a real player); The Last Case's is 2, so a replay of Run 4 still takes a real player ~4.5 min (with 2.8 its
+ *  unlocks were over in ~3.5). */
+export const CATCH_UP_PER_VAULT = [2.8, 2.8, 8, 2] as const;
 export const CHARM_OFFER_SIZE = 3;
 export const PERK_START_CASH = 20;
 export const TRAY_PER_PERK = 4;
