@@ -1,6 +1,7 @@
 # Casecremental — Finish (M4 + M5)
 
-Spec: docs/superpowers/specs/2026-10-12-casecremental-finish-design.md · Plans: docs/superpowers/plans/2026-10-12-casecremental-f1-fixes.md (F1)
+Spec: docs/superpowers/specs/2026-10-12-casecremental-finish-design.md · Plans: docs/superpowers/plans/2026-10-12-casecremental-f1-fixes.md (F1),
+docs/superpowers/plans/2026-10-12-casecremental-f3-tutorial.md (F3)
 
 ## F1 — fixes (2026-10-12)
 
@@ -105,19 +106,83 @@ Plan: docs/superpowers/plans/2026-10-12-casecremental-f2-autospin.md · spec §3
     - Run 3: no grid anywhere. The Machines tab shows seller, auto-spin, locker and auto contract. Bot ×50 and ×5 both
       work. Vault II's list reads Deep Space, Inferno, Auto contract, Multi-open up to x5, Bot speed up to x50.
     - Console clean.
-  - **Found, then fixed in 0c6fcce and the final-review wave** (not yet re-measured in a browser):
+  - **Found, then fixed in 0c6fcce and the final-review wave** (0c6fcce re-measured in F3's browser pass, see F3):
     - The pick box was a full-width bar (`.cc-row` is a CSS grid, so `flex: none` did nothing). It is now the tick on the
       case icon.
     - The Run 1 shelf at 1920×1080 overflowed (1065/882 px), so Vault Case I's BUY sat below the fold while "Waits:
       vault" showed at the top; the phone drawer was the same. `shelfUrgent` now puts the vault row and the day job at the
       top while the vault is affordable (`canBuy` or `blockedBy: "bench"`) or the day job is on offer. It keys on
       affordability, not on the bench: the first version used `canBuy`, which flickers with the bench, so the rows jumped
-      under the player's finger and a mis-tap could buy the vault. The fold fix is not yet measured in a browser (F3's
-      browser check should).
+      under the player's finger and a mis-tap could buy the vault. F3's browser pass measured the fold fix: it holds.
     - The bench hint was hidden whenever auto-spin was on. It is now hidden only while `autoSpinStatus === "on"`, so it
       shows while the machine waits (`broke`, `vault`) or is off.
     - The `broke` lamp blinks, but the HD glow stays steady amber (`glowColor`): a 60 px additive glow flipping
       amber/dark red at 2 Hz broke the "pulsing light changes < 0.1 per beat" rule.
+
+## F3 — tutorial (2026-10-12)
+
+Nine coach bubbles with a pixel arrow, and a one-tap "what's new" card when Runs 2, 3 and 4 first start. EN and RU,
+skippable, replayable from Settings. Spec §4. The step machine is `ui/tutorialRules.ts`, targets are in
+`ui/tutorialTargets.ts`, placement is in `ui/tutorialPlace.ts`, and the overlay is `ui/Tutorial.tsx` and `ui/NewRunCard.tsx`.
+
+- **Progress lives in prefs (`Prefs.tutorial`), per browser.** A new browser or cleared site data teaches again; the run
+  save is never touched. `null` means "never stored", and that is what triggers seeding.
+- **The bench loop (buy → key → sell) runs in order. Steps 4–9 are independent:** each waits until it can be done, and
+  the first one ready (in spec order) shows. A strict 1→9 chain stalls: a player who skips the auto-seller before the
+  vault appears would never see step 9, and one who can wake the bot before the next case unlocks would see nothing.
+- **A step ends on an event or on the state, never a timer.** The state check (`settle`, e.g. `bot.awake`) also passes a
+  step the player did before its bubble came up. Step 3 ends however the card leaves the bench (a hand sale, a tap, the
+  auto-seller, the tray, the locker), so a machine taking the card cannot strand it. Step 9 is the only bubble with OK:
+  "this is the run's goal" has no action of its own, and buying the vault can be many minutes away (buying it ends it too).
+- **"Wake the bot" points at WAKE, not the sprite.** Waking happens only on the Bot tab; tapping the bot on the table does
+  nothing, so an arrow at the sprite would lead to a dead end.
+- **Target chains, deepest first.** A step lists targets like `upgrade:<id>` → `tab:you` → `drawer:upgrades`. The overlay
+  points at the first one on screen: a closed tab's rows are not rendered, so the arrow lands on the tab, and moves to the
+  row once the tab opens. One rule covers desktop (YOU / BOT / MACHINES) and the phone drawer (CASES / UPGRADES). DOM
+  targets are `data-tut` attributes, set through `PxButton`'s `tut` prop. `ui/tutorialMarks.test.ts` keeps the marks in
+  step with the ids the rules use. A target row scrolled out of its `.cc-scroll` list is scrolled into view once
+  (`scrollTop`, never `scrollIntoView`, which would also scroll the overflow-hidden panels).
+- **World targets** (the case on the mat, the bench card, the bin) are `tableLayout` rects × the pixel scale
+  (`toScreen`) → `cameraPoint` (the point form of `cameraCss`). The overlay sits outside the camera's lens on purpose: DOM
+  rects already include the camera transform, so wrapping the overlay in it would apply the camera twice.
+- **Seeding on F3's first load.** A save that has played past the bench loop (Run 2+, any upgrade, a second case, the bot
+  awake or the seller on) marks steps 1–3 done. Every step the state shows done is marked too, and the cards for runs up
+  to the current one count as seen. A brand-new save gets nothing marked.
+- **Skip vs Replay.** Skip hides the bubbles but keeps the new-run cards (they announce content and close with one tap).
+  Replay sets `done: []` and `off: false` and keeps the cards already seen. Steps the state already shows done (an awake
+  bot) pass at once.
+- **Nothing shows** while the vault is out or after the run, while Settings or the dev sound board is open, or for
+  `UI_BACK_S + 0.6` s while the panels fade back in after a vault. The progress keeps settling and hearing events
+  meanwhile. The bubble takes the pointer only on its buttons, so a click or a drag under it goes through.
+- **Run 4's card** (`card.run4`) is written but cannot show until F6 sets `LAST_RUN = 4`; the i18n tests cover its strings.
+  Its Russian case names (Глитч, Горячка) are F3's guess: **F6 must keep `card.run4` in step with the names it gives
+  cases 8 and 9 in `i18n/content.ts`.**
+- **Browser pass (Task 5)** tested an exported copy of d5585e4, in headless Chrome. Screenshots are in
+  `.superpowers/harness/shots/f3/` (scratch, not committed).
+  - Every step in EN and RU at 1920×1080, 1024×768 and 390×844, including the second hop behind a tab (BOT → WAKE,
+    MACHINES → seller / auto-spin; on the phone, the drawer's UPGRADES → the sub-tab → the row). The bubble never
+    covered its current target (DOM rect check on every shot). The arrow pointed at the right element. On the phone
+    every bubble was above or below its target. RU text wraps into at most 3 lines.
+  - During a ★ reveal (camera zoom 1.3 plus the focus glide), the step 3 arrow stayed 6 px above the card's projected
+    rect on every 100 ms sample. Steps advance only on actions: after a sale at $5 nothing appeared for 10 s; the
+    upgrades bubble came once cash covered an upgrade and left when one was bought.
+  - Skip hid everything. Replay closed Settings and brought back "Tap a case". Switching to RU re-placed the bubble
+    (wider, so it moved below the case). Resizing 1920 → 390 → 1280 kept the upgrades bubble on its row or the drawer
+    tab. A drag to the bin through the bubble sold the card, and a tap on a BUY under a phone bubble bought the case.
+  - The Run 2 and 3 cards show once each, and one tap closes them. Returning players (prefs cleared, save kept) were
+    seeded right: Run 2 with the bot awake gave `done: buy, key, sell, bot`, cards `[2]`, and no intro, card or wake
+    bubble; a Run 1 save with only the seller gave `buy, key, sell, seller`. A reload mid-loop shows the coach at once.
+    The console showed only the known PixiJS "destroyed while still bound" warning on resize.
+  - Bubbles regularly cover rows next to their target (the Appraiser row under the upgrades bubble, the Bot/Machines
+    row's label above WAKE / the seller's BUY, the drawer tabs on the phone, Boot Camp's BUY under "Unlock the next
+    case"). That is allowed (only the target must stay clear), and clicks pass through. At 1024×768 the step 1 and 9
+    bubbles sit over the HUD's run label in the top right.
+  - F2's 0c6fcce, re-measured: the pick is a tick in the case icon's corner (no bar). With all Run 1 cases unlocked,
+    auto-spin on and the vault affordable, Vault Case I's BUY is in view without scrolling at 1920×1080 and 1024×768, and
+    the vault row and DAY JOB are in view in the 390×844 drawer. "Buy a case" shows while auto-spin waits (vault) or is
+    BROKE. The case auto-spin buys is framed and follows the pick. **Open (minor):** while it waits for the vault, the
+    case it would buy otherwise (Bedrock) is still framed, in the same gold as the vault row's frame. So two gold frames
+    show at once, and one marks a case that is not being bought.
 
 ## F5 — music for the late stages
 
