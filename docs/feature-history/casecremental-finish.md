@@ -358,3 +358,81 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   queued five calls and play went on — they drained 15 s after unblocking and both sides matched; removing the game's
   local keys brought CLOUT, perks, loops and vault trophies back (and, after the fix, the right run); both tabs in EN
   and RU.
+
+## F6 — Run 4, The Last Case, the credits (2026-10-13)
+
+Plans: `docs/superpowers/plans/2026-10-12-casecremental-f6a-run4-sim.md` (the sim), `-f6b-run4-screen.md` (the table's
+looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Three streams: F6-A in the main tree, the art in
+`f6-assets`, F6-B and F6-C in parallel worktrees. F6-B's own notes (finishes, evolution looks, the Upgrader's dial, stage
+5's layers and their frame times) belong in this section when it merges.
+
+- **Run 4's content** is `RUN_CONTENT[3]`: Glitch and Fever Dream (cases 8 and 9), the Upgrader, evolutions, bot speed
+  x100, the bot opens x3; The Last Case is its vault (`VaultDef` `lastcase`, legend ★ Singularity). Every case has 13 skins
+  (5/3/2/2/1): the spec's "14" was resolved to the count every other case has. Unlock costs are Glitch 1.5T, Fever Dream
+  25T, The Last Case 450T (the plan's 6B / 150B sat below Inferno and broke "pricier up the ladder"). Fever Dream in Russian
+  is «Бредовый сон» (not «Горячка»: the charm Fever is «Лихорадка»); Run 4's new-run card fills the case names from
+  `caseName()`, so the card and the shelf cannot drift.
+- **Six finishes** (`PatternKind`): datamosh, scanline, rgbsplit (Glitch), melt, kaleido, huecycle (Fever Dream), with two
+  motions: `glitch` holds, then jumps to a new arrangement (4 steps a loop), `drip` runs down through the noise's period.
+  F6-A shipped a plain interim finish so the sim could land first; F6-B draws the real ones.
+- **The Upgrader** (`sim/upgrader.ts`). The stake is the **whole** locker stack of one rarity. A win's rarity is 1/2/3 steps
+  up by multiplier (`UPGRADER_RARITY_STEPS`) and pays the inputs' base value x the multiplier. Outcome and skin are rolled at
+  GO, so a reload mid-spin ends the same way. It shares the locker's press: no trade-up or auto contract while it spins.
+  **A vault bought mid-spin settles it** (a win is cashed in, a loss is gone) before the screen goes to the vault.
+  **Its EV stays at or under 1** (ruling): Loaded Dice multiplies the win chance by 1.1 (not +10 points), and Money Printer
+  does not triple an Upgrader win; otherwise a x1.5 stake was a money pump.
+- **Evolutions** (`sim/evolutions.ts`, `sim/evolved.ts`). Hot Hand's recipe reads the run's best combo (it never drops), and
+  the best combo is recorded before a lapsed combo resets (the plan's order zeroed it first). Cartel's double roll counts as
+  one open. Money Printer multiplies the auto-seller only. Assembly Line's free case is one case (not the multi-open width),
+  one tier up the unlocked shelf; the top case stays itself. Slot Machine raises the bench to 10 (`BENCH_OPEN_MAX`).
+- **Why the new actions are not `Run` methods:** `sim/run.ts` is past the file-size rule, so the controller, the agent and
+  the greedy player call the sim functions with the run (as F2 did for auto-spin).
+- **The save stayed at version 5:** the new fields default in `normalize`. The campaign's stats live in the meta
+  (`meta.stats`: play time and opens over completed runs, the best drop of any run, CLOUT earned) and `meta.credits` holds
+  the credits across a reload. F7 mirrors the meta and caps the stats server-side.
+- **Run 4's pacing** (F6-A Task 8; medians of 5 seeds, seconds, GREEDY / CASUAL). Run 4's catch-up is "Inferno unlocked",
+  whose prices are Run 3's, so no Run 4 lever could reach its band: **`CATCH_UP_PER_VAULT` became a per-vault table**
+  `[2.8, 2.8, 8, 2]` (Vault I, II, III, then The Last Case, which every replay repeats), read by `catchUpBoost(loops)`, and
+  `VAULT_GROWTH` went 3.4 → 2.05. Vaults I/II keep 2.8, so Runs 1–3 are bit-for-bit F4's. Run 4: catch-up 73 / 88, vault
+  314 / 351, 90 s rule 66 (max 67); replay 1 vault 222 / 272; replays 2–5 shrink to ~2.2–2.6 min. **The spec's replay band
+  applies to the first replay only** (ruling): later replays are a post-credits victory lap and may be faster, but the 90 s
+  rule must hold for at least 15 replays. Thin margins: GREEDY Run 4 vault 314/360 (one seed 354), CASUAL replay 1 272/240
+  (one seed 230).
+- **The art** (stream `f6-assets`): `case-glitch` and `case-feverdream` (4 frames, 23x31 / 22x31, from one 2-row grid
+  take), `vault-case-4` (black glass, gold seams; 68x78, Vault I's geometry), `upgrader-shred` (take 2: take 1 had a sharp
+  peak). One take each (about 420 ElevenLabs credits an image, double the plan's guess; 849.4 credits in all). The Last
+  Case's fanfare is Vault I's re-cut +7 semitones with the tempo kept (`rubberband=pitch=1.498307`, +1.9 dB, limiter;
+  13.80 s, mean -17.6 dB against Vault I's -17.3: the limiter caps more gain). Nobody has listened to it yet.
+- **The Last Case's look** (`fx/vault/vaultLooks.ts`): white/gold/void beams, pale-gold light, the densest chaos by count
+  only (5 bursts a kick, rain and sparks x2.5, twins on every beam item: the beams' spacing rule allows no more). The pools
+  are sized once from `MAX_DENSITY` 2.5. The flash schedule and the beat throbs stay global.
+- **The finale** (`fx/vault/finaleRules.ts`, pure; `Finale.ts`), both functions of the vault's clock, so a reload lands on
+  the same frame. The screen tears from the impact for 1.5 s: a `GlitchFilter` on the scene and the vault (loop fill, a
+  3 px colour split, no brightness change), slices reseeded at most 3 times a second, **each reseed asking the flash gate**
+  (`HdLayer.takeFlash()`), so the tear, the impact flash and the kicks together never pass 3 a second; a refused reseed
+  holds the slices. From the key turn the bench's reel and the bot's reels free-spin the vault's source case and land as
+  the lid opens; while they spin they ignore their own frames (the bot's spin is frozen under the vault and would fight
+  it) until their next real start. The vault's dim is 0.55 instead of 0.86 for the intro so they show. A reload mid-tear
+  finishes the window without replaying the impact.
+- **The credits** (`ui/Credits.tsx`, rules in `ui/creditsRules.ts`) roll instead of the prestige screen while
+  `meta.credits` is set: after every opening of The Last Case, replays included. A 70 s scroll, SKIP shown only after 5 s,
+  `endCredits` at the end or on SKIP. A reload starts them over from the top. The maker's name is the git author's, a
+  constant (`MADE_BY`). The dark plays the `credits` track from the blackout (`afterRunTrack`), falling back to the
+  prestige loop when the file is missing, and the prestige loop once they end. Russian says ХАЙП for CLOUT, as everywhere
+  in the Russian game. F6-A's interim "START ends the credits first" is gone.
+- **THE END:** after The Last Case the prestige screen reads "THE LAST CASE OPENED", "★ Singularity trophy", "THE END",
+  "RUN 4 AGAIN, BOOSTED" (`prestigeTitle`, `trophyLine`); F6-A's interim "VAULT IV OPENED" and the stale "RUN 4: IN A LATER
+  UPDATE" are gone. THE END is plain gold text: `cc-title`'s shadow shows through `cc-gold`'s clipped gradient.
+- **`fx/World.ts` did not grow:** `syncVault`/`restoreVault` moved to `fx/vault/vaultSync.ts` (540 → 535 lines with the
+  finale and the credits' music wired).
+- **Browser pass (F6-C Task 6)**, headless Chrome on the Intel UHD over CDP, the scratch harness, screenshots in
+  `.superpowers/harness/shots/f6c/`. Vault III → "NEXT: RUN 4" with its brings and no later-update line. Run 4: The Last Case
+  on the shelf and as the HUD goal at 450T; an Upgrader spin (a win) settled when the vault was bought; the intro's reels
+  under the lighter dim; the tear at impact +0.1 to +1.2 s; the five beams, ★ Singularity. The replay's vault costs x2.05
+  and its credits came up 2.9 s after the run ended, with SKIP at +5.0 s. Reloads at intro 2.0 s (the reels resume),
+  impact +0.5 s (the tear finishes) and 8 s into the credits (they start over, credits track) all held. Russian and
+  portrait (390x844, 820x1180): every credits line on one line, nothing clipped, SKIP inside the screen. Frame times through
+  the impact at 1920x1080 were p95 31–36 ms for both Vault III and The Last Case, on a machine whose idle table read p95 24
+  ms at the time (other agents' browsers shared the GPU; the same table read 6 ms earlier). So The Last Case costs no more
+  than Vault III; the 20 ms budget still needs a check on an idle machine. Only the known PixiJS resize warnings in the
+  console.
