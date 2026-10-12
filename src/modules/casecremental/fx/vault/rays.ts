@@ -3,6 +3,7 @@ import { Container, Sprite, type Texture } from "pixi.js";
 import type { Pt } from "../pixel/layout";
 import { VAULT_CUES, type VaultCues } from "./cues";
 import { canvasTexture } from "./textures";
+import { VAULT_LOOKS, type VaultLight } from "./vaultLooks";
 
 // The light behind the beams (spec 2026-10-09 §1-2, §5): a slowly rotating starburst, the impact's vertical shaft
 // and a soft glow at the chest's mouth, strongest while the beams spin and softening in the celebration. The
@@ -49,8 +50,9 @@ export class Rays {
   private readonly glow: Sprite;
   private readonly textures: Texture[];
   private burstScale = 1;
+  private light: VaultLight;
 
-  constructor(soft: Texture) {
+  constructor(soft: Texture, light: VaultLight = VAULT_LOOKS.vault1.light) {
     // spokes from the centre, fading outward
     const spokes = canvasTexture(512, 512, (g) => {
       const grad = g.createRadialGradient(256, 256, 0, 256, 256, 256);
@@ -90,9 +92,18 @@ export class Rays {
     this.textures = [spokes, shaft];
 
     this.starburst = new Sprite({ texture: spokes, anchor: 0.5, blendMode: "add", alpha: 0 });
-    this.shaft = new Sprite({ texture: shaft, anchor: { x: 0.5, y: 1 }, blendMode: "add", alpha: 0, tint: 0xfff2c0 });
-    this.glow = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0, tint: 0xffd34d });
+    this.shaft = new Sprite({ texture: shaft, anchor: { x: 0.5, y: 1 }, blendMode: "add", alpha: 0 });
+    this.glow = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0 });
     this.root.addChild(this.starburst, this.glow, this.shaft);
+    this.light = light;
+    this.setLight(light);
+  }
+
+  /** The run's vault's tints (the alphas are global: raysLight). */
+  setLight(light: VaultLight): void {
+    this.light = light;
+    this.shaft.tint = light.shaft;
+    this.glow.tint = light.glow;
   }
 
   layout(screen: { w: number; h: number }, chestS: number): void {
@@ -116,7 +127,7 @@ export class Rays {
       return;
     }
     const a = raysLight(t, c.rays, chaos.beat);
-    this.starburst.tint = 0xffe08a;
+    this.starburst.tint = this.light.starburst;
     this.starburst.alpha = a.starburst;
     // the impact's shaft of light, handing over to the beams (flickering)
     this.shaft.position.set(at.x, at.y);

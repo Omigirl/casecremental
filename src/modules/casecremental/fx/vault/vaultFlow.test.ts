@@ -20,6 +20,20 @@ function recorder() {
 }
 
 describe("the music after a lobby trip picks up where the vault is", () => {
+  it("plays the run's own vault's fanfare: the same suspense and intro, the same hand-off at t − 3.40", () => {
+    for (const fanfare of ["vault-fanfare-2", "vault-fanfare-3"] as const) {
+      expect(musicPlan(at({ phase: "key" }), "lit", fanfare).track).toBe("vault-suspense");
+      expect(musicPlan(at(opening(1.6)), "lit", fanfare)).toEqual({ track: "vault-intro", loop: false, offset: 1.6, musicOn: true });
+      expect(musicPlan(at(opening(3.4)), "lit", fanfare)).toEqual({ track: fanfare, loop: false, offset: 0, musicOn: true });
+      const mid = musicPlan(at(opening(6.4)), "lit", fanfare);
+      expect(mid).toMatchObject({ track: fanfare, loop: false, musicOn: true });
+      expect(mid.offset).toBeCloseTo(3, 9);
+      const ended: VaultState = { phase: "opening", t: VAULT_OPENING_SECONDS, drops: [], landed: 5 };
+      expect(musicPlan(at(ended), "lit", fanfare).track).toBeNull();
+    }
+    expect(musicPlan(at(opening(6.4)), "lit").track).toBe("vault-fanfare"); // Vault I by default
+  });
+
   it("waits on the suspense loop while the key waits", () => {
     expect(musicPlan(at({ phase: "key" }), "lit")).toEqual({ track: "vault-suspense", loop: true, offset: 0, musicOn: true });
   });

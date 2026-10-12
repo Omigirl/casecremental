@@ -6,6 +6,7 @@ import {
   firstItem,
   firstVisible,
   followCamera,
+  hasTwin,
   iconScale,
   isCoin,
   itemJitter,
@@ -13,6 +14,7 @@ import {
   maxVisibleItems,
   STREAM_ITEMS_PER_SECOND,
   STREAM_SPACING,
+  twinJitter,
 } from "./beamStream";
 
 describe("a beam's stream", () => {
@@ -152,5 +154,27 @@ describe("followCamera", () => {
     followCamera(layer, flat, slot, 0.5);
     expect(drawn(layer).x).toBeCloseTo((p.x + slot.x + full.x) / 2, 9);
     expect(drawn(layer).y).toBeCloseTo((p.y + slot.y + full.y) / 2, 9);
+  });
+});
+
+describe("a wilder vault's twins", () => {
+  it("never twins on Vault I, always at density 2, about half the items at 1.5, the same after a reload", () => {
+    for (let j = -50; j < 50; j++) {
+      expect(hasTwin(7, j, 1)).toBe(false);
+      expect(hasTwin(7, j, 2)).toBe(true);
+      expect(hasTwin(7, j, 1.5)).toBe(hasTwin(7, j, 1.5));
+    }
+    const share = Array.from({ length: 2000 }, (_, j) => hasTwin(12345, j, 1.5)).filter(Boolean).length / 2000;
+    expect(share).toBeGreaterThan(0.45);
+    expect(share).toBeLessThan(0.55);
+  });
+
+  it("puts a twin on a lane of its own across the beam", () => {
+    const xs = Array.from({ length: 500 }, (_, j) => twinJitter(99, j));
+    for (const x of xs) {
+      expect(x).toBeGreaterThanOrEqual(-1);
+      expect(x).toBeLessThanOrEqual(1);
+    }
+    expect(xs.filter((x, j) => Math.abs(x - itemJitter(99, j)) < 1e-9)).toHaveLength(0);
   });
 });

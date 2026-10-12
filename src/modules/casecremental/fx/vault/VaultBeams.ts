@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite, type Texture } from "pixi.js";
-import { CASES, skinById } from "../../sim/content/cases";
+import { caseById, skinById } from "../../sim/content/cases";
+import { vaultFor, type VaultDef } from "../../sim/content/vaults";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { Rng } from "../../sim/rng";
 import { VAULT_LAND_TIMES } from "../../sim/tuning";
@@ -9,34 +10,39 @@ import { frameAt } from "../skins/motion";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { drawBeam, drawRewardFrames } from "./beamArt";
 import { RewardLabel } from "./beamLabel";
-import { BEAM_PALETTE, itemDistance, type Beam } from "./beams";
+import { itemDistance, type Beam } from "./beams";
 import {
   beamWidthAt,
   firstItem,
   firstVisible,
   followCamera,
+  hasTwin,
   iconScale,
   isCoin,
   itemJitter,
   lastVisible,
   maxVisibleItems,
+  setOnBeam,
   STREAM_ITEMS_PER_SECOND,
   STREAM_SPACING,
+  TWIN_SKIN_SHIFT,
+  twinJitter,
 } from "./beamStream";
 import { COLUMN_SLOW_CELLS, columnMotion } from "./columnMotion";
 import { VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import type { VaultLayout } from "./vaultLayout";
+import { MAX_DENSITY, vaultLook, type VaultLook } from "./vaultLooks";
 import type { VaultScene } from "./VaultScene";
 
-// Vault Case I's five reels as five wide beams pouring out of the chest past the screen edges (spec 2026-10-09
-// §5, after Vampire Survivors' legendary chest): they grow out of its mouth in the cascade, skin icons and coins
-// stream along them, and they lock in one by one, left to right, on the drops the sim already rolled — each
-// reward riding out to its spot on its beam, the beam's other items fading away, each landing louder than the
-// last, the fifth (the animated ★) the loudest. Screen px, in the vault scene's slots: the beams behind the sky's
-// particles, the streams behind the chest (they come out of it), the labels in front of every particle. The
-// streamed items ride the beams' camera (the chaos's shake and zoom punch), so they stay on their beams; a reward
-// rides it while it spins and eases off it once landed, steady beside its label. Icons are drawn upright at a
-// whole-number scale; the sprites are pooled per beam, so a frame allocates none.
+// The vault's five reels as five wide beams pouring out of the chest past the screen edges (spec 2026-10-09 §5, after
+// Vampire Survivors' legendary chest): they grow out of its mouth in the cascade, skin icons and coins stream along
+// them, and they lock in one by one, left to right, on the drops the sim already rolled — each reward riding out to
+// its spot on its beam, the beam's other items fading away, each landing louder than the last, the fifth (the
+// animated ★) the loudest — in its vault's colours, its stream as dense as its vault (vaultLooks). Screen px, in the
+// vault scene's slots: the beams behind the sky's particles, the streams behind the chest (they come out of it), the
+// labels in front of every particle. The streamed items ride the beams' camera (the chaos's shake and zoom punch), so
+// they stay on their beams; a reward rides it while it spins and eases off it once landed, steady beside its label.
+// Icons are drawn upright at a whole-number scale; the sprites are pooled per beam, so a frame allocates none.
 
 const N = VAULT_LAND_TIMES.length;
 /** The fifth decelerates longer: its lock-in is the one the whole opening builds to. */
@@ -101,6 +107,9 @@ export class VaultBeams {
   private coinScale = 1;
   private glow = 0;
   private active = false;
+  /** The run's vault (the World sets it every frame and before a restore) and its look. */
+  private def: VaultDef = vaultFor(1);
+  private look: VaultLook = vaultLook("vault1");
 
   constructor(
     private readonly skins: SkinTextures,
@@ -162,11 +171,11 @@ export class VaultBeams {
     this.lanes.forEach((c, i) => {
       const b = (c.geo = L.beams[i] ?? null);
       if (!b) return;
-      drawBeam(c.body, c.core, b, BEAM_PALETTE[i] ?? GOLD, Math.max(1, k));
+      drawBeam(c.body, c.core, b, this.look.palette[i] ?? GOLD, Math.max(1, k));
       c.beam.position.set(b.origin.x, b.origin.y);
       c.beam.rotation = b.angle;
-      // the pool grows to the beam's reach here, never in a frame
-      for (let n = c.pool.length; n < maxVisibleItems(b.length, this.spacing); n++) {
+      // the pool grows to the beam's reach at the densest vault's stream here, never in a frame
+      for (let n = c.pool.length; n < maxVisibleItems(b.length, this.spacing) * MAX_DENSITY; n++) {
         const s = new Sprite();
         s.visible = false;
         c.items.addChild(s);
@@ -182,6 +191,16 @@ export class VaultBeams {
     this.beamsRoot.tint = this.streamRoot.tint = v;
   }
 
+  /** The run's vault: its beams' colours (redrawn now when laid out), its stream's density, its filler — its source
+   *  case's skins. Nothing changes for the same vault. */
+  setVault(def: VaultDef): void {
+    if (def.id === this.def.id) return;
+    this.def = def;
+    this.look = vaultLook(def.id);
+    for (const [i, c] of this.lanes.entries())
+      if (c.geo) drawBeam(c.body, c.core, c.geo, this.look.palette[i] ?? GOLD, Math.max(1, this.k));
+  }
+
   /** The celebration's golden pulse across the five beams and frames (0-1). */
   pulse(v: number): void {
     this.glow = Math.min(1, Math.max(0, v));
@@ -189,17 +208,17 @@ export class VaultBeams {
 
   /** The key turned: fresh streams that each end on its drop (decided by the sim), all pouring out. */
   start(drops: readonly Drop[]): void {
-    // never caseById on a vault drop (its case is "vault1"): the filler is the top case's skins
-    const top = CASES[CASES.length - 1]!.skins;
+    // the filler is the vault's source case: never caseById on a vault drop (its case is the vault), nor the last case
+    const source = caseById(this.def.sourceCase).skins;
     // bake every skin the streams can show now, at the key turn, rather than as each first flies by mid-spin
-    for (const skin of top) this.skins.frames(skin);
+    for (const skin of source) this.skins.frames(skin);
     this.glow = 0;
     this.lanes.forEach((c, i) => {
       const d = drops[i];
       c.drop = d ? skinById(d.skinId) : null;
       if (c.drop) this.skins.frames(c.drop);
       c.amount = d?.value ?? 0;
-      c.filler = this.shuffle(top);
+      c.filler = this.shuffle(source);
       c.start = VAULT_CUES.columnsFrom + VAULT_CUES.columnStagger * i;
       c.target = Math.round(STREAM_ITEMS_PER_SECOND * (VAULT_LAND_TIMES[i]! - c.start)) - this.slowCells(i) + this.rng.int(0, 3);
       c.seed = this.rng.int(0, 0x7fffffff);
@@ -332,20 +351,14 @@ export class VaultBeams {
       const to = lastVisible(pos, b.spotDist, sp);
       for (let j = from; j <= to && n < c.pool.length; j++) {
         if (j === c.target) continue;
-        const s = c.pool[n++]!;
         const d = itemDistance(pos, j, c.target, sp, b.spotDist);
-        const off = (itemJitter(c.seed, j) * beamWidthAt(b, d)) / 3;
-        if (isCoin(j, c.target)) this.put(s, this.coins[mod(Math.floor(t * COIN_FPS) + j, this.coins.length)]!, this.coinScale);
-        else {
-          const tex = this.skins.frames(c.filler[mod(j, c.filler.length)]!)[0]!;
-          this.put(s, tex, iconScale(tex.width, tex.height, this.icon, this.k));
+        this.placeItem(c.pool[n++]!, b, d, itemJitter(c.seed, j), isCoin(j, c.target), c.filler[mod(j, c.filler.length)]!, t, j, fade);
+        // a wilder vault's twin: half a step further out on a lane of its own (none next to the reward)
+        const d2 = d + sp / 2;
+        if (n < c.pool.length && d2 <= reach && j !== c.target + 1 && hasTwin(c.seed, j, this.look.chaos.stream)) {
+          const skin = c.filler[mod(j + TWIN_SKIN_SHIFT, c.filler.length)]!;
+          this.placeItem(c.pool[n++]!, b, d2, twinJitter(c.seed, j), isCoin(j + 1, c.target), skin, t, j + 1, fade);
         }
-        // perpendicular to the beam is (-dy, dx)
-        s.position.set(
-          Math.round(b.origin.x + dx * d - dy * off - (s.texture.width * s.scale.x) / 2),
-          Math.round(b.origin.y + dy * d + dx * off - (s.texture.height * s.scale.y) / 2),
-        );
-        s.alpha = fade;
       }
     }
     for (let m = n; m < c.pool.length; m++) c.pool[m]!.visible = false;
@@ -381,5 +394,17 @@ export class VaultBeams {
     s.texture = tex;
     s.scale.set(scale);
     s.visible = true;
+  }
+
+  /** One streamed item `d` px out along beam b on its lane across it (`jitter`, as itemJitter's): a coin (its spin by
+   *  `j`) or a filler skin. */
+  private placeItem(s: Sprite, b: Beam, d: number, jitter: number, coin: boolean, skin: SkinDef, t: number, j: number, fade: number): void {
+    if (coin) this.put(s, this.coins[mod(Math.floor(t * COIN_FPS) + j, this.coins.length)]!, this.coinScale);
+    else {
+      const tex = this.skins.frames(skin)[0]!;
+      this.put(s, tex, iconScale(tex.width, tex.height, this.icon, this.k));
+    }
+    setOnBeam(s, b, d, (jitter * beamWidthAt(b, d)) / 3);
+    s.alpha = fade;
   }
 }

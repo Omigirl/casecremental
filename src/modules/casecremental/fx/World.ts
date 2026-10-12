@@ -3,6 +3,7 @@ import type { GameController } from "../game/controller";
 import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
 import { caseById } from "../sim/content/cases";
+import { vaultFor } from "../sim/content/vaults";
 import { formatCash } from "../sim/format";
 import { RARITY_INFO } from "../sim/rarity";
 import { createRng } from "../sim/rng";
@@ -66,7 +67,7 @@ export class World {
   private readonly time = new TimeScale();
   private readonly zoom = new Zoom();
   private readonly lifted = new Lifted();
-  /** Vault Case I's scene over everything (screen px), its five reels as beams in its layers. */
+  /** The run's vault's scene over everything (screen px), its five reels as beams in its layers. */
   private readonly vault: VaultScene;
   private readonly vaultBeams: VaultBeams;
   private readonly power: PowerCycle;
@@ -208,15 +209,24 @@ export class World {
   /** A reload or a new run: the vault's key or opening where the sim is, or the dark; the music always from the
    *  sim, so a stale track goes (while suspended, activate() applies it). */
   private restoreVault(s: RunState): void {
+    this.syncVault();
     const v = s.vault;
     if (v?.phase === "opening") this.vaultBeams.restore(v.drops, v.landed);
     if (!v && s.over) this.power.darkNow();
     if (this.controller.running) this.resumeMusic();
   }
 
+  /** The run's vault (sim/content/vaults: I in Run 1, II in Run 2, III from Run 3 on) on the scene and the beams: set
+   *  every frame (a no-op for the same vault) and before the beams restore, so a reload mid-opening keeps its look. */
+  private syncVault(): void {
+    const def = vaultFor(this.controller.run.setup.run);
+    this.vault.setVault(def);
+    this.vaultBeams.setVault(def);
+  }
+
   /** Back from the lobby: the music picks up where the vault (or the lights) are, not where it was asked for. */
   resumeMusic(): void {
-    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase));
+    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase, this.vault.fanfare));
   }
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */
@@ -314,6 +324,7 @@ export class World {
 
   /** The vault, read from the sim each frame (a reload picks it up where it is), and the lights. */
   private updateVault(realSeconds: number): void {
+    this.syncVault();
     const s = this.controller.run.state;
     const v = s.vault;
     const opening = v?.phase === "opening" ? v : null;

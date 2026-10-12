@@ -63,18 +63,24 @@ export function maxSecondsOf(id: SoundId): number | undefined {
   return (SOUNDS[id] as { maxSeconds?: number }).maxSeconds;
 }
 
+/** The vaults' fanfares: Vault I's, then Vaults II's and III's (Vault I's re-cut +2 and +4 semitones, plan M3-C). */
+export type FanfareId = "vault-fanfare" | "vault-fanfare-2" | "vault-fanfare-3";
+
 /** Named music that replaces the stage loop: the vault's suspense, its intro (from the key turn to the impact) and
- *  fanfare, the prestige loop. */
-export type TrackId = "vault-suspense" | "vault-intro" | "vault-fanfare" | "prestige";
+ *  the vault's fanfare, the prestige loop. */
+export type TrackId = "vault-suspense" | "vault-intro" | FanfareId | "prestige";
 
 /** The music bus runs this much above its slider (user: "make music louder" — the generated music sat well under
  *  the effects); the master compressor keeps the peaks in check. */
 export const MUSIC_BOOST = 1.6;
-/** Each named track's level on the music bus: the intro and the fanfare's drop ride over everything. */
+/** Each named track's level on the music bus: the intro and the fanfare's drop ride over everything; the re-cut
+ *  fanfares are within 1 dB of Vault I's (plan M3-C), so they ride at its level. */
 export const TRACK_GAIN: Readonly<Record<TrackId, number>> = {
   "vault-suspense": 1.2,
   "vault-intro": 1.4,
   "vault-fanfare": 1.5,
+  "vault-fanfare-2": 1.5,
+  "vault-fanfare-3": 1.5,
   prestige: 1,
 };
 
@@ -102,10 +108,12 @@ export function indexAudio(urls: Record<string, string>): AudioFiles {
       music.set(Number(stage[1]), url);
       continue;
     }
-    const track = /^(vault-suspense|vault-intro|vault-fanfare|prestige)(?:-(\d+))?$/.exec(name);
+    // vault-fanfare-2 / -3 are Vaults II and III's own fanfares (tried before vault-fanfare, so they are never a
+    // spare take of Vault I's); a numbered file of any other track is a take of it
+    const track = /^(vault-suspense|vault-intro|vault-fanfare-[23]|vault-fanfare|prestige)(?:-(\d+))?$/.exec(name);
     if (track) {
       const trackId = track[1] as TrackId;
-      if (!tracks.has(trackId)) tracks.set(trackId, url); // sorted, so -1 wins over a spare -2
+      if (!tracks.has(trackId)) tracks.set(trackId, url); // sorted, so a take -1 wins over a spare
       continue;
     }
     const id = name.replace(/-\d+$/, "");

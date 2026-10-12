@@ -99,6 +99,18 @@ describe("indexAudio tracks", () => {
     expect(files.music.get(1)).toBe("m1");
   });
 
+  it("indexes Vaults II and III's fanfares as their own tracks, never as spare takes of Vault I's", () => {
+    const files = indexAudio({
+      "/a/vault-fanfare-1.mp3": "f1",
+      "/a/vault-fanfare-2.mp3": "f2",
+      "/a/vault-fanfare-3.mp3": "f3",
+    });
+    expect(files.tracks.get("vault-fanfare")).toBe("f1");
+    expect(files.tracks.get("vault-fanfare-2")).toBe("f2");
+    expect(files.tracks.get("vault-fanfare-3")).toBe("f3");
+    expect(files.sfx.size).toBe(0);
+  });
+
   it("indexes the vault's intro as its own track, not as the fanfare or an effect", () => {
     const files = indexAudio({ "/a/vault-intro-1.mp3": "i1", "/a/vault-fanfare-1.mp3": "f1" });
     expect(files.tracks.get("vault-intro")).toBe("i1");
@@ -108,6 +120,21 @@ describe("indexAudio tracks", () => {
 });
 
 describe("AudioEngine tracks and caps", () => {
+  it("plays each vault's own fanfare, at the fanfare's level", async () => {
+    const { ctx, started, levels } = fakeContext();
+    const a = new AudioEngine({ ...TRACKS, "/a/vault-fanfare-3.mp3": "fan3" }, deps(ctx));
+    a.setMusicOn(true);
+    a.unlock();
+    await a.ready;
+    levels.length = 0;
+    a.setTrack("vault-fanfare-2", { loop: false, offset: 2 });
+    expect(started.find((s) => s.url === "fan2")).toMatchObject({ loop: false, offset: 2 });
+    a.setTrack("vault-fanfare-3", { loop: false, offset: 0 });
+    expect(started.find((s) => s.url === "fan3")).toMatchObject({ loop: false, offset: 0 });
+    expect(started.some((s) => s.url === "fan1")).toBe(false);
+    expect(levels.filter((v) => v === TRACK_GAIN["vault-fanfare"]).length).toBeGreaterThanOrEqual(2);
+  });
+
   it("a track takes over from the stage loop, starts at an offset, and hands back", async () => {
     const { ctx, started, stops } = fakeContext();
     const a = new AudioEngine(TRACKS, deps(ctx));

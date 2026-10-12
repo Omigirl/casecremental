@@ -100,7 +100,9 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 {ui.vp.portrait ? <Drawer view={view} act={act} top={ui.vp.areaH} /> : null}
               </div>
             </div>
-            {prestigeShown && view.prestige ? <Prestige p={view.prestige} act={act} onSettings={openSettings} /> : null}
+            {prestigeShown && view.prestige ? (
+              <Prestige p={view.prestige} vault={view.vault.id} act={act} onSettings={openSettings} />
+            ) : null}
             {settings ? (
               <Settings
                 onClose={() => setSettings(false)}
