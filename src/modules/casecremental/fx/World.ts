@@ -37,7 +37,7 @@ import { restorePlan } from "./restore";
 import { Stations } from "./stations/Stations";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 import { Finale } from "./vault/Finale";
-import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
+import { afterRunTrack, applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultBeams } from "./vault/VaultBeams";
 import { VaultScene } from "./vault/VaultScene";
 import { restoreVault, syncVault } from "./vault/vaultSync";
@@ -215,8 +215,11 @@ export class World {
 
   /** Back from the lobby: the music picks up where the vault (or the lights) are, not where it was asked for. */
   resumeMusic(): void {
-    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase, this.vault.fanfare));
+    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase, this.vault.fanfare, this.afterRun()));
   }
+
+  /** The dark's music after a run: the credits' track while they roll (after The Last Case), else the prestige loop. */
+  private afterRun = () => afterRunTrack(this.controller.meta.credits, this.audio.hasTrack("credits"));
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */
   timeScale(realSeconds: number): number {
@@ -497,8 +500,11 @@ export class World {
       case "vaultReelLanded":
         this.vaultBeams.landed(e.index, e.drop, e.amount);
         break;
-      case "vaultOpened":
-        this.power.blackout();
+      case "vaultOpened": // completeVault ran first: after The Last Case meta.credits is set
+        this.power.blackout(this.afterRun());
+        break;
+      case "creditsEnded": // the prestige loop takes over in the dark
+        this.resumeMusic();
         break;
       case "charmPicked":
         this.audio.play("charm-pick");

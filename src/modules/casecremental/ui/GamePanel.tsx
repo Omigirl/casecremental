@@ -4,6 +4,7 @@ import { cameraCss, type Camera } from "../fx/camera";
 import type { GameController } from "../game/controller";
 import type { SimEvent } from "../sim/run";
 import { CaseShelf } from "./CaseShelf";
+import { Credits } from "./Credits";
 import { Drawer } from "./Drawer";
 import { useButtonImages, useDelayedFlag, useLang, usePixelUi } from "./hooks";
 import { Hud } from "./Hud";
@@ -11,7 +12,7 @@ import { comboTint } from "./juice";
 import { Panel, UiEnvContext } from "./parts";
 import { Prestige } from "./Prestige";
 import { LIGHTS_UP_SECONDS } from "../fx/vault/lights";
-import { prestigeDelayMs } from "./prestigeRules";
+import { endScreen, prestigeDelayMs } from "./prestigeRules";
 import { Settings } from "./Settings";
 import { SoundBoard } from "./SoundBoard";
 import { Tutorial } from "./Tutorial";
@@ -21,7 +22,7 @@ import { useGameView } from "./useGameView";
 
 // The overlay over the canvas, laid out on the same world-pixel grid as the pixel world: HUD on
 // top, Upgrades board left and Case shelf right (or a drawer on phones), Settings on demand, and the tutorial's bubbles
-// and new-run cards over everything but Settings. The
+// and new-run cards over everything but Settings; after The Last Case the credits roll before the prestige screen. The
 // layer lets pointer events through to the canvas; only the panels take them.
 
 /** The HUD and the panels come back as the workshop's lights finish coming on (rework spec §4). */
@@ -115,7 +116,11 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
               visible={tutorialBack && !settings && !soundBoard}
             />
             {prestigeShown && view.prestige ? (
-              <Prestige p={view.prestige} vault={view.vault.id} act={act} onSettings={openSettings} />
+              endScreen(view.prestige) === "credits" ? (
+                <Credits p={view.prestige} act={act} />
+              ) : (
+                <Prestige p={view.prestige} vault={view.vault.id} act={act} onSettings={openSettings} />
+              )
             ) : null}
             {settings ? (
               <Settings
