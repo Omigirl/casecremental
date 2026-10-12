@@ -123,8 +123,8 @@ export class TrayView {
   claimed(id: number): Pt {
     const at = this.dropped.get(id)?.at ?? null;
     this.motion.claimed(id, at);
-    const i = this.items.findIndex((d) => d.id === id);
     if (at) return at;
+    const i = [...this.known.keys()].indexOf(id); // last frame's order: the sim has already spliced a claimed card out of `items`
     if (i >= 0 && this.slots[i]) return this.slotCentre(i);
     const r = this.l?.tray ?? { x: 0, y: 0, w: 0, h: 0 };
     return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
@@ -144,7 +144,11 @@ export class TrayView {
     if (landed.length && this.landSound.ready(this.t)) this.deps.onLand(); // one store sound for cards landing together
     this.drawSlides(items);
     this.drawPops();
-    for (const [id, d] of this.dropped) if (!this.popping.has(id)) (d.tex.destroy(true), this.dropped.delete(id)); // a refused claim
+    for (const [id, d] of this.dropped) {
+      if (this.popping.has(id)) continue;
+      d.tex.destroy(true); // a refused claim
+      this.dropped.delete(id);
+    }
     this.known = new Map(items.map((d) => [d.id, d]));
     const k = this.deps.scale();
     const dragging = this.drag.dragging;
