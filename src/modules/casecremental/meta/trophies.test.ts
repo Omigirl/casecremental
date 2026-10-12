@@ -47,4 +47,11 @@ describe("trophies", () => {
     expect(trophyDropsOf({ type: "vaultReelLanded", index: 1, drop: drop("bc_knife", "gold"), amount: 1 })).toHaveLength(1);
     expect(isTrophyDrop(drop("vault1_legend", "gold"))).toBe(false);
   });
+
+  it("finds a case trophy the Upgrader pops out (Run 4), none on a loss", () => {
+    const inputs = [drop("bc_x", "milspec")];
+    expect(trophyDropsOf({ type: "upgraderDone", win: true, result: drop("bc_knife", "gold"), inputs })).toHaveLength(1);
+    expect(trophyDropsOf({ type: "upgraderDone", win: true, result: drop("bc_x", "restricted"), inputs })).toEqual([]);
+    expect(trophyDropsOf({ type: "upgraderDone", win: false, result: null, inputs })).toEqual([]);
+  });
 });

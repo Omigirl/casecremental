@@ -7,7 +7,7 @@ import type { Drop, SkinDef } from "../sim/types";
 
 // The Trophies catalog (plan F7): one server item per Covert and ★ skin of every case, plus each vault's legend.
 // Built from the content tables, so a new case or vault brings its trophies along. Case trophies are reported when
-// they drop; a vault's legend is granted by endRun with the vault itself.
+// they drop (or the Upgrader pops one out); a vault's legend is granted by endRun with the vault itself.
 
 /** The Title's item catalog id. */
 export const TROPHY_CATALOG = "Trophies";
@@ -63,6 +63,8 @@ export function trophyDropsOf(e: SimEvent): Drop[] {
       return e.results.filter(isTrophyDrop);
     case "vaultReelLanded":
       return isTrophyDrop(e.drop) ? [e.drop] : [];
+    case "upgraderDone": // Run 4: a win pops a skin of one of the stake's cases out on the locker
+      return e.result && isTrophyDrop(e.result) ? [e.result] : [];
     default:
       return [];
   }

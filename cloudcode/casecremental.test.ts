@@ -91,6 +91,15 @@ describe("reportTrophy", () => {
     expect(RULES.reportTrophy!(p.io, { skinId: late, runId: "r1", elapsedSec: 9 })).toMatchObject({ ok: false, retry: false });
   });
 
+  it("grants a Run 4 case's trophy (a drop or an Upgrader win) once three vaults are opened", () => {
+    const run4 = Object.entries(DATA.trophies).filter(([, t]: any) => !t.vault && t.minLoops === 3);
+    expect(run4.map(([, t]: any) => t.source).sort()).toEqual(["feverdream", "feverdream", "feverdream", "glitch", "glitch", "glitch"]);
+    const [skinId] = run4[0]!;
+    expect(RULES.reportTrophy!(p.io, { skinId, runId: "r1", elapsedSec: 9 })).toMatchObject({ ok: false, retry: false });
+    p.st.data.ReadOnly!.cc_meta = { v: 1, loops: 3 };
+    expect(RULES.reportTrophy!(p.io, { skinId, runId: "r4", elapsedSec: 300 })).toMatchObject({ ok: true, trophies: [skinId] });
+  });
+
   it("asks for a retry when reports come faster than one per 2 s", () => {
     RULES.reportTrophy!(p.io, { skinId: "bc_knife", runId: "r1", elapsedSec: 100 });
     expect(RULES.reportTrophy!(p.io, { skinId: "bc_warlord", runId: "r1", elapsedSec: 101 })).toMatchObject({ ok: false, retry: true });
