@@ -5,7 +5,21 @@ import { hexToRgb, OWN_MOTION, patternColor, renderPattern, type Rgb } from "./p
 // The finishes of cases 4–7 (spec: M3 §3). Every kind is checked for the same contract as cases 1–3 plus
 // what makes it richer; the kind-specific tests sit below.
 
-const LATE: PatternKind[] = ["circuit", "hex", "carbon", "synthgrid", "neonline", "hueflow", "starfield", "nebula", "aurora", "iridescent"];
+const LATE: PatternKind[] = [
+  "circuit",
+  "hex",
+  "carbon",
+  "synthgrid",
+  "neonline",
+  "hueflow",
+  "starfield",
+  "nebula",
+  "aurora",
+  "iridescent",
+  "flame",
+  "ember",
+  "molten",
+];
 /** Five unrelated hues, darkest first: a blend of two of them can't pass for a third by accident. */
 const PALETTE = ["#05040a", "#2a1450", "#d02870", "#30c8f0", "#fff4c0"];
 const RGB = PALETTE.map(hexToRgb);
@@ -184,5 +198,29 @@ describe("Deep Space", () => {
     const px = [7, 8, 9].flatMap((seed) => pixels("iridescent", undefined, seed));
     expect(px.filter(([, , c]) => same(c, RGB[0]!)).length).toBeGreaterThan(0);
     for (let i = 1; i < RGB.length; i++) expect(share(px, [i]), `colour ${i}`).toBeGreaterThan(0.02);
+  });
+});
+
+describe("Inferno", () => {
+  it("flame is hot at the bottom and dark at the top in every phase of its rise", () => {
+    for (const t of [undefined, 0.3, 0.7]) {
+      const px = pixels("flame", t);
+      expect(band(px, 0.85, 1)).toBeGreaterThan(3 * band(px, 0, 0.15));
+    }
+  });
+
+  it("ember: glowing specks on char - the char's two colours cover most of it", () => {
+    for (const seed of [7, 8, 9]) expect(share(pixels("ember", undefined, seed), [0, 1])).toBeGreaterThan(0.6);
+  });
+
+  it("molten rises: phase t paints what sat t lower, and the flow repeats every texture height", () => {
+    const s = spec("molten");
+    for (let j = 0; j < 32; j++)
+      for (let i = 0; i < 64; i += 3) {
+        const u = i / 64;
+        const v = j / 32;
+        expect(patternColor(s, RGB, u, v, 0.25)).toEqual(patternColor(s, RGB, u, v + 0.25));
+        expect(patternColor(s, RGB, u, v + 1)).toEqual(patternColor(s, RGB, u, v));
+      }
   });
 });

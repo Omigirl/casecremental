@@ -1,5 +1,5 @@
 import type { PatternKind, PatternMotion } from "../../sim/types";
-import { fbm, hash2 } from "./noise";
+import { fbm, hash2, wrapRow } from "./noise";
 import { at, clamp01, cycle, fract, mix, ramp, smoothstep, spread, tail, type PatternPoint, type Rgb } from "./paint";
 
 // Thirteen finishes for cases 4-7 (spec: M3 §3): Mainframe (circuit, hex, carbon), Neon Nights (synthgrid,
@@ -17,10 +17,15 @@ export const OWN_MOTION: Partial<Record<PatternKind, PatternMotion>> = {
   synthgrid: "flow",
   hueflow: "flow",
   aurora: "flow",
+  flame: "rise",
+  ember: "rise",
+  molten: "rise",
 };
 
 const TAU = Math.PI * 2;
 const hot = (pal: readonly Rgb[]): Rgb => at(pal, pal.length - 1);
+/** Lattice rows per texture height for the kinds that rise: whole, so the texture repeats every height. */
+const rows = (p: PatternPoint, k = 1): number => Math.max(1, Math.round(p.scale * k));
 /** One pixel of the in-game skin (10 px tall) in feature units: thin lines stay at least this wide. */
 const px = (p: PatternPoint): number => p.scale * 0.1;
 
@@ -244,4 +249,63 @@ export function iridescent(pal: readonly Rgb[], p: PatternPoint): Rgb {
   const w = fbm(ax + 4 * n, ay + 4 * n, p.seed + 17, 4);
   if (w < 0.4) return at(pal, 0);
   return cycle(tail(pal, 1), (w - 0.4) * 3.5 + p.v * 0.6);
+}
+
+// ── Inferno ─────────────────────────────────────────────────────────────────────────────────────
+
+/** Fire: warped noise stretched upward licking into tongues over a heat that grows toward the bottom, as a
+ *  dark-to-bright ramp. Rise: the noise scrolls up one texture height per loop (it repeats every height)
+ *  while the heat stays put, so the flames climb but never leave. */
+export function flame(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
+  const P = rows(p);
+  const xn = p.u * 2.5 * P;
+  const yn = (p.v + t) * P;
+  const warp = fbm(xn, yn, p.seed + 3, 3, P);
+  const n = fbm(xn * 1.6 + 1.2 * warp, yn, p.seed, 4, P);
+  const I = smoothstep(0.15, 1, p.v * 1.2 - 0.1 + (n - 0.5) * 2);
+  return ramp(pal, I);
+}
+
+/** Embers: glowing specks of different sizes and heat over hard char flakes, each flickering. Rise: the
+ *  specks drift up one texture height per loop (their lattice repeats every height); the char stays.
+ *  Roles: 0-1 char, 2 glow, 3 .. last = hotter. */
+export function ember(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
+  const P = rows(p);
+  const X = p.u * 2.5 * P;
+  const Y = (p.v + t) * P;
+  const xi = Math.floor(X);
+  const yi = Math.floor(Y);
+  let I = 0;
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const cx = xi + dx;
+      const cy = yi + dy;
+      const hy = wrapRow(cy, P);
+      if (hash2(cx, hy, p.seed) >= 0.55) continue;
+      const ex = cx + 0.2 + 0.6 * hash2(cx, hy, p.seed + 1);
+      const ey = cy + 0.2 + 0.6 * hash2(cx, hy, p.seed + 2);
+      const r = 0.3 + 0.25 * hash2(cx, hy, p.seed + 3);
+      const heat = (0.65 + 0.35 * hash2(cx, hy, p.seed + 4)) * (0.8 + 0.2 * Math.cos(TAU * (2 * t + hash2(cx, hy, p.seed + 5))));
+      I = Math.max(I, heat * clamp01(1 - Math.hypot(X - ex, Y - ey) / r) ** 1.2);
+    }
+  const char = fbm(p.x * 0.8, p.y * 0.8, p.seed + 9, 4) > 0.52 ? at(pal, 1) : at(pal, 0);
+  if (I < 0.3) return mix(char, at(pal, 2), I / 0.3);
+  return ramp(tail(pal, 2), (I - 0.3) / 0.7);
+}
+
+/** Molten rock: rivers of glow along the ridges of warped noise (flowing, branching cracks) fading into a
+ *  dark two-tone crust. Rise: the whole flow creeps up one texture height per loop.
+ *  Roles: 0-1 crust, 2 glow, 3 .. last = hotter. */
+export function molten(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
+  const P = rows(p, 0.5);
+  const X = p.u * 2.5 * P;
+  const Y = (p.v + t) * P;
+  const w1 = fbm(X, Y, p.seed + 5, 3, P);
+  const w2 = fbm(X + 3.1, Y, p.seed + 6, 3, P);
+  const n = fbm(X + 1.6 * w1, Y + 1.6 * (w2 - 0.5), p.seed, 4, P);
+  const ridge = 1 - Math.abs(2 * n - 1);
+  const I = smoothstep(0.76, 0.97, ridge);
+  const crust = fbm(X * 2, Y * 2, p.seed + 8, 3, P * 2) > 0.5 ? at(pal, 1) : at(pal, 0);
+  if (I < 0.35) return mix(crust, at(pal, 2), I / 0.35);
+  return ramp(tail(pal, 2), (I - 0.35) / 0.65);
 }

@@ -1,7 +1,21 @@
 import type { PatternSpec } from "../../sim/types";
 import { fbm, hash2, voronoi } from "./noise";
 import { hexToRgb, pick, ramp, spread, type PatternPoint, type Rgb } from "./paint";
-import { aurora, carbon, circuit, hex, hueflow, iridescent, nebula, neonline, starfield, synthgrid } from "./patternsLate";
+import {
+  aurora,
+  carbon,
+  circuit,
+  ember,
+  flame,
+  hex,
+  hueflow,
+  iridescent,
+  molten,
+  nebula,
+  neonline,
+  starfield,
+  synthgrid,
+} from "./patternsLate";
 
 // The skin finishes: each maps a point of the texture to a colour of the skin's palette. Cases 1-3's ten live
 // here (army: camo, digital, tiger; forest: leaves, bark, moss; rocks: marble, granite, crystal, lava); cases
@@ -76,6 +90,12 @@ export function patternColor(spec: PatternSpec, pal: readonly Rgb[], u: number, 
       return aurora(pal, p, phase);
     case "iridescent":
       return iridescent(pal, p);
+    case "flame":
+      return flame(pal, p, phase);
+    case "ember":
+      return ember(pal, p, phase);
+    case "molten":
+      return molten(pal, p, phase);
   }
 }
 

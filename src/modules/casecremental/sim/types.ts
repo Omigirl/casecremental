@@ -27,7 +27,11 @@ export type PatternKind =
   | "starfield"
   | "nebula"
   | "aurora"
-  | "iridescent";
+  | "iridescent"
+  // Inferno
+  | "flame"
+  | "ember"
+  | "molten";
 
 /** A moving finish (spec: animated skins §4; `rise`: M3 spec §3). */
 export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise";
