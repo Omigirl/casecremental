@@ -1,24 +1,39 @@
 import { runNumber, vaultPriceFor } from "./campaign";
 import { charmPool, type CharmId } from "./charms";
+import { vaultFor } from "./content/vaults";
 import { createRng } from "./rng";
-import type { ActionResult, RunSetup } from "./run";
+import type { ActionResult, RunSetup, RunState } from "./run";
 import {
   CATCH_UP_PER_VAULT,
   CHARM_OFFER_SIZE,
   CLOUT_DIVISOR,
+  LAST_RUN,
   PERK_COSTS,
   PERK_START_CASH,
   START_CASH,
   TRAY_BASE_CAPACITY,
   TRAY_PER_PERK,
 } from "./tuning";
+import type { Drop } from "./types";
 
 // What outlives a run (M2b spec §8): CLOUT, the perks bought with it, trophies, how many vaults have been
-// opened, and the charms offered and picked for the next run. Plain data plus the rules; the controller
-// owns one and saves it.
+// opened, the charms offered and picked for the next run, and the campaign's stats for the credits. Plain data plus
+// the rules; the controller owns one and saves it.
 
 export type PerkId = keyof typeof PERK_COSTS;
 export const PERK_IDS: readonly PerkId[] = ["startCash", "luck", "charmSlot", "botAwake", "biggerTray"];
+
+/** What the credits show (finish spec §7.4): kept across runs, added up at each vault. */
+export interface CampaignStats {
+  /** Seconds played over every completed run. */
+  playSeconds: number;
+  /** Cases opened over every completed run. */
+  opened: number;
+  /** The highest-value skin of any run. */
+  best: Drop | null;
+  /** CLOUT paid by every vault. */
+  cloutEarned: number;
+}
 
 export interface MetaState {
   clout: number;
@@ -31,6 +46,9 @@ export interface MetaState {
   /** Charms offered for the next run; null when not on the prestige screen. */
   offer: CharmId[] | null;
   picked: CharmId[];
+  stats: CampaignStats;
+  /** The Last Case opened: the credits roll until the player ends them. */
+  credits: boolean;
 }
 
 export const freshMeta = (): MetaState => ({
@@ -41,6 +59,8 @@ export const freshMeta = (): MetaState => ({
   lastGain: 0,
   offer: null,
   picked: [],
+  stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 0 },
+  credits: false,
 });
 
 const OK: ActionResult = { ok: true };
@@ -65,15 +85,36 @@ export function offerCharms(seed: number, loops: number, run: number): CharmId[]
   return out;
 }
 
-/** A vault opened: pay CLOUT, keep the trophy, count the loop, offer the next run's charms. */
-export function completeVault(m: MetaState, lifetimeEarnings: number, trophy: string, seed: number): void {
+/** A vault opened: pay CLOUT, keep the trophy, add the run to the campaign's stats, count the loop, offer the next
+ *  run's charms; The Last Case rolls the credits. */
+export function completeVault(
+  m: MetaState,
+  lifetimeEarnings: number,
+  trophy: string,
+  seed: number,
+  run?: Pick<RunState, "time" | "opened" | "best">,
+): void {
   const gain = cloutFor(lifetimeEarnings);
   m.clout += gain;
   m.lastGain = gain;
+  m.stats.cloutEarned += gain;
+  if (run) {
+    m.stats.playSeconds += run.time;
+    m.stats.opened += run.opened;
+    if (run.best && (!m.stats.best || run.best.value > m.stats.best.value)) m.stats.best = run.best;
+  }
+  m.credits = trophy === vaultFor(LAST_RUN).trophy;
   m.loops += 1;
   if (!m.trophies.includes(trophy)) m.trophies.push(trophy);
   m.offer = offerCharms(seed, m.loops, runNumber(m.loops));
   m.picked = [];
+}
+
+/** The player ends the credits (or they ran out): the prestige screen comes up. */
+export function endCredits(m: MetaState): ActionResult {
+  if (!m.credits) return fail("no credits rolling");
+  m.credits = false;
+  return OK;
 }
 
 export function buyPerk(m: MetaState, id: PerkId): ActionResult {

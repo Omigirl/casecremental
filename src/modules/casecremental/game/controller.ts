@@ -1,5 +1,5 @@
 import type { CharmId } from "../sim/charms";
-import { buyPerk, completeVault, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
+import { buyPerk, completeVault, endCredits, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
 import { Run, type ActionResult, type CardSpot, type SimEvent } from "../sim/run";
 import type { RarityId } from "../sim/types";
 import type { UpgradeId } from "../sim/upgrades";
@@ -43,7 +43,8 @@ export type Action =
   | { type: "turnVaultKey" }
   | { type: "buyPerk"; id: PerkId }
   | { type: "pickCharm"; id: CharmId }
-  | { type: "startNextRun" };
+  | { type: "startNextRun" }
+  | { type: "endCredits" };
 
 export const SIM_STEP = 1 / 30;
 /** A frame longer than this (tab was hidden, debugger pause) is clamped. */
@@ -234,6 +235,8 @@ export class GameController {
         return this.pickCharm(a.id);
       case "startNextRun":
         return this.startNextRun();
+      case "endCredits":
+        return this.emitOnOk(endCredits(this.meta), { type: "creditsEnded" });
     }
   }
 
@@ -246,6 +249,7 @@ export class GameController {
 
   private startNextRun(): ActionResult {
     if (!this.current.state.over) return { ok: false, reason: "the run is still going" };
+    if (this.meta.credits) return { ok: false, reason: "the credits are rolling" };
     const seed = (this.current.seed + Math.imul(this.meta.loops, 0x9e3779b1)) >>> 0;
     this.current = new Run(seed, setupFor(this.meta));
     this.meta.offer = null;
@@ -257,7 +261,7 @@ export class GameController {
   private flush(): void {
     for (const e of this.current.drainEvents()) {
       if (e.type === "vaultOpened") {
-        completeVault(this.meta, e.lifetimeEarnings, e.trophy, this.current.seed);
+        completeVault(this.meta, e.lifetimeEarnings, e.trophy, this.current.seed, this.current.state);
         this.save();
       }
       this.emit(e);

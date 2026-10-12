@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { priceOf } from "./content/cases";
-import { Run, type SimEvent } from "./run";
+import { DEFAULT_SETUP, Run, type SimEvent } from "./run";
 import { SPIN_BASE_SECONDS, START_CASH, TEASE_CRAWL } from "./tuning";
 
 const DT = 1 / 30;
@@ -344,5 +344,19 @@ describe("multi-open", () => {
     run.state.freeCases.push("bootcamp");
     run.tick(1 / 30);
     expect(run.state.bench).toMatchObject({ phase: "locked", free: true, count: 1 });
+  });
+
+  it("remembers the run's best drop by value, from the bench, the bot and the locker", () => {
+    const r = new Run(3, { ...DEFAULT_SETUP, startCash: 1e6 });
+    expect(r.state.best).toBeNull();
+    for (let i = 0; i < 40; i++) {
+      if (r.state.bench.phase === "empty") r.buyCase("bootcamp");
+      if (r.state.bench.phase === "locked") r.insertKey();
+      r.tick(5);
+      const b = r.state.bench;
+      if (b.phase === "revealed") b.cards.forEach((d, slot) => d && r.sell(slot));
+    }
+    const all = r.drainEvents().flatMap((e) => (e.type === "revealed" ? e.drops : []));
+    expect(r.state.best?.value).toBe(Math.max(...all.map((d) => d.value)));
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RUN1_CHARMS, RUN3_CHARMS } from "./charms";
-import { buyPerk, charmSlots, cloutFor, completeVault, freshMeta, offerCharms, perkCost, pickCharm, setupFor } from "./meta";
+import { buyPerk, charmSlots, cloutFor, completeVault, endCredits, freshMeta, offerCharms, perkCost, pickCharm, setupFor } from "./meta";
 import { CATCH_UP_PER_VAULT, CLOUT_DIVISOR, PERK_START_CASH, START_CASH, TRAY_BASE_CAPACITY, TRAY_PER_PERK, VAULT_PRICES } from "./tuning";
 
 /** Lifetime earnings that pay exactly 10 CLOUT. */
@@ -72,5 +72,36 @@ describe("prestige meta", () => {
       valueBoost: CATCH_UP_PER_VAULT ** 2,
       vaultPrice: VAULT_PRICES[2],
     });
+  });
+
+  it("adds each run's time, opens and best drop to the campaign stats, and the CLOUT it paid", () => {
+    const m = freshMeta();
+    expect(m.stats).toEqual({ playSeconds: 0, opened: 0, best: null, cloutEarned: 0 });
+    const a = {
+      id: 1,
+      caseId: "bootcamp",
+      skinId: "bc_knife",
+      rarity: "gold",
+      float: 0.1,
+      wear: "MW",
+      statTrak: false,
+      value: 500,
+    } as const;
+    const b = { ...a, id: 2, value: 90 };
+    completeVault(m, 1e8, "vault1", 1, { time: 400, opened: 300, best: a });
+    completeVault(m, 1e10, "vault2", 1, { time: 500, opened: 900, best: b });
+    expect(m.stats).toMatchObject({ playSeconds: 900, opened: 1200, best: a });
+    expect(m.stats.cloutEarned).toBe(cloutFor(1e8) + cloutFor(1e10));
+  });
+
+  it("rolls the credits after The Last Case, and only then; ending them twice is refused", () => {
+    const m = freshMeta();
+    completeVault(m, 1e9, "vault3", 1);
+    expect(m.credits).toBe(false);
+    completeVault(m, 1e9, "lastcase", 1);
+    expect(m.credits).toBe(true);
+    expect(endCredits(m).ok).toBe(true);
+    expect(m.credits).toBe(false);
+    expect(endCredits(m)).toEqual({ ok: false, reason: "no credits rolling" });
   });
 });

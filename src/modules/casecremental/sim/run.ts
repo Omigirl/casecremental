@@ -108,6 +108,7 @@ export class Run implements RunCtx {
       heldSlot: 0,
       vault: null,
       over: false,
+      best: null,
     };
   }
 
@@ -516,6 +517,7 @@ export class Run implements RunCtx {
   onReveal(d: Drop, spot: RevealSpot): void {
     const s = this.state;
     const charms = this.setup.charms;
+    if (!s.best || d.value > s.best.value) s.best = d;
     if (spot === "bench") s.revealedAt = s.time;
     if (s.held === spot) this.release();
     if (charms.includes("pityJar")) s.pity = d.rarity === "milspec" ? s.pity + 1 : isBigRarity(d.rarity) ? 0 : s.pity;

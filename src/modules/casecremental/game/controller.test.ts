@@ -286,3 +286,26 @@ function openVaultAfterUnlock(c: GameController) {
   openVault(c);
   c.step(1);
 }
+
+describe("GameController — the credits", () => {
+  it("keeps the campaign stats, rolls the credits after The Last Case and ends them on endCredits", () => {
+    const c = new GameController(1);
+    c.devStartRun(4);
+    const run = c.run;
+    run.state.opened = 77;
+    run.state.cash = 1e30;
+    for (const id of run.runCases().slice(1)) run.unlockCase(id);
+    expect(c.act({ type: "buyVault" }).ok).toBe(true);
+    c.act({ type: "turnVaultKey" });
+    for (let i = 0; i < 20 * 30; i++) c.step(1 / 30);
+    expect(c.meta.credits).toBe(true);
+    expect(c.meta.stats.opened).toBeGreaterThanOrEqual(77);
+    expect(c.act({ type: "startNextRun" })).toEqual({ ok: false, reason: "the credits are rolling" });
+    const seen: string[] = [];
+    c.onEvent((e) => seen.push(e.type));
+    expect(c.act({ type: "endCredits" }).ok).toBe(true);
+    expect(seen).toContain("creditsEnded");
+    expect(c.act({ type: "startNextRun" }).ok).toBe(true);
+    expect(c.run.setup.run).toBe(4); // THE END: Run 4 again, boosted
+  });
+});

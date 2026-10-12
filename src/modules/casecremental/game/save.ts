@@ -14,6 +14,7 @@ import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 // Version 3: the bench holds several cases (multi-open); a version-2 save is migrated.
 // Version 4 (campaign): the bot holds several cards (its multi-open) and the setup knows its run; a version-3 save is migrated.
 // Version 5 (finish F2): the auto-buyer grid is gone and auto-spin arrives; a version-4 save is migrated.
+// F6 added the Upgrader, evolutions, the best drop and the campaign stats as fields with defaults; the version stays 5.
 // A save that is missing, broken or from another version never stops the game — it is dropped with a
 // warning and a fresh run starts; storage errors are swallowed. M4 moves the same data to the server.
 
@@ -102,7 +103,7 @@ const ZERO_UPGRADES = Object.fromEntries(UPGRADE_IDS.map((id) => [id, 0])) as Re
 /** Fills in what an older or partial save leaves out (a perk or setup field added later). */
 function normalize(d: SaveData): SaveData {
   const fresh = freshMeta();
-  const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks } };
+  const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks }, stats: { ...fresh.stats, ...d.meta.stats } };
   const setup = { ...DEFAULT_SETUP, ...d.run.setup };
   if (!Array.isArray(setup.charms)) setup.charms = [];
   // nobody is holding a card after a reload
@@ -125,6 +126,7 @@ function normalize(d: SaveData): SaveData {
         held: null,
         heldSlot: 0,
         vault: d.run.state.vault ?? null,
+        best: d.run.state.best ?? null,
       },
     },
   };

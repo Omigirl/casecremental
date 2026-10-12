@@ -245,6 +245,17 @@ describe("the local save", () => {
     expect(back?.run.state.bench).toMatchObject({ phase: "locked", count: 10 });
   });
 
+  it("gives a v5 save from before the campaign stats fresh ones, and no best drop", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.meta.stats;
+    delete d.meta.credits;
+    delete d.run.state.best;
+    const loaded = decodeSave(JSON.stringify(d))!;
+    expect(loaded.meta.stats).toEqual(freshMeta().stats);
+    expect(loaded.meta.credits).toBe(false);
+    expect(loaded.run.state.best).toBeNull();
+  });
+
   it("gives a v5 save that lacks auto-spin a fresh one", () => {
     const d = JSON.parse(encodeSave(data()));
     delete d.run.state.autoSpin;

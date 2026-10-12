@@ -120,7 +120,9 @@ export type SimEvent =
   | { type: "runStarted" }
   /** Emitted by the controller (prestige screen). */
   | { type: "charmPicked" }
-  | { type: "perkBought" };
+  | { type: "perkBought" }
+  /** Emitted by the controller: the credits ended (skipped or run out). */
+  | { type: "creditsEnded" };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
 
@@ -173,6 +175,8 @@ export interface RunState {
   vault: VaultState | null;
   /** The vault has opened: the run is over. */
   over: boolean;
+  /** The highest-value skin revealed this run (bench, bot, contracts, Upgrader); the vault's rewards don't count. */
+  best: Drop | null;
 }
 
 /** Where a reveal happened; the charms that react to it care. */
