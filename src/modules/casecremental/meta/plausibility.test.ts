@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { HUMAN, playGreedy, type BotTimings } from "../sim/bot";
 import { runNumber } from "../sim/campaign";
-import { vaultFor } from "../sim/content/vaults";
+import { VAULTS, vaultFor } from "../sim/content/vaults";
 import { buyPerk, completeVault, freshMeta, PERK_IDS, setupFor } from "../sim/meta";
-import { LAST_RUN } from "../sim/tuning";
-import { cappedEarnings, earningsFromScore, maxPlausibleLog10, scoreFor } from "./plausibility";
+import { LAST_RUN, SERVER_MIN_REPLAY_SEC, SERVER_MIN_VAULT_SEC } from "../sim/tuning";
+import { cappedEarnings, earningsFromScore, maxPlausibleLog10, minRunSeconds, scoreFor } from "./plausibility";
 
 /** Faster than any human: every action a twentieth of a second. */
 const FAST: BotTimings = { ...HUMAN, buy: 0.05, key: 0.05, sell: 0.05, reveal: 0.05 };
@@ -29,11 +29,23 @@ describe("plausibility", () => {
           maxPlausibleLog10(r.vaultAt!, meta.loops),
           `run ${i + 1} seed ${seed}: ${r.lifetimeEarnings} at ${r.vaultAt}s`,
         ).toBeGreaterThanOrEqual(need);
+        // the server counts the vault only after a minimum run time: even this bot clears it by ×1.25
+        expect(r.vaultAt!, `run ${i + 1} seed ${seed}: vault at ${r.vaultAt}s`).toBeGreaterThanOrEqual(minRunSeconds(meta.loops) * 1.25);
         completeVault(meta, r.lifetimeEarnings, vaultFor(runNumber(meta.loops)).trophy, seed);
         for (const id of PERK_IDS) while (buyPerk(meta, id).ok);
       }
     }
   }, 120_000);
+
+  it("has a minimum run time per vault, then one for every replay", () => {
+    expect(SERVER_MIN_VAULT_SEC).toHaveLength(VAULTS.length);
+    expect(minRunSeconds(0)).toBe(SERVER_MIN_VAULT_SEC[0]);
+    expect(minRunSeconds(VAULTS.length - 1)).toBe(SERVER_MIN_VAULT_SEC[VAULTS.length - 1]);
+    expect(minRunSeconds(VAULTS.length + 7)).toBe(SERVER_MIN_REPLAY_SEC);
+    // at most a third of the spec's CASUAL bands (finish spec §5: Run 1 from 360 s, Runs 2+ from 300 s)
+    expect(SERVER_MIN_VAULT_SEC[0]).toBeLessThanOrEqual(360 / 3);
+    for (const s of SERVER_MIN_VAULT_SEC.slice(1)) expect(s).toBeLessThanOrEqual(300 / 3);
+  });
 
   it("refuses what no player can earn", () => {
     expect(maxPlausibleLog10(60, 0)).toBeLessThan(6); // $1M in the first minute of Run 1

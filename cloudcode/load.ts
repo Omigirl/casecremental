@@ -29,6 +29,7 @@ export function fakeIo(now = 1_000_000) {
     owned: [] as string[],
     data: { ReadOnly: {}, Internal: {}, Public: {} } as Record<string, Record<string, unknown>>,
     ops: [] as Array<{ op: any; reason: string }>,
+    reasons: new Set<string>(),
     failWrites: false,
   };
   const copy = <T>(x: T): T => JSON.parse(JSON.stringify(x));
@@ -43,9 +44,13 @@ export function fakeIo(now = 1_000_000) {
     },
     clout: () => st.clout,
     ownedTrophies: () => [...st.owned],
+    // as the platform does (DEV probe): a Reason is applied once per player across executions; a failed op does not
+    // use its Reason up; a replayed consume is still checked against the balance (then answers Success, applies nothing)
     apply: (op: any, reason: string) => {
       st.ops.push({ op: copy(op), reason });
       for (const e of op.Consume?.Standard?.Entries ?? []) if (e.CurrencyID === "CLOUT" && st.clout < e.Amount) return false;
+      if (st.reasons.has(reason)) return true;
+      st.reasons.add(reason);
       for (const e of op.Consume?.Standard?.Entries ?? []) if (e.CurrencyID === "CLOUT") st.clout -= e.Amount;
       for (const e of op.Grant?.Standard?.Entries ?? []) {
         if (e.Type === "VirtualCurrency" && e.CurrencyID === "CLOUT") st.clout += e.Amount;

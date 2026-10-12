@@ -1,4 +1,4 @@
-import { SERVER_CAP } from "../sim/tuning";
+import { SERVER_CAP, SERVER_MIN_REPLAY_SEC, SERVER_MIN_VAULT_SEC } from "../sim/tuning";
 
 // The leaderboard score and the server's plausibility cap (plan F7). Lifetime earnings outgrow safe integers, so the
 // board keeps floor(log10(e) × 1000) and the UI turns it back. The cap is the same curve CloudCode applies.
@@ -18,3 +18,7 @@ export function maxPlausibleLog10(elapsedSec: number, loops: number): number {
 /** Earnings clamped to [0, the plausible maximum]. */
 export const cappedEarnings = (e: number, elapsedSec: number, loops: number): number =>
   Math.min(Math.max(0, e), 10 ** maxPlausibleLog10(elapsedSec, loops));
+
+/** The least a run with `loops` vaults behind it takes before the server counts its vault (CloudCode's minRunSec). */
+export const minRunSeconds = (loops: number): number =>
+  loops < SERVER_MIN_VAULT_SEC.length ? SERVER_MIN_VAULT_SEC[Math.max(0, loops)]! : SERVER_MIN_REPLAY_SEC;

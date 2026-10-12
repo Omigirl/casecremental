@@ -248,11 +248,18 @@ export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, ceilLo
 /** The most CLOUT one endRun pays: a capped claim near 10^ceilLog10 would otherwise overflow the Title's int64 balance
  *  (and the CloudCode policy's daily CLOUT cap, 1e12). A real run pays thousands. */
 export const SERVER_MAX_CLOUT_PER_RUN = 1e11;
-/** A first run the server never saw start may claim at most this long. */
-export const SERVER_FIRST_RUN_MAX_SEC = 6 * 3600;
-/** Trophy reports: at least this many seconds apart, and at most this many per minute of a run. */
+/** The least a run takes before the server counts its vault (a loop, the legend), by run 1…LAST_RUN, then for every
+ *  replay of the last run. Calibrated 2026-10-13 against the superhuman FAST bot of meta/plausibility.test.ts (its
+ *  fastest vaults, seeds 1–6: Run 1 187 s, Run 2 66 s, Run 3 95 s, Run 4 123 s, replays down to ~34 s by the 15th),
+ *  which must clear them by ×1.25; every value is also at most a third of the CASUAL median (≈430, 320, 430, 350 s,
+ *  replays ≈100 s by the 15th). A scripted client that skips the game has to wait at least this long per vault. */
+export const SERVER_MIN_VAULT_SEC = [120, 45, 60, 80] as const;
+export const SERVER_MIN_REPLAY_SEC = 25;
+/** Trophy reports: at least this many seconds apart, and a token bucket in server time — this many a minute, at most
+ *  TROPHY_BURST at once. A report over the limit is asked to retry later, never refused for good. */
 export const TROPHY_GAP_SEC = 2;
-export const TROPHIES_PER_RUN_MINUTE = 30;
+export const TROPHIES_PER_MINUTE = 2;
+export const TROPHY_BURST = 3;
 /** Campaign stats sanity: no one opens more cases a second than this (bench, bot and every machine together). */
 export const MAX_OPENS_PER_SECOND = 2000;
 

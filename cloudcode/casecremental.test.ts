@@ -1,28 +1,35 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { cloutFor, perkCost } from "../src/modules/casecremental/sim/meta";
-import { maxPlausibleLog10, scoreFor } from "../src/modules/casecremental/meta/plausibility";
+import { maxPlausibleLog10, minRunSeconds, scoreFor } from "../src/modules/casecremental/meta/plausibility";
 import { fakeIo, loadCloud, type FakeIo } from "./load";
 
 const DATA = JSON.parse(readFileSync(new URL("./data.json", import.meta.url), "utf8"));
 const { RULES, handlers, makeIo } = loadCloud();
 let p: FakeIo;
-beforeEach(() => (p = fakeIo()));
+/** A player the server first saw (loadMeta) ten minutes ago. */
+beforeEach(() => {
+  p = fakeIo();
+  RULES.loadMeta!(p.io, {});
+  p.st.t += 600;
+});
 const meta = () => p.st.data.ReadOnly!.cc_meta as any;
+const anti = () => p.st.data.Internal!.cc_anti as any;
 const end = (over: Record<string, unknown> = {}) =>
-  RULES.endRun!(p.io, { runId: "r1", lifetimeEarnings: 1.2e6, elapsedSec: 480, endedAt: p.st.t, finaleReached: true, trophy: "vault1", ...over });
+  RULES.endRun!(p.io, { runId: "r1", lifetimeEarnings: 1.2e6, elapsedSec: 480, endedAgoSec: 0, finaleReached: true, trophy: "vault1", ...over });
 
 describe("loadMeta", () => {
   it("answers a fresh player and remembers when it first saw them", () => {
-    expect(RULES.loadMeta!(p.io, {})).toMatchObject({ ok: true, clout: 0, trophies: [], loops: 0, perks: { startCash: 0 } });
-    expect((p.st.data.Internal!.cc_anti as any).firstSeen).toBe(p.st.t);
+    const q = fakeIo();
+    expect(RULES.loadMeta!(q.io, {})).toMatchObject({ ok: true, clout: 0, trophies: [], loops: 0, perks: { startCash: 0 } });
+    expect((q.st.data.Internal!.cc_anti as any).firstSeen).toBe(q.st.t);
   });
 });
 
 describe("endRun", () => {
   it("pays the client's CLOUT rule, grants the vault legend, counts the loop and scores the run", () => {
     const r = end();
-    expect(r).toMatchObject({ ok: true, gained: cloutFor(1.2e6), clout: cloutFor(1.2e6), loops: 1, score: scoreFor(1.2e6), capped: false });
+    expect(r).toMatchObject({ ok: true, gained: cloutFor(1.2e6), clout: cloutFor(1.2e6), loops: 1, score: scoreFor(1.2e6), capped: false, finale: true });
     expect(p.st.owned).toEqual(["vault1_legend"]);
     expect(meta().stats.cloutEarned).toBe(cloutFor(1.2e6));
   });
@@ -34,20 +41,22 @@ describe("endRun", () => {
   });
 
   it("never pays more than maxCloutPerRun", () => {
-    const r = end({ lifetimeEarnings: 1e300, elapsedSec: DATA.firstRunMaxSec });
+    p.st.t += 1e9;
+    const r = end({ lifetimeEarnings: 1e300, elapsedSec: 1e9 });
     expect(r.gained).toBe(DATA.maxCloutPerRun);
   });
 
-  it("pays a replayed endRun once", () => {
-    end();
+  it("answers a replayed endRun with the run's own score and gain, and pays it once", () => {
+    const first = end();
     const again = end();
-    expect(again).toMatchObject({ ok: true, duplicate: true, loops: 1 });
+    expect(again).toMatchObject({ ok: true, duplicate: true, loops: 1, score: first.score, gained: first.gained });
     expect(p.st.clout).toBe(cloutFor(1.2e6));
   });
 
   it("two queued runs replayed back to back are both paid", () => {
-    end({ runId: "ra", endedAt: p.st.t - 600, elapsedSec: 480 });
-    const r = end({ runId: "rb", endedAt: p.st.t, elapsedSec: 500, trophy: "vault2", lifetimeEarnings: 2e9 });
+    p.st.t += 600;
+    end({ runId: "ra", endedAgoSec: 600, elapsedSec: 480 });
+    const r = end({ runId: "rb", endedAgoSec: 0, elapsedSec: 500, trophy: "vault2", lifetimeEarnings: 2e9 });
     expect(r.capped).toBe(false);
     expect(r.loops).toBe(2);
   });
@@ -59,15 +68,72 @@ describe("endRun", () => {
     expect(r.score).toBe(scoreFor(10 ** maxPlausibleLog10(60, 1)));
   });
 
-  it("does not count a loop or grant a legend for the wrong vault", () => {
-    const r = end({ trophy: "vault3" });
-    expect(r.loops).toBe(0);
-    expect(p.st.owned).toEqual([]);
+  it("bounds a first run by the time since the server first saw the player, not by a fixed window", () => {
+    const r = end({ elapsedSec: 99999, lifetimeEarnings: 1e30 });
+    expect(r.score).toBe(scoreFor(10 ** maxPlausibleLog10(600, 0)));
   });
 
-  it("gives every resource operation its own reason, the run's grant one tied to the run", () => {
+  it("an endedAt of 0 (or a run that ended 'long ago') cannot reach before the last run or the first sight", () => {
+    const old = RULES.endRun!(p.io, { runId: "r0", lifetimeEarnings: 1e30, elapsedSec: 99999, endedAt: 0, finaleReached: true, trophy: "vault1" });
+    expect(old).toMatchObject({ ok: true, loops: 0, finale: false, gained: 0 }); // ended at the first sight: no time at all
+    p.st.t += 300;
+    const ago = end({ runId: "r2", endedAgoSec: 1e9, lifetimeEarnings: 1e30, elapsedSec: 99999 });
+    expect(ago).toMatchObject({ loops: 0, finale: false, gained: 0 });
+    expect(anti().lastEndAt).toBe(1_000_000); // the first sight, not the client's 0
+  });
+
+  it("does not count a vault before the expected one (and grants nothing for it)", () => {
+    end({ runId: "ra" });
+    p.st.t += 600;
+    const r = end({ runId: "rb", trophy: "vault1" });
+    expect(r).toMatchObject({ loops: 1, finale: false });
+  });
+
+  it("catches up after a lost endRun: a later vault counts when the time since the last counted one covers both", () => {
+    // Run 1's endRun never arrived; Run 2 vaults 10 minutes later
+    p.st.t += 600;
+    const r = end({ runId: "r2", trophy: "vault2", lifetimeEarnings: 2e9, elapsedSec: 400 });
+    expect(r).toMatchObject({ ok: true, finale: true, loops: 2, capped: false }); // capped as a Run 2, not a Run 1
+    expect(p.st.owned).toEqual(["vault2_legend"]);
+    // and the server keeps counting from there
+    p.st.t += 600;
+    expect(end({ runId: "r3", trophy: "vault3", lifetimeEarnings: 1e12, elapsedSec: 500 })).toMatchObject({ finale: true, loops: 3 });
+  });
+
+  it("refuses a fast scripted finale: a run under the minimum time, or a skip the clock cannot cover", () => {
+    const fast = end({ elapsedSec: minRunSeconds(0) - 1 });
+    expect(fast).toMatchObject({ ok: true, finale: false, loops: 0 });
+    expect(p.st.owned).toEqual([]);
+    const q = fakeIo();
+    RULES.loadMeta!(q.io, {});
+    q.st.t += DATA.minRunSec[3] + 1; // long enough for The Last Case alone, not for the three vaults before it
+    const skip = RULES.endRun!(q.io, { runId: "x", lifetimeEarnings: 1e9, elapsedSec: 9999, endedAgoSec: 0, finaleReached: true, trophy: "lastcase" });
+    expect(skip).toMatchObject({ finale: false, loops: 0 });
+  });
+
+  it("counts every replay of the last run with the replay minimum", () => {
+    p.st.data.ReadOnly!.cc_meta = { v: 1, loops: DATA.vaults.length };
+    p.st.data.Internal!.cc_anti = { firstSeen: p.st.t - 9999, lastEndAt: p.st.t - DATA.minReplaySec };
+    expect(end({ runId: "rep", trophy: "lastcase", elapsedSec: DATA.minReplaySec })).toMatchObject({ finale: true, loops: DATA.vaults.length + 1 });
+  });
+
+  it("gives the run's grant one Reason tied to the run", () => {
     end();
     expect(p.st.ops.map((o) => o.reason)).toEqual(["endRun:U1:r1"]);
+  });
+
+  it("asks for a retry when the meta write fails, and the retry pays once", () => {
+    p.st.failWrites = true;
+    expect(end()).toMatchObject({ ok: false, retry: true });
+    p.st.failWrites = false;
+    expect(end()).toMatchObject({ ok: true, loops: 1 });
+    expect(p.st.clout).toBe(cloutFor(1.2e6));
+    expect(p.st.owned).toEqual(["vault1_legend"]);
+  });
+
+  it("reads a revision-9 meta (bare run ids)", () => {
+    p.st.data.ReadOnly!.cc_meta = { v: 1, loops: 0, runs: ["r1"] };
+    expect(end()).toMatchObject({ duplicate: true, score: 0 });
   });
 
   it("refuses a malformed report", () => {
@@ -78,31 +144,47 @@ describe("endRun", () => {
 
 describe("reportTrophy", () => {
   it("grants a case trophy once", () => {
-    expect(RULES.reportTrophy!(p.io, { skinId: "bc_knife", runId: "r1", elapsedSec: 100 })).toMatchObject({ ok: true, trophies: ["bc_knife"] });
+    expect(RULES.reportTrophy!(p.io, { skinId: "bc_knife" })).toMatchObject({ ok: true, trophies: ["bc_knife"] });
     p.st.t += 10;
-    RULES.reportTrophy!(p.io, { skinId: "bc_knife", runId: "r1", elapsedSec: 110 });
+    RULES.reportTrophy!(p.io, { skinId: "bc_knife" });
     expect(p.st.owned).toEqual(["bc_knife"]);
   });
 
-  it("refuses a vault legend, an unknown skin and a case not reached yet", () => {
-    expect(RULES.reportTrophy!(p.io, { skinId: "vault1_legend", runId: "r1", elapsedSec: 9 }).ok).toBe(false);
-    expect(RULES.reportTrophy!(p.io, { skinId: "nope", runId: "r1", elapsedSec: 9 }).ok).toBe(false);
+  it("refuses a vault legend, an unknown skin, a prototype key and a case not reached yet", () => {
+    for (const skinId of ["vault1_legend", "nope", "constructor", "__proto__", "toString"])
+      expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: false, retry: false });
     const late = Object.entries(DATA.trophies).find(([, t]: any) => !t.vault && t.minLoops > 0)![0];
-    expect(RULES.reportTrophy!(p.io, { skinId: late, runId: "r1", elapsedSec: 9 })).toMatchObject({ ok: false, retry: false });
+    expect(RULES.reportTrophy!(p.io, { skinId: late })).toMatchObject({ ok: false, retry: false });
   });
 
   it("grants a Run 4 case's trophy (a drop or an Upgrader win) once three vaults are opened", () => {
     const run4 = Object.entries(DATA.trophies).filter(([, t]: any) => !t.vault && t.minLoops === 3);
     expect(run4.map(([, t]: any) => t.source).sort()).toEqual(["feverdream", "feverdream", "feverdream", "glitch", "glitch", "glitch"]);
     const [skinId] = run4[0]!;
-    expect(RULES.reportTrophy!(p.io, { skinId, runId: "r1", elapsedSec: 9 })).toMatchObject({ ok: false, retry: false });
+    expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: false, retry: false });
     p.st.data.ReadOnly!.cc_meta = { v: 1, loops: 3 };
-    expect(RULES.reportTrophy!(p.io, { skinId, runId: "r4", elapsedSec: 300 })).toMatchObject({ ok: true, trophies: [skinId] });
+    expect(RULES.reportTrophy!(p.io, { skinId })).toMatchObject({ ok: true, trophies: [skinId] });
   });
 
   it("asks for a retry when reports come faster than one per 2 s", () => {
-    RULES.reportTrophy!(p.io, { skinId: "bc_knife", runId: "r1", elapsedSec: 100 });
-    expect(RULES.reportTrophy!(p.io, { skinId: "bc_warlord", runId: "r1", elapsedSec: 101 })).toMatchObject({ ok: false, retry: true });
+    RULES.reportTrophy!(p.io, { skinId: "bc_knife" });
+    expect(RULES.reportTrophy!(p.io, { skinId: "bc_warlord" })).toMatchObject({ ok: false, retry: true });
+  });
+
+  it("rate-limits in server time - a burst, then trophiesPerMinute - whatever the client claims", () => {
+    const ids = Object.entries(DATA.trophies)
+      .filter(([, t]: any) => !t.vault && t.minLoops === 0)
+      .map(([id]) => id);
+    const granted = () => p.st.owned.length;
+    for (const skinId of ids.slice(0, DATA.trophyBurst)) {
+      expect(RULES.reportTrophy!(p.io, { skinId, elapsedSec: 99999, runId: "fresh" }).ok).toBe(true);
+      p.st.t += DATA.trophyGapSec;
+    }
+    const over = RULES.reportTrophy!(p.io, { skinId: ids[DATA.trophyBurst], elapsedSec: 99999, runId: "another" });
+    expect(over).toMatchObject({ ok: false, retry: true });
+    expect(granted()).toBe(DATA.trophyBurst);
+    p.st.t += 60 / DATA.trophiesPerMinute;
+    expect(RULES.reportTrophy!(p.io, { skinId: ids[DATA.trophyBurst] }).ok).toBe(true);
   });
 });
 
@@ -121,20 +203,35 @@ describe("buyPerk", () => {
     expect(p.st.clout).toBe(100 - perkCost("luck", 0)!);
   });
 
-  it("refuses without enough CLOUT, past max level, and refunds when the save fails", () => {
+  it("two tabs buying the same level at once are charged once (one Reason per perk level)", () => {
+    p.st.clout = 100;
+    // both executions read level 0 before either wrote: replay the second with the meta as it was
+    const before = JSON.parse(JSON.stringify(p.st.data.ReadOnly));
+    RULES.buyPerk!(p.io, { perkId: "luck", level: 0 });
+    p.st.data.ReadOnly = before;
+    expect(RULES.buyPerk!(p.io, { perkId: "luck", level: 0 })).toMatchObject({ ok: true, perks: { luck: 1 } });
+    expect(p.st.clout).toBe(100 - perkCost("luck", 0)!);
+    expect(p.st.ops.map((o) => o.reason)).toEqual(["perk:U1:luck:0", "perk:U1:luck:0"]);
+  });
+
+  it("refuses without enough CLOUT, past max level, an unknown or prototype perk", () => {
     expect(RULES.buyPerk!(p.io, { perkId: "luck", level: 0 })).toMatchObject({ ok: false, reason: "not enough CLOUT" });
     p.st.clout = 1e9;
     for (let lv = 0; perkCost("botAwake", lv) !== null; lv++) RULES.buyPerk!(p.io, { perkId: "botAwake", level: lv });
     expect(RULES.buyPerk!(p.io, { perkId: "botAwake" })).toMatchObject({ ok: false, reason: "max level" });
-    const before = p.st.clout;
-    p.st.failWrites = true;
-    expect(RULES.buyPerk!(p.io, { perkId: "luck", level: 0 })).toMatchObject({ ok: false, retry: true });
-    expect(p.st.clout).toBe(before);
-    const reasons = p.st.ops.map((o) => o.reason);
-    expect(new Set(reasons).size).toBe(reasons.length); // the refund never reuses the charge's reason
+    for (const perkId of ["nope", "constructor", "__proto__"]) expect(RULES.buyPerk!(p.io, { perkId })).toMatchObject({ ok: false, reason: "unknown perk" });
   });
 
-  it("never puts a '.' in a Reason (a fractional clock made the platform refuse the consume)", () => {
+  it("asks for a retry when the save fails, and the retry does not charge again", () => {
+    p.st.clout = 100;
+    p.st.failWrites = true;
+    expect(RULES.buyPerk!(p.io, { perkId: "luck", level: 0 })).toMatchObject({ ok: false, retry: true });
+    p.st.failWrites = false;
+    expect(RULES.buyPerk!(p.io, { perkId: "luck", level: 0 })).toMatchObject({ ok: true, perks: { luck: 1 } });
+    expect(p.st.clout).toBe(100 - perkCost("luck", 0)!);
+  });
+
+  it("never puts a '.' in a Reason (the platform refuses it)", () => {
     p.st.clout = 100;
     p.st.t = 1_000_000.375;
     expect(RULES.buyPerk!(p.io, { perkId: "luck", level: 0 }).ok).toBe(true);
@@ -144,8 +241,7 @@ describe("buyPerk", () => {
 
 describe("saveMeta", () => {
   it("keeps the larger stats, caps them by time, and checks the charm picks", () => {
-    RULES.loadMeta!(p.io, {});
-    p.st.t += 1000;
+    p.st.t += 400; // first seen 1000 s ago (beforeEach)
     const r = RULES.saveMeta!(p.io, { stats: { playSeconds: 900, opened: 5000, best: { skinId: "bc_knife", value: 1234 } }, picked: ["insider"] });
     expect(r.stats).toMatchObject({ playSeconds: 900, opened: 5000, best: { skinId: "bc_knife", value: 1234 } });
     expect(RULES.saveMeta!(p.io, { stats: { playSeconds: 1e9, opened: 1 } }).stats.playSeconds).toBeLessThanOrEqual(1000 + 3600);
