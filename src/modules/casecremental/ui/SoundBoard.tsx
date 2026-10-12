@@ -38,9 +38,18 @@ export function SoundBoard({
     audio.setStage(stage); // back to the game's own loop
     onClose();
   };
+  /** The credits were the board's track: drop it (and its highlight) so a stage button or Off takes over. */
+  const leaveCredits = () => {
+    if (credits) (audio.setTrack(null), setCredits(false));
+  };
+  const playStage = (s: number) => {
+    leaveCredits();
+    audio.setMusicOn(true);
+    audio.setStage(s);
+  };
   /** One loop of a stage's playlist, held (the credits stop first). */
   const audition = (s: number, i: number) => {
-    if (credits) (audio.setTrack(null), setCredits(false));
+    leaveCredits();
     audio.setMusicOn(true);
     audio.auditionLoop(s, i);
   };
@@ -62,16 +71,23 @@ export function SoundBoard({
         <div className="cc-row-line">
           <span>Music</span>
           <span className="cc-tabs">
-            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(1))}>Sober</PxButton>
-            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(2))}>Buzzed</PxButton>
-            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(3))}>High</PxButton>
-            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(4))}>Tripping</PxButton>
-            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(5))}>Unhinged</PxButton>
+            <PxButton onClick={() => playStage(1)}>Sober</PxButton>
+            <PxButton onClick={() => playStage(2)}>Buzzed</PxButton>
+            <PxButton onClick={() => playStage(3)}>High</PxButton>
+            <PxButton onClick={() => playStage(4)}>Tripping</PxButton>
+            <PxButton onClick={() => playStage(5)}>Unhinged</PxButton>
             <PxButton onClick={() => audio.skipLoop()}>Next loop</PxButton>
             <PxButton on={credits} onClick={() => (audio.setMusicOn(true), audio.setTrack("credits", { loop: false }), setCredits(true))}>
               Credits
             </PxButton>
-            <PxButton onClick={() => audio.setMusicOn(false)}>Off</PxButton>
+            <PxButton
+              onClick={() => {
+                leaveCredits();
+                audio.setMusicOn(false);
+              }}
+            >
+              Off
+            </PxButton>
           </span>
         </div>
         <div className="cc-row-line">
