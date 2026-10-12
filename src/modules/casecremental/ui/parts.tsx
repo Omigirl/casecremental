@@ -4,7 +4,7 @@ import type { Rect } from "../fx/pixel/layout";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
 
 // Small building blocks shared by the panels: a pixel button that presses in and eases back,
-// a progress bar, a framed panel placed over a world-pixel rect, and the settings gear.
+// a progress bar, a framed panel placed over a world-pixel rect, and the settings gear and the tutorial's arrow.
 
 export interface UiEnv {
   scale: number;
@@ -23,6 +23,8 @@ export function PxButton(props: {
   children: ReactNode;
   style?: CSSProperties;
   title?: string;
+  /** A tutorial target id (ui/tutorialRules.ts TargetId): rendered as data-tut. */
+  tut?: string;
 }): ReactNode {
   const env = useContext(UiEnvContext);
   const ref = useRef<HTMLButtonElement>(null);
@@ -35,6 +37,7 @@ export function PxButton(props: {
       disabled={props.disabled}
       aria-pressed={props.on}
       title={props.title}
+      data-tut={props.tut}
       style={props.style}
       onClick={() => {
         if (ref.current) pressElement(ref.current);
@@ -84,6 +87,13 @@ export function PixelGear(): ReactNode {
 /** A pixel tick box (a shelf pick box). */
 export function PixelTick({ on }: { on: boolean }): ReactNode {
   return <PixelGlyph runs={on ? TICK_ON : TICK_OFF} size={7} />;
+}
+
+const ARROW_RUNS = glyphRuns(["..###..", "..###..", "..###..", "#######", ".#####.", "..###..", "...#..."]);
+
+/** The tutorial's arrow, pointing down (Tutorial.tsx turns it toward its target). */
+export function PixelArrow(): ReactNode {
+  return <PixelGlyph runs={ARROW_RUNS} size={7} />;
 }
 
 export function Bar({ progress }: { progress: number }): ReactNode {

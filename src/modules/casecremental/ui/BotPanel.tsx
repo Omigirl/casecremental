@@ -20,7 +20,7 @@ export function BotPanel({ view, act }: { view: GameView; act: Act }): ReactNode
       <div className="cc-row">
         <div>{t("bot.asleep")}</div>
         <div className="cc-dim">{t("bot.awake")}</div>
-        <PxButton disabled={!b.canWake} onClick={() => act({ type: "wakeBot" })}>
+        <PxButton tut="wake" disabled={!b.canWake} onClick={() => act({ type: "wakeBot" })}>
           {t("btn.wake")}
           <span className="cc-btn-sub">{formatCash(b.wakeCost, lang)}</span>
         </PxButton>

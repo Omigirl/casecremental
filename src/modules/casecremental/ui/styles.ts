@@ -1,11 +1,13 @@
 import { PIXEL_FONT } from "../fx/hd/font";
 import { NO_SELECT } from "../fx/noSelect";
+import { BUBBLE_CHARS } from "./tutorialPlace";
 
 // The overlay's stylesheet. Sizes come from two CSS variables set on the root: --px (the pixel
 // world's integer scale) and --fs (the text size, a multiple of 8). Buttons use the sliced
 // ui-button art when it exists (--btn-normal / --btn-hover / --btn-pressed), else a pixel bevel.
 // The scroll areas never flash a scrollbar (F1: a gutter always reserved, no sideways overflow, room for a pressed button),
 // and the game's text is not selectable.
+// The tutorial's bubble lets drags through (only its buttons take the pointer); its arrow bobs a world pixel, motion only.
 
 const noSelect = NO_SELECT.map(([k, v]) => `${k}: ${v};`).join(" ");
 
@@ -40,4 +42,10 @@ export const UI_CSS = `
   filter: drop-shadow(0 calc(var(--px) * 1px) 0 #120e10); }
 .cc-modal { position: absolute; inset: 0; pointer-events: auto; display: grid; place-items: center; background: rgba(7, 8, 12, 0.6); }
 .cc-slider { width: 100%; accent-color: #ffd34d; }
+.cc-tut { position: absolute; display: grid; width: max-content; max-width: min(calc(${BUBBLE_CHARS}em + var(--px) * 18px), calc(100% - var(--px) * 4px)); pointer-events: none; }
+.cc-tut .cc-btn { pointer-events: auto; }
+.cc-tut .cc-row-line { flex-wrap: wrap; justify-content: flex-end; }
+.cc-tut-arrow { position: absolute; pointer-events: none; color: #ffd34d; line-height: 0; animation: cc-tut-bob 1s step-end infinite; }
+@keyframes cc-tut-bob { 50% { translate: var(--bob-x) var(--bob-y); } }
+@media (prefers-reduced-motion: reduce) { .cc-tut-arrow { animation: none; } }
 `;

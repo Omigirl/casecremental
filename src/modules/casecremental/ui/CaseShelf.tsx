@@ -64,13 +64,13 @@ function CaseRow({ c, act, picks, open }: { c: CaseView; act: Act; picks: boolea
         <span style={{ flex: 1 }}>{caseName(c.id)}</span>
       </div>
       {c.unlocked ? (
-        <PxButton disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
+        <PxButton tut={`case:${c.id}`} disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
           {t("btn.buy")}
           {c.count > 1 ? ` ×${c.count}` : ""}
           <span className="cc-btn-sub">{formatCash(c.price * c.count, getLang())}</span>
         </PxButton>
       ) : (
-        <PxButton disabled={!c.canUnlock} onClick={() => act({ type: "unlockCase", caseId: c.id })}>
+        <PxButton tut={`case:${c.id}`} disabled={!c.canUnlock} onClick={() => act({ type: "unlockCase", caseId: c.id })}>
           {t("btn.unlock")}
           <span className="cc-btn-sub">{formatCash(c.unlockCost, getLang())}</span>
         </PxButton>
@@ -108,7 +108,7 @@ function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
         <div style={{ ...icon, flex: "none", filter: "sepia(1) saturate(4) brightness(1.15)" }} />
         <span style={{ flex: 1, color: "#ffd34d" }}>{caseName(v.id)}</span>
       </div>
-      <PxButton disabled={!v.canBuy} onClick={() => act({ type: "buyVault" })}>
+      <PxButton tut="vault" disabled={!v.canBuy} onClick={() => act({ type: "buyVault" })}>
         {t("btn.buy")}
         <span className="cc-btn-sub">{formatCash(v.price, getLang())}</span>
       </PxButton>

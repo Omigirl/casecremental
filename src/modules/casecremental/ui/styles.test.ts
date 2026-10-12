@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UI_CSS } from "./styles";
+import { BUBBLE_CHARS } from "./tutorialPlace";
 
 // The overlay's stylesheet holds two F1 fixes: the panels never flash a scrollbar, and the game's text is not selectable.
 
@@ -25,5 +26,18 @@ describe("the overlay's stylesheet", () => {
     expect(inputs).toContain("user-select: text");
     expect(inputs).toContain("-webkit-user-select: text");
     expect(inputs).toContain("-webkit-touch-callout: default");
+  });
+  it("gives the tutorial a bubble that lets drags through and an arrow that only moves (F3, photosensitivity)", () => {
+    const bubble = rule(".cc-tut");
+    expect(bubble).toContain("pointer-events: none");
+    expect(bubble).toContain(`${BUBBLE_CHARS}em`);
+    expect(rule(".cc-tut .cc-btn")).toContain("pointer-events: auto");
+    const arrow = rule(".cc-tut-arrow");
+    expect(arrow).not.toContain("opacity");
+    expect(arrow).toContain("animation: cc-tut-bob");
+    const bob = UI_CSS.slice(UI_CSS.indexOf("@keyframes cc-tut-bob"), UI_CSS.indexOf("@media (prefers-reduced-motion"));
+    expect(bob).toContain("translate:");
+    expect(bob).not.toMatch(/opacity|filter|background|color/);
+    expect(UI_CSS).toContain("@media (prefers-reduced-motion: reduce) { .cc-tut-arrow { animation: none; } }");
   });
 });

@@ -3,10 +3,11 @@ import { popElement } from "../fx/hd/tween";
 import { t } from "../i18n/index";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
 import { PxButton, UiEnvContext } from "./parts";
-import { setPrefs } from "./prefs";
+import { getPrefs, setPrefs } from "./prefs";
+import { replay } from "./tutorialRules";
 import { useLang, usePrefs } from "./hooks";
 
-// Settings: language (EN / RU, remembered) and the music and sound volumes.
+// Settings: language (EN / RU, remembered), the music and sound volumes, and Replay tutorial.
 
 export function Settings({
   onClose,
@@ -72,6 +73,14 @@ export function Settings({
         </div>
         {slider(t("settings.music"), prefs.music, (music) => setPrefs({ music }))}
         {slider(t("settings.sfx"), prefs.sfx, (sfx) => setPrefs({ sfx }))}
+        <PxButton
+          onClick={() => {
+            setPrefs({ tutorial: replay(getPrefs().tutorial) });
+            onClose();
+          }}
+        >
+          {t("tut.replay")}
+        </PxButton>
         {onSoundBoard ? <PxButton onClick={onSoundBoard}>SOUND BOARD (DEV)</PxButton> : null}
         {onReset ? <PxButton onClick={onReset}>RESET PROGRESS (DEV)</PxButton> : null}
         {onDevRun ? (

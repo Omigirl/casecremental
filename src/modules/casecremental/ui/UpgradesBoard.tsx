@@ -22,7 +22,7 @@ function UpgradeRow({ u, act }: { u: UpgradeView; act: Act }): ReactNode {
       {u.cost === null ? (
         <PxButton disabled>{t(capKey(u.nextRun))}</PxButton>
       ) : (
-        <PxButton disabled={!u.canBuy} onClick={() => act({ type: "buyUpgrade", id: u.id })}>
+        <PxButton tut={`upgrade:${u.id}`} disabled={!u.canBuy} onClick={() => act({ type: "buyUpgrade", id: u.id })}>
           {formatCash(u.cost, getLang())}
         </PxButton>
       )}
@@ -42,7 +42,7 @@ export function UpgradesBoard({ view, act, title = true }: { view: GameView; act
       {title ? <div className="cc-title">{t("panel.upgrades")}</div> : null}
       <div className="cc-tabs">
         {tabs.map(([id, label]) => (
-          <PxButton key={id} on={tab === id} onClick={() => setTab(id)}>
+          <PxButton key={id} tut={`tab:${id}`} on={tab === id} onClick={() => setTab(id)}>
             {label}
           </PxButton>
         ))}

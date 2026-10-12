@@ -21,7 +21,7 @@ function SellerRows({ view, act }: { view: GameView; act: Act }): ReactNode {
       <div className="cc-row">
         <div>{t("seller.name")}</div>
         <div className="cc-dim">{t("seller.desc")}</div>
-        <PxButton disabled={!s.canBuy} onClick={() => act({ type: "buySeller" })}>
+        <PxButton tut="seller" disabled={!s.canBuy} onClick={() => act({ type: "buySeller" })}>
           {t("btn.buy")}
           <span className="cc-btn-sub">{formatCash(s.cost, lang)}</span>
         </PxButton>

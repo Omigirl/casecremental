@@ -27,7 +27,7 @@ export function AutoSpinRows({ view, act }: { view: GameView; act: Act }): React
       <div className="cc-row">
         <div>{t("autospin.name")}</div>
         <div className="cc-dim">{a.needsSeller ? t("autospin.needs") : t("autospin.desc")}</div>
-        <PxButton disabled={!a.canBuy} onClick={() => act({ type: "buyAutoSpin" })}>
+        <PxButton tut="autospin" disabled={!a.canBuy} onClick={() => act({ type: "buyAutoSpin" })}>
           {t("btn.buy")}
           <span className="cc-btn-sub">{formatCash(a.cost, lang)}</span>
         </PxButton>
