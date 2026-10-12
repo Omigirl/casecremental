@@ -78,11 +78,27 @@ describe("the locker's cabinet", () => {
     for (let i = 1; i < 5; i++) expect(rows[i]!.lamp.y).toBeGreaterThan(rows[i - 1]!.lamp.y);
   });
 
+  it("keeps every lamp on the cabinet's body: below the press head (where a waiting result sits), above the floor", () => {
+    // The built art (locker.png, 32×44, ground 42, placed bottom-centre on the 24×30 rect) puts the press head at
+    // frame rows 13–23 and the body at rows 24–43: the body starts 12 px below the rect's top, its sides at x + 2..21.
+    const r = { x: 100, y: 50, w: ITEM_SIZE.locker.w, h: ITEM_SIZE.locker.h };
+    const rows = lampRows(r);
+    const pitch = rows[1]!.lamp.y - rows[0]!.lamp.y;
+    for (const row of rows) {
+      expect(row.lamp.y).toBeGreaterThanOrEqual(r.y + 12);
+      expect(row.lamp.y + pitch / 2).toBeLessThanOrEqual(r.y + r.h);
+      expect(row.lamp.x).toBeGreaterThanOrEqual(r.x + 3);
+    }
+    // a result waiting on the cabinet has its bottom 6 px into the rect (lockerCardSpots): the lamps stay clear of it
+    expect(rows[0]!.lamp.y - pitch / 2).toBeGreaterThanOrEqual(r.y + 6);
+  });
+
   it.each([2, 3, 4, 5, 6, 8, 10])("sizes the counts to one lamp row and the cabinet's width at scale %i", (k) => {
     const fs = lampFontSize(k);
     expect(fs % 8).toBe(0);
-    const rowH = Math.floor((ITEM_SIZE.locker.h - 2) / 5);
-    expect(fs / k).toBeLessThanOrEqual(rowH - 1); // a line's height, world px
+    const r0 = { x: 0, y: 0, w: ITEM_SIZE.locker.w, h: ITEM_SIZE.locker.h };
+    const rowH = lampRows(r0)[1]!.lamp.y - lampRows(r0)[0]!.lamp.y;
+    expect(fs / k).toBeLessThanOrEqual(rowH); // a line's height, world px
     const r = { x: 0, y: 0, w: ITEM_SIZE.locker.w, h: ITEM_SIZE.locker.h };
     expect(lampRows(r)[0]!.text.x + 2 * (fs / k)).toBeLessThanOrEqual(r.w); // "50" fits after the lamp
   });

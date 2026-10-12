@@ -34,11 +34,17 @@ export function chipProgress(i: number, count: number, elapsed: number): number 
  *  reload or a new World: nothing fires. */
 export const stampCrossed = (from: number | null, to: number): boolean => from !== null && from < PRESS.stampAt && to >= PRESS.stampAt;
 
-/** The five lamp rows on the cabinet's face (world px), Mil-Spec at the top to ★ at the bottom: a lamp, then its count. */
+/** Where the lamp column starts, world px below the cabinet rect's top. The built art (locker.png, ground 42, placed
+ *  bottom-centre) has the press head in the rect's top 12 px and the body below it; the column starts 2 px up so its
+ *  first row is centred on the body's top edge. Re-measure if the art is rebuilt. */
+const LAMPS_TOP = 10;
+
+/** The five lamp rows on the cabinet's body (world px), Mil-Spec at the top to ★ at the bottom: a lamp, then its count.
+ *  Below the press head, so a contract result waiting on the cabinet never covers a count. */
 export function lampRows(r: Rect): Array<{ lamp: Pt; text: Pt }> {
-  const rowH = Math.floor((r.h - 2) / 5);
+  const rowH = Math.floor((r.h - LAMPS_TOP) / 5);
   return Array.from({ length: 5 }, (_, i) => {
-    const y = r.y + 1 + i * rowH + rowH / 2;
+    const y = r.y + LAMPS_TOP + i * rowH + rowH / 2;
     return { lamp: { x: r.x + 4, y }, text: { x: r.x + 7, y } };
   });
 }
