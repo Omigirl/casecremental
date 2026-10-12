@@ -11,8 +11,8 @@ import { Bar, PixelGear, PxButton, UiEnvContext } from "./parts";
 // Top of the screen: the stage, the cash (large, gold), the combo, the next goal (always visible —
 // spec §9.2) and the settings button. Height = the layout's HUD band.
 
-function goalName(goal: NonNullable<GameView["nextGoal"]>): string {
-  if (goal.kind === "vault") return caseName("vault1");
+function goalName(goal: NonNullable<GameView["nextGoal"]>, vaultId: GameView["vault"]["id"]): string {
+  if (goal.kind === "vault") return caseName(vaultId);
   return goal.kind === "unlock" ? caseName(goal.caseId) : `${upgradeName(goal.upgradeId)} ${t("label.level", { n: goal.level })}`;
 }
 
@@ -48,7 +48,7 @@ export function Hud({ view, hudH, onSettings }: { view: GameView; hudH: number; 
         </div>
         {view.nextGoal ? (
           <div style={{ display: "flex", alignItems: "center", gap: 2 * scale, width: "max-content" }}>
-            <div className="cc-dim">{t("hud.next", { name: goalName(view.nextGoal) })}</div>
+            <div className="cc-dim">{t("hud.next", { name: goalName(view.nextGoal, view.vault.id) })}</div>
             <div style={{ width: 24 * scale }}>
               <Bar progress={view.nextGoal.progress} />
             </div>

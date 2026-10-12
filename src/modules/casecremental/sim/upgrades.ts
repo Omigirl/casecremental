@@ -8,7 +8,7 @@ export const UPGRADE_INFO: Readonly<Record<UpgradeId, { name: string; descriptio
   luck: { name: "Luck", description: "Better rarities drop more often" },
   appraiser: { name: "Appraiser", description: "+25% sell value per level" },
   quickHands: { name: "Quick Hands", description: "The reel spins faster" },
-  multiOpen: { name: "Multi-open", description: "One BUY opens 2 cases" },
+  multiOpen: { name: "Multi-open", description: "One BUY opens many cases" },
 };
 
 /** The highest level this run lets you buy: multi-open follows the run's widest open, the rest never change. */

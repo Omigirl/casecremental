@@ -33,6 +33,10 @@ export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: 
   bootcamp: { price: 2, unlockCost: 0 },
   wildwood: { price: 15, unlockCost: 30 },
   bedrock: { price: 150, unlockCost: 1200 },
+  mainframe: { price: 1_500, unlockCost: 12_000 },
+  neon: { price: 15_000, unlockCost: 150_000 },
+  deepspace: { price: 150_000, unlockCost: 1_500_000 },
+  inferno: { price: 1_500_000, unlockCost: 15_000_000 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {
@@ -177,7 +181,6 @@ export const VAULT_LAND_TIMES = [8.4, 8.9, 9.4, 9.9, 10.9] as const;
 export const VAULT_OPENING_SECONDS = 17.4;
 export const VAULT_REEL_SHARES = [0.03, 0.06, 0.08, 0.13, 0.3] as const;
 export const VAULT_REEL_RARITIES = ["classified", "covert", "covert", "gold", "gold"] as const;
-export const VAULT_TROPHY = "vault1";
 
 /** CLOUT = floor(√(lifetime earnings) / this). */
 export const CLOUT_DIVISOR = 105;

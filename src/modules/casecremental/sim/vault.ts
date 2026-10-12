@@ -1,12 +1,13 @@
 import { runCaseIds } from "./campaign";
-import { CASES, VAULT_LEGEND, priceOf } from "./content/cases";
+import { caseById, priceOf } from "./content/cases";
+import { vaultFor } from "./content/vaults";
 import { cashInGrid } from "./grid";
 import { STAGE_NAMES } from "./intensity";
 import { rollDrop } from "./roll";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
-import { VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES, VAULT_TROPHY } from "./tuning";
+import { VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES } from "./tuning";
 
-// Vault Case I (rework spec §4): bought once every case is unlocked, opened with the devil key; its five reels
+// The run's vault (rework spec §4): bought once every case is unlocked, opened with the devil key; its five reels
 // land on a timeline, then the run ends (the tray and the locker are sold with it).
 
 export const vaultShown = (ctx: RunCtx): boolean => runCaseIds(ctx.setup.run).every((id) => ctx.state.unlocked.includes(id));
@@ -54,11 +55,12 @@ export function turnVaultKey(ctx: RunCtx): ActionResult {
   const s = ctx.state;
   if (!s.vault) return fail("no vault to open");
   if (s.vault.phase !== "key") return fail("the key has turned");
-  const top = CASES[CASES.length - 1]!;
+  const def = vaultFor(ctx.setup.run);
+  const top = caseById(def.sourceCase);
   const drops = VAULT_REEL_RARITIES.map((rarity, i) => {
     const d = rollDrop(top, priceOf(top.id), 0, ctx.rng, s.nextDropId++, rarity);
     const value = ctx.setup.vaultPrice * VAULT_REEL_SHARES[i]!;
-    return i === VAULT_REEL_RARITIES.length - 1 ? { ...d, skinId: VAULT_LEGEND.id, caseId: "vault1", value } : { ...d, value };
+    return i === VAULT_REEL_RARITIES.length - 1 ? { ...d, skinId: def.legend.id, caseId: def.id, value } : { ...d, value };
   });
   s.vault = { phase: "opening", t: 0, drops, landed: 0 };
   ctx.emit({ type: "vaultKeyTurned", drops });
@@ -85,7 +87,7 @@ export function tickVault(ctx: RunCtx, dt: number): void {
   s.over = true;
   ctx.emit({
     type: "vaultOpened",
-    trophy: VAULT_TROPHY,
+    trophy: vaultFor(ctx.setup.run).trophy,
     drop: v.drops[v.drops.length - 1]!,
     lifetimeEarnings: s.lifetimeEarnings,
   });

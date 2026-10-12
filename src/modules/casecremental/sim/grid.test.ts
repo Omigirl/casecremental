@@ -172,7 +172,7 @@ describe("the auto-buyer grid", () => {
 
   it("the vault cashes a stalled drop in as a sale", () => {
     const r = run3();
-    for (const id of ["wildwood", "bedrock"]) r.unlockCase(id);
+    for (const id of ["wildwood", "bedrock", "mainframe", "neon", "deepspace", "inferno"]) r.unlockCase(id);
     r.setSellerThreshold("milspec");
     r.buyGrid();
     r.toggleGridTick("bootcamp");

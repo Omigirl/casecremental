@@ -15,6 +15,7 @@ const BY_PREFIX: Array<[string, number]> = [
   ["float.", 12],
   ["prestige.", 24],
   // content names (content.ts)
+  ["case.vault", 14],
   ["case.", 12],
   ["weapon.", 18],
   ["skin.", 22],

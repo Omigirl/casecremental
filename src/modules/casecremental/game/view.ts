@@ -1,6 +1,7 @@
 import { capRaisedLater, runNumber } from "../sim/campaign";
 import type { CharmId } from "../sim/charms";
 import { caseById, unlockCostOf } from "../sim/content/cases";
+import { vaultFor, type VaultDef } from "../sim/content/vaults";
 import { STAGE_NAMES } from "../sim/intensity";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, Run } from "../sim/run";
@@ -96,6 +97,7 @@ export interface GameView {
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
   vault: {
+    id: VaultDef["id"];
     shown: boolean;
     price: number;
     canBuy: boolean;
@@ -156,6 +158,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
   const vaultShown = run.vaultShown();
   const vaultAffordable = vaultShown && s.cash >= run.setup.vaultPrice && !run.locked();
   const vault: GameView["vault"] = {
+    id: vaultFor(r).id,
     shown: vaultShown,
     price: run.setup.vaultPrice,
     canBuy: vaultAffordable && benchFree,

@@ -150,7 +150,7 @@ describe("buildView — M2b", () => {
     expect(v.grid.cells).toHaveLength(10);
     expect(v.grid.cells[0]).toEqual({ caseId: "bootcamp", open: false, rarity: null });
     expect(v.grid.stalled).toBe(false);
-    expect(v.cases.map((c) => c.ticked)).toEqual([true, false, false]);
+    expect(v.cases.map((c) => c.ticked)).toEqual([true, false, false, false, false, false, false]);
   });
 
   it("shows the tray and the day job", () => {
@@ -182,7 +182,15 @@ describe("buildView — M2b", () => {
     run.state.unlocked = CASES.map((c) => c.id);
     run.state.cash = DEFAULT_SETUP.vaultPrice / 2;
     let v = buildView(run);
-    expect(v.vault).toEqual({ shown: true, price: DEFAULT_SETUP.vaultPrice, canBuy: false, blockedBy: null, phase: null, progress: 0 });
+    expect(v.vault).toEqual({
+      id: "vault1",
+      shown: true,
+      price: DEFAULT_SETUP.vaultPrice,
+      canBuy: false,
+      blockedBy: null,
+      phase: null,
+      progress: 0,
+    });
     expect(v.nextGoal).toEqual({ kind: "vault", progress: 0.5 });
     run.state.cash = DEFAULT_SETUP.vaultPrice;
     run.buyVault();

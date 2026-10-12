@@ -4,14 +4,7 @@ import { runCaseIds } from "./campaign";
 import { CASES, VAULT_LEGEND } from "./content/cases";
 import { STAGE_NAMES } from "./intensity";
 import { DEFAULT_SETUP, Run } from "./run";
-import {
-  VAULT_INTRO_SECONDS,
-  VAULT_LAND_TIMES,
-  VAULT_OPENING_SECONDS,
-  VAULT_REEL_RARITIES,
-  VAULT_REEL_SHARES,
-  VAULT_TROPHY,
-} from "./tuning";
+import { VAULT_INTRO_SECONDS, VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES } from "./tuning";
 
 const DT = 1 / 30;
 const tickFor = (run: Run, s: number) => {
@@ -112,7 +105,7 @@ describe("Vault Case I", () => {
     expect(b.state.tray).toHaveLength(0);
     const opened = b.drainEvents().filter((e) => e.type === "vaultOpened");
     expect(opened).toHaveLength(1);
-    expect(opened[0]).toMatchObject({ trophy: VAULT_TROPHY, drop: { skinId: VAULT_LEGEND.id } });
+    expect(opened[0]).toMatchObject({ trophy: "vault1", drop: { skinId: VAULT_LEGEND.id } });
   });
 
   it("cashes in the bot's card and its spin when the vault is bought, then freezes the bot", () => {

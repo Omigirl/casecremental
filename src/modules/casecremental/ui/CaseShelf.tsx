@@ -74,7 +74,7 @@ function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
     <div className="cc-row" style={{ boxShadow: `0 0 0 ${scale}px #ffd34d inset` }}>
       <div className="cc-row-line">
         <div style={{ ...icon, flex: "none", filter: "sepia(1) saturate(4) brightness(1.15)" }} />
-        <span style={{ flex: 1, color: "#ffd34d" }}>{caseName("vault1")}</span>
+        <span style={{ flex: 1, color: "#ffd34d" }}>{caseName(v.id)}</span>
       </div>
       <PxButton disabled={!v.canBuy} onClick={() => act({ type: "buyVault" })}>
         {t("btn.buy")}

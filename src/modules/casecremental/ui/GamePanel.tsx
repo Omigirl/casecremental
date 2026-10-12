@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import type { AudioEngine } from "../fx/audio/AudioEngine";
 import { cameraCss, type Camera } from "../fx/camera";
-import { CASES } from "../sim/content/cases";
 import type { GameController } from "../game/controller";
 import { CaseShelf } from "./CaseShelf";
 import { Drawer } from "./Drawer";
@@ -135,7 +134,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 onCheat={(c) => {
                   // dev only: straight into the run's state, like the forced drops
                   if (c === "cash") controller.run.state.cash += 100_000;
-                  else controller.run.state.unlocked = CASES.map((x) => x.id);
+                  else controller.run.state.unlocked = controller.run.runCases();
                 }}
                 onClose={() => setSoundBoard(false)}
               />
