@@ -3,7 +3,7 @@ import { popElement } from "../fx/hd/tween";
 import type { Action } from "../game/controller";
 import type { PrestigeView } from "../game/view";
 import { charmDesc, charmName, perkDesc, perkName } from "../i18n/content";
-import { t } from "../i18n/index";
+import { getLang, t } from "../i18n/index";
 import type { VaultDef } from "../sim/content/vaults";
 import { PixelGear, PxButton, UiEnvContext } from "./parts";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
@@ -77,7 +77,9 @@ export function Prestige({
         <div className="cc-title">{t("prestige.charms", { n: p.slots })}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(10em, 1fr))", gap: 2 * scale }}>
           {charmChoices(p).map((c) => (
-            <div key={c.id} className="cc-row">
+            // a long word (Барахольщик, Classified+:) hyphenates (or, without a dictionary, breaks) inside its own card,
+            // never running into the next one
+            <div key={c.id} lang={getLang()} className="cc-row" style={{ minWidth: 0, hyphens: "auto", overflowWrap: "break-word" }}>
               <div>{charmName(c.id)}</div>
               <div className="cc-dim">{charmDesc(c.id)}</div>
               <PxButton on={c.picked} disabled={!c.enabled} onClick={() => act({ type: "pickCharm", id: c.id })}>
