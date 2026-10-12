@@ -173,16 +173,6 @@ export class HdLayer {
     return this.flashGate.take(this.t);
   }
 
-  /** The screen in CSS px, as last laid out. */
-  get screen(): { w: number; h: number } {
-    return this.screenSize;
-  }
-
-  /** The pixel scale, as last laid out. */
-  get scale(): number {
-    return this.vp?.scale ?? 1;
-  }
-
   /** A card is up and waiting to be sold: the bin's light calls for it. */
   setBinCalling(on: boolean): void {
     this.binCalling = on;
@@ -201,6 +191,16 @@ export class HdLayer {
   toScreen(p: Pt): Pt {
     const k = this.vp?.scale ?? 1;
     return { x: p.x * k, y: p.y * k };
+  }
+
+  /** The screen in CSS px, as last laid out. */
+  get screen(): { w: number; h: number } {
+    return this.screenSize;
+  }
+
+  /** The pixel scale, as last laid out. */
+  get scale(): number {
+    return this.vp?.scale ?? 1;
   }
 
   update(dt: number): void {

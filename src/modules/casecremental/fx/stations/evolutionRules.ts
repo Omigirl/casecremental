@@ -44,7 +44,7 @@ export function rideAt(belt: Rect, to: Pt, t: number): Pt | null {
 
 /** Cartel's shades: a 3-px bar over the bot's eyes (an open eye is 3 px tall) (its art's per-frame eye points, so they follow every pose),
  *  SHADES_MARGIN px past each eye; null when no eyes show (asleep). In the eyes' coordinates. */
-const SHADES_MARGIN = 3;
+const SHADES_MARGIN = 4;
 export function shadesRect(eyes: readonly Pt[]): Rect | null {
   if (!eyes.length) return null;
   const xs = eyes.map((e) => e.x);

@@ -30,7 +30,7 @@ export class BillStream {
   private bills: Bill[] = [];
 
   constructor(bake: (c: Container) => Texture) {
-    const g = new Graphics().rect(0, 0, 4, 2).fill(BILL).rect(1, 0, 2, 1).fill(BILL_BAND);
+    const g = new Graphics().rect(0, 0, 6, 3).fill(BILL).rect(0, 1, 6, 1).fill(BILL_BAND).rect(2, 0, 2, 3).fill(BILL_BAND);
     this.texture = bake(g);
     g.destroy();
     this.pool = new SpritePool(this.texture);
@@ -105,6 +105,6 @@ export class FlameTrail {
     if (r.n <= 0) return;
     this.emitted.push({ t: this.t, n: r.n });
     for (let i = 0; i < r.n; i++)
-      this.particles.burst(at, FLAMES[Math.floor(this.t * 30 + i) % FLAMES.length]!, 1, (40 * k) / 6, (-400 * k) / 6);
+      this.particles.burst(at, FLAMES[Math.floor(this.t * 30 + i) % FLAMES.length]!, 1, (30 * k) / 6, (-180 * k) / 6); // a slow rise: the flame stays on the hand
   }
 }

@@ -62,7 +62,9 @@ export class EvolutionLooks {
     this.blingKey = key;
     const g = this.bling.clear();
     g.rect(sh.x, sh.y, sh.w, sh.h).fill(SHADES);
-    g.rect(sh.x + 1, sh.y, 1, 1).fill(GLINT);
+    g.rect(sh.x + 1, sh.y, 2, 1).fill(GLINT); // a glint on each lens
+    g.rect(sh.x + Math.ceil(sh.w / 2) + 1, sh.y, 1, 1).fill(GLINT);
+    g.rect(sh.x, sh.y + sh.h, sh.w, 1).fill(GOLD_DARK); // the frame's gold rim, so the shades read on the dark visor
     const half = (ch.w - 1) / 2;
     for (let i = 0; i < ch.w; i++) {
       const f = (i - half) / half;
