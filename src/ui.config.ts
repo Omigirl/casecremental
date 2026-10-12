@@ -6,12 +6,25 @@ import { defineUiConfig } from "@idosgames/react/ui";
 //
 // Everything is optional; what you leave out keeps its default. Uncomment and edit.
 export default defineUiConfig({
+  // Casecremental's workshop palette (the game's src/modules/casecremental/ui/styles.ts): the host's
+  // loading screen, the play-access screen and the lobby share it with the game. The sign-in screen
+  // draws its own pixel look (src/base/login/loginCss.ts) in the same colours.
   theme: {
-    // bgTop: "#232a6b",          // screen background, top of the gradient
-    // bgBottom: "#0d1033",       // … and bottom
-    // panel: "#2c3480",          // cards and popups
-    // panelEdge: "#4f5bc9",      // their frame
-    // gold: "#ffd24a",           // prices, highlights, the "claim" button
+    bgTop: "#2a1d19", // screen background, top of the gradient
+    bgBottom: "#120e10", // … and bottom
+    panel: "#2b1f1c", // cards and popups
+    panelDeep: "#1d1517",
+    panelEdge: "#4a3328", // their frame
+    text: "#f2e9dc",
+    textDim: "#a89a8c",
+    gold: "#ffd34d", // prices, highlights, the "claim" button
+    goldDeep: "#c98a12",
+    shadow: "rgba(10, 6, 8, 0.6)",
+    backdrop: "rgba(10, 6, 8, 0.75)",
+    well: "rgba(18, 14, 16, 0.6)",
+    glow: "rgba(255, 186, 102, 0.22)",
+    panelShadow:
+      "0 6px 0 rgba(10, 6, 8, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.08)",
     // green: "#59d35b",          // main action buttons
     // radius: 18,                // corner radius of cards, px
     // buttonRadius: 14,          // corner radius of buttons, px

@@ -11,23 +11,37 @@ import {
   type AuthOptionsResponse,
 } from "@idosgames/core";
 import type { LoginScreenProps } from "@idosgames/app-shell";
+import "@fontsource/press-start-2p/latin-400.css";
+import "@fontsource/press-start-2p/cyrillic-400.css";
 import { ENV_GOOGLE_CLIENT_ID } from "../../env";
+import { loginIcons } from "./loginIcons";
+import { LoginBackdrop } from "./LoginBackdrop";
+import { LOGIN_CSS } from "./loginCss";
 import {
-  buttonStyle,
-  outlined,
-  panel,
-  screenBackground,
-  useUiKit,
-  v,
-} from "@idosgames/react/ui";
-import { logoDataUrl } from "./logo";
-import { loginIcons, withIcon } from "./loginIcons";
+  authErrorText,
+  detectLoginLang,
+  loginT,
+  saveLoginLang,
+  type LoginLang,
+} from "./i18n";
+import {
+  glyphDataUrl,
+  ICONS,
+  PixelGlyph,
+  Sprite,
+  type Crop,
+  type Strip,
+} from "./pixelArt";
+import vaultUrl from "./assets/vault-case.png";
+import keyUrl from "./assets/key.png";
 
 // The Login scene. The host runtime owns WHEN this is shown (the auth gate in
 // @idosgames/app-shell); this file owns what it LOOKS like and which providers it offers.
-// Edit freely — branding, layout, copy, buttons. Colours, fonts and corner radii are NOT set here: they
-// come from the theme in src/ui.config.ts (the same tokens the lobby and every system use), so a new
-// look is one edit there and sign-in follows it.
+//
+// Casecremental's own look (not the UI kit's theme): the game's workshop wall with a case reel and
+// the workbench behind (./LoginBackdrop), the vault chest and the key over a pixel logo, and the
+// providers on a pixel-framed panel with the game's bevelled buttons (./loginCss). English and
+// Russian (./i18n): the player's pick in the game, else the browser language; EN/RU under the panel.
 //
 // Providers on `client.auth`: loginWithDeviceID (guest), loginWithEmail + registerWithEmail,
 // loginWithGoogle, loginWithApple, loginWithTelegram, loginWithWallet, loginWithSsoCode, plus
@@ -90,56 +104,25 @@ export interface LoginScreenExtras {
     onAuthenticated: () => void;
     disabled: boolean;
     style?: CSSProperties;
+    /** The button's text, in the screen's language. */
+    label?: string;
   }) => ReactNode;
 }
 
 /** Пауза повторной отправки, когда сервер её не назвал. Совпадает со значением платформы. */
 const DEFAULT_RESEND_COOLDOWN = 60;
 
-/**
- * Служебный код отказа → фраза, которую можно показать игроку.
- *
- * ⚠ Без этого экран входа показывал коды КАК ЕСТЬ: игрок видел «EMAIL_SENDER_NOT_CONFIGURED» или
- * «VERIFICATION_CODE_ATTEMPTS_EXCEEDED» вместо объяснения. Это шаблон, с которого начинается
- * каждая игра издателя, поэтому такое уезжает сразу всем.
- *
- * Незнакомый код возвращается как есть — намеренно: издателю на стенде он полезнее, чем общая
- * фраза «что-то пошло не так», а список ниже растёт по мере появления новых.
- */
-function humanizeAuthError(code: string | undefined): string {
-  switch (code) {
-    case "EMAIL_SENDER_NOT_CONFIGURED":
-      return "Sign-in by e-mail is unavailable in this game right now. Try another way to sign in.";
-    case "INVALID_VERIFICATION_CODE":
-      return "That code is not right. Check the e-mail and try again.";
-    case "VERIFICATION_CODE_ATTEMPTS_EXCEEDED":
-      return "Too many wrong attempts. Ask for a new code.";
-    case "INCORRECT_EMAIL_OR_PASSWORD":
-      return "Wrong e-mail or password.";
-    case "INCORRECT_EMAIL":
-      return "That does not look like an e-mail address.";
-    case "PASSWORD_LENGTH_INVALID":
-      return "The password must be 8 to 100 characters long.";
-    case "TOO_MANY_FAILED_ATTEMPTS":
-      return "Too many attempts. Please try again a little later.";
-    case "RATE_LIMIT_EXCEEDED":
-      return "Too many requests. Please try again in a moment.";
-    case "PLAY_ACCESS_WALLET_LOGIN_ONLY":
-      return "This game can only be entered with a crypto wallet or your iDos Games account.";
-    case "PLAY_ACCESS_WALLET_USED_BY_ANOTHER_ACCOUNT":
-      return "This wallet already plays with another account.";
-    case "WALLET_UNLINK_COOLDOWN":
-      return "This wallet was unlinked from another account less than 7 days ago. Try again after the 7 days.";
-    case "APPLE_EMAIL_MISSING":
-      return "Apple did not share an e-mail address. Try again and allow it, or use another way to sign in.";
-    case "PLAY_ACCESS_GUEST_DISABLED":
-      return "Guest play is off in this game. Sign in to link a crypto wallet.";
-    case "PLAY_ACCESS_CHECK_FAILED":
-      return "Could not check your token balance right now. Please try again in a moment.";
-    default:
-      return code ?? "Something went wrong. Please try again.";
-  }
-}
+// Служебный код отказа → фраза для игрока: ./i18n authErrorText (на двух языках). Без этого экран
+// показывал бы коды КАК ЕСТЬ («EMAIL_SENDER_NOT_CONFIGURED»); незнакомый код возвращается как есть.
+
+const INK = "#120e10";
+const CREAM = "#fff6d5";
+const DIM = "#a89a8c";
+const VAULT: Strip = { url: vaultUrl, frameW: 68, frameH: 78, frames: 4 };
+const KEY: Strip = { url: keyUrl, frameW: 16, frameH: 24, frames: 4 };
+/** The closed chest and the key without the headroom of their animations (frame 0's art bounds). */
+const VAULT_ART: Crop = { x: 13, y: 48, w: 44, h: 30 };
+const KEY_ART: Crop = { x: 0, y: 12, w: 12, h: 12 };
 
 type Mode = "menu" | "email" | "verify" | "forgot" | "reset";
 
@@ -233,18 +216,25 @@ export function LoginScreen({
   const [resendCooldown, setResendCooldown] = useState(DEFAULT_RESEND_COOLDOWN);
 
   const [remember, setRemember] = useState(true);
-  // Images cannot read CSS variables — the logo and the icons are painted with the resolved theme.
-  const theme = useUiKit().config.theme;
-  const logo = useMemo(() => logoDataUrl(theme.text), [theme.text]);
-  const icons = useMemo(
-    () =>
-      loginIcons({
-        ink: theme.text,
-        dim: theme.textDim,
-        onPrimary: theme.onGreen,
-      }),
-    [theme.text, theme.textDim, theme.onGreen],
-  );
+
+  const [lang, setLang] = useState<LoginLang>(() => detectLoginLang());
+  const t = useMemo(() => loginT(lang), [lang]);
+  const pickLang = (next: LoginLang): void => {
+    setLang(next);
+    saveLoginLang(next);
+  };
+
+  // The providers' own marks (Google, Telegram, Apple, iDos) and the game's pixel glyphs for the rest,
+  // painted in the button's text colour (an image cannot read CSS).
+  const icons = useMemo(() => {
+    const brand = loginIcons({ ink: CREAM, dim: DIM, onPrimary: INK });
+    return {
+      ...brand,
+      wallet: glyphDataUrl(ICONS.wallet, INK),
+      email: glyphDataUrl(ICONS.email, CREAM),
+      guest: glyphDataUrl(ICONS.guest, CREAM),
+    };
+  }, []);
 
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -311,9 +301,7 @@ export function LoginScreen({
       onAuthenticated();
       return;
     }
-    setError(
-      humanizeAuthError(result.error) ?? "Sign-in failed. Please try again.",
-    );
+    setError(result.error ? authErrorText(t, result.error) : t("failed"));
     setBusy(false);
   };
 
@@ -333,7 +321,7 @@ export function LoginScreen({
 
     if (!result.ok) {
       setError(
-        humanizeAuthError(result.error) ?? "Sign-up failed. Please try again.",
+        result.error ? authErrorText(t, result.error) : t("signUpFailed"),
       );
       setBusy(false);
       return;
@@ -368,7 +356,7 @@ export function LoginScreen({
     // платформы нет отправителя). Он про конфигурацию сервера, а не про адрес, поэтому и
     // безопасен, и обязателен — иначе игрок жмёт кнопку до посинения, ожидая письма, которого
     // никто не отправлял.
-    if (!result.ok) setError(humanizeAuthError(result.error));
+    if (!result.ok) setError(authErrorText(t, result.error));
 
     setResendIn(resendCooldown);
     setBusy(false);
@@ -390,9 +378,7 @@ export function LoginScreen({
     }
     const google = (globalThis as { google?: GoogleIdentity }).google;
     if (!google) {
-      setError(
-        "Google sign-in is unavailable: the Google Identity script did not load.",
-      );
+      setError(t("googleNoScript"));
       return;
     }
     setError(null);
@@ -400,7 +386,7 @@ export function LoginScreen({
       client_id: googleClientID,
       callback: (response) => {
         if (!response.credential) {
-          setError("Google sign-in was cancelled.");
+          setError(t("googleCancelled"));
           return;
         }
         void run(() => client.auth.loginWithGoogle(response.credential ?? ""));
@@ -414,12 +400,12 @@ export function LoginScreen({
     try {
       await loadScript(APPLE_SCRIPT);
     } catch {
-      setError("Apple sign-in is unavailable: the Apple script did not load.");
+      setError(t("appleNoScript"));
       return;
     }
     const apple = (globalThis as { AppleID?: AppleIdentity }).AppleID;
     if (!apple) {
-      setError("Apple sign-in is unavailable: the Apple script did not load.");
+      setError(t("appleNoScript"));
       return;
     }
     const nonce = randomNonce();
@@ -459,7 +445,7 @@ export function LoginScreen({
     // Like the resend: the answer does not say whether the address has an account - except "there
     // is nothing to send with", which is about the server and must be shown.
     if (!result.ok && result.error === "EMAIL_SENDER_NOT_CONFIGURED") {
-      setError(humanizeAuthError(result.error));
+      setError(authErrorText(t, result.error));
       return;
     }
     setCode("");
@@ -477,499 +463,383 @@ export function LoginScreen({
     );
     setBusy(false);
     if (!result.ok) {
-      setError(humanizeAuthError(result.error));
+      setError(authErrorText(t, result.error));
       return;
     }
     setPassword("");
-    setNotice("Password changed. Sign in with the new one.");
+    setNotice(t("passwordChanged"));
     setMode("email");
   };
 
+  /** A text link under the buttons (switch form, forgot password, back). */
+  const link = (
+    label: string,
+    onClick: () => void,
+    disabled = busy,
+  ): ReactNode => (
+    <button
+      type="button"
+      className="ccl-link"
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {label}
+    </button>
+  );
+  const back = (to: Mode): ReactNode =>
+    link(t("back"), () => {
+      setMode(to);
+      setError(null);
+    });
+  const icon = (src: string): ReactNode => (
+    <img className="ccl-btn-icon" src={src} alt="" />
+  );
+  /** A hint with the e-mail address emphasised where the sentence has {email}. */
+  const withEmail = (key: "verifyHint" | "resetHint"): ReactNode => {
+    const [before, after] = t(key, { email: "\u0000" }).split("\u0000");
+    return (
+      <p className="ccl-hint">
+        {before}
+        <strong>{email}</strong>
+        {after}
+      </p>
+    );
+  };
+
   return (
-    <div style={styles.root}>
-      {/* Placeholder color is a pseudo-element, unreachable from inline styles — this one rule is
-          the whole reason for the style tag. */}
-      <style>{`.idos-input::placeholder { color: ${v.textDim}; opacity: 1; }`}</style>
-      <div style={styles.card}>
-        <img src={logo} alt="iDos Games" style={styles.logo} />
-        <h1 style={styles.title}>Sign in</h1>
+    <div className="ccl-root" lang={lang}>
+      <style>{LOGIN_CSS}</style>
+      <LoginBackdrop />
+      <div className="ccl-scroll">
+        <main className="ccl-col">
+          <div className="ccl-brand">
+            <div className="ccl-hero" aria-hidden="true">
+              <div className="ccl-glow" />
+              <div className="ccl-shadow" />
+              <div className="ccl-chest ccl-float">
+                <Sprite strip={VAULT} scale="var(--hs)" crop={VAULT_ART} />
+                <Sprite
+                  strip={KEY}
+                  scale="var(--hs)"
+                  crop={KEY_ART}
+                  className="ccl-key"
+                />
+              </div>
+            </div>
 
-        {mode === "menu" && (
-          <div style={styles.stack}>
-            {renderWalletLogin?.({
-              client,
-              onAuthenticated,
-              disabled: busy,
-              style: {
-                ...styles.button,
-                ...styles.primary,
-                ...withIcon(icons.wallet, PRIMARY_FILL),
-              },
-            })}
+            <h1 className="ccl-logo" aria-label="Casecremental">
+              <span className="ccl-logo-case">CASE</span>
+              <span className="ccl-logo-rest">CREMENTAL</span>
+            </h1>
+            <p className="ccl-tagline">{t("tagline")}</p>
+          </div>
 
-            {/* Вход платформенным аккаунтом: уходим на idosgames.com/sso и возвращаемся сюда
-                с одноразовым кодом, который AuthGate обменяет сам. Кнопка нужна только тем,
-                кто открыл игру НАПРЯМУЮ: пришедший с сайта уже вернулся с кодом и этот экран
-                не увидит вовсе.
+          <div className="ccl-side">
+            <section className="ccl-panel" aria-label={t("signIn")}>
+              <h2 className="ccl-panel-title">{t("signIn")}</h2>
 
-                Скрыта там, где SSO заведомо откажет — бэкенд принимает return_to только со
-                своих origin'ов, и в превью/на localhost показывать кнопку значило бы обещать
-                игроку то, что не сработает. */}
-            {sso && (
-              <button
-                type="button"
-                style={{ ...styles.button, ...withIcon(icons.idos) }}
-                onClick={() => void continueWithIdosGames()}
-                disabled={busy}
+              {mode === "menu" && (
+                <div className="ccl-stack">
+                  <div className="ccl-wallet">
+                    {renderWalletLogin?.({
+                      client,
+                      onAuthenticated,
+                      disabled: busy,
+                      label: t("wallet"),
+                      // The wallet package draws this button and takes only a style; its defaults are
+                      // inline, so the fill, padding and corners are overridden here, while the bevel and
+                      // the hover/press come from `.ccl-wallet > button` (./loginCss). One `background`
+                      // shorthand (the icon over the fill), never mixed with background longhands.
+                      style: {
+                        background: `url("${icons.wallet}") no-repeat 12px center / 20px 20px, #ffd34d`,
+                        color: INK,
+                        padding: "10px 40px",
+                        borderRadius: 0,
+                        fontWeight: 400,
+                        minHeight: 48,
+                      },
+                    })}
+                  </div>
+
+                  {/* Вход платформенным аккаунтом: уходим на idosgames.com/sso и возвращаемся сюда
+                    с одноразовым кодом, который AuthGate обменяет сам. Кнопка нужна только тем,
+                    кто открыл игру НАПРЯМУЮ. Скрыта там, где SSO заведомо откажет (превью,
+                    localhost) — см. isSsoAvailable. */}
+                  {sso && (
+                    <button
+                      type="button"
+                      className="ccl-btn"
+                      onClick={() => void continueWithIdosGames()}
+                      disabled={busy}
+                    >
+                      {icon(icons.idos)}
+                      {t("idos")}
+                    </button>
+                  )}
+
+                  {walletOnly && sso && (
+                    <p className="ccl-hint">{t("walletOnlyIdos")}</p>
+                  )}
+
+                  {!walletOnly && googleClientID && (
+                    <button
+                      type="button"
+                      className="ccl-btn"
+                      onClick={() => void signInWithGoogle()}
+                      disabled={busy}
+                    >
+                      {icon(icons.google)}
+                      {t("google")}
+                    </button>
+                  )}
+
+                  {!walletOnly && appleServiceID && (
+                    <button
+                      type="button"
+                      className="ccl-btn"
+                      onClick={() => void signInWithApple()}
+                      disabled={busy}
+                    >
+                      {icon(icons.apple)}
+                      {t("apple")}
+                    </button>
+                  )}
+
+                  {!walletOnly && telegram && (
+                    <button
+                      type="button"
+                      className="ccl-btn"
+                      onClick={() =>
+                        void run(() => client.auth.loginWithTelegram())
+                      }
+                      disabled={busy}
+                    >
+                      {icon(icons.telegram)}
+                      {t("telegram")}
+                    </button>
+                  )}
+
+                  {!walletOnly && (
+                    <button
+                      type="button"
+                      className="ccl-btn"
+                      onClick={() => setMode("email")}
+                      disabled={busy}
+                    >
+                      {icon(icons.email)}
+                      {t("email")}
+                    </button>
+                  )}
+
+                  {guestAllowed && (
+                    <button
+                      type="button"
+                      className="ccl-btn"
+                      onClick={() =>
+                        void run(() => client.auth.loginWithDeviceID())
+                      }
+                      disabled={busy}
+                    >
+                      {icon(icons.guest)}
+                      {busy ? t("signingIn") : t("guest")}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {mode === "email" && (
+                <div className="ccl-stack">
+                  <input
+                    className="ccl-input"
+                    type="email"
+                    autoComplete="email"
+                    placeholder={t("emailPlaceholder")}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={busy}
+                    autoFocus
+                  />
+                  <input
+                    className="ccl-input"
+                    type="password"
+                    autoComplete={
+                      registering ? "new-password" : "current-password"
+                    }
+                    placeholder={t("passwordPlaceholder")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={busy}
+                  />
+                  <button
+                    type="button"
+                    className="ccl-btn ccl-primary"
+                    onClick={() =>
+                      registering
+                        ? void register()
+                        : void run(() =>
+                            client.auth.loginWithEmail(email, password),
+                          )
+                    }
+                    disabled={busy || !email || !password}
+                  >
+                    {busy
+                      ? t("wait")
+                      : registering
+                        ? t("createAccount")
+                        : t("doSignIn")}
+                  </button>
+                  {link(registering ? t("toSignIn") : t("toCreate"), () =>
+                    setRegistering((r) => !r),
+                  )}
+                  {!registering &&
+                    link(t("forgot"), () => {
+                      setMode("forgot");
+                      setError(null);
+                      setNotice(null);
+                    })}
+                  {back("menu")}
+                </div>
+              )}
+
+              {mode === "verify" && (
+                <div className="ccl-stack">
+                  {withEmail("verifyHint")}
+                  <input
+                    className="ccl-input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder={t("codePlaceholder")}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    disabled={busy}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="ccl-btn ccl-primary"
+                    onClick={() =>
+                      void run(() =>
+                        client.auth.confirmEmailRegistration(email, code),
+                      )
+                    }
+                    disabled={busy || !code}
+                  >
+                    {busy ? t("wait") : t("confirm")}
+                  </button>
+                  {link(
+                    resendIn > 0 ? t("resendIn", { n: resendIn }) : t("resend"),
+                    () => void resendCode(),
+                    busy || resendIn > 0,
+                  )}
+                  {back("email")}
+                </div>
+              )}
+
+              {mode === "forgot" && (
+                <div className="ccl-stack">
+                  <p className="ccl-hint">{t("forgotHint")}</p>
+                  <input
+                    className="ccl-input"
+                    type="email"
+                    autoComplete="email"
+                    placeholder={t("emailPlaceholder")}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={busy}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="ccl-btn ccl-primary"
+                    onClick={() => void sendResetCode()}
+                    disabled={busy || !email}
+                  >
+                    {busy ? t("wait") : t("sendCode")}
+                  </button>
+                  {back("email")}
+                </div>
+              )}
+
+              {mode === "reset" && (
+                <div className="ccl-stack">
+                  {withEmail("resetHint")}
+                  <input
+                    className="ccl-input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder={t("resetCodePlaceholder")}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    disabled={busy}
+                    autoFocus
+                  />
+                  <input
+                    className="ccl-input"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={t("newPasswordPlaceholder")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={busy}
+                  />
+                  <button
+                    type="button"
+                    className="ccl-btn ccl-primary"
+                    onClick={() => void resetPassword()}
+                    disabled={busy || !code || !password}
+                  >
+                    {busy ? t("wait") : t("setPassword")}
+                  </button>
+                  {back("forgot")}
+                </div>
+              )}
+
+              {notice && !error && <p className="ccl-hint">{notice}</p>}
+
+              {/* Applies to every provider above: remembered sessions come back by their refresh token. */}
+              <label
+                className="ccl-remember"
+                style={{ opacity: busy ? 0.6 : 1 }}
               >
-                Continue with iDos Games
-              </button>
-            )}
-
-            {walletOnly && sso && (
-              <p style={styles.hint}>
-                Signing in with iDos Games? Link your wallet after that - the
-                game is played with a wallet.
-              </p>
-            )}
-
-            {!walletOnly && googleClientID && (
-              <button
-                type="button"
-                style={{ ...styles.button, ...withIcon(icons.google) }}
-                onClick={() => void signInWithGoogle()}
-                disabled={busy}
-              >
-                Continue with Google
-              </button>
-            )}
-
-            {!walletOnly && appleServiceID && (
-              <button
-                type="button"
-                style={{ ...styles.button, ...withIcon(icons.apple) }}
-                onClick={() => void signInWithApple()}
-                disabled={busy}
-              >
-                Continue with Apple
-              </button>
-            )}
-
-            {!walletOnly && telegram && (
-              <button
-                type="button"
-                style={{ ...styles.button, ...withIcon(icons.telegram) }}
-                onClick={() => void run(() => client.auth.loginWithTelegram())}
-                disabled={busy}
-              >
-                Continue with Telegram
-              </button>
-            )}
-
-            {!walletOnly && (
-              <button
-                type="button"
-                style={{ ...styles.button, ...withIcon(icons.email) }}
-                onClick={() => setMode("email")}
-                disabled={busy}
-              >
-                Continue with email
-              </button>
-            )}
-
-            {guestAllowed && (
-              <button
-                type="button"
-                style={styles.ghost}
-                onClick={() => void run(() => client.auth.loginWithDeviceID())}
-                disabled={busy}
-              >
-                <span style={styles.inlineIcon}>
-                  <img src={icons.guest} alt="" width={18} height={18} />
-                  {busy ? "Signing in…" : "Play as guest"}
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  disabled={busy}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <span className={remember ? "ccl-tick on" : "ccl-tick"}>
+                  <PixelGlyph
+                    g={remember ? ICONS.tickOn : ICONS.tickOff}
+                    cell="2px"
+                  />
                 </span>
-              </button>
-            )}
+                {t("remember")}
+              </label>
+
+              {error && (
+                <p className="ccl-error" role="alert">
+                  {error}
+                </p>
+              )}
+            </section>
+
+            <div className="ccl-lang" role="group" aria-label="Language / Язык">
+              {(["en", "ru"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  aria-pressed={lang === l}
+                  onClick={() => pickLang(l)}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-
-        {mode === "email" && (
-          <div style={styles.stack}>
-            <input
-              className="idos-input"
-              style={styles.input}
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={busy}
-              autoFocus
-            />
-            <input
-              className="idos-input"
-              style={styles.input}
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-            />
-            <button
-              type="button"
-              style={{ ...styles.button, ...styles.primary }}
-              onClick={() =>
-                registering
-                  ? void register()
-                  : void run(() => client.auth.loginWithEmail(email, password))
-              }
-              disabled={busy || !email || !password}
-            >
-              {busy
-                ? "Please wait…"
-                : registering
-                  ? "Create account"
-                  : "Sign in"}
-            </button>
-            <button
-              type="button"
-              style={styles.ghost}
-              onClick={() => setRegistering((v) => !v)}
-              disabled={busy}
-            >
-              {registering ? "I already have an account" : "Create an account"}
-            </button>
-            {!registering && (
-              <button
-                type="button"
-                style={styles.ghost}
-                onClick={() => {
-                  setMode("forgot");
-                  setError(null);
-                  setNotice(null);
-                }}
-                disabled={busy}
-              >
-                Forgot password?
-              </button>
-            )}
-            <button
-              type="button"
-              style={styles.ghost}
-              onClick={() => {
-                setMode("menu");
-                setError(null);
-              }}
-              disabled={busy}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {mode === "verify" && (
-          <div style={styles.stack}>
-            <p style={styles.hint}>
-              We sent a code to <strong>{email}</strong>. Enter it to finish
-              creating your account.
-            </p>
-            <input
-              className="idos-input"
-              style={styles.input}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="Confirmation code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={busy}
-              autoFocus
-            />
-            <button
-              type="button"
-              style={{ ...styles.button, ...styles.primary }}
-              onClick={() =>
-                void run(() =>
-                  client.auth.confirmEmailRegistration(email, code),
-                )
-              }
-              disabled={busy || !code}
-            >
-              {busy ? "Please wait…" : "Confirm"}
-            </button>
-            <button
-              type="button"
-              style={styles.ghost}
-              onClick={() => void resendCode()}
-              disabled={busy || resendIn > 0}
-            >
-              {resendIn > 0
-                ? `Send again in ${resendIn}s`
-                : "Send the code again"}
-            </button>
-            <button
-              type="button"
-              style={styles.ghost}
-              onClick={() => {
-                setMode("email");
-                setError(null);
-              }}
-              disabled={busy}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {mode === "forgot" && (
-          <div style={styles.stack}>
-            <p style={styles.hint}>
-              Enter your e-mail - we will send a code to set a new password.
-            </p>
-            <input
-              className="idos-input"
-              style={styles.input}
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={busy}
-              autoFocus
-            />
-            <button
-              type="button"
-              style={{ ...styles.button, ...styles.primary }}
-              onClick={() => void sendResetCode()}
-              disabled={busy || !email}
-            >
-              {busy ? "Please wait..." : "Send the code"}
-            </button>
-            <button
-              type="button"
-              style={styles.ghost}
-              onClick={() => {
-                setMode("email");
-                setError(null);
-              }}
-              disabled={busy}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {mode === "reset" && (
-          <div style={styles.stack}>
-            <p style={styles.hint}>
-              If <strong>{email}</strong> has an account, a code is on its way.
-              Enter it and choose a new password.
-            </p>
-            <input
-              className="idos-input"
-              style={styles.input}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="Code from the e-mail"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={busy}
-              autoFocus
-            />
-            <input
-              className="idos-input"
-              style={styles.input}
-              type="password"
-              autoComplete="new-password"
-              placeholder="New password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-            />
-            <button
-              type="button"
-              style={{ ...styles.button, ...styles.primary }}
-              onClick={() => void resetPassword()}
-              disabled={busy || !code || !password}
-            >
-              {busy ? "Please wait..." : "Set the new password"}
-            </button>
-            <button
-              type="button"
-              style={styles.ghost}
-              onClick={() => {
-                setMode("forgot");
-                setError(null);
-              }}
-              disabled={busy}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {notice && !error && <p style={styles.hint}>{notice}</p>}
-
-        {/* Applies to every provider above: remembered sessions come back by their refresh token. */}
-        <label style={{ ...styles.remember, opacity: busy ? 0.6 : 1 }}>
-          <input
-            type="checkbox"
-            checked={remember}
-            disabled={busy}
-            onChange={(e) => setRemember(e.target.checked)}
-            style={styles.switchInput}
-          />
-          <span
-            style={{
-              ...styles.switchTrack,
-              background: remember ? v.green : v.wellSoft,
-            }}
-          >
-            <span
-              style={{
-                ...styles.switchKnob,
-                left: remember ? "21px" : "3px",
-              }}
-            />
-          </span>
-          Remember me
-        </label>
-
-        {error && <p style={styles.error}>{error}</p>}
+        </main>
       </div>
     </div>
   );
 }
-
-// The look is the theme's (src/ui.config.ts, through the UI kit's CSS variables): the screen's
-// gradient, a panel for the card, the kit's green button for the primary action, recessed fields.
-// Change the theme, not these values.
-
-/** The primary button's fill, drawn under the icon layer (see withIcon). */
-const PRIMARY_FILL = `linear-gradient(180deg, ${v.green} 0%, ${v.greenDeep} 100%)`;
-
-const styles: Record<string, CSSProperties> = {
-  root: {
-    position: "absolute",
-    inset: 0,
-    display: "grid",
-    // Centred by the card's auto margins, not placeItems: a card taller than the screen (a phone in
-    // landscape) then starts at the top and scrolls, instead of overflowing above it out of reach.
-    padding: "16px",
-    boxSizing: "border-box",
-    overflowY: "auto",
-    background: screenBackground,
-    color: v.text,
-    fontFamily: v.font,
-    fontSize: "15px",
-  },
-  card: {
-    ...panel,
-    margin: "auto",
-    width: "min(360px, 90vw)",
-    boxSizing: "border-box",
-    padding: "24px 20px 18px",
-    display: "grid",
-    gap: "16px",
-  },
-  logo: {
-    width: "160px",
-    justifySelf: "center",
-    userSelect: "none",
-    pointerEvents: "none",
-  },
-  remember: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    justifySelf: "center",
-    cursor: "pointer",
-    color: v.textDim,
-    fontWeight: 700,
-  },
-  // The switch: a hidden real checkbox (keyboard/a11y) with a drawn track + knob on top.
-  switchInput: { position: "absolute", opacity: 0, width: 0, height: 0 },
-  switchTrack: {
-    position: "relative",
-    width: "42px",
-    height: "24px",
-    borderRadius: "12px",
-    boxShadow: `inset 0 0 0 1px ${v.line}`,
-    transition: "background 0.15s",
-    flexShrink: 0,
-  },
-  switchKnob: {
-    position: "absolute",
-    top: "3px",
-    width: "18px",
-    height: "18px",
-    borderRadius: "50%",
-    background: "#fff",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
-    transition: "left 0.15s",
-  },
-  title: {
-    ...outlined,
-    margin: 0,
-    fontSize: "24px",
-    fontFamily: v.font,
-    textAlign: "center",
-  },
-  stack: { display: "grid", gap: "10px" },
-  button: {
-    padding: "11px 16px",
-    minHeight: "46px",
-    borderRadius: v.buttonRadius,
-    border: `1px solid ${v.line}`,
-    // backgroundColor, not the `background` shorthand: the shorthand would wipe the icon
-    // (backgroundImage from ./loginIcons) - here and on the wallet button, whose own default style
-    // uses the shorthand.
-    backgroundColor: v.wellSoft,
-    color: v.text,
-    font: "inherit",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  // The kit's green button — its text colour and outline follow the theme — with the fill as an image
-  // layer, so an icon can sit on top of it.
-  primary: {
-    ...buttonStyle("green"),
-    background: undefined,
-    backgroundImage: PRIMARY_FILL,
-    border: "none",
-    width: "100%",
-    font: "inherit",
-    fontWeight: 800,
-  },
-  ghost: {
-    padding: "8px",
-    border: "none",
-    background: "none",
-    color: v.textDim,
-    font: "inherit",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  inlineIcon: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  input: {
-    padding: "12px 14px",
-    borderRadius: v.buttonRadius,
-    border: `1px solid ${v.line}`,
-    background: v.well,
-    boxShadow: v.wellShadow,
-    color: v.text,
-    font: "inherit",
-    outline: "none",
-  },
-  error: { margin: 0, color: v.red, fontWeight: 700, textAlign: "center" },
-  hint: {
-    margin: 0,
-    color: v.textDim,
-    textAlign: "center",
-    fontSize: "14px",
-    lineHeight: 1.45,
-  },
-};
