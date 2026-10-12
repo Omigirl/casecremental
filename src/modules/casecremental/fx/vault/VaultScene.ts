@@ -18,6 +18,7 @@ import { Chest } from "./chest";
 import { countUp } from "./countUp";
 import { INTRO_HITS, VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import { DevilKey, dist, EMBER, KEY_FRAME } from "./devilKey";
+import { finaleDim } from "./finaleRules";
 import { Rays } from "./rays";
 import { vaultTextures } from "./textures";
 import { VaultFx } from "./vaultFx";
@@ -240,7 +241,7 @@ export class VaultScene {
     const cues = this.frameCues;
 
     // the room behind darkens
-    const dimTarget = this.phase === "key" ? DIM_KEY : DIM_OPEN;
+    const dimTarget = this.phase === "key" ? DIM_KEY : finaleDim(this.look.finale, this.t, DIM_OPEN);
     this.dim.alpha += (dimTarget - this.dim.alpha) * Math.min(1, dt * 5);
 
     const near = this.phase === "key" && this.key.dragging && dist(this.key.pos, this.chest.lockPos()) <= BODY_W * this.chest.scale * 0.3;

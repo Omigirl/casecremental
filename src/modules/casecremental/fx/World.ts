@@ -4,11 +4,10 @@ import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
 import { autoSpinStatus } from "../sim/autoSpin";
 import { caseById } from "../sim/content/cases";
-import { vaultFor } from "../sim/content/vaults";
 import { formatCash } from "../sim/format";
 import { RARITY_INFO } from "../sim/rarity";
 import { createRng } from "../sim/rng";
-import type { Bench as BenchState, RunState, SimEvent } from "../sim/run";
+import type { Bench as BenchState, SimEvent } from "../sim/run";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { comboPitch } from "./audio/schedule";
 import { BenchFx } from "./benchFx";
@@ -37,9 +36,11 @@ import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
 import { Stations } from "./stations/Stations";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
+import { Finale } from "./vault/Finale";
 import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultBeams } from "./vault/VaultBeams";
 import { VaultScene } from "./vault/VaultScene";
+import { restoreVault, syncVault } from "./vault/vaultSync";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
 // rendered small and scaled up by a whole number, and the HD layer over it (light, dust, glow,
@@ -72,6 +73,8 @@ export class World {
   private readonly vault: VaultScene;
   private readonly vaultBeams: VaultBeams;
   private readonly power: PowerCycle;
+  /** The Last Case's screen tear and free-spinning reels (nothing for an ordinary vault). */
+  private readonly finale: Finale;
   private readonly unbindMusic: () => void;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
@@ -154,6 +157,7 @@ export class World {
     this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
     this.vaultBeams = new VaultBeams(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
+    this.finale = new Finale([this.scene, this.vault.root], this.hd, this.rng, this.benchReels, this.stations);
     this.unbindMusic = bindMusicResync(
       audio,
       document,
@@ -205,25 +209,8 @@ export class World {
     this.look.setStage(plan.stage);
     this.audio.setStage(plan.stage);
     this.lastStage = plan.stage;
-    this.restoreVault(this.controller.run.state);
-  }
-
-  /** A reload or a new run: the vault's key or opening where the sim is, or the dark; the music always from the
-   *  sim, so a stale track goes (while suspended, activate() applies it). */
-  private restoreVault(s: RunState): void {
-    this.syncVault();
-    const v = s.vault;
-    if (v?.phase === "opening") this.vaultBeams.restore(v.drops, v.landed);
-    if (!v && s.over) this.power.darkNow();
-    if (this.controller.running) this.resumeMusic();
-  }
-
-  /** The run's vault (sim/content/vaults: I in Run 1, II in Run 2, III from Run 3 on) on the scene and the beams: set
-   *  every frame (a no-op for the same vault) and before the beams restore, so a reload mid-opening keeps its look. */
-  private syncVault(): void {
-    const def = vaultFor(this.controller.run.setup.run);
-    this.vault.setVault(def);
-    this.vaultBeams.setVault(def);
+    restoreVault(this.controller.run, this.vault, this.vaultBeams, this.power);
+    if (this.controller.running) this.resumeMusic(); // always from the sim (while suspended, activate() applies it)
   }
 
   /** Back from the lobby: the music picks up where the vault (or the lights) are, not where it was asked for. */
@@ -300,6 +287,7 @@ export class World {
     this.tray.destroy();
     this.stations.destroy();
     this.pixel.destroy();
+    this.finale.destroy();
     this.vaultBeams.destroy();
     this.vault.destroy();
     this.scene.destroy({ children: true });
@@ -327,7 +315,7 @@ export class World {
 
   /** The vault, read from the sim each frame (a reload picks it up where it is), and the lights. */
   private updateVault(realSeconds: number): void {
-    this.syncVault();
+    syncVault(this.controller.run, this.vault, this.vaultBeams);
     const s = this.controller.run.state;
     const v = s.vault;
     const opening = v?.phase === "opening" ? v : null;
@@ -344,6 +332,7 @@ export class World {
     this.benchReels.root.tint = reels;
     this.stations.reels.tint = reels;
     this.vaultBeams.tint = reels;
+    this.finale.update(this.controller.run, this.vp.scale);
   }
 
   /** Every drag ends, nothing fired. For a touch the OS cancelled (`id`; no up comes), the vault's key only if that
