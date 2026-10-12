@@ -74,4 +74,16 @@ handlers.probe = function (args, context) {
  *   only skin ids, perk ids and plain field names.
  * A publish takes a while to reach "Live" executions; execute(name, args, "Specific", rev) reaches it at once.
  * Date.now() and Math.log10 exist.
+ *
+ * Found after the handlers went live (revisions 6–8, probe v6 at revision 7):
+ * - A Reason with a '.' in it (a fractional Date.now()/1000) makes ApplyResourceOperation fail → buyPerk uses integer
+ *   milliseconds. Colons are fine.
+ * - A publish changes the handler whitelist only after a few minutes ("HandlerNotFound … not declared in CloudCode
+ *   whitelist" meanwhile); the client port treats HandlerNotFound as "try again later".
+ * - CloudCode's resource operations are NOT visible to the client's own state reads: for a fresh guest
+ *   (PMEUP7QNEWOGLIFOZVKC34TR-DEV) four CLOUT grants and an endRun showed in ReadUserData inside CloudCode (CLOUT 11,
+ *   two trophies) while client.user.getClientState() / getUserState(["InventoryV2"]) — even with the SDK's stored
+ *   snapshot removed — kept answering CLOUT 0 and no items for 5+ minutes, though StateVersions.InventoryV2 went up.
+ *   (One earlier run, probe v5, did show up on the client.) So the game takes CLOUT and trophies from the handlers'
+ *   views (loadMeta etc.), never from client.data.user's inventory alone. Reported to the user as a platform issue.
  */

@@ -9,6 +9,7 @@ import {
   PERK_COSTS,
   SERVER_CAP,
   SERVER_FIRST_RUN_MAX_SEC,
+  SERVER_MAX_CLOUT_PER_RUN,
   TROPHIES_PER_RUN_MINUTE,
   TROPHY_GAP_SEC,
 } from "../sim/tuning";
@@ -26,6 +27,8 @@ export interface ServerData {
   perks: Record<string, { baseCost: number; growth: number; maxLevel: number }>;
   charms: string[];
   cloutDivisor: number;
+  /** The most CLOUT one endRun pays. */
+  maxCloutPerRun: number;
   cap: typeof SERVER_CAP;
   firstRunMaxSec: number;
   trophyGapSec: number;
@@ -41,6 +44,7 @@ export function buildServerData(): ServerData {
     perks: Object.fromEntries(PERK_IDS.map((id) => [id, { ...PERK_COSTS[id] }])),
     charms: [...charmPool(LAST_RUN)],
     cloutDivisor: CLOUT_DIVISOR,
+    maxCloutPerRun: SERVER_MAX_CLOUT_PER_RUN,
     cap: SERVER_CAP,
     firstRunMaxSec: SERVER_FIRST_RUN_MAX_SEC,
     trophyGapSec: TROPHY_GAP_SEC,

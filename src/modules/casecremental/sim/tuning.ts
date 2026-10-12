@@ -219,6 +219,9 @@ export const PERK_COSTS = {
  * ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump from a short run, so it is steep.
  */
 export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, ceilLog10: 300 } as const;
+/** The most CLOUT one endRun pays: a capped claim near 10^ceilLog10 would otherwise overflow the Title's int64 balance
+ *  (and the CloudCode policy's daily CLOUT cap, 1e12). A real run pays thousands. */
+export const SERVER_MAX_CLOUT_PER_RUN = 1e11;
 /** A first run the server never saw start may claim at most this long. */
 export const SERVER_FIRST_RUN_MAX_SEC = 6 * 3600;
 /** Trophy reports: at least this many seconds apart, and at most this many per minute of a run. */

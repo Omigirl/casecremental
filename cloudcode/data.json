@@ -203,6 +203,7 @@
     "collectorsEye"
   ],
   "cloutDivisor": 105,
+  "maxCloutPerRun": 100000000000,
   "cap": {
     "baseLog10": 3,
     "perSqrtSecond": 0.3,
