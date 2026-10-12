@@ -1,3 +1,4 @@
+import type { AutoSpinState } from "./autoSpin";
 import type { BotState, CardSpot } from "./botOpener";
 import type { CharmId } from "./charms";
 import type { LockerState } from "./locker";
@@ -8,7 +9,7 @@ import { START_CASH, TRAY_BASE_CAPACITY, VAULT_PRICES } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import type { UpgradeId } from "./upgrades";
 
-// The run's shared types and the RunCtx the machines (bot, auto-seller, locker, vault, day job) are functions over.
+// The run's shared types and the RunCtx the machines (bot, auto-seller, locker, auto-spin, vault, day job) are functions over.
 
 /** One of your bench's reels: its drop, its own tease, and how long it runs (its crawl included). */
 export interface BenchReel {
@@ -95,6 +96,14 @@ export type SimEvent =
   | { type: "pressStarted"; rarity: RarityId; inputs: Drop[]; results: Drop[] }
   | { type: "pressDone"; results: Drop[] }
   | { type: "autoContractBought" }
+  | { type: "autoSpinBought" }
+  | { type: "autoSpinUpgraded"; level: number }
+  /** Switched on or off; `first` is the run's first switch-on (the machine's power-on). */
+  | { type: "autoSpinToggled"; on: boolean; first: boolean }
+  /** It bought a case (its arm pulls); caseBought comes first. */
+  | { type: "autoSpinPulled"; caseId: string; count: number }
+  /** It turned the key (its arm swings); spinStarted comes first. */
+  | { type: "autoSpinKeyed" }
   | { type: "vaultBought"; price: number }
   | { type: "vaultKeyTurned"; drops: Drop[] }
   | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
@@ -142,6 +151,8 @@ export interface RunState {
   bot: BotState;
   seller: SellerState;
   locker: LockerState;
+  /** Auto-spin: your bench's machine (Run 1+). */
+  autoSpin: AutoSpinState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
   /** Which card is held (a bench, bot or locker slot). */
@@ -178,5 +189,9 @@ export interface RunCtx {
   /** Nobody holds a card any more. */
   release(): void;
   takeBenchCard(slot: number): void;
+  /** Pays for one BUY of a case (multi-open: as many as you can afford) and locks it on the empty bench; returns how
+   *  many. The caller has checked the bench, the shelf and the cash. */
+  placeCase(caseId: string): number;
+  insertKey(): ActionResult;
   locked(): boolean;
 }

@@ -1,3 +1,5 @@
+import * as autoSpin from "./autoSpin";
+import { freshAutoSpin } from "./autoSpin";
 import * as seller from "./autoSeller";
 import { freshSeller } from "./autoSeller";
 import * as bot from "./botOpener";
@@ -53,7 +55,7 @@ export * from "./runTypes";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
 // upgrades, combo and intensity. Pure and deterministic from its seed; the renderer and the UI read
-// `state` and consume `drainEvents()`. The bot, auto-seller, locker, vault and day job are functions over this
+// `state` and consume `drainEvents()`. The bot, auto-seller, locker, auto-spin, vault and day job are functions over this
 // run as a `RunCtx` (their own files); the bench, upgrades and the tick order live here.
 
 export class Run implements RunCtx {
@@ -99,6 +101,7 @@ export class Run implements RunCtx {
       bot: freshBot(this.setup.botAwake),
       seller: freshSeller(),
       locker: freshLocker(),
+      autoSpin: freshAutoSpin(),
       held: null,
       heldSlot: 0,
       vault: null,
@@ -191,13 +194,19 @@ export class Run implements RunCtx {
     if (!this.runCases().includes(caseId)) return fail("not in this run");
     if (s.bench.phase !== "empty") return fail("bench is busy");
     if (!s.unlocked.includes(caseId)) return fail(`case ${caseId} is locked`);
-    const price = this.casePrice(caseId);
-    if (s.cash < price) return fail("not enough cash");
-    const count = this.openCount(caseId);
-    s.cash -= price * count;
-    s.bench = { phase: "locked", caseId, free: false, count };
-    this.emit({ type: "caseBought", caseId, free: false, count });
+    if (s.cash < this.casePrice(caseId)) return fail("not enough cash");
+    this.placeCase(caseId);
+    s.autoSpin.pick = caseId; // auto-spin buys the case you bought last
     return OK;
+  }
+
+  /** Pays for one multi-open BUY, locking it on the empty bench (callers check first); returns the count. */
+  placeCase(caseId: string): number {
+    const count = this.openCount(caseId);
+    this.state.cash -= this.casePrice(caseId) * count;
+    this.state.bench = { phase: "locked", caseId, free: false, count };
+    this.emit({ type: "caseBought", caseId, free: false, count });
+    return count;
   }
 
   /** Dev board only: the next opened case drops this rarity. */
@@ -341,6 +350,7 @@ export class Run implements RunCtx {
     bot.tickBot(this, dt);
     seller.tickSeller(this);
     locker.tickLocker(this, dt);
+    autoSpin.tickAutoSpin(this, dt);
     dayJob.tickDayJob(this, dt);
     vault.tickVault(this, dt);
 
@@ -465,6 +475,23 @@ export class Run implements RunCtx {
   /** Run 3: the locker presses on its own. */
   buyAutoContract(): ActionResult {
     return locker.buyAutoContract(this);
+  }
+
+  /** Auto-spin (needs the auto-seller); it keeps its switch for the run. */
+  buyAutoSpin(): ActionResult {
+    return autoSpin.buyAutoSpin(this);
+  }
+
+  buyAutoSpinDelay(): ActionResult {
+    return autoSpin.buyAutoSpinDelay(this);
+  }
+
+  setAutoSpin(on: boolean): ActionResult {
+    return autoSpin.setAutoSpin(this, on);
+  }
+
+  setAutoSpinCase(caseId: string): ActionResult {
+    return autoSpin.setAutoSpinCase(this, caseId);
   }
 
   /** Sell a tray item by hand (feeds the combo). */

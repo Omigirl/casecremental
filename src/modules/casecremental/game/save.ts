@@ -1,3 +1,4 @@
+import { freshAutoSpin } from "../sim/autoSpin";
 import { freshSeller } from "../sim/autoSeller";
 import { freshBot } from "../sim/botOpener";
 import { freshLocker } from "../sim/locker";
@@ -106,6 +107,7 @@ function normalize(d: SaveData): SaveData {
         bot: { ...freshBot(false), ...d.run.state.bot },
         seller: { ...freshSeller(), ...d.run.state.seller },
         locker: { ...freshLocker(), ...d.run.state.locker },
+        autoSpin: { ...freshAutoSpin(), ...d.run.state.autoSpin },
         seen: d.run.state.seen ?? {},
         held: null,
         heldSlot: 0,

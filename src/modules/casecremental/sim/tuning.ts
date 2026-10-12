@@ -235,3 +235,12 @@ export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>>
 };
 /** Run 3: the locker presses on its own. */
 export const AUTO_CONTRACT_COST = 250_000_000;
+
+/** Auto-spin (finish spec §3): your own bench's machine, bought in Run 1 once the auto-seller is on, then switched
+ *  ON/OFF. F2's starting numbers; F4 tunes them for real players. */
+export const AUTOSPIN_COST = 40_000;
+/** Seconds the bench stands empty before it buys, per Delay level (5 upgrades: 1.5 s → 0.2 s). */
+export const AUTOSPIN_DELAYS = [1.5, 1.1, 0.8, 0.55, 0.35, 0.2] as const;
+export const AUTOSPIN_DELAY_COSTS = { baseCost: 20_000, growth: 2.5 } as const;
+/** A case left locked on the bench is keyed this long after it landed: the case drops in, then its arm turns the key. */
+export const AUTOSPIN_KEY_SECONDS = 0.5;
