@@ -373,7 +373,7 @@ export class VaultScene {
       this.tickText = this.totalText(this.t);
       this.chest.clearSlam();
       this.key.cancel();
-      if (was !== "key") this.dim.alpha = DIM_OPEN;
+      if (was !== "key") this.dim.alpha = finaleDim(this.look.finale, t, DIM_OPEN);
     }
   }
 

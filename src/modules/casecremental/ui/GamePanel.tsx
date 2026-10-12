@@ -117,7 +117,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
             />
             {prestigeShown && view.prestige ? (
               endScreen(view.prestige) === "credits" ? (
-                <Credits p={view.prestige} act={act} />
+                <Credits p={view.prestige} act={act} onSettings={openSettings} />
               ) : (
                 <Prestige p={view.prestige} vault={view.vault.id} act={act} onSettings={openSettings} />
               )

@@ -1,5 +1,4 @@
-import { GlitchFilter } from "pixi-filters";
-import type { Container } from "pixi.js";
+import type { Container, Filter } from "pixi.js";
 import { caseById } from "../../sim/content/cases";
 import { vaultFor } from "../../sim/content/vaults";
 import type { Rng } from "../../sim/rng";
@@ -16,8 +15,17 @@ import { vaultLook } from "./vaultLooks";
 
 /** The most reels the bot stacks (Run 4's x3): the free spin hands it one skin each, and it takes what it shows. */
 const BOT_REELS_MAX = 3;
-/** GlitchFilter's fill mode for the gap a slice leaves: wrap the picture around (no black bars, no brightness change). */
-const FILL_LOOP = 2;
+
+/** The screen tear as Finale drives it (glitchTear.ts is the real one; a test passes a fake with no `filter`). */
+export interface TearFx {
+  enabled: boolean;
+  offset: number;
+  /** A new slice pattern. */
+  reseed(seed: number): void;
+  /** What goes on the scene and the vault (none for a fake). */
+  readonly filter?: Filter;
+  destroy?(): void;
+}
 
 /** What the finale asks of your bench's reels (BenchReels). */
 export interface FinaleBench {
@@ -30,8 +38,6 @@ export interface FinaleBot {
 }
 
 export class Finale {
-  /** Slices offset sideways with a 3 px colour split: no inversion, no brightness change. */
-  private readonly tear = new GlitchFilter({ slices: 10, offset: 0, fillMode: FILL_LOOP, red: [3, 0], blue: [-3, 0] });
   private readonly targets: Container[];
   private slot = -1;
   /** Whether last frame drove the reels (the first frame of the intro, or the first after a reload, starts them). */
@@ -43,10 +49,12 @@ export class Finale {
     private readonly rng: Rng,
     private readonly bench: FinaleBench,
     private readonly bot: FinaleBot,
+    private readonly tear: TearFx,
   ) {
     this.targets = targets;
     this.tear.enabled = false;
-    for (const c of targets) c.filters = [...(c.filters ?? []), this.tear];
+    const f = tear.filter;
+    if (f) for (const c of targets) c.filters = [...(c.filters ?? []), f];
   }
 
   update(run: Run, k: number): void {
@@ -59,8 +67,7 @@ export class Finale {
       this.tear.offset = Math.round(((TEAR_OFFSET * k) / 4) * tear.strength);
       // a new slice pattern at most 3 times a second, and only when the flash gate allows (a refusal holds them)
       if (tear.slot !== this.slot && this.hd.takeFlash()) {
-        this.tear.seed = this.rng.next();
-        this.tear.refresh();
+        this.tear.reseed(this.rng.next());
         this.slot = tear.slot;
       }
     } else this.slot = -1;
@@ -69,7 +76,8 @@ export class Finale {
     if (spin) {
       const start = !this.spinning;
       const skins = start ? Array.from({ length: BOT_REELS_MAX }, () => this.rng.pick(c.skins).id) : [];
-      this.bench.freeSpin(c, this.rng.pick(c.skins), this.rng, start, spin.elapsed, spin.duration);
+      // the winner only matters on the starting frame (freeSpin ignores it after): don't spend the rng every frame
+      this.bench.freeSpin(c, start ? this.rng.pick(c.skins) : c.skins[0]!, this.rng, start, spin.elapsed, spin.duration);
       this.bot.finaleSpin(c.id, skins, start, spin.elapsed, spin.duration);
     } else if (this.spinning) {
       // the lid opened between two frames: every reel lands on it (the last frame never shows fraction 1)
@@ -80,7 +88,8 @@ export class Finale {
   }
 
   destroy(): void {
-    for (const c of this.targets) c.filters = (c.filters ?? []).filter((f) => f !== this.tear);
-    this.tear.destroy();
+    const f = this.tear.filter;
+    if (f) for (const c of this.targets) c.filters = (c.filters ?? []).filter((x) => x !== f);
+    this.tear.destroy?.();
   }
 }

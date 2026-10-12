@@ -36,6 +36,7 @@ import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
 import { Stations } from "./stations/Stations";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
+import { GlitchTear } from "./vault/glitchTear";
 import { Finale } from "./vault/Finale";
 import { afterRunTrack, applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultBeams } from "./vault/VaultBeams";
@@ -157,7 +158,7 @@ export class World {
     this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
     this.vaultBeams = new VaultBeams(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
-    this.finale = new Finale([this.scene, this.vault.root], this.hd, this.rng, this.benchReels, this.stations);
+    this.finale = new Finale([this.scene, this.vault.root], this.hd, this.rng, this.benchReels, this.stations, new GlitchTear());
     this.unbindMusic = bindMusicResync(
       audio,
       document,

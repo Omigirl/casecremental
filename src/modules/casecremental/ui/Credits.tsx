@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Action } from "../game/controller";
 import type { PrestigeView } from "../game/view";
 import { getLang, t } from "../i18n/index";
-import { creditLines, creditsOver, scrollY, SKIP_AFTER_SECONDS } from "./creditsRules";
-import { PxButton } from "./parts";
+import { canSkip, creditLines, creditsOver, scrollY } from "./creditsRules";
+import { PixelGear, PxButton } from "./parts";
 
 // The credits after The Last Case (finish spec §7.4): black, a slow scroll over CREDITS_SECONDS, SKIP after 5 s; the
 // end (or SKIP) sends endCredits and the prestige screen follows. The scroll moves by a requestAnimationFrame loop on a
 // ref (no React render per frame). A reload starts them over: the meta holds them until they end.
 
-export function Credits({ p, act }: { p: PrestigeView; act: (a: Action) => void }): ReactNode {
+export function Credits({ p, act, onSettings }: { p: PrestigeView; act: (a: Action) => void; onSettings: () => void }): ReactNode {
   const col = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [skippable, setSkippable] = useState(false);
@@ -21,14 +21,13 @@ export function Credits({ p, act }: { p: PrestigeView; act: (a: Action) => void 
       const elapsed = (performance.now() - start) / 1000;
       if (col.current && box.current)
         col.current.style.transform = `translateY(${scrollY(elapsed, col.current.offsetHeight, box.current.offsetHeight)}px)`;
+      if (canSkip(elapsed)) setSkippable(true); // no-op once set
       if (creditsOver(elapsed)) return act({ type: "endCredits" });
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    const timer = setTimeout(() => setSkippable(true), SKIP_AFTER_SECONDS * 1000); // canSkip's 5 s
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(timer);
     };
   }, [act]);
   return (
@@ -68,6 +67,14 @@ export function Credits({ p, act }: { p: PrestigeView; act: (a: Action) => void 
           ),
         )}
       </div>
+      {/* the HUD is gone here: mute or switch language during the 70 s */}
+      <PxButton
+        onClick={onSettings}
+        title={t("hud.settings")}
+        style={{ position: "absolute", right: "calc(var(--px) * 6px)", top: "calc(var(--px) * 6px)", lineHeight: 1 }}
+      >
+        <PixelGear />
+      </PxButton>
       {skippable ? (
         <PxButton
           style={{ position: "absolute", right: "calc(var(--px) * 6px)", bottom: "calc(var(--px) * 6px)" }}

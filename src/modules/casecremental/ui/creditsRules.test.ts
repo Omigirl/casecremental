@@ -68,9 +68,10 @@ describe("the credits", () => {
     for (let e = 1; e <= CREDITS_SECONDS; e++) expect(scrollY(e, 900, 400)).toBeLessThan(scrollY(e - 1, 900, 400));
   });
 
-  it.each(["en", "ru"] as const)("fit their lines (%s)", (lang) => {
+  it.each(["en", "ru"] as const)("fit their lines (%s), up to 7-digit counts", (lang) => {
     setLang(lang);
-    for (const l of creditLines(stats, lang))
-      if (l.kind === "head" || l.kind === "stat") expect(fitsBudget(l.text, budgetFor("credits.x")), l.text).toBe(true);
+    for (const opened of [12345, 1234567])
+      for (const l of creditLines({ ...stats, opened, cloutEarned: 1234567 }, lang))
+        if (l.kind === "head" || l.kind === "stat") expect(fitsBudget(l.text, budgetFor("credits.x")), l.text).toBe(true);
   });
 });

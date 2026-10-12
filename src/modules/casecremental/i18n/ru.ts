@@ -102,7 +102,7 @@ export const RU: Record<StringKey, string> = {
   "credits.thanks": "СПАСИБО ЗА ИГРУ",
   "credits.stats": "ВАША КАМПАНИЯ",
   "credits.time": "Время в игре: {t}",
-  "credits.opened": "Открыто кейсов: {n}",
+  "credits.opened": "Кейсов: {n}",
   "credits.best": "Лучший дроп:",
   "credits.clout": "Получено ХАЙПА: {n}",
   "credits.hm": "{h} ч {m} мин",
