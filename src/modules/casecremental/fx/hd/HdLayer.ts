@@ -66,8 +66,10 @@ export class HdLayer {
   private flashAlpha = 0;
   private sellerOn = false;
   private readonly flashGate = new FlashGate();
+  private screenSize = { w: 1, h: 1 };
 
-  constructor(coinFrames: readonly Texture[]) {
+  /** `coinFrames`: the spinning coin (the flying coins; stage 5's gold rain). */
+  constructor(readonly coinFrames: readonly Texture[]) {
     const cone = canvasTexture(256, 256, (g) => {
       const grad = g.createRadialGradient(128, 0, 0, 128, 0, 256);
       grad.addColorStop(0, "rgba(255,214,150,0.55)");
@@ -130,6 +132,7 @@ export class HdLayer {
   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
     this.l = l;
     this.vp = vp;
+    this.screenSize = { w: screenW, h: screenH };
     const k = vp.scale;
     this.lamp.position.set(l.lamp.x * k, 0);
     this.lamp.width = l.table.w * k * 1.3;
@@ -162,6 +165,22 @@ export class HdLayer {
     if (!this.flashGate.take(this.t)) return;
     this.flashRect.tint = color;
     this.flashAlpha = Math.max(this.flashAlpha, strength);
+  }
+
+  /** Ask the flash gate for a full-screen change that is not a flash (a glitch burst, a screen tear): true when it
+   *  may happen now, and it counts toward the three a second. */
+  takeFlash(): boolean {
+    return this.flashGate.take(this.t);
+  }
+
+  /** The screen in CSS px, as last laid out. */
+  get screen(): { w: number; h: number } {
+    return this.screenSize;
+  }
+
+  /** The pixel scale, as last laid out. */
+  get scale(): number {
+    return this.vp?.scale ?? 1;
   }
 
   /** A card is up and waiting to be sold: the bin's light calls for it. */

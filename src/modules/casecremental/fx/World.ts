@@ -150,7 +150,7 @@ export class World {
     this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
-    this.look = new StageLook(this.scene);
+    this.look = new StageLook(this.scene, this.hd);
     this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
     this.vaultBeams = new VaultBeams(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
@@ -265,7 +265,7 @@ export class World {
     this.room.update(realSeconds * 1000);
     this.updateVault(realSeconds);
     this.hd.update(realSeconds);
-    this.look.update(realSeconds);
+    this.look.update(realSeconds, run.state);
     setTweenTimeScale(scale);
     this.updateText(b);
     this.hd.setBinCalling(binCalling(run.state));
