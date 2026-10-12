@@ -92,7 +92,7 @@ export const EN = {
   // the tutorial (finish spec §4)
   "tut.buy": "Tap a case to buy it",
   "tut.key": "Turn the key: drag it to the case, or tap the case",
-  "tut.sell": "Drag the skin to SELL, or just tap it",
+  "tut.sell": "Drag the skin to the bin to sell it, or just tap it",
   "tut.upgrades": "Spend cash on upgrades",
   "tut.unlock": "Unlock the next case",
   "tut.bot": "Wake the bot: it opens cases on its own",

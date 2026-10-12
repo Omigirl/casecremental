@@ -8,6 +8,7 @@ import type { TargetId } from "./tutorialRules";
 // (fx/pixel/screen.ts toScreen), then the camera's zoom and shake (fx/camera.ts cameraPoint, the transform the HUD and
 // panels get through cameraCss). A DOM target is an element marked data-tut; its list scrolls to show it.
 
+/** A prop drawn on the canvas (world:…), as against an element of the DOM panels (data-tut). */
 export const isWorldTarget = (id: TargetId): boolean => id.startsWith("world:");
 
 /** The prop a world target means, in world px: the case on your mat (its lock takes the key), the first bench card

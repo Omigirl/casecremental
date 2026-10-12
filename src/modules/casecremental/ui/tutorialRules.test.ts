@@ -15,6 +15,7 @@ import {
   seed,
   settle,
   skip,
+  STEP_IDS,
   whatToShow,
   type StepId,
   type TutorialProgress,
@@ -128,6 +129,16 @@ describe("the later steps", () => {
     expect(settle(p, buildView(run))).toBe(p); // nothing new: the same object, so the overlay writes nothing
   });
 
+  it("ends the sell step when the card leaves the bench by hand, tray or locker, not when the bot sells", () => {
+    const drop = {} as never;
+    const base = P(["buy", "key"]);
+    expect(afterEvent(base, { type: "stored", drop, from: "bench", slot: 0 } as never).done).toContain("sell");
+    expect(afterEvent(base, { type: "lockerStored", drop, from: "bench", slot: 0, byHand: true } as never).done).toContain("sell");
+    expect(afterEvent(base, { type: "sold", drop, amount: 1, combo: 0, source: "bot", from: "bot", slot: 0 } as never).done).not.toContain(
+      "sell",
+    );
+  });
+
   it("ends the vault's step on OK, or on buying the vault", () => {
     const p = P([...INTRO, "upgrades", "unlock", "bot", "seller", "autospin"]);
     expect(acknowledge(p, "vault").done).toContain("vault");
@@ -157,8 +168,16 @@ describe("progress", () => {
     run.buySeller();
     const v = buildView(run);
     const p = seed(v);
-    expect(p).toEqual({ done: [...INTRO, "bot", "seller"], off: false, cards: [2] });
-    expect(whatToShow(p, v)).toMatchObject({ kind: "step", step: { id: "upgrades" } });
+    expect(p).toEqual({ done: [...STEP_IDS], off: false, cards: [2] });
+    expect(whatToShow(p, v)).toBeNull(); // Run 2+: finishing a run proved every step, so no basics are re-coached
+  });
+
+  it("seeds a Run 1 save that has played on: the bench loop and what it shows done, the rest still coached", () => {
+    const run = runOf(1);
+    run.state.cash = 1e12;
+    run.wakeBot();
+    run.buySeller();
+    expect(seed(buildView(run))).toEqual({ done: [...INTRO, "bot", "seller"], off: false, cards: [] });
   });
 
   it("seeds a fresh save with nothing done", () => {

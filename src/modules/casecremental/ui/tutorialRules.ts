@@ -179,9 +179,10 @@ const experienced = (v: GameView): boolean =>
   v.run > 1 || v.upgrades.some((u) => u.level > 0) || v.cases.filter((c) => c.unlocked).length > 1 || v.bot.awake || v.seller.on;
 
 /** F3's first load in this browser: a save that has played on skips the bench loop and every step it shows done, and
- *  the runs it has reached have no card. A fresh save starts from nothing. */
+ *  the runs it has reached have no card. A fresh save starts from nothing. From Run 2 on every step is done: each run
+ *  resets unlocks, upgrades, the seller and auto-spin, but the player finished a run, so they did all nine. */
 export function seed(v: GameView): TutorialProgress {
-  const p = withDone(settle(FRESH_TUTORIAL, v), experienced(v) ? INTRO : []);
+  const p = v.run > 1 ? withDone(FRESH_TUTORIAL, STEP_IDS) : withDone(settle(FRESH_TUTORIAL, v), experienced(v) ? INTRO : []);
   return { ...p, cards: NEW_RUN_CARDS.filter((n) => n <= v.run) };
 }
 

@@ -81,12 +81,13 @@ function shownMark(host: HTMLElement, id: TargetId): HTMLElement | null {
 }
 
 /** Scroll the row's list (never the overflow-hidden panels, as scrollIntoView would) so the row shows whole. */
-function showInList(el: HTMLElement): void {
+function showInList(el: HTMLElement, zoom: number): void {
   const list = el.closest<HTMLElement>(".cc-scroll");
   if (!list) return;
   const a = el.getBoundingClientRect();
   const b = list.getBoundingClientRect();
-  list.scrollTop += scrollDelta({ top: a.top, bottom: a.bottom }, { top: b.top, bottom: b.bottom });
+  // the rects include the camera lens's scale(zoom); scrollTop is in layout px
+  list.scrollTop += scrollDelta({ top: a.top, bottom: a.bottom }, { top: b.top, bottom: b.bottom }) / (zoom || 1);
 }
 
 function Bubble({
@@ -130,7 +131,7 @@ function Bubble({
         const mark = shownMark(host, id)!;
         if (scrolledTo !== id) {
           scrolledTo = id; // once per target: the player may scroll the list themselves afterwards
-          showInList(mark);
+          showInList(mark, camera.current.zoom);
         }
         const r = mark.getBoundingClientRect();
         target = { x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height };
