@@ -7,7 +7,9 @@
     "case opening with a CS-style reel and near misses",
     "skins with rarity, wear and StatTrak",
     "upgrades and a case ladder",
-    "intensity stages that escalate the visuals"
+    "intensity stages that escalate the visuals",
+    "a Trophy Case lobby tab (server inventory)",
+    "a best-run leaderboard lobby tab"
   ],
   "tags": ["incremental", "idle", "cases", "skins", "pixi"],
   "author": { "name": "Yerassyl Omirtay" },

@@ -10,6 +10,7 @@ import { AudioEngine } from "./fx/audio/AudioEngine";
 import { Camera } from "./fx/camera";
 import { createGameScene } from "./fx/GameScene";
 import { makeGamePanel } from "./ui/GamePanel";
+import { registerLobbyTabs } from "./ui/lobby/features";
 import { getPrefs, initPrefs, onPrefsChange } from "./ui/prefs";
 
 // Casecremental: a Scritchy Scratchy-style incremental where the scratch ticket is a weapon case.
@@ -48,6 +49,7 @@ export const casecrementalModule: Module = defineModule({
     ctx.registerScene(createGameScene(controller, audio, camera));
     ctx.registerPanel({ id: "game", slot: "overlay", component: makeGamePanel(controller, audio, camera) });
     ctx.registerRoute({ id: "casecremental", label: "Casecremental", icon: "📦" });
+    registerLobbyTabs(ctx.features); // the Trophy Case and the Leaderboard (plan F7)
     ctx.exposeToAgent(createAgentApi(controller));
   },
 });
