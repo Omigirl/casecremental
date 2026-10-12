@@ -97,4 +97,6 @@ export interface Drop {
   statTrak: boolean;
   /** Base value before sell multipliers (Appraiser, combo). */
   value: number;
+  /** An Upgrader win: the auto-seller's Money Printer multiplier skips it (else x3 beats the Upgrader's EV cap). */
+  upgraded?: true;
 }

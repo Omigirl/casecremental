@@ -165,8 +165,9 @@ export const HOARDER_PER_SKIN = 0.01;
 export const FEVER_PAY_MULT = 1.5;
 export const FEVER_STAGE_BONUS = 1;
 export const COLLECTOR_MULT = 2;
-/** Loaded Dice (Run 4): the Upgrader's win chance + this. */
-export const LOADED_DICE_BONUS = 0.1;
+/** Loaded Dice (Run 4): the Upgrader's win chance x this (multiplicative, so its EV stays under 1 at every target:
+ *  0.9 / m x 1.1 = 0.99 / m). */
+export const LOADED_DICE_MULT = 1.1;
 
 export const TRAY_BASE_CAPACITY = 12;
 

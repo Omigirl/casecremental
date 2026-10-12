@@ -238,7 +238,7 @@ const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
   },
   loadedDice: {
     name: { en: "Loaded Dice", ru: "Шулерские кости" },
-    desc: { en: "Upgrader: +10% win chance", ru: "Апгрейдер: +10% к шансу" },
+    desc: { en: "Upgrader wins 10% more often", ru: "Апгрейдер выигрывает на 10% чаще" },
   },
 };
 
