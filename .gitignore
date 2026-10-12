@@ -5,3 +5,4 @@ dist/
 .superpowers/
 .npm-cache/
 art/preview/
+.claude/worktrees/

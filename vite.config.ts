@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 const fromHere = (path: string): string =>
@@ -33,5 +33,7 @@ export default defineConfig(() => {
     plugins: [react()],
     resolve: { alias },
     server: { port: 5180 },
+    // Other agents' git worktrees live under .claude/worktrees; keep their copies out of our runs.
+    test: { exclude: [...configDefaults.exclude, ".claude/**", ".superpowers/**"] },
   };
 });
