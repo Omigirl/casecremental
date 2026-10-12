@@ -1,8 +1,10 @@
 import type { Rng } from "../../sim/rng";
 import type { Bench as BenchState, BenchReel } from "../../sim/run";
 import { caseById, skinById } from "../../sim/content/cases";
+import { MULTI_OPEN_MAX } from "../../sim/tuning";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import { crawlSeconds } from "../reel/motion";
+import { slotRects } from "../reel/slotLayout";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { StackedReels, stackRects } from "../vault/stackedReels";
 import { benchReelArea, type Pt, type Rect, type TableLayout } from "./layout";
@@ -12,6 +14,7 @@ import type { SpriteSet } from "./sprites";
 // more than one spins the window is tall — the cards are not up yet — and it snaps back to compact once they have
 // all landed: Reel.layout rebuilds the whole strip, so it is not glided frame by frame. A reel that lands before
 // its teasing partner gets its own (quieter) stop; the camera leans toward the strongest tease until that reel lands.
+// Slot Machine's ten reels stand as five slot columns of two (reel/slotLayout.ts).
 
 /** The tallest one reel gets in a stack. */
 export const REEL_MAX_H = 26;
@@ -147,6 +150,9 @@ export class BenchReels {
   }
 
   private apply(): void {
-    if (this.l) this.root.layout(stackRects(benchReelArea(this.l, this.n, this.tall), this.n, REEL_MAX_H));
+    if (!this.l) return;
+    const area = benchReelArea(this.l, this.n, this.tall);
+    // Slot Machine (Run 4): more reels than multi-open's widest are five slot columns
+    this.root.layout(this.n > MULTI_OPEN_MAX ? slotRects(area, this.n) : stackRects(area, this.n, REEL_MAX_H));
   }
 }

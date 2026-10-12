@@ -8,11 +8,12 @@ import type { RestorePlan } from "../restore";
 import { AutoSpinStation } from "./AutoSpinStation";
 import { BotStation } from "./BotStation";
 import type { StationDeps } from "./deps";
+import { EvolutionLooks } from "./EvolutionLooks";
 import { LockerStation } from "./LockerStation";
 
-// The stations beside your bench (M3: the bot's pair, the locker; F2: auto-spin's arm): drawn from the sim every
-// frame, so a reload or a lobby trip redraws them as they are, each with its own event juice. The World owns your
-// bench, the room and the camera, and asks the stations about their cards and sales.
+// The stations beside your bench (M3: the bot's pair, the locker; F2: auto-spin's arm; Run 4: the evolutions' looks):
+// drawn from the sim every frame, so a reload or a lobby trip redraws them as they are, each with its own event juice.
+// The World owns your bench, the room and the camera, and asks the stations about their cards and sales.
 
 export class Stations {
   /** Pixel world, just over the table and under the tray: the locker's cabinet and auto-spin's arm. */
@@ -26,6 +27,7 @@ export class Stations {
   private readonly bot: BotStation;
   private readonly locker: LockerStation;
   private readonly autoSpin: AutoSpinStation;
+  private readonly evolutions: EvolutionLooks;
   private l: TableLayout | null = null;
 
   constructor(private readonly d: StationDeps) {
@@ -40,6 +42,10 @@ export class Stations {
     this.autoSpin = new AutoSpinStation(d);
     this.under.addChild(this.autoSpin.under);
     this.hd.addChild(this.autoSpin.hd);
+    this.evolutions = new EvolutionLooks(d);
+    this.under.addChild(this.evolutions.under);
+    this.reels.addChild(this.evolutions.over); // after the bot's reels: the gold frame draws over your reel window
+    this.hd.addChild(this.evolutions.hd);
   }
 
   layout(l: TableLayout): void {
@@ -47,12 +53,14 @@ export class Stations {
     this.bot.layout(l);
     this.locker.layout(l);
     this.autoSpin.layout(l);
+    this.evolutions.layout(l);
   }
 
   update(dt: number, ms: number, s: RunState): void {
     this.bot.update(dt, ms, s);
     this.locker.update(dt, ms, s);
     this.autoSpin.update(dt, s);
+    this.evolutions.update(dt, s);
   }
 
   /** A fresh World (a reload, a lobby trip) or a new run: redraw what the sim holds. */
@@ -67,6 +75,7 @@ export class Stations {
     this.bot.onEvent(e);
     this.locker.onEvent(e);
     this.autoSpin.onEvent(e);
+    this.evolutions.onEvent(e);
   }
 
   /** Pick up a waiting card under the pointer (the locker's results first: they sit over the tray's end). */
@@ -115,6 +124,7 @@ export class Stations {
     this.bot.cards.destroy();
     this.locker.destroy();
     this.autoSpin.destroy();
+    this.evolutions.destroy();
   }
 
   private clearAll(): void {
