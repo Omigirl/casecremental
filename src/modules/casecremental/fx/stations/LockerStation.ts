@@ -3,7 +3,7 @@ import { lockerCounts, tradeUpRarity, type LockerState } from "../../sim/locker"
 import { RARITY_INFO, RARITY_ORDER } from "../../sim/rarity";
 import type { RunState, SimEvent } from "../../sim/run";
 import { TRADE_UP_COUNT } from "../../sim/tuning";
-import type { RarityId } from "../../sim/types";
+import type { Drop, RarityId } from "../../sim/types";
 import { cardBurst } from "../benchFx";
 import { pixelStyle } from "../hd/font";
 import { bigReveal } from "../juice/bigReveal";
@@ -29,7 +29,8 @@ import {
 
 // The locker (spec §5, Run 2+; an unlit cabinet before): five rarity lamps with counts on its face, a drop target for
 // any waiting card, a tap to press a trade-up, the press (ten cards fly in, it stamps), and its results waiting on
-// top — sold, held or dragged back in like the bot's cards. Drawn from the sim every frame.
+// top — sold, held or dragged back in like the bot's cards (an Upgrader win waits there too; its dial is
+// UpgraderDial.ts). Drawn from the sim every frame.
 
 const DIM = 0x8a8a9a;
 const POSE: Pose = { frame: 0, dx: 0, dy: 0, bodyDy: 0, headDy: 0, eyes: "open", look: 0 };
@@ -164,13 +165,12 @@ export class LockerStation {
         this.doorLeft = DOOR_OPEN_SECONDS;
         if (e.byHand || this.storeSound.ready(this.t)) audio.play("locker-store", { gain: e.byHand ? 1 : 0.5 });
         break;
-      case "pressDone": {
-        this.cards.revealed(e.results);
-        audio.play("tradeup-reveal");
-        const best = e.results[bestSlot(e.results) ?? 0];
-        if (best) bigReveal(this.d.juice, best.rarity, false, { time: false }); // Covert: the red hit; ★: the slow-mo and the knife
+      case "pressDone":
+        this.popResults(e.results);
         break;
-      }
+      case "upgraderDone": // a win's skin pops out like a contract result (the dial does the rest)
+        if (e.result) this.popResults([e.result]);
+        break;
       case "runStarted":
         this.cards.clearAll();
         this.doorLeft = 0;
@@ -183,6 +183,15 @@ export class LockerStation {
 
   destroy(): void {
     this.cards.destroy();
+  }
+
+  /** Results out of the press (a trade-up's, or an Upgrader win): they pop up on top with the reveal's juice. They
+   *  already wait in the sim's locker cards, so a reload simply shows them. */
+  private popResults(results: readonly Drop[]): void {
+    this.cards.revealed(results);
+    this.d.juice.audio.play("tradeup-reveal");
+    const best = results[bestSlot(results) ?? 0];
+    if (best) bigReveal(this.d.juice, best.rarity, false, { time: false }); // Covert: the red hit; ★: the slow-mo and the knife
   }
 
   private stamp(): void {
