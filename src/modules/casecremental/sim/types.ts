@@ -31,10 +31,18 @@ export type PatternKind =
   // Inferno
   | "flame"
   | "ember"
-  | "molten";
+  | "molten"
+  // Glitch
+  | "datamosh"
+  | "scanline"
+  | "rgbsplit"
+  // Fever Dream
+  | "melt"
+  | "kaleido"
+  | "huecycle";
 
-/** A moving finish (spec: animated skins §4; `rise`: M3 spec §3). */
-export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise";
+/** A moving finish (spec: animated skins §4; `rise`: M3 spec §3; `glitch` and `drip`: finish spec §7.1). */
+export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise" | "glitch" | "drip";
 /** A moving weapon: the code-drawn silhouette is transformed before it is rasterised. */
 export type WeaponMotion = "bob" | "recoil" | "bolt" | "flip";
 

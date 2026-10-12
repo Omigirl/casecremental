@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, type ReactNode } from "react";
 import { popElement } from "../fx/hd/tween";
+import { cardFill } from "../i18n/content";
 import { t } from "../i18n/index";
 import { UiEnvContext } from "./parts";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
@@ -43,7 +44,7 @@ export function NewRunCard({ run, onClose }: { run: number; onClose: () => void 
         }}
       >
         <div className="cc-title">{t("card.title", { n: run })}</div>
-        <div>{t(cardText(run))}</div>
+        <div>{t(cardText(run), cardFill())}</div>
         <div className="cc-dim" style={{ textAlign: "center" }}>
           {t("card.tap")}
         </div>

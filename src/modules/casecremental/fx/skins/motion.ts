@@ -83,7 +83,7 @@ export function finishAt(
   let vv = v;
   // a kind that draws this motion itself (OWN_MOTION) gets the phase, and nothing generic goes on top
   const own = kind !== undefined && OWN_MOTION[spec.kind] === kind;
-  if (!own && (kind === "flow" || kind === "rise")) {
+  if (!own && (kind === "flow" || kind === "rise" || kind === "glitch" || kind === "drip")) {
     // a small closed drift, so the loop returns to where it started; a finish that cannot scroll up
     // seamlessly drifts instead of rising
     uu += 0.08 * Math.cos(TAU * t);

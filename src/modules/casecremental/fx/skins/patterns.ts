@@ -96,6 +96,14 @@ export function patternColor(spec: PatternSpec, pal: readonly Rgb[], u: number, 
       return ember(pal, p, phase);
     case "molten":
       return molten(pal, p, phase);
+    // interim (plan F6-A): Run 4's six kinds share a plain finish until plan F6-B draws their own
+    case "datamosh":
+    case "scanline":
+    case "rgbsplit":
+    case "melt":
+    case "kaleido":
+    case "huecycle":
+      return pick(pal, spread(fbm(x, y, seed)));
   }
 }
 

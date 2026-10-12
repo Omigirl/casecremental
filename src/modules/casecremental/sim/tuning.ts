@@ -41,6 +41,9 @@ export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: 
   // replay's at ~3.5 min
   deepspace: { price: 150_000, unlockCost: 1_000_000_000 },
   inferno: { price: 1_500_000, unlockCost: 55_000_000_000 },
+  // F6-A: Run 4's cases (starting values; Run 4's pacing tunes them)
+  glitch: { price: 15_000_000, unlockCost: 1_500_000_000_000 },
+  feverdream: { price: 150_000_000, unlockCost: 80_000_000_000_000 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {

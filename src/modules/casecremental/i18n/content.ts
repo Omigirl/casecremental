@@ -16,6 +16,8 @@ const CASES: Record<string, Pair> = {
   neon: { en: "Neon Nights", ru: "Ночной неон" },
   deepspace: { en: "Deep Space", ru: "Космос" },
   inferno: { en: "Inferno", ru: "Инферно" },
+  glitch: { en: "Glitch", ru: "Глитч" },
+  feverdream: { en: "Fever Dream", ru: "Бредовый сон" },
   vault1: { en: "Vault Case I", ru: "Сейф-кейс I" },
   vault2: { en: "Vault Case II", ru: "Сейф-кейс II" },
   vault3: { en: "Vault Case III", ru: "Сейф-кейс III" },
@@ -127,6 +129,32 @@ const SKINS: Record<string, Pair> = {
   br_magma: { en: "Magma Core", ru: "Ядро магмы" },
   br_diamond: { en: "Diamond Hands", ru: "Алмазные руки" },
   br_knife: { en: "Molten Crown", ru: "Расплавленная корона" },
+  gl_deadpixel: { en: "Dead Pixel", ru: "Битый пиксель" },
+  gl_compression: { en: "Compression", ru: "Сжатие" },
+  gl_static: { en: "Static", ru: "Помехи" },
+  gl_buffer: { en: "Buffer Underrun", ru: "Пустой буфер" },
+  gl_404: { en: "Error 404", ru: "Ошибка 404" },
+  gl_vhs: { en: "VHS Rewind", ru: "Перемотка VHS" },
+  gl_tear: { en: "Screen Tear", ru: "Разрыв кадра" },
+  gl_corrupt: { en: "Corrupted", ru: "Повреждённый" },
+  gl_chroma: { en: "Chromatic", ru: "Хроматика" },
+  gl_mosh: { en: "Datamosh", ru: "Датамош" },
+  gl_fatal: { en: "Fatal Exception", ru: "Фатальная ошибка" },
+  gl_null: { en: "Null Pointer", ru: "Нулевой указатель" },
+  gl_knife: { en: "Segfault", ru: "Сегфолт" },
+  fd_lullaby: { en: "Lullaby", ru: "Колыбельная" },
+  fd_wax: { en: "Candle Wax", ru: "Свечной воск" },
+  fd_glass: { en: "Stained Glass", ru: "Витраж" },
+  fd_sherbet: { en: "Sherbet", ru: "Щербет" },
+  fd_softclock: { en: "Soft Clock", ru: "Мягкие часы" },
+  fd_mirrors: { en: "Hall of Mirrors", ru: "Зеркальный зал" },
+  fd_lavalamp: { en: "Lava Lamp", ru: "Лава-лампа" },
+  fd_halo: { en: "Halo", ru: "Нимб" },
+  fd_kaleido: { en: "Kaleidoscope", ru: "Калейдоскоп" },
+  fd_rainbow: { en: "Rainbow Road", ru: "Радужная дорога" },
+  fd_lucid: { en: "Lucid Dream", ru: "Осознанный сон" },
+  fd_feverpitch: { en: "Fever Pitch", ru: "Пик лихорадки" },
+  fd_knife: { en: "Daydream", ru: "Грёза" },
 };
 
 const RARITIES: Record<RarityId, Pair> = {
@@ -238,6 +266,8 @@ export const charmName = (id: CharmId): string => pick(CHARMS[id]?.name);
 export const charmDesc = (id: CharmId): string => pick(CHARMS[id]?.desc);
 export const perkName = (id: PerkId): string => pick(PERKS[id]?.name);
 export const perkDesc = (id: PerkId): string => pick(PERKS[id]?.desc);
+/** The names a new-run card's text fills in (`card.run4`: {glitch}, {fever}), so it always matches the shelf. */
+export const cardFill = (): Record<string, string> => ({ glitch: caseName("glitch"), fever: caseName("feverdream") });
 
 /** Every content name with its budget key, for the budget test. */
 export function CONTENT_KEYS(): Array<[string, string, string]> {

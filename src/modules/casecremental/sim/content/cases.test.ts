@@ -3,8 +3,18 @@ import { CASES, caseById, priceOf, skinById, unlockCostOf } from "./cases";
 import type { RarityId } from "../types";
 
 describe("cases", () => {
-  it("has seven cases in ladder order", () => {
-    expect(CASES.map((c) => c.id)).toEqual(["bootcamp", "wildwood", "bedrock", "mainframe", "neon", "deepspace", "inferno"]);
+  it("has nine cases in ladder order", () => {
+    expect(CASES.map((c) => c.id)).toEqual([
+      "bootcamp",
+      "wildwood",
+      "bedrock",
+      "mainframe",
+      "neon",
+      "deepspace",
+      "inferno",
+      "glitch",
+      "feverdream",
+    ]);
     CASES.forEach((c, i) => expect(c.tier).toBe(i + 1));
   });
 
@@ -58,6 +68,17 @@ describe("cases", () => {
     expect(moving("neon")).toBeGreaterThanOrEqual(8); // Restricted+
     expect(moving("deepspace")).toBe(13);
     expect(moving("inferno")).toBe(13);
+    expect(moving("glitch")).toBe(13);
+    expect(moving("feverdream")).toBe(13);
+  });
+
+  it("gives Glitch and Fever Dream their own finishes and motions", () => {
+    const kinds = (id: string) => new Set(caseById(id).skins.map((s) => s.pattern.kind));
+    expect(kinds("glitch")).toEqual(new Set(["datamosh", "scanline", "rgbsplit"]));
+    expect(kinds("feverdream")).toEqual(new Set(["melt", "kaleido", "huecycle"]));
+    for (const s of caseById("glitch").skins) expect(s.motion?.pattern, s.id).toBe("glitch");
+    for (const s of caseById("feverdream").skins) expect(["drip", "flow"], s.id).toContain(s.motion?.pattern);
+    for (const id of ["glitch", "feverdream"]) expect(caseById(id).skins.find((x) => x.rarity === "gold")?.motion?.weapon).toBe("flip");
   });
 
   it("prices every case ten times the one before", () => {

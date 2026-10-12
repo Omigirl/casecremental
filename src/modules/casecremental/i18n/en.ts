@@ -107,7 +107,7 @@ export const EN = {
   "card.run2": "The bot gets a second reel: two cases a spin. The locker keeps your skins and trades 10 of one rarity up for a rarer skin.",
   "card.run3": "Multi-open goes up to x5. The auto contract presses trade-ups on its own.",
   "card.run4":
-    "Two new cases, Glitch and Fever Dream. The Upgrader stakes skins for bigger ones, maxed upgrades evolve, and The Last Case waits at the end.",
+    "Two new cases, {glitch} and {fever}. The Upgrader stakes skins for bigger ones, maxed upgrades evolve, and The Last Case waits at the end.",
 } as const;
 
 export type StringKey = keyof typeof EN;

@@ -4,7 +4,7 @@ import { EN } from "./en";
 import { detectLang, getLang, onLangChange, setLang, t } from "./index";
 import { RU } from "./ru";
 import { CASES } from "../sim/content/cases";
-import { caseName } from "./content";
+import { caseName, cardFill } from "./content";
 import { AUTOSPIN_DELAYS } from "../sim/tuning";
 import { delaySeconds } from "../ui/autoSpinRules";
 import { wrapLines } from "../ui/shelfFit";
@@ -97,5 +97,13 @@ describe("F3 strings", () => {
   it.each(["en", "ru"] as const)("the new-run card's title fits for Runs 2, 3 and 4 (%s)", (lang) => {
     setLang(lang);
     for (const n of [2, 3, 4]) expect(fits("card.title", { n }), `run ${n}`).toBe(true);
+  });
+
+  it.each(["en", "ru"] as const)("Run 4's card names cases 8 and 9 as the shelf does, and fits filled in (%s)", (lang) => {
+    setLang(lang);
+    const text = t("card.run4", cardFill());
+    expect(text).toContain(caseName("glitch"));
+    expect(text).toContain(caseName("feverdream"));
+    expect(fits("card.run4", cardFill())).toBe(true);
   });
 });

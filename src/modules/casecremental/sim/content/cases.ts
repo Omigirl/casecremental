@@ -3,15 +3,16 @@ import type { CaseDef, SkinDef } from "../types";
 import { RUN1_CASES } from "./casesRun1";
 import { RUN2_CASES } from "./casesRun2";
 import { RUN3_CASES } from "./casesRun3";
+import { RUN4_CASES } from "./casesRun4";
 import { VAULTS } from "./vaults";
 import { WEAPON_NAMES } from "./weapons";
 
 // The case ladder. Each later case uses a richer pattern technique than the one before it, so its
-// cheapest skins already outshine the previous case's best (spec §4.3, §5). Cases per run: casesRun1/2/3.
+// cheapest skins already outshine the previous case's best (spec §4.3, §5). Cases per run: casesRun1/2/3/4.
 
 export { VAULT_LEGEND } from "./vaults";
 
-export const CASES: readonly CaseDef[] = [...RUN1_CASES, ...RUN2_CASES, ...RUN3_CASES];
+export const CASES: readonly CaseDef[] = [...RUN1_CASES, ...RUN2_CASES, ...RUN3_CASES, ...RUN4_CASES];
 
 const SKINS = new Map<string, SkinDef>([...CASES.flatMap((c) => c.skins), ...VAULTS.map((v) => v.legend)].map((s) => [s.id, s]));
 

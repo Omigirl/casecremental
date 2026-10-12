@@ -43,14 +43,17 @@ describe("renderSkinFrames", () => {
     }
   });
 
-  it.each<PatternMotion>(["flow", "shimmer", "pulse", "sparkle", "rise"])("%s moves the finish but never the outline", (kind) => {
-    const frames = renderSkinFrames(moving({ pattern: kind }));
-    expect(frames.some((f) => !same(f, frames[0]!))).toBe(true);
-    for (let i = 0; i < frames[0]!.data.length; i += 4) {
-      if (!isOutline(frames[0]!, i)) continue;
-      for (const f of frames) expect(isOutline(f, i)).toBe(true);
-    }
-  });
+  it.each<PatternMotion>(["flow", "shimmer", "pulse", "sparkle", "rise", "glitch", "drip"])(
+    "%s moves the finish but never the outline",
+    (kind) => {
+      const frames = renderSkinFrames(moving({ pattern: kind }));
+      expect(frames.some((f) => !same(f, frames[0]!))).toBe(true);
+      for (let i = 0; i < frames[0]!.data.length; i += 4) {
+        if (!isOutline(frames[0]!, i)) continue;
+        for (const f of frames) expect(isOutline(f, i)).toBe(true);
+      }
+    },
+  );
 
   it.each<[WeaponMotion, SkinDef]>([
     ["bob", rifle],
