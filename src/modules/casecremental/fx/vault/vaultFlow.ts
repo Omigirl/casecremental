@@ -1,7 +1,7 @@
 import type { RunState } from "../../sim/run";
 import { VAULT_OPENING_SECONDS } from "../../sim/tuning";
 import type { AudioEngine } from "../audio/AudioEngine";
-import type { TrackId } from "../audio/sounds";
+import type { FanfareId, TrackId } from "../audio/sounds";
 import { VAULT_CUES } from "./cues";
 import { BLACKOUT_SECONDS, blackoutLevel, LIGHTS_UP_SECONDS, lightCues, lightLevels, type LightLevels } from "./lights";
 
@@ -26,15 +26,16 @@ export type PowerPhase = "blackout" | "dark" | "powerUp" | "lit";
 export type MusicAudio = Pick<AudioEngine, "play" | "setMusicOn" | "setTrack">;
 
 /** What should be playing, read from the sim and the lights (the music engine only remembers where a track
- *  started, not where the vault is): on a reload, back from the lobby, and whenever the World restores a run. */
-export function musicPlan(s: Pick<RunState, "vault" | "over">, power: PowerPhase): MusicPlan {
+ *  started, not where the vault is): on a reload, back from the lobby, and whenever the World restores a run.
+ *  `fanfare`: the run's vault's (vaultLooks), Vault I's by default. */
+export function musicPlan(s: Pick<RunState, "vault" | "over">, power: PowerPhase, fanfare: FanfareId = "vault-fanfare"): MusicPlan {
   const plan = (track: TrackId | null, loop = true, offset = 0, musicOn = true): MusicPlan => ({ track, loop, offset, musicOn });
   const v = s.vault;
   if (v?.phase === "key") return plan("vault-suspense");
   if (v?.phase === "opening") {
-    // the intro from the key turn; on the impact the scene hands over to the fanfare (its first downbeat)
+    // the intro from the key turn; on the impact the scene hands over to the vault's fanfare (its first downbeat)
     if (v.t < VAULT_CUES.impact) return plan("vault-intro", false, v.t);
-    return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
+    return v.t < VAULT_OPENING_SECONDS ? plan(fanfare, false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
   }
   // the prestige loop waits for the dark: the PowerCycle turns it on when the blackout has fallen
   if (s.over) return power === "blackout" ? plan("prestige", true, 0, false) : plan("prestige");
