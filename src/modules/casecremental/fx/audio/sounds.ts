@@ -85,6 +85,14 @@ export const TRACK_GAIN: Readonly<Record<TrackId, number>> = {
   credits: 1, // level-matched to the prestige loop by the generator (F5): it rides at its level
 };
 
+/** A track's file name: one of TRACK_GAIN's ids, longest first (so each vault's fanfare matches before Vault I's
+ *  plain "vault-fanfare"), with an optional take number. */
+const TRACK_FILE = new RegExp(
+  `^(${Object.keys(TRACK_GAIN)
+    .sort((a, b) => b.length - a.length)
+    .join("|")})(?:-(\\d+))?$`,
+);
+
 export interface AudioFiles {
   /** variant URLs per sound */
   sfx: Map<SoundId, string[]>;
@@ -117,9 +125,9 @@ export function indexAudio(urls: Record<string, string>): AudioFiles {
       finale ??= url;
       continue;
     }
-    // vault-fanfare-2 / -3 / -4 are Vaults II's, III's and The Last Case's own fanfares (tried before vault-fanfare, so they are never a
-    // spare take of Vault I's); a numbered file of any other track is a take of it
-    const track = /^(vault-suspense|vault-intro|vault-fanfare-[234]|vault-fanfare|prestige|credits)(?:-(\d+))?$/.exec(name);
+    // a named track's own name wins over a take of a shorter one (vault-fanfare-4 is The Last Case's fanfare, not
+    // take 4 of Vault I's); a numbered file of any other track is a take of it
+    const track = TRACK_FILE.exec(name);
     if (track) {
       const trackId = track[1] as TrackId;
       if (!tracks.has(trackId)) tracks.set(trackId, url); // sorted, so a take -1 wins over a spare

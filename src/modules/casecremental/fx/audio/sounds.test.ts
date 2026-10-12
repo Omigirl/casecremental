@@ -49,6 +49,15 @@ describe("the named tracks", () => {
     expect(files.tracks.get("vault-fanfare-4")).toBe("u4");
   });
 
+  it("indexes every numbered named track as its own track, never as a take of the shorter name", () => {
+    for (const id of Object.keys(TRACK_GAIN) as TrackId[]) {
+      const files = indexAudio({ [`a/${id}.mp3`]: "own", [`a/${id}-1.mp3`]: "take" });
+      expect(files.tracks.get(id), id).toBe("take");
+      const base = id.replace(/-\d+$/, "") as TrackId;
+      if (base !== id) expect(files.tracks.has(base), id).toBe(false);
+    }
+  });
+
   it("finds every named track's file in assets/audio", () => {
     const files = indexAudio(REAL_FILES);
     for (const id of Object.keys(TRACK_GAIN) as TrackId[]) expect(files.tracks.get(id), id).toBeDefined();

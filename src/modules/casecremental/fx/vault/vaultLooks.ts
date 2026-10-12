@@ -101,10 +101,10 @@ export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
     fanfare: "vault-fanfare-3",
     chaos: { burstsPerKick: 4, stream: 2, rain: 2, sparks: 2, shimmer: { from: 0.08, span: 0.05, sat: 0.2 } },
   },
-  // interim (plan F6-A): Vault III's chest, fanfare and chaos until plan F6-C builds The Last Case's own look
+  // its own chest and fanfare (F6 assets); the chaos is still Vault III's (interim) until plan F6-C finishes the look
   lastcase: {
     id: "lastcase",
-    chest: "vault-case-3",
+    chest: "vault-case-4", // black glass with gold glitch seams
     palette: [0xffffff, 0xffd34d, 0x1a0f2e, 0xffd34d, 0xffffff], // white, gold, void, gold, white
     light: {
       impactFlash: 0xfffbe8,
@@ -115,7 +115,7 @@ export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
       seam: 0xffd34d,
       open: 0xfff0b0,
     },
-    fanfare: "vault-fanfare-3",
+    fanfare: "vault-fanfare-4",
     chaos: { burstsPerKick: 4, stream: 2, rain: 2, sparks: 2, shimmer: { from: 0.12, span: 0.04, sat: 0.15 } },
   },
 };

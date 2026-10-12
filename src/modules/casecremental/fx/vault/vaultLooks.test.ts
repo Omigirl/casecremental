@@ -42,6 +42,9 @@ describe("the vaults' looks", () => {
   it("gives Vaults II and III their own chest, fanfare, beams and light", () => {
     expect(vaultLook("vault2")).toMatchObject({ chest: "vault-case-2", fanfare: "vault-fanfare-2" });
     expect(vaultLook("vault3")).toMatchObject({ chest: "vault-case-3", fanfare: "vault-fanfare-3" });
+    expect(vaultLook("lastcase")).toMatchObject({ chest: "vault-case-4", fanfare: "vault-fanfare-4" });
+    expect(new Set(LOOKS.map((l) => l.chest)).size).toBe(VAULTS.length);
+    expect(new Set(LOOKS.map((l) => l.fanfare)).size).toBe(VAULTS.length);
     expect(new Set(LOOKS.map((l) => l.palette.join())).size).toBe(VAULTS.length);
     expect(new Set(LOOKS.map((l) => JSON.stringify(l.light))).size).toBe(VAULTS.length);
     for (const l of LOOKS) {
