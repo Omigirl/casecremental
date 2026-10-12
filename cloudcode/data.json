@@ -1,0 +1,216 @@
+{
+  "v": 1,
+  "trophies": {
+    "bc_commander": {
+      "rarity": "covert",
+      "source": "bootcamp",
+      "minLoops": 0,
+      "vault": false
+    },
+    "bc_warlord": {
+      "rarity": "covert",
+      "source": "bootcamp",
+      "minLoops": 0,
+      "vault": false
+    },
+    "bc_knife": {
+      "rarity": "gold",
+      "source": "bootcamp",
+      "minLoops": 0,
+      "vault": false
+    },
+    "ww_spirit": {
+      "rarity": "covert",
+      "source": "wildwood",
+      "minLoops": 0,
+      "vault": false
+    },
+    "ww_elder": {
+      "rarity": "covert",
+      "source": "wildwood",
+      "minLoops": 0,
+      "vault": false
+    },
+    "ww_knife": {
+      "rarity": "gold",
+      "source": "wildwood",
+      "minLoops": 0,
+      "vault": false
+    },
+    "br_magma": {
+      "rarity": "covert",
+      "source": "bedrock",
+      "minLoops": 0,
+      "vault": false
+    },
+    "br_diamond": {
+      "rarity": "covert",
+      "source": "bedrock",
+      "minLoops": 0,
+      "vault": false
+    },
+    "br_knife": {
+      "rarity": "gold",
+      "source": "bedrock",
+      "minLoops": 0,
+      "vault": false
+    },
+    "mf_root": {
+      "rarity": "covert",
+      "source": "mainframe",
+      "minLoops": 1,
+      "vault": false
+    },
+    "mf_zeroday": {
+      "rarity": "covert",
+      "source": "mainframe",
+      "minLoops": 1,
+      "vault": false
+    },
+    "mf_knife": {
+      "rarity": "gold",
+      "source": "mainframe",
+      "minLoops": 1,
+      "vault": false
+    },
+    "nn_demon": {
+      "rarity": "covert",
+      "source": "neon",
+      "minLoops": 1,
+      "vault": false
+    },
+    "nn_racer": {
+      "rarity": "covert",
+      "source": "neon",
+      "minLoops": 1,
+      "vault": false
+    },
+    "nn_knife": {
+      "rarity": "gold",
+      "source": "neon",
+      "minLoops": 1,
+      "vault": false
+    },
+    "ds_cosmicray": {
+      "rarity": "covert",
+      "source": "deepspace",
+      "minLoops": 2,
+      "vault": false
+    },
+    "ds_blackhole": {
+      "rarity": "covert",
+      "source": "deepspace",
+      "minLoops": 2,
+      "vault": false
+    },
+    "ds_knife": {
+      "rarity": "gold",
+      "source": "deepspace",
+      "minLoops": 2,
+      "vault": false
+    },
+    "in_phoenix": {
+      "rarity": "covert",
+      "source": "inferno",
+      "minLoops": 2,
+      "vault": false
+    },
+    "in_dragon": {
+      "rarity": "covert",
+      "source": "inferno",
+      "minLoops": 2,
+      "vault": false
+    },
+    "in_knife": {
+      "rarity": "gold",
+      "source": "inferno",
+      "minLoops": 2,
+      "vault": false
+    },
+    "vault1_legend": {
+      "rarity": "gold",
+      "source": "vault1",
+      "minLoops": 0,
+      "vault": true
+    },
+    "vault2_legend": {
+      "rarity": "gold",
+      "source": "vault2",
+      "minLoops": 1,
+      "vault": true
+    },
+    "vault3_legend": {
+      "rarity": "gold",
+      "source": "vault3",
+      "minLoops": 2,
+      "vault": true
+    }
+  },
+  "vaults": [
+    {
+      "trophy": "vault1",
+      "legend": "vault1_legend"
+    },
+    {
+      "trophy": "vault2",
+      "legend": "vault2_legend"
+    },
+    {
+      "trophy": "vault3",
+      "legend": "vault3_legend"
+    }
+  ],
+  "perks": {
+    "startCash": {
+      "baseCost": 3,
+      "growth": 1.8,
+      "maxLevel": 5
+    },
+    "luck": {
+      "baseCost": 5,
+      "growth": 2,
+      "maxLevel": 5
+    },
+    "charmSlot": {
+      "baseCost": 15,
+      "growth": 2,
+      "maxLevel": 2
+    },
+    "botAwake": {
+      "baseCost": 8,
+      "growth": 1,
+      "maxLevel": 1
+    },
+    "biggerTray": {
+      "baseCost": 4,
+      "growth": 2,
+      "maxLevel": 3
+    }
+  },
+  "charms": [
+    "luckySeven",
+    "rustBucket",
+    "pityJar",
+    "doubleTap",
+    "ricochet",
+    "goldRush",
+    "insider",
+    "milSpecManiac",
+    "chainReaction",
+    "contractKiller",
+    "hoarder",
+    "fever",
+    "collectorsEye"
+  ],
+  "cloutDivisor": 105,
+  "cap": {
+    "baseLog10": 3,
+    "perSqrtSecond": 0.3,
+    "perLoop": 4,
+    "ceilLog10": 300
+  },
+  "firstRunMaxSec": 21600,
+  "trophyGapSec": 2,
+  "trophiesPerRunMinute": 30,
+  "maxOpensPerSecond": 2000
+}
