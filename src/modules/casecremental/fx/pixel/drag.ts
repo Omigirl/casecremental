@@ -82,6 +82,19 @@ export function onPointerCancel(target: EventTarget, f: (pointerId: number) => v
   return () => target.removeEventListener("pointercancel", h);
 }
 
+/** The pointer is gone from the canvas: the mouse left it, or a finger lifted or was cancelled (a touch has no hover,
+ *  so nothing should stay where it last was). Returns the unbind. */
+export function onPointerGone(target: EventTarget, f: () => void): () => void {
+  const h = (e: Event) => {
+    if (e.type === "pointerleave" || (e as PointerEvent).pointerType === "touch") f();
+  };
+  const types = ["pointerleave", "pointerup", "pointercancel"] as const;
+  for (const t of types) target.addEventListener(t, h);
+  return () => {
+    for (const t of types) target.removeEventListener(t, h);
+  };
+}
+
 /** The revealed card can be picked up once it is up and, for a ★ knife, once the knife has landed back in it. */
 export const cardGrabbable = (phase: string, cardVisible: boolean, knifeFlying: boolean): boolean =>
   phase === "revealed" && cardVisible && !knifeFlying;

@@ -1,7 +1,8 @@
-import { ColorMatrixFilter, Container, type Sprite } from "pixi.js";
+import { ColorMatrixFilter, Container, type Filter, type Sprite } from "pixi.js";
 import { AdvancedBloomFilter, BulgePinchFilter, GlitchFilter } from "pixi-filters";
 import type { RunState } from "../../sim/run";
 import type { HdLayer } from "../hd/HdLayer";
+import { FILL_LOOP } from "../vault/glitchTear";
 import { bloomActive, lookFor } from "./look";
 import { SpritePool } from "./spritePool";
 import { GLITCH_SECONDS, nextGlitchAt, rainCount, stageFiveMix, STROBE_STRENGTH, strobeDue, warpAt } from "./stageFive";
@@ -19,11 +20,28 @@ interface Drop {
   v: number;
 }
 
+/** The filters the look drives, in the order they apply (stageLookFilters() makes the real ones; a test passes fakes,
+ *  since a filter needs a GPU context to be made). */
+export interface StageLookFilters {
+  readonly color: ColorMatrixFilter;
+  readonly bloom: AdvancedBloomFilter;
+  readonly warp: BulgePinchFilter;
+  readonly glitch: GlitchFilter;
+}
+
+export const stageLookFilters = (): StageLookFilters => ({
+  color: new ColorMatrixFilter(),
+  bloom: new AdvancedBloomFilter({ threshold: 0.45, bloomScale: 0, brightness: 1, blur: 6, quality: 4 }),
+  warp: new BulgePinchFilter({ center: { x: 0.5, y: 0.5 }, radius: 0, strength: 0 }),
+  // the gap a slice leaves wraps the picture round: no dark bars, no change in brightness (photosensitivity)
+  glitch: new GlitchFilter({ slices: 6, offset: 0, fillMode: FILL_LOOP, red: [2, 0], blue: [-2, 0] }),
+});
+
 export class StageLook {
-  private readonly color = new ColorMatrixFilter();
-  private readonly bloom = new AdvancedBloomFilter({ threshold: 0.45, bloomScale: 0, brightness: 1, blur: 6, quality: 4 });
-  private readonly warp = new BulgePinchFilter({ center: { x: 0.5, y: 0.5 }, radius: 0, strength: 0 });
-  private readonly glitch = new GlitchFilter({ slices: 6, offset: 0, red: [2, 0], blue: [-2, 0] });
+  private readonly color: ColorMatrixFilter;
+  private readonly bloom: AdvancedBloomFilter;
+  private readonly warp: BulgePinchFilter;
+  private readonly glitch: GlitchFilter;
   private readonly rain = new Container();
   private readonly pool: SpritePool;
   private drops: Drop[] = [];
@@ -36,15 +54,34 @@ export class StageLook {
   private glitchLeft = 0;
   private nextGlitch = nextGlitchAt(0, Math.random());
 
+  /** Appends its filters to `target`'s, once: after this only their `enabled` and uniforms change, so a filter added
+   *  later (the Finale's tear) stays last. The rain goes into the HD layer over what it holds so far — the World makes
+   *  the look before it adds the labels, cards and stations, so the coins fall under those. */
   constructor(
-    target: Container,
+    private readonly target: Container,
     private readonly hd: HdLayer,
+    filters: StageLookFilters = stageLookFilters(),
   ) {
+    ({ color: this.color, bloom: this.bloom, warp: this.warp, glitch: this.glitch } = filters);
     this.warp.enabled = this.glitch.enabled = false;
-    target.filters = [this.color, this.bloom, this.warp, this.glitch];
+    target.filters = [...(target.filters ?? []), ...this.filters()];
     this.pool = new SpritePool(hd.coinFrames[0]!);
     hd.root.addChild(this.rain);
     this.apply();
+  }
+
+  destroy(): void {
+    const mine = this.filters();
+    this.target.filters = (this.target.filters ?? []).filter((f) => !mine.includes(f));
+    for (const f of mine) f.destroy();
+    for (const d of this.drops) this.pool.release(d.s);
+    this.drops = [];
+    this.pool.destroy();
+    this.rain.destroy();
+  }
+
+  private filters(): Filter[] {
+    return [this.color, this.bloom, this.warp, this.glitch];
   }
 
   setStage(stage: number): void {

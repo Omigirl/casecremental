@@ -9,9 +9,8 @@ import {
   BILLS_PER_SALE,
   billsToLaunch,
   chainRect,
-  FLAMES_MAX,
-  FLAMES_PER_SECOND,
-  flamesToEmit,
+  FLAME_TONGUES,
+  flameTongues,
   hotHand,
   rideAt,
   shadesRect,
@@ -63,20 +62,22 @@ describe("the bench's evolutions", () => {
 });
 
 describe("the machines' and the hand's evolutions", () => {
-  it("caps the bills and the flames (Review Focus 4)", () => {
+  it("caps the bills (Review Focus 4)", () => {
     expect(billsToLaunch(0, 1)).toBe(BILLS_PER_SALE);
     expect(billsToLaunch(BILLS_MAX - 2, 5)).toBe(2);
     expect(billsToLaunch(BILLS_MAX, 50)).toBe(0);
-    let carry = 0;
-    let alive = 0;
-    for (let i = 0; i < 600; i++) {
-      const r = flamesToEmit(alive, 1 / 60, carry);
-      carry = r.carry;
-      alive = Math.min(FLAMES_MAX, alive + r.n);
-      expect(alive).toBeLessThanOrEqual(FLAMES_MAX);
+  });
+
+  it("Hot Hand's flames: a fixed set, opacity within a span under 0.1, still under reduced motion", () => {
+    const alphas: number[] = [];
+    for (let t = 0; t < 20; t += 1 / 60) {
+      const f = flameTongues(t, false);
+      expect(f).toHaveLength(FLAME_TONGUES);
+      for (const x of f) alphas.push(x.alpha);
     }
-    expect(flamesToEmit(0, 1, 0).n).toBe(Math.min(FLAMES_MAX, FLAMES_PER_SECOND));
-    expect(flamesToEmit(FLAMES_MAX, 1, 0).n).toBe(0);
+    expect(Math.max(...alphas) - Math.min(...alphas)).toBeLessThan(0.1);
+    expect(flameTongues(0.3, false)).not.toEqual(flameTongues(0.6, false)); // they move
+    expect(flameTongues(0.3, true)).toEqual(flameTongues(7.9, true)); // not under reduced motion
   });
 
   it("Hot Hand burns only while owned and the combo is 25 or more", () => {

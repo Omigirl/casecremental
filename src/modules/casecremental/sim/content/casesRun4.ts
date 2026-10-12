@@ -4,7 +4,7 @@ import { p, skin } from "./skinHelpers";
 // Run 4: cases 8–9 (glitch, fever dream), finish spec §7.1 — every skin moves. Glitch stutters (`glitch`: holds,
 // then jumps); Fever Dream melts (`drip`) or turns (`flow`).
 
-const gl = { pattern: "glitch", fps: 8 } as const;
+const gl = { pattern: "glitch", fps: 6 } as const; // 8 frames a loop, 4 held steps: 3 jumps a second
 const drip = { pattern: "drip", fps: 6 } as const;
 const flow = { pattern: "flow", fps: 6 } as const;
 

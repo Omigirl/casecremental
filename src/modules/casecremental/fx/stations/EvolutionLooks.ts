@@ -33,48 +33,24 @@ export class EvolutionLooks {
   readonly reelRow = new Container();
   /** Pixel world, over the bot: its shades and chain. */
   readonly over = new Container();
-  /** HD layer: the bills. */
+  /** HD layer: the bills and the flames. */
   readonly hd = new Container();
   private readonly frame = new Graphics();
   private readonly bling = new Graphics();
   private readonly bills: BillStream;
   private readonly flames: FlameTrail;
   private blingKey = "";
-  /** The last pointer on the table (world px), or null until one is seen. */
+  /** The last pointer on the table (world px), or null until one is seen or once it has gone. */
   private pointer: Pt | null = null;
   private readonly belt = new Graphics();
   private readonly rider = new Sprite();
+  /** The ground row of the rider's frame (its feet, like the bench's case actor). */
+  private riderGround = 0;
   private l: TableLayout | null = null;
   private frameKey = "";
   private beltKey = "";
   private beltOffset = 0;
   private rideT = Infinity;
-  /** Cartel: black shades with a white glint over the bot's eyes and a gold chain with a medallion under them, redrawn
-   *  only when the bot's pose moves them. */
-  private drawBling(on: boolean): void {
-    const eyes = on ? this.botEyes() : [];
-    const sh = shadesRect(eyes);
-    const ch = chainRect(eyes);
-    this.bling.visible = sh !== null && ch !== null;
-    if (!sh || !ch) return;
-    const key = `${sh.x},${sh.y},${sh.w},${ch.x},${ch.y}`;
-    if (key === this.blingKey) return;
-    this.blingKey = key;
-    const g = this.bling.clear();
-    g.rect(sh.x, sh.y, sh.w, sh.h).fill(SHADES);
-    g.rect(sh.x + 1, sh.y, 2, 1).fill(GLINT); // a glint on each lens
-    g.rect(sh.x + Math.ceil(sh.w / 2) + 1, sh.y, 1, 1).fill(GLINT);
-    g.rect(sh.x, sh.y + sh.h, sh.w, 1).fill(GOLD_DARK); // the frame's gold rim, so the shades read on the dark visor
-    const half = (ch.w - 1) / 2;
-    for (let i = 0; i < ch.w; i++) {
-      const f = (i - half) / half;
-      g.rect(ch.x + i, ch.y + Math.round(CHAIN_SAG * (1 - f * f)), 1, 1).fill(GOLD);
-    }
-    g.rect(ch.x + Math.floor(half), ch.y + CHAIN_SAG, 2, 2).fill(GOLD);
-  }
-
-  /** The ground row of the rider's frame (its feet, like the bench's case actor). */
-  private riderGround = 0;
 
   constructor(
     private readonly d: StationDeps,
@@ -86,8 +62,8 @@ export class EvolutionLooks {
     this.reelRow.addChild(this.frame);
     this.over.addChild(this.bling);
     this.bills = new BillStream(d.bake);
-    this.hd.addChild(this.bills.root);
-    this.flames = new FlameTrail(d.juice.hd.particles);
+    this.flames = new FlameTrail(d.bake);
+    this.hd.addChild(this.bills.root, this.flames.root);
   }
 
   layout(l: TableLayout): void {
@@ -114,6 +90,11 @@ export class EvolutionLooks {
     this.pointer = p;
   }
 
+  /** The pointer left the canvas or the finger lifted: the flames go out until it comes back. */
+  pointerGone(): void {
+    this.pointer = null;
+  }
+
   onEvent(e: SimEvent): void {
     switch (e.type) {
       case "autoSpinPulled":
@@ -122,12 +103,15 @@ export class EvolutionLooks {
       case "evolved":
         this.reveal(e.id);
         break;
-      case "sold":
-        if (e.source === "seller" && this.l && this.d.controller.run.state.evolutions.owned.includes("moneyPrinter")) {
+      case "sold": {
+        const printer = this.d.controller.run.state.evolutions.owned.includes("moneyPrinter");
+        // Money Printer's bills on a seller sale, but not for an Upgrader win: the printer doesn't triple those (autoSeller.ts)
+        if (e.source === "seller" && !e.drop.upgraded && this.l && printer) {
           const { hd } = this.d.juice;
           this.bills.launch(hd.toScreen({ x: this.l.seller.x, y: this.l.seller.y - 14 }), hd.toScreen(this.d.hud()), this.d.scale());
         }
         break;
+      }
       case "runStarted":
         this.rideT = Infinity;
         this.rider.visible = false;
@@ -139,8 +123,34 @@ export class EvolutionLooks {
   destroy(): void {
     this.frame.destroy();
     this.belt.destroy();
+    this.rider.destroy();
     this.bling.destroy();
     this.bills.destroy();
+    this.flames.destroy();
+  }
+
+  /** Cartel: black shades with a white glint over the bot's eyes and a gold chain with a medallion under them, redrawn
+   *  only when the bot's pose moves them. */
+  private drawBling(on: boolean): void {
+    const eyes = on ? this.botEyes() : [];
+    const sh = shadesRect(eyes);
+    const ch = chainRect(eyes);
+    this.bling.visible = sh !== null && ch !== null;
+    if (!sh || !ch) return;
+    const key = `${sh.x},${sh.y},${sh.w},${ch.x},${ch.y}`;
+    if (key === this.blingKey) return;
+    this.blingKey = key;
+    const g = this.bling.clear();
+    g.rect(sh.x, sh.y, sh.w, sh.h).fill(SHADES);
+    g.rect(sh.x + 1, sh.y, 2, 1).fill(GLINT); // a glint on each lens
+    g.rect(sh.x + Math.ceil(sh.w / 2) + 1, sh.y, 1, 1).fill(GLINT);
+    g.rect(sh.x, sh.y + sh.h, sh.w, 1).fill(GOLD_DARK); // the frame's gold rim, so the shades read on the dark visor
+    const half = (ch.w - 1) / 2;
+    for (let i = 0; i < ch.w; i++) {
+      const f = (i - half) / half;
+      g.rect(ch.x + i, ch.y + Math.round(CHAIN_SAG * (1 - f * f)), 1, 1).fill(GOLD);
+    }
+    g.rect(ch.x + Math.floor(half), ch.y + CHAIN_SAG, 2, 2).fill(GOLD);
   }
 
   /** Slot Machine: a 2-px gold frame with marquee lamps (steady, never blinking); dividers between the slot columns

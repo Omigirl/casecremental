@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CASES } from "../../sim/content/cases";
 import type { PatternKind, PatternSpec } from "../../sim/types";
+import { motionFps, motionFrames } from "./motion";
 import { hexToRgb, OWN_MOTION, patternColor, renderPattern, type Rgb } from "./patterns";
 import { GLITCH_STEPS, glitchStep } from "./patternsRun4";
 
@@ -93,6 +94,12 @@ describe("Run 4's finishes", () => {
       expect(changed(kind, 0.02, 0.2), `${kind} holds within a step`).toBe(0);
       expect(changed(kind, 0.2, 0.3), `${kind} jumps between steps`).toBeGreaterThan(0);
     }
+  });
+
+  it("a glitch skin jumps at most 3 times a second (photosensitivity)", () => {
+    const glitchy = CASES.flatMap((c) => c.skins).filter((s) => s.motion?.pattern === "glitch");
+    expect(glitchy.length).toBeGreaterThan(0);
+    for (const s of glitchy) expect((GLITCH_STEPS * motionFps(s)) / motionFrames(s), s.id).toBeLessThanOrEqual(3);
   });
 
   it("melt runs downward: a row's colours reappear lower a moment later", () => {

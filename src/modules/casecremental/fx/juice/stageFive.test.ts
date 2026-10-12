@@ -39,7 +39,7 @@ describe("stage 5's layers", () => {
     let due = 0;
     for (let i = 1; i <= 600; i++) if (strobeDue((i - 1) / 60, i / 60)) due++; // ten seconds of 60 fps frames
     expect(due).toBe(Math.floor(10 / STROBE_EVERY));
-    expect(STROBE_STRENGTH).toBeLessThanOrEqual(0.15);
+    expect(STROBE_STRENGTH).toBeLessThan(0.1); // the hard rule: a pulsing light changes by less than 0.1
     // glitch gaps stay in range
     for (const r of [0, 0.5, 0.999]) {
       const gap = nextGlitchAt(100, r) - 100;

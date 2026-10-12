@@ -72,15 +72,37 @@ export const BILLS_PER_SALE = 3;
 export const BILL_FLIGHT_SECONDS = 0.7;
 export const billsToLaunch = (alive: number, sales: number): number => Math.max(0, Math.min(BILLS_MAX - alive, sales * BILLS_PER_SALE));
 
-/** Hot Hand's flames at the pointer: FLAMES_PER_SECOND, never more than FLAMES_MAX alive; `carry` keeps the fraction.
- *  A flame counts as alive for FLAME_LIFE s (the particles' longest life). */
-export const FLAMES_MAX = 30;
-export const FLAMES_PER_SECOND = 40;
-export const FLAME_LIFE = 1.2;
-export function flamesToEmit(alive: number, dt: number, carry: number): { n: number; carry: number } {
-  const want = carry + FLAMES_PER_SECOND * dt;
-  const n = Math.max(0, Math.min(FLAMES_MAX - alive, Math.floor(want)));
-  return { n, carry: want - Math.floor(want) };
+/** Hot Hand's flames: FLAME_TONGUES tongues of fire standing on the pointer (a fixed set of sprites, never more), each
+ *  swaying and stretching on its own phase. Their opacity holds within FLAME_ALPHA ± FLAME_FLICKER / 2 — a span under
+ *  0.1 (photosensitivity) — and under reduced motion (`still`) they stand still. Offsets in world px from the
+ *  pointer; scales of the baked flame. */
+export const FLAME_TONGUES = 5;
+export const FLAME_ALPHA = 0.9;
+export const FLAME_FLICKER = 0.06;
+/** Each tongue's place beside the pointer (world px) and size; the biggest stands on it. */
+const TONGUES: ReadonlyArray<{ dx: number; size: number }> = [
+  { dx: -6, size: 0.5 },
+  { dx: 6, size: 0.55 },
+  { dx: -3, size: 0.75 },
+  { dx: 3, size: 0.7 },
+  { dx: 0, size: 1 },
+];
+export interface Tongue {
+  dx: number;
+  sx: number;
+  sy: number;
+  alpha: number;
+}
+export function flameTongues(t: number, still: boolean): Tongue[] {
+  return TONGUES.map((g, i) => {
+    const ph = still ? 0 : t * (5 + i) + i * 1.7; // radians: about one sway a second, no two tongues in step
+    return {
+      dx: g.dx + 0.6 * Math.sin(ph * 0.7),
+      sx: g.size * (1 + 0.08 * Math.sin(ph)),
+      sy: g.size * (1 + 0.18 * Math.sin(ph * 1.3)),
+      alpha: FLAME_ALPHA + (FLAME_FLICKER / 2) * Math.sin(ph * 0.9),
+    };
+  });
 }
 
 /** Hot Hand burns: owned, and the combo at least HOT_HAND_MIN_COMBO. */

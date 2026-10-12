@@ -1,16 +1,35 @@
-import { Container, Graphics, type Sprite, type Texture } from "pixi.js";
+import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import { SpritePool } from "../juice/spritePool";
-import type { Particles } from "../juice/particles";
 import type { Pt } from "../pixel/layout";
-import { BILL_FLIGHT_SECONDS, billsToLaunch, FLAME_LIFE, flamesToEmit } from "./evolutionRules";
+import { BILL_FLIGHT_SECONDS, billsToLaunch, FLAME_TONGUES, flameTongues } from "./evolutionRules";
 
 // The two evolution looks that are streams of sprites, pooled and capped so Run 4's top rate never makes one sprite
-// per sale: Money Printer's bills flying from the seller to the HUD's cash, and Hot Hand's flames rising from the
+// per sale: Money Printer's bills flying from the seller to the HUD's cash, and Hot Hand's flames standing on the
 // pointer. Both live in the HD layer (screen px) and are visual only.
 
 const BILL = 0x3fae5a;
 const BILL_BAND = 0x2a7a3e;
-const FLAMES = [0xffd34d, 0xff8a1e, 0xe8362a] as const;
+/** One tongue of fire, drawn in pixels from its tip down: red rim, orange body, yellow and white-hot core. */
+const FLAME_ART = [
+  "....R....",
+  "....R....",
+  "...RR....",
+  "...ROR...",
+  "..RROR...",
+  "..ROOOR..",
+  ".RROYOR..",
+  ".ROOYOOR.",
+  ".ROYYYOR.",
+  "RROYWYORR",
+  "ROOYWWYOR",
+  "ROYYWWYOR",
+  ".ROYYYOR.",
+  "..RROORR.",
+];
+const FLAME_COLORS: Record<string, number> = { R: 0xe8362a, O: 0xff8a1e, Y: 0xffd34d, W: 0xfff4c0 };
+/** World px the flames' feet sit below the pointer, so the fire wraps the hand rather than floating over it. */
+const FLAME_FOOT = 4;
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 interface Bill {
   s: Sprite;
@@ -82,29 +101,46 @@ export class BillStream {
   }
 }
 
-/** Hot Hand: flames rising from a point while it burns, FLAMES_PER_SECOND through the shared sparks, never more than
- *  FLAMES_MAX counted alive (each for FLAME_LIFE s). */
+/** Hot Hand: FLAME_TONGUES pixel flames standing on the pointer while it burns (flameTongues: their sway, their size,
+ *  an opacity that barely moves; still under reduced motion), hidden the moment it stops or the pointer goes. */
 export class FlameTrail {
-  private carry = 0;
+  readonly root = new Container();
+  private readonly texture: Texture;
+  private readonly tongues: Sprite[] = [];
+  private readonly reduced = typeof matchMedia === "function" ? matchMedia(REDUCED_MOTION) : null;
   private t = 0;
-  private emitted: Array<{ t: number; n: number }> = [];
 
-  constructor(private readonly particles: Particles) {}
-
-  /** `at` the pointer (screen px) while Hot Hand burns, else null. */
-  update(dt: number, at: Pt | null, k: number): void {
-    this.t += dt;
-    this.emitted = this.emitted.filter((e) => this.t - e.t < FLAME_LIFE);
-    if (!at) {
-      this.carry = 0;
-      return;
+  constructor(bake: (c: Container) => Texture) {
+    const g = new Graphics();
+    FLAME_ART.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        const c = FLAME_COLORS[row[x]!];
+        if (c !== undefined) g.rect(x, y, 1, 1).fill(c);
+      }
+    });
+    this.texture = bake(g);
+    g.destroy();
+    for (let i = 0; i < FLAME_TONGUES; i++) {
+      this.tongues.push(this.root.addChild(new Sprite({ texture: this.texture, anchor: { x: 0.5, y: 1 } })));
     }
-    const alive = this.emitted.reduce((a, e) => a + e.n, 0);
-    const r = flamesToEmit(alive, dt, this.carry);
-    this.carry = r.carry;
-    if (r.n <= 0) return;
-    this.emitted.push({ t: this.t, n: r.n });
-    for (let i = 0; i < r.n; i++)
-      this.particles.burst(at, FLAMES[Math.floor(this.t * 30 + i) % FLAMES.length]!, 1, (30 * k) / 6, (-180 * k) / 6); // a slow rise: the flame stays on the hand
+    this.root.visible = false;
+  }
+
+  /** `at` the pointer (screen px) while Hot Hand burns, else null; `k` the pixel scale. */
+  update(dt: number, at: Pt | null, k: number): void {
+    this.root.visible = at !== null;
+    if (!at) return;
+    this.t += dt;
+    flameTongues(this.t, this.reduced?.matches ?? false).forEach((f, i) => {
+      const s = this.tongues[i]!;
+      s.position.set(at.x + f.dx * k, at.y + FLAME_FOOT * k);
+      s.scale.set(f.sx * k, f.sy * k);
+      s.alpha = f.alpha;
+    });
+  }
+
+  destroy(): void {
+    this.root.destroy({ children: true });
+    this.texture.destroy(true);
   }
 }

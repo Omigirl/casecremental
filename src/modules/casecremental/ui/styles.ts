@@ -52,8 +52,9 @@ export const UI_CSS = `
 .cc-tut-arrow { position: absolute; pointer-events: none; color: #ffd34d; line-height: 0; animation: cc-tut-bob 1s step-end infinite; }
 @keyframes cc-tut-bob { 50% { translate: var(--bob-x) var(--bob-y); } }
 @media (prefers-reduced-motion: reduce) { .cc-tut-arrow { animation: none; } }
-.cc-hot { position: relative; isolation: isolate; }
-.cc-hot::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; height: 120%; pointer-events: none;
+.cc-hot { position: relative; isolation: isolate;
+  text-shadow: calc(var(--px) * 1px) 0 0 #120e10, calc(var(--px) * -1px) 0 0 #120e10, 0 calc(var(--px) * 1px) 0 #120e10, 0 calc(var(--px) * -1px) 0 #120e10; }
+.cc-hot::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; bottom: -50%; height: 100%; pointer-events: none;
   background: linear-gradient(0deg, #e8362a, #ff8a1e 50%, #ffd34d 80%, transparent);
   clip-path: polygon(0 100%, 8% 30%, 16% 100%, 26% 10%, 36% 100%, 48% 25%, 58% 100%, 70% 5%, 80% 100%, 90% 35%, 100% 100%);
   opacity: 0.6; transform-origin: bottom; animation: cc-flame 0.4s steps(2) infinite alternate; }

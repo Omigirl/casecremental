@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { UPGRADER_SPIN_SECONDS } from "../../sim/tuning";
-import { DIAL_SECTORS, DIAL_TURNS, dialAlpha, dialCentre, dialTexts, landsInArc, needleAngle, ticksCrossed, winArc } from "./upgraderRules";
+import {
+  DIAL_SECTORS,
+  DIAL_TICKS_PER_SECOND,
+  DIAL_TURNS,
+  DIAL_WIN_FADE_SECONDS,
+  dialAlpha,
+  dialCentre,
+  dialTexts,
+  landsInArc,
+  needleAngle,
+  tickDue,
+  ticksCrossed,
+  winArc,
+} from "./upgraderRules";
 
 const TAU = Math.PI * 2;
 
@@ -44,6 +57,28 @@ describe("the Upgrader's dial", () => {
     expect(dialAlpha(false, 0.3)).toBeCloseTo(0.5, 5);
     expect(dialAlpha(false, 0.6)).toBe(0);
     expect(dialAlpha(false, Infinity)).toBe(0);
+    // a win clears the way for the won card fast
+    expect(dialAlpha(false, DIAL_WIN_FADE_SECONDS / 2, true)).toBeCloseTo(0.5, 5);
+    expect(dialAlpha(false, DIAL_WIN_FADE_SECONDS, true)).toBe(0);
+    expect(dialAlpha(true, Infinity, true)).toBe(1);
+  });
+
+  it("ticks at most DIAL_TICKS_PER_SECOND a second, however fast the needle runs", () => {
+    let since = Infinity;
+    let ticks = 0;
+    let prev = 0;
+    for (let i = 1; i <= 144 * UPGRADER_SPIN_SECONDS; i++) {
+      since += 1 / 144;
+      const a = needleAngle({ roll: 0.9, elapsed: i / 144 });
+      if (tickDue(ticksCrossed(prev, a), since)) {
+        ticks++;
+        since = 0;
+      }
+      prev = a;
+    }
+    expect(ticks).toBeGreaterThan(0);
+    expect(ticks).toBeLessThanOrEqual(Math.ceil(DIAL_TICKS_PER_SECOND * UPGRADER_SPIN_SECONDS));
+    expect(tickDue(0, Infinity)).toBe(false);
   });
 
   it("writes the target and the chance, with a decimal comma in Russian", () => {

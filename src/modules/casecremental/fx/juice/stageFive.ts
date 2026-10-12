@@ -7,7 +7,7 @@ export const WARP_STRENGTH = 0.05;
 const WARP_PERIOD = 6;
 export const RAIN_MAX = 48;
 export const STROBE_EVERY = 2;
-export const STROBE_STRENGTH = 0.12;
+export const STROBE_STRENGTH = 0.09;
 export const GLITCH_GAP: readonly [number, number] = [3, 6];
 export const GLITCH_SECONDS = 0.15;
 /** The mix moves toward its target at this rate per second: a second in, a second out. */

@@ -8,14 +8,14 @@ import { pixelStyle } from "../hd/font";
 import type { Pt, TableLayout } from "../pixel/layout";
 import type { StationDeps } from "./deps";
 import { lampFontSize } from "./lockerRules";
-import { DIAL_R, DIAL_SECTORS, dialAlpha, dialCentre, dialTexts, needleAngle, ticksCrossed, winArc } from "./upgraderRules";
+import { DIAL_R, DIAL_SECTORS, dialAlpha, dialCentre, dialTexts, needleAngle, tickDue, ticksCrossed, winArc } from "./upgraderRules";
 
 // The Upgrader's dial over the locker (finish spec §7.2, HD layer): a dark disc, the win arc in gold from the top for
 // the chance, the rest dark red, the stake's pips round the rim, the target and the chance under it, and a white
 // needle that turns three times and eases onto the roll. Drawn from the sim's spin every frame, so a reload resumes at
 // the same angle and its first frame ticks nothing. Events are one-shot juice: the press closing on the stake at GO;
-// at the landing a win's float (the card's pop is the locker's own) or the loss's shred. Then it fades. Nothing here
-// pulses or flashes.
+// at the landing a win's float (the card's pop is the locker's own, right under the dial: a win fades it in 0.15 s) or
+// the loss's shred. Then it fades. Nothing here pulses or flashes.
 
 const DISC = 0x14101a;
 const WIN = 0xffd34d;
@@ -23,6 +23,8 @@ const LOSE = 0x5a1414;
 const NEEDLE = 0xffffff;
 const MARK = 0x2a2230;
 const DIM = 0xa89a8c;
+/** The chance under the dial, light enough to read on the dark cabinet. */
+const CHANCE = 0xe6dccf;
 const SHRED_TINT = 0xd05050;
 /** Pips round the rim, one per staked skin, at most this many. */
 const PIPS_MAX = 10;
@@ -41,11 +43,13 @@ export class UpgraderDial {
   readonly hd = new Container();
   private readonly g = new Graphics();
   private readonly mult = new Text({ text: "", style: pixelStyle(8, WIN) });
-  private readonly chance = new Text({ text: "", style: pixelStyle(8, DIM) });
+  private readonly chance = new Text({ text: "", style: pixelStyle(8, CHANCE) });
   private l: TableLayout | null = null;
   private face: Face | null = null;
   private lastAngle: number | null = null;
   private sinceDone = Infinity;
+  private won = false;
+  private sinceTick = Infinity;
 
   constructor(private readonly d: StationDeps) {
     this.mult.anchor.set(0.5, 0);
@@ -62,11 +66,14 @@ export class UpgraderDial {
 
   update(dt: number, s: RunState): void {
     this.sinceDone += dt;
+    this.sinceTick += dt;
     const spin = s.upgrader.spin;
     if (spin) {
       const angle = needleAngle(spin);
-      const n = ticksCrossed(this.lastAngle, angle);
-      if (n > 0) this.d.juice.audio.play("reel-tick", { rate: 1.4, gain: 0.5 }); // at most one a frame
+      if (tickDue(ticksCrossed(this.lastAngle, angle), this.sinceTick)) {
+        this.d.juice.audio.play("reel-tick", { rate: 1.4, gain: 0.5 });
+        this.sinceTick = 0;
+      }
       this.lastAngle = angle;
       this.face = {
         mult: spin.mult,
@@ -76,7 +83,7 @@ export class UpgraderDial {
         angle,
       };
     } else this.lastAngle = null;
-    const alpha = dialAlpha(spin !== null, this.sinceDone);
+    const alpha = dialAlpha(spin !== null, this.sinceDone, this.won);
     this.hd.visible = alpha > 0 && this.face !== null && this.l !== null;
     if (!this.hd.visible || !this.face || !this.l) return;
     this.hd.alpha = alpha;
@@ -90,9 +97,11 @@ export class UpgraderDial {
         audio.play("tradeup-press", { rate: 1.2, gain: 0.7 }); // the press closes on the stake
         this.lastAngle = 0;
         this.sinceDone = Infinity;
+        this.won = false;
         break;
       case "upgraderDone": {
         this.sinceDone = 0;
+        this.won = e.win;
         if (this.face) this.face.angle = landedAngle(this.face.roll); // the sim ends the spin before a frame shows its end
         if (!this.l) break;
         const at = hd.toScreen(dialCentre(this.l.locker));

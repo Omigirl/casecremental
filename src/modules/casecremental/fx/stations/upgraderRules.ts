@@ -10,6 +10,10 @@ import type { Pt, Rect } from "../pixel/layout";
 export const DIAL_TURNS = 3;
 export const DIAL_SECTORS = 24;
 export const DIAL_FADE_SECONDS = 0.6;
+/** A win fades the dial this fast: the won skin pops out on the locker right under it. */
+export const DIAL_WIN_FADE_SECONDS = 0.15;
+/** The needle's tick sound, at most this many a second however fast it passes the sector lines. */
+export const DIAL_TICKS_PER_SECOND = 20;
 /** The dial's radius and its lift above the cabinet, world px. */
 export const DIAL_R = 13;
 const DIAL_LIFT = 18;
@@ -36,12 +40,15 @@ export function ticksCrossed(from: number | null, to: number): number {
 
 export const dialCentre = (locker: Rect): Pt => ({ x: locker.x + locker.w / 2, y: locker.y - DIAL_LIFT });
 
-/** The dial's opacity: full while it spins, then a linear fade over DIAL_FADE_SECONDS after it lands (`sinceDone`),
- *  hidden otherwise. It never pulses. */
-export function dialAlpha(spinning: boolean, sinceDone: number): number {
+/** The dial's opacity: full while it spins, then a linear fade after it lands (`sinceDone`) — DIAL_FADE_SECONDS, or
+ *  DIAL_WIN_FADE_SECONDS on a win so the won card shows — hidden otherwise. It never pulses. */
+export function dialAlpha(spinning: boolean, sinceDone: number, won = false): number {
   if (spinning) return 1;
-  return Math.max(0, 1 - sinceDone / DIAL_FADE_SECONDS);
+  return Math.max(0, 1 - sinceDone / (won ? DIAL_WIN_FADE_SECONDS : DIAL_FADE_SECONDS));
 }
+
+/** The needle crossed `crossed` sector lines this frame and the last tick sounded `sinceTick` s ago: tick now? */
+export const tickDue = (crossed: number, sinceTick: number): boolean => crossed > 0 && sinceTick >= 1 / DIAL_TICKS_PER_SECOND;
 
 /** A number with two significant digits at most, a decimal comma in Russian. */
 const short = (n: number, lang: Lang): string => {

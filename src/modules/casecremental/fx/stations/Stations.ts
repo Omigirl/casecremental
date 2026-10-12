@@ -48,7 +48,8 @@ export class Stations {
     this.evolutions = new EvolutionLooks(d, () => this.bot.sprite.eyes());
     this.under.addChild(this.evolutions.under);
     this.reels.addChild(this.evolutions.reelRow); // after the bot's reels: the gold frame draws over your reel window
-    this.over.addChild(this.evolutions.over); // over the bot: Cartel's shades
+    // Cartel's bling: right over the bot, under its cards and the locker's results
+    this.over.addChildAt(this.evolutions.over, this.over.getChildIndex(this.bot.sprite.root) + 1);
     this.hd.addChild(this.evolutions.hd);
     this.dial = new UpgraderDial(d);
     this.hd.addChild(this.dial.hd);
@@ -96,6 +97,11 @@ export class Stations {
     this.bot.cards.pointerMove(p);
     this.locker.results.pointerMove(p);
     this.evolutions.pointerMove(p);
+  }
+
+  /** The pointer left the canvas (or a finger lifted): nothing follows it any more. */
+  pointerGone(): void {
+    this.evolutions.pointerGone();
   }
 
   pointerUp(p: Pt): void {
