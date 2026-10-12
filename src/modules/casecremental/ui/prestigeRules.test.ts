@@ -14,6 +14,8 @@ const view = (over: Partial<PrestigeView>): PrestigeView => ({
   offer: ["insider", "ricochet", "goldRush"],
   picked: [],
   slots: 1,
+  credits: false,
+  stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 0 },
   ...over,
 });
 

@@ -4,7 +4,7 @@ import type { CharmId } from "../sim/charms";
 import { caseById, unlockCostOf } from "../sim/content/cases";
 import { vaultFor, type VaultDef } from "../sim/content/vaults";
 import { STAGE_NAMES } from "../sim/intensity";
-import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
+import { charmSlots, freshMeta, PERK_IDS, perkCost, type CampaignStats, type MetaState, type PerkId } from "../sim/meta";
 import type { Bench, CardSpot, Run } from "../sim/run";
 import { DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
@@ -21,7 +21,11 @@ import {
   type TrayItemView,
 } from "./viewMachines";
 
+import { evolutionsView, upgraderView, type EvolutionsView, type UpgraderView } from "./viewRun4";
+
 export type { AutoSpinView, BotView, LockerView, SellerView, TrayItemView } from "./viewMachines";
+export { evolutionsView, upgraderView } from "./viewRun4";
+export type { EvolutionView, EvolutionsView, UpgraderView } from "./viewRun4";
 
 // What the React overlay shows — derived from the run, never stored separately.
 
@@ -75,6 +79,9 @@ export interface PrestigeView {
   offer: CharmId[];
   picked: CharmId[];
   slots: number;
+  /** The Last Case opened: the credits roll first. */
+  credits: boolean;
+  stats: CampaignStats;
 }
 
 export interface GameView {
@@ -101,6 +108,8 @@ export interface GameView {
   seller: SellerView;
   autoSpin: AutoSpinView;
   locker: LockerView;
+  upgrader: UpgraderView;
+  evolutions: EvolutionsView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
   vault: {
@@ -189,6 +198,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
         offer: meta.offer ?? [],
         picked: [...meta.picked],
         slots: charmSlots(meta),
+        credits: meta.credits,
+        stats: meta.stats,
       }
     : null;
   return {
@@ -208,6 +219,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     seller: sellerView(run),
     autoSpin: autoSpinView(run),
     locker: lockerView(run),
+    upgrader: upgraderView(run),
+    evolutions: evolutionsView(run),
     tray,
     dayJob,
     vault,

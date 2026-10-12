@@ -105,7 +105,15 @@ export function Prestige({
             )}
           </div>
         ))}
-        <PxButton onClick={() => act({ type: "startNextRun" })}>{t("prestige.next")}</PxButton>
+        <PxButton
+          onClick={() => {
+            // interim (plan F6-A): there is no credits screen until plan F6-C, so START ends the credits first
+            if (p.credits) act({ type: "endCredits" });
+            act({ type: "startNextRun" });
+          }}
+        >
+          {t("prestige.next")}
+        </PxButton>
       </div>
     </div>
   );

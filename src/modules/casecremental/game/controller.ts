@@ -1,7 +1,10 @@
 import type { CharmId } from "../sim/charms";
+import { buyEvolution } from "../sim/evolutions";
+import type { EvolutionId } from "../sim/evolved";
 import { buyPerk, completeVault, endCredits, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
 import { Run, type ActionResult, type CardSpot, type SimEvent } from "../sim/run";
 import type { RarityId } from "../sim/types";
+import * as upgrader from "../sim/upgrader";
 import type { UpgradeId } from "../sim/upgrades";
 import { SAVE_VERSION, type SaveSlot } from "./save";
 import { buildView, type GameView } from "./view";
@@ -44,6 +47,11 @@ export type Action =
   | { type: "buyPerk"; id: PerkId }
   | { type: "pickCharm"; id: CharmId }
   | { type: "startNextRun" }
+  | { type: "buyUpgrader" }
+  | { type: "setUpgraderStake"; rarity: RarityId | null }
+  | { type: "setUpgraderTarget"; index: number }
+  | { type: "upgraderGo" }
+  | { type: "buyEvolution"; id: EvolutionId }
   | { type: "endCredits" };
 
 export const SIM_STEP = 1 / 30;
@@ -235,6 +243,16 @@ export class GameController {
         return this.pickCharm(a.id);
       case "startNextRun":
         return this.startNextRun();
+      case "buyUpgrader":
+        return upgrader.buyUpgrader(run);
+      case "setUpgraderStake":
+        return upgrader.setUpgraderStake(run, a.rarity);
+      case "setUpgraderTarget":
+        return upgrader.setUpgraderTarget(run, a.index);
+      case "upgraderGo":
+        return upgrader.upgraderGo(run);
+      case "buyEvolution":
+        return buyEvolution(run, a.id);
       case "endCredits":
         return this.emitOnOk(endCredits(this.meta), { type: "creditsEnded" });
     }

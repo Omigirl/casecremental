@@ -11,12 +11,16 @@ import {
   BOT_WAKE_COST,
   CLOUT_DIVISOR,
   DAY_JOB_SECONDS,
+  EVOLUTION_COSTS,
+  UPGRADER_COST,
   LOCKER_BASE_CAPACITY,
   LOCKER_COST,
   SELLER_COST,
   START_CASH,
   VAULT_OPENING_SECONDS,
 } from "../sim/tuning";
+import type { RarityId } from "../sim/types";
+import { buyUpgrader, setUpgraderStake, setUpgraderTarget, upgraderGo } from "../sim/upgrader";
 import { buildView } from "./view";
 
 describe("buildView", () => {
@@ -217,6 +221,7 @@ describe("buildView — M2b", () => {
     expect(v.prestige).toMatchObject({ clout: 10, gained: 10, loops: 1, slots: 1, picked: [] });
     expect(v.prestige!.offer).toHaveLength(3);
     expect(v.prestige!.perks.map((p) => p.id)).toEqual(["startCash", "luck", "charmSlot", "botAwake", "biggerTray"]);
+    expect(v.prestige).toMatchObject({ credits: false, stats: { ...freshMeta().stats, cloutEarned: 10 } });
     expect(buildView(new Run(1)).prestige).toBeNull();
   });
 
@@ -284,5 +289,56 @@ describe("buildView — M2b", () => {
     const v = buildView(run);
     expect(v.autoSpin.status).toBe("vault");
     expect(v.cases.some((c) => c.buys)).toBe(false);
+  });
+
+  it("shows the Upgrader in Run 4: it needs the locker, then the stake, the target and the chance", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 4, startCash: 1e18 });
+    expect(buildView(run).upgrader).toMatchObject({ available: true, on: false, needsLocker: true, canBuy: false, cost: UPGRADER_COST });
+    run.buyLocker();
+    expect(buildView(run).upgrader).toMatchObject({ needsLocker: false, canBuy: true });
+    buyUpgrader(run);
+    const d = (id: number, rarity: RarityId) => ({
+      id,
+      caseId: "bootcamp",
+      skinId: "bc_woodland",
+      rarity,
+      float: 0.2,
+      wear: "FT" as const,
+      statTrak: false,
+      value: 10,
+    });
+    run.state.locker.items = [d(1, "restricted"), d(2, "milspec"), d(3, "restricted")];
+    setUpgraderStake(run, "restricted");
+    setUpgraderTarget(run, 3);
+    const v = buildView(run).upgrader;
+    expect(v).toMatchObject({
+      on: true,
+      stake: "restricted",
+      stakeCount: 2,
+      stakes: ["milspec", "restricted"],
+      target: 3,
+      mult: 10,
+      canGo: true,
+      spinning: false,
+    });
+    expect(v.chance).toBeCloseTo(0.09, 9);
+    expect(v.stakeValue).toBeCloseTo(2 * run.payout(d(1, "restricted"), false), 6);
+    upgraderGo(run);
+    expect(buildView(run).upgrader).toMatchObject({ spinning: true, canGo: false, progress: 0 });
+    expect(buildView(new Run(1, { ...DEFAULT_SETUP, run: 3 })).upgrader.available).toBe(false);
+  });
+
+  it("shows the evolutions in Run 4 with their recipes, what is done and what each costs", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 4, startCash: 1e18 });
+    run.state.upgrades.quickHands = 10;
+    const ev = buildView(run).evolutions;
+    expect(ev.available).toBe(true);
+    expect(ev.list.map((e) => e.id)).toEqual(["slotMachine", "cartel", "moneyPrinter", "assemblyLine", "hotHand"]);
+    const slot = ev.list[0]!;
+    expect(slot.parts.map((p) => p.done)).toEqual([true, false]);
+    expect(slot).toMatchObject({ ready: false, canBuy: false, owned: false, cost: EVOLUTION_COSTS.slotMachine });
+    run.state.evolutions.bestCombo = 31;
+    expect(buildView(run).evolutions.list[4]!.parts[1]).toMatchObject({ done: false, have: 31 });
+    expect(buildView(new Run(1, { ...DEFAULT_SETUP, run: 3 })).evolutions.available).toBe(false);
   });
 });

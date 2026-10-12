@@ -309,3 +309,19 @@ describe("GameController — the credits", () => {
     expect(c.run.setup.run).toBe(4); // THE END: Run 4 again, boosted
   });
 });
+
+describe("GameController — Run 4's machines", () => {
+  it("routes the Upgrader's and the evolutions' actions", () => {
+    const c = new GameController(1);
+    c.devStartRun(4);
+    c.devAddCash(1e18);
+    expect(c.act({ type: "buyUpgrader" })).toEqual({ ok: false, reason: "buy the locker first" });
+    c.act({ type: "buyLocker" });
+    expect(c.act({ type: "buyUpgrader" }).ok).toBe(true);
+    expect(c.act({ type: "setUpgraderStake", rarity: "milspec" }).ok).toBe(true);
+    expect(c.act({ type: "setUpgraderTarget", index: 5 }).ok).toBe(true);
+    expect(c.act({ type: "upgraderGo" })).toEqual({ ok: false, reason: "nothing to stake" });
+    expect(c.act({ type: "buyEvolution", id: "cartel" })).toEqual({ ok: false, reason: "finish the recipe first" });
+    expect(c.run.state.upgrader).toMatchObject({ on: true, stake: "milspec", target: 5 });
+  });
+});

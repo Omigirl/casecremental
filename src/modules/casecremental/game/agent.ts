@@ -2,11 +2,13 @@ import type { ModuleAgentApi } from "@idosgames/module-sdk";
 import { autoSpinDelay, autoSpinStatus } from "../sim/autoSpin";
 import { skinById, skinDisplayName } from "../sim/content/cases";
 import type { CharmId } from "../sim/charms";
+import { recipeDone } from "../sim/evolutions";
+import { EVOLUTION_IDS, type EvolutionId } from "../sim/evolved";
 import { lockerCapacity, lockerCounts, tradeUpRarity } from "../sim/locker";
 import { PERK_IDS, type PerkId } from "../sim/meta";
 import { RARITY_ORDER } from "../sim/rarity";
 import type { ActionResult, CardSpot } from "../sim/run";
-import { LAST_RUN } from "../sim/tuning";
+import { LAST_RUN, UPGRADER_MULTS } from "../sim/tuning";
 import type { RarityId } from "../sim/types";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 import type { Action, GameController } from "./controller";
@@ -73,10 +75,22 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
           pick: s.autoSpin.pick,
           status: autoSpinStatus(c.run),
         },
+        upgrader: {
+          on: s.upgrader.on,
+          stake: s.upgrader.stake,
+          target: s.upgrader.target,
+          mult: UPGRADER_MULTS[s.upgrader.target],
+          spinning: s.upgrader.spin !== null,
+        },
+        evolutions: {
+          owned: [...s.evolutions.owned],
+          ready: EVOLUTION_IDS.filter((id) => !s.evolutions.owned.includes(id) && recipeDone(c.run, id)),
+          bestCombo: s.evolutions.bestCombo,
+        },
         dayJob: s.dayJob,
         vault: s.vault?.phase ?? null,
         over: s.over,
-        meta: { clout: c.meta.clout, loops: c.meta.loops, offer: c.meta.offer, picked: c.meta.picked },
+        meta: { clout: c.meta.clout, loops: c.meta.loops, offer: c.meta.offer, picked: c.meta.picked, credits: c.meta.credits },
         bench:
           b.phase === "spinning"
             ? { phase: b.phase, caseId: b.caseId, reels: b.reels.length, elapsed: b.elapsed, fullDuration: b.fullDuration }
@@ -163,6 +177,21 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       },
       pickCharm: (args: Args) => run({ type: "pickCharm", id: String(args?.id ?? "") as CharmId }),
       startNextRun: () => run({ type: "startNextRun" }),
+      buyUpgrader: () => run({ type: "buyUpgrader" }),
+      setUpgraderStake: async (args: Args) => {
+        if (args?.rarity == null) return c.act({ type: "setUpgraderStake", rarity: null });
+        const r = String(args.rarity);
+        if (!RARITY_ORDER.includes(r as RarityId)) throw new Error(`unknown rarity "${r}"; valid: ${RARITY_ORDER.join(", ")} or null`);
+        return c.act({ type: "setUpgraderStake", rarity: r as RarityId });
+      },
+      setUpgraderTarget: (args: Args) => run({ type: "setUpgraderTarget", index: Number(args?.index ?? 0) }),
+      upgraderGo: () => run({ type: "upgraderGo" }),
+      buyEvolution: async (args: Args) => {
+        const id = String(args?.id ?? "");
+        if (!EVOLUTION_IDS.includes(id as EvolutionId)) throw new Error(`unknown evolution "${id}"; valid: ${EVOLUTION_IDS.join(", ")}`);
+        return c.act({ type: "buyEvolution", id: id as EvolutionId });
+      },
+      endCredits: () => run({ type: "endCredits" }),
       ...(import.meta.env.DEV
         ? {
             devStartRun: async (args: Args) => {
@@ -214,6 +243,12 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       buyPerk: "Between runs: buy a perk with CLOUT: { id: startCash|luck|charmSlot|botAwake|biggerTray }.",
       pickCharm: "Between runs: toggle an offered charm for the next run: { id }.",
       startNextRun: "Between runs: start the next run.",
+      buyUpgrader: "Run 4: buy the Upgrader (needs the locker): stake a locker rarity stack on a multiplier.",
+      setUpgraderStake: "The rarity stack the Upgrader stakes: { rarity } or { rarity: null }.",
+      setUpgraderTarget: "The Upgrader's target: { index } into x1.5, x2, x5, x10, x25, x100.",
+      upgraderGo: "GO: stake the whole stack; the dial spins 3 s; a win's skin waits on the locker.",
+      buyEvolution: "Run 4: buy an evolution whose recipe is complete: { id: slotMachine|cartel|moneyPrinter|assemblyLine|hotHand }.",
+      endCredits: "End the credits after The Last Case (the prestige screen follows).",
       ...(import.meta.env.DEV
         ? {
             devStartRun: "Dev builds: jump to a run with the meta kept: { run: 1|2|3|4 }.",

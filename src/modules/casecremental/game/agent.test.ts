@@ -74,4 +74,17 @@ describe("agent surface", () => {
       status: "on",
     });
   });
+
+  it("reports the Upgrader and the evolutions, and checks their arguments", async () => {
+    const c = new GameController(1);
+    c.devStartRun(4);
+    const api = createAgentApi(c);
+    const s = api.state() as { upgrader: unknown; evolutions: unknown; meta: { credits: boolean } };
+    expect(s.upgrader).toEqual({ on: false, stake: null, target: 0, mult: 1.5, spinning: false });
+    expect(s.evolutions).toEqual({ owned: [], ready: [], bestCombo: 0 });
+    expect(s.meta.credits).toBe(false);
+    await expect(api.actions.setUpgraderTarget!({ index: 9 })).resolves.toEqual({ ok: false, reason: "unknown target" });
+    await expect(api.actions.buyEvolution!({ id: "nope" })).rejects.toThrow(/unknown evolution "nope"/);
+    await expect(api.actions.setUpgraderStake!({ rarity: "shiny" })).rejects.toThrow(/unknown rarity "shiny"/);
+  });
 });
