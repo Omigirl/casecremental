@@ -25,6 +25,12 @@ describe("the local save", () => {
     expect(decodeSave(encodeSave(d))).toEqual(d);
   });
 
+  it("keeps a run's own prices across a retune (finish spec §5: saves keep their run's setup)", () => {
+    const d = data();
+    d.run.setup = { ...d.run.setup, vaultPrice: 1_234_567, valueBoost: 9 };
+    expect(decodeSave(encodeSave(d))!.run.setup).toMatchObject({ vaultPrice: 1_234_567, valueBoost: 9 });
+  });
+
   it("drops a missing, broken, foreign or old save — with a warning, never a throw", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(decodeSave(null)).toBeNull();

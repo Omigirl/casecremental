@@ -31,12 +31,16 @@ export const RUN_CONTENT: readonly RunContent[] = [
 export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: number }>> = {
   bootcamp: { price: 2, unlockCost: 0 },
   wildwood: { price: 15, unlockCost: 30 },
-  bedrock: { price: 150, unlockCost: 1200 },
-  mainframe: { price: 1_500, unlockCost: 12_000 },
-  // unlock 2M (F2: Run 3's catch-up stays above 1 min with auto-spin)
-  neon: { price: 15_000, unlockCost: 2_000_000 },
-  deepspace: { price: 150_000, unlockCost: 10_000_000 },
-  inferno: { price: 1_500_000, unlockCost: 300_000_000 },
+  // F4: unlock 600, so a real player's Run 2 catches up to Run 1's shelf within 2 min
+  bedrock: { price: 150, unlockCost: 600 },
+  // F4: Mainframe 650K and Neon 20M are Run 2's middle (its vault shows at ~4 min for a real player) and Run 3's
+  // catch-up to Run 2's shelf (~1.5 min)
+  mainframe: { price: 1_500, unlockCost: 650_000 },
+  neon: { price: 15_000, unlockCost: 20_000_000 },
+  // F4: Deep Space 1B and Inferno 55B are Run 3's middle: its vault shows at ~6.5 min for a real player, the
+  // replay's at ~3.5 min
+  deepspace: { price: 150_000, unlockCost: 1_000_000_000 },
+  inferno: { price: 1_500_000, unlockCost: 55_000_000_000 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {
@@ -178,12 +182,13 @@ export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */
-// F2: raised with auto-spin (the greedy player's bench runs on the machine); F4 retunes for real players.
-export const VAULT_PRICES = [1_200_000, 2_400_000_000, 800_000_000_000] as const;
-/** A replay of the last run: its vault price grows this much per completed loop. Only a little above
- *  CATCH_UP_PER_VAULT: by Run 3 the upgrades are cheap and bought one click at a time, so a replay's ×3 sales
- *  barely speed it up, and a much steeper vault would make the replay slower than the run it replays. */
-export const VAULT_GROWTH = 3.25;
+// F4 (finish spec §5): a vault costs well under 90 s of a fully bought run's income for a real player (the 90 s rule
+// measures 40-75 s); each run's middle — its unlocks — sets how long the run takes instead.
+export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000] as const;
+/** A replay of the last run: its vault price grows this much per completed loop. A little above CATCH_UP_PER_VAULT
+ *  (F4: the replay of Run 3 lands at ~4 min for a real player, its 90 s rule at ~60 s); each further loop's vault is
+ *  ~20 % dearer against its income than the last (3.4 / 2.8), a known drift. */
+export const VAULT_GROWTH = 3.4;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;
@@ -197,8 +202,9 @@ export const VAULT_REEL_RARITIES = ["classified", "covert", "covert", "gold", "g
 
 /** CLOUT = floor(√(lifetime earnings) / this). */
 export const CLOUT_DIVISOR = 105;
-/** Each opened vault multiplies every later sale by this (the catch-up boost). */
-export const CATCH_UP_PER_VAULT = 3;
+/** Each opened vault multiplies every later sale by this (the catch-up boost). F4: 2.8, so a replay of Run 3, with
+ *  one boost more, is not over before a real player has played it (~4 min against Run 3's ~7). */
+export const CATCH_UP_PER_VAULT = 2.8;
 export const CHARM_OFFER_SIZE = 3;
 export const PERK_START_CASH = 20;
 export const TRAY_PER_PERK = 4;
@@ -239,8 +245,8 @@ export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>>
 export const AUTO_CONTRACT_COST = 250_000_000;
 
 /** Auto-spin (finish spec §3): your own bench's machine, bought in Run 1 once the auto-seller is on, then switched
- *  ON/OFF. F2's starting numbers; F4 tunes them for real players. */
-export const AUTOSPIN_COST = 40_000;
+ *  ON/OFF. F4: 5K, so both players switch it on well before Vault I (~45 s GREEDY, ~1.5 min CASUAL). */
+export const AUTOSPIN_COST = 5_000;
 /** Seconds the bench stands empty before it buys, per Delay level (5 upgrades: 1.5 s → 0.2 s). */
 export const AUTOSPIN_DELAYS = [1.5, 1.1, 0.8, 0.55, 0.35, 0.2] as const;
 export const AUTOSPIN_DELAY_COSTS = { baseCost: 20_000, growth: 2.5 } as const;

@@ -41,8 +41,9 @@ export const CASUAL: BotTimings = { buy: 0.8, key: 0.8, sell: 1.2, reveal: 0.8, 
 
 /** How long a pacing run plays at most (s). */
 export const RUN_SECONDS = 900;
-/** The 90 s rule's income window (s) after a run is fully bought: long enough that one knife doesn't decide it. */
-export const INCOME_WINDOW = 60;
+/** The 90 s rule's income window (s) after a run is fully bought: long enough that the knives in it average out (F4:
+ *  over 60 s, a seed with no ★ in its window read a third of the income of one with three). */
+export const INCOME_WINDOW = 300;
 /** How long playToFull plays at most to get a run fully bought (s). */
 export const PROBE_SECONDS = 3600;
 
@@ -115,18 +116,20 @@ export function playGreedy(
   let nextShop = 0;
   let fullCash = 0;
   /** A look at the shop when one is due (CASUAL every shopEvery s, GREEDY at every free moment); the vault is never
-   *  part of it (Review Focus 3). */
-  const shop = () => {
-    if (run.state.time < nextShop) return;
+   *  part of it (Review Focus 3). True when it bought something. */
+  const shop = (): boolean => {
+    if (run.state.time < nextShop) return false;
     nextShop = run.state.time + timings.shopEvery;
     opts.onLook?.(run.state.time);
     // GREEDY buys one thing per free moment; a CASUAL look buys everything it can afford, as a player glancing at the
     // shop clicks several rows
-    while (spend(run) && timings.shopEvery > 0);
+    let bought = false;
+    while ((timings.shopEvery > 0 || !bought) && spend(run)) bought = true;
     if (report.fullAt === undefined && fullyBought(run)) {
       report.fullAt = run.state.time;
       fullCash = run.state.cash;
     }
+    return bought;
   };
   let fullFor = 0;
 
@@ -162,10 +165,10 @@ export function playGreedy(
     if (s.time < busyUntil || run.locked()) continue;
     const b = s.bench;
     if (b.phase === "empty" && run.buyVault().ok) continue; // the vault as soon as it can
-    if (timings.shopEvery > 0 && s.time >= nextShop) {
-      // a due look comes before selling (finish spec §5: "every 8 s"), else a fast bot's waiting cards keep CASUAL's
-      // 1.2 s hands selling forever and the shop never gets its look
-      shop();
+    // a due look comes before selling (finish spec §5: "every 8 s"), else a fast bot's waiting cards keep the player
+    // selling forever and the shop never gets its look. CASUAL's look takes its time even when it buys nothing; GREEDY's
+    // is due at every free moment, so it goes on to sell when there was nothing to buy
+    if (s.time >= nextShop && (shop() || timings.shopEvery > 0)) {
       busyUntil = s.time + timings.buy;
       continue;
     }
