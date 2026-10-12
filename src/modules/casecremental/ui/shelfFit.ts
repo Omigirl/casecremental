@@ -10,6 +10,10 @@ export const shelfIconK = (scale: number): number => Math.max(1, Math.floor(scal
 
 /** World px a row's text loses across a panel: the frame (6 + 6), the panel padding (1 + 1), the row padding (1 + 1). */
 export const ROW_TEXT_CHROME = PANEL_CHROME - 2;
+/** A skinned button's chrome in world px (`.cc-btn.skinned` in ui/styles.ts: a 4 px border + 1 px padding per side). */
+export const BTN_CHROME = 10;
+/** The tick box is a flat box (1 px padding per side) on its own line below BUY. */
+export const TICK_CHROME = 2;
 /** `.cc-row-line`'s gap (ui/styles.ts): 2 world px. */
 export const ROW_GAP = 2;
 
@@ -37,3 +41,6 @@ export function wrapLines(text: string, perLine: number): { lines: number; spill
   }
   return { lines, spills };
 }
+
+/** The shelf shows tick boxes only once the auto-buyer grid is on (the sim accepts ticks earlier; the UI hides them). */
+export const ticksShown = (view: { grid: { on: boolean } }): boolean => view.grid.on;

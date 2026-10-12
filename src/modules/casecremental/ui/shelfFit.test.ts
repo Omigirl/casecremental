@@ -4,9 +4,9 @@ import { hdFontSize } from "../fx/pixel/screen";
 import { spriteIndex } from "../fx/pixel/sprites";
 import { pixelViewport } from "../fx/pixel/viewport";
 import { caseName } from "../i18n/content";
-import { setLang } from "../i18n/index";
+import { setLang, t } from "../i18n/index";
 import { CASES } from "../sim/content/cases";
-import { charsBesideIcon, ROW_GAP, ROW_TEXT_CHROME, wrapLines } from "./shelfFit";
+import { BTN_CHROME, charsBesideIcon, ROW_TEXT_CHROME, ticksShown, wrapLines } from "./shelfFit";
 
 afterEach(() => setLang("en"));
 
@@ -30,6 +30,13 @@ const SIZES: Array<[number, number]> = [
 ];
 const ICON_W = Math.max(27, ...[...spriteIndex().entries()].filter(([id]) => id.startsWith("case-")).map(([, e]) => e.meta.frameW));
 const NAMES = [...CASES.map((c) => c.id), "vault1", "vault2", "vault3"];
+
+describe("ticksShown", () => {
+  it("hides the tick boxes until the grid is on", () => {
+    expect(ticksShown({ grid: { on: false } })).toBe(false);
+    expect(ticksShown({ grid: { on: true } })).toBe(true);
+  });
+});
 
 describe("wrapLines", () => {
   it("wraps at spaces and after hyphens, and knows a word that is too long", () => {
@@ -55,10 +62,10 @@ describe.each(SIZES)("the case shelf at %i×%i (Review Focus 4)", (w, h) => {
     }
   });
 
-  it("fits the widest BUY (×5) and the tick box on one line", () => {
+  it.each(["en", "ru"] as const)("fits the widest BUY (×5) on its own line, skinned button (%s)", (lang) => {
+    setLang(lang);
     const charW = hdFontSize(vp.scale) / vp.scale;
-    const button = "КУПИТЬ ×5".length * charW + 2; // its text and its padding (1 + 1)
-    const tick = (7 / 8) * charW + 2;
-    expect(button + ROW_GAP + tick).toBeLessThanOrEqual(panelW - ROW_TEXT_CHROME);
+    const button = `${t("btn.buy")} ×5`.length * charW + BTN_CHROME;
+    expect(button).toBeLessThanOrEqual(panelW - ROW_TEXT_CHROME);
   });
 });

@@ -9,7 +9,7 @@ import { dayJobButton } from "./dayJob";
 import { boardOpen, type Act } from "./machineRules";
 import { Bar, PixelTick, PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
-import { shelfIconK } from "./shelfFit";
+import { shelfIconK, ticksShown, TICK_CHROME } from "./shelfFit";
 
 // The Case shelf (right panel, or a drawer tab on phones): each case with its pixel box, BUY at
 // its price or UNLOCK at its unlock cost. Every button sends an Action through the controller.
@@ -49,14 +49,14 @@ function CaseRow({ c, act, grid, open }: { c: CaseView; act: Act; grid: boolean;
         <span style={{ flex: 1 }}>{caseName(c.id)}</span>
       </div>
       {c.unlocked ? (
-        <div className="cc-row-line">
-          <PxButton style={{ flex: 1 }} disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
+        <>
+          <PxButton disabled={!c.canBuy} onClick={() => act({ type: "buyCase", caseId: c.id })}>
             {t("btn.buy")}
             {c.count > 1 ? ` ×${c.count}` : ""}
             <span className="cc-btn-sub">{formatCash(c.price * c.count, getLang())}</span>
           </PxButton>
           {grid ? <TickBox c={c} act={act} open={open} /> : null}
-        </div>
+        </>
       ) : (
         <PxButton disabled={!c.canUnlock} onClick={() => act({ type: "unlockCase", caseId: c.id })}>
           {t("btn.unlock")}
@@ -110,7 +110,7 @@ export function CaseShelf({ view, act, title = true }: { view: GameView; act: Ac
       {title ? <div className="cc-title">{t("panel.cases")}</div> : null}
       <div className="cc-scroll">
         {view.cases.map((c) => (
-          <CaseRow key={c.id} c={c} act={act} grid={view.grid.on} open={boardOpen(view)} />
+          <CaseRow key={c.id} c={c} act={act} grid={ticksShown(view)} open={boardOpen(view)} />
         ))}
         <VaultRow view={view} act={act} />
         <DayJobRow view={view} act={act} />
