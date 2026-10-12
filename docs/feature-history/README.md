@@ -10,3 +10,4 @@ instead.
 - [Casecremental look (M2a)](casecremental-look.md) — pixel world + HD layer, art pipeline, code eyes, EN/RU, ElevenLabs audio, teasing spin, no brake
 - [Casecremental Run 1 (M2b)](casecremental-run1.md) — bot opens its own cases, auto-seller + claim tray, day job, Vault I as a last-chance ticket opened like a jackpot (devil key, chiptune fanfare, five endless beams out of the chest, blackout), multi-open ×2, prestige (CLOUT, charms, perks), local save
 - [Casecremental Runs 2 and 3 (M3)](casecremental-runs-2-3.md) — cases 4–7, the bot's second reel, locker and trade-ups, the auto-buyer grid, Vaults II and III
+- [Casecremental finish (M4 + M5)](casecremental-finish.md) — F1: scrollbar flash, no selection, reels that read at ×5, coins behind the reels, a living claim tray
