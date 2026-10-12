@@ -7,7 +7,7 @@ import { LAST_RUN } from "../sim/tuning";
 import { freshMeta } from "../sim/meta";
 import { freshUpgrader } from "../sim/upgrader";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
+import { browserSlot, decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -83,6 +83,20 @@ describe("the local save", () => {
     expect(broken.load()).toBeNull();
     expect(() => broken.clear()).not.toThrow();
     expect(new SaveSlot(null).load()).toBeNull();
+  });
+
+  it("keeps one save per account, and the first account adopts an older build's unkeyed save", () => {
+    const store = memory();
+    store.setItem(SAVE_KEY, encodeSave(data()));
+    vi.stubGlobal("localStorage", store);
+    try {
+      expect(browserSlot("A").load()).toEqual(data());
+      expect(store.m.has(SAVE_KEY)).toBe(false);
+      expect(store.m.has(`${SAVE_KEY}.A`)).toBe(true);
+      expect(browserSlot("B").load()).toBeNull(); // another account starts its own campaign
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("fills in what an older or partial save leaves out, so nothing turns into NaN or crashes", () => {

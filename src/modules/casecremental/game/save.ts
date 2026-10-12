@@ -1,3 +1,4 @@
+import { accountKey, adoptLegacy } from "../meta/account";
 import { freshAutoSpin } from "../sim/autoSpin";
 import { freshSeller } from "../sim/autoSeller";
 import { freshBot } from "../sim/botOpener";
@@ -18,6 +19,8 @@ import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 // F6 added the Upgrader, evolutions, the best drop and the campaign stats as fields with defaults; the version stays 5.
 // A save that is missing, broken or from another version never stops the game — it is dropped with a
 // warning and a fresh run starts; storage errors are swallowed. M4 moves the same data to the server.
+// Per account (F7 review): the browser keeps one save per signed-in player, `${SAVE_KEY}.${userID}`; the unkeyed save
+// of an older build goes to the first account that loads (meta/account.ts).
 
 export const SAVE_KEY = "casecremental.save";
 export const SAVE_VERSION = 5;
@@ -170,12 +173,15 @@ export function decodeSave(raw: string | null): SaveData | null {
 }
 
 export class SaveSlot {
-  constructor(private readonly store: SaveStore | null) {}
+  constructor(
+    private readonly store: SaveStore | null,
+    private readonly key: string = SAVE_KEY,
+  ) {}
 
   load(): SaveData | null {
     let raw: string | null = null;
     try {
-      raw = this.store?.getItem(SAVE_KEY) ?? null;
+      raw = this.store?.getItem(this.key) ?? null;
     } catch {
       return null;
     }
@@ -184,7 +190,7 @@ export class SaveSlot {
 
   save(data: SaveData): void {
     try {
-      this.store?.setItem(SAVE_KEY, encodeSave(data));
+      this.store?.setItem(this.key, encodeSave(data));
     } catch {
       // storage full or blocked: keep playing
     }
@@ -192,17 +198,20 @@ export class SaveSlot {
 
   clear(): void {
     try {
-      this.store?.removeItem(SAVE_KEY);
+      this.store?.removeItem(this.key);
     } catch {
       // nothing to clear
     }
   }
 }
 
-/** The browser's localStorage, or no storage at all when it is blocked. */
-export function browserSlot(): SaveSlot {
+/** The signed-in player's save in the browser's localStorage (adopting an older unkeyed save), or no storage at all
+ *  when it is blocked. */
+export function browserSlot(userId: string | null): SaveSlot {
   try {
-    return new SaveSlot(typeof localStorage === "undefined" ? null : localStorage);
+    const store = typeof localStorage === "undefined" ? null : localStorage;
+    adoptLegacy(store, SAVE_KEY, userId);
+    return new SaveSlot(store, accountKey(SAVE_KEY, userId));
   } catch {
     return new SaveSlot(null);
   }

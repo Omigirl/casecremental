@@ -1,8 +1,11 @@
-import { CallQueue, type CallName } from "./queue";
+import { CallQueue, type CallName, type JsonObject } from "./queue";
 
 // The server side of the meta (plan F7): reads the player's meta from the Title and sends the queued calls, one at a
 // time, in order. Never throws and never blocks the game: a call that cannot go now stays in the queue. The port is
 // the only thing that talks to the SDK (meta/clientPort.ts), so the tests drive this with a fake.
+// A call with no answer ("offline") waits without counting against it; a write the server refuses for good is followed
+// by a loadMeta, so the local meta learns what the server kept. A loadMeta answer that crossed a write's answer (sent
+// before it, arriving after) is ignored: it may describe the server before that write.
 
 export type PortReply =
   | { kind: "ok"; data: Record<string, unknown> }
@@ -10,7 +13,7 @@ export type PortReply =
   | { kind: "offline"; reason: string };
 
 export interface ServerPort {
-  call(name: string, args: Record<string, unknown>): Promise<PortReply>;
+  call(name: string, args: JsonObject): Promise<PortReply>;
   submitScore(score: number): Promise<PortReply>;
 }
 
@@ -54,6 +57,8 @@ export class ServerMeta {
   private state: ServerStatus = "unknown";
   private owned = new Set<string>();
   private running: Promise<void> | null = null;
+  /** Write answers taken so far: a loadMeta that saw this change while in flight is stale. */
+  private writesTaken = 0;
   private readonly docListeners = new Set<(doc: ServerDoc) => void>();
   private readonly statusListeners = new Set<(s: ServerStatus) => void>();
 
@@ -86,19 +91,27 @@ export class ServerMeta {
     return this.queue.hasWrites();
   }
 
+  /** The server's meta, merged; null offline or when a write's answer overtook it. */
   async load(): Promise<ServerDoc | null> {
+    const seen = this.writesTaken;
     const r = await this.safe(() => this.port.call("loadMeta", {}));
     if (r.kind !== "ok") {
-      this.setStatus("offline");
+      if (r.kind === "offline") this.setStatus("offline");
       return null;
     }
     this.setStatus("online");
-    return this.take(r.data);
+    return this.writesTaken === seen ? this.take(r.data) : null;
   }
 
-  enqueue(name: CallName, args: Record<string, unknown>, id: string): void {
+  enqueue(name: CallName, args: JsonObject, id: string): void {
     this.queue.push({ id, name, args }, this.clock());
     void this.pump();
+  }
+
+  /** The connection is back: send the waiting calls now instead of at their back-off time. */
+  retryNow(): Promise<void> {
+    this.queue.wake(this.clock());
+    return this.pump();
   }
 
   /** Sends the due calls in order. A second pump while one runs joins it (and the running one picks up new calls). */
@@ -111,24 +124,32 @@ export class ServerMeta {
     for (let call = this.queue.head(this.clock()); call; call = this.queue.head(this.clock())) {
       const c = call;
       const r = await this.safe(() =>
-        c.name === "submitScore" ? this.port.submitScore(Number(c.args.score)) : this.port.call(c.name, c.args),
+        c.name === "submitScore" ? this.port.submitScore(Number(c.args.score)) : this.port.call(c.name, this.sendArgs(c.name, c.args)),
       );
       if (r.kind === "offline" || (r.kind === "refused" && r.retry)) {
         if (r.kind === "offline") this.setStatus("offline");
-        this.queue.retryLater(c.id, this.clock());
+        this.queue.retryLater(c.id, this.clock(), r.kind === "offline");
         return;
       }
       this.setStatus("online");
       this.queue.done(c.id);
       if (r.kind === "refused") {
         console.warn(`[casecremental] the server refused ${c.name}: ${r.reason}`);
+        if (c.name === "endRun" || c.name === "buyPerk") await this.load(); // what the server kept instead
         continue;
       }
-      this.take(r.data);
+      if (this.take(r.data)) this.writesTaken++;
       const score = r.data.score;
       if (c.name === "endRun" && r.data.serverScore !== true && isNum(score) && score > 0)
         this.queue.push({ id: `score-${String(c.args.runId ?? c.id)}`, name: "submitScore", args: { score } }, this.clock());
     }
+  }
+
+  /** endRun says when the run ended as "seconds ago" at send time: the server's clock and the player's never mix. */
+  private sendArgs(name: CallName, args: JsonObject): JsonObject {
+    const endedAt = args.endedAt;
+    if (name !== "endRun" || typeof endedAt !== "number") return args;
+    return { ...args, endedAgoSec: Math.max(0, Math.floor(this.clock() - endedAt)) };
   }
 
   private take(data: Record<string, unknown>): ServerDoc | null {

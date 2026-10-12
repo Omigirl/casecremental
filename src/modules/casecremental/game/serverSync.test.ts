@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ServerMeta, type ServerPort } from "../meta/bridge";
-import { CallQueue } from "../meta/queue";
+import { CallQueue, type JsonObject } from "../meta/queue";
 import { freshMeta } from "../sim/meta";
 import type { SimEvent } from "../sim/run";
 import type { Drop } from "../sim/types";
@@ -11,15 +11,13 @@ const knife: Drop = { id: 1, caseId: "bootcamp", skinId: "bc_knife", rarity: "go
 function setup() {
   const sent: Array<[string, Record<string, unknown>]> = [];
   const port: ServerPort = {
-    call: vi.fn(
-      async (name: string, args: Record<string, unknown>) => (sent.push([name, args]), { kind: "offline" as const, reason: "test" }),
-    ),
+    call: vi.fn(async (name: string, args: JsonObject) => (sent.push([name, args]), { kind: "offline" as const, reason: "test" })),
     submitScore: vi.fn(),
   };
   let listener: (e: SimEvent) => void = () => {};
   const target: SyncTarget & { applied: number } = {
     meta: freshMeta(),
-    run: { seed: 12345, state: { time: 300 } },
+    run: { seed: 12345, setup: { charms: ["fever"] }, state: { time: 300 } },
     onEvent: (l) => ((listener = l), () => {}),
     applied: 0,
     applyServerMeta() {
@@ -85,8 +83,19 @@ describe("metaArgs", () => {
     const m = freshMeta();
     m.picked = ["insider"];
     delete (m as { stats?: unknown }).stats; // a meta from before F6-A's campaign stats
-    expect(metaArgs(m)).toEqual({ picked: ["insider"] });
+    m.offer = ["insider", "fever"]; // on the prestige screen: the picks being made
+    expect(metaArgs(m, [])).toEqual({ picked: ["insider"] });
     Object.assign(m, { stats: { playSeconds: 61.7, opened: 40, best: { ...knife }, cloutEarned: 3 } });
-    expect(metaArgs(m)).toEqual({ picked: ["insider"], stats: { playSeconds: 61, opened: 40, best: { skinId: "bc_knife", value: 99 } } });
+    expect(metaArgs(m, [])).toEqual({
+      picked: ["insider"],
+      stats: { playSeconds: 61, opened: 40, best: { skinId: "bc_knife", value: 99 } },
+    });
+  });
+
+  it("sends the run's own charms during a run (the meta's picks are cleared when it starts)", async () => {
+    const { metaArgs } = await import("./serverSync");
+    const m = freshMeta();
+    delete (m as { stats?: unknown }).stats;
+    expect(metaArgs(m, ["fever", "insider"])).toEqual({ picked: ["fever", "insider"] });
   });
 });

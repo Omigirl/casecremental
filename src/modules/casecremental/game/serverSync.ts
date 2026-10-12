@@ -1,4 +1,5 @@
 import type { ServerDoc, ServerMeta } from "../meta/bridge";
+import type { JsonObject } from "../meta/queue";
 import { trophyDropsOf } from "../meta/trophies";
 import type { MetaState } from "../sim/meta";
 import type { SimEvent } from "../sim/run";
@@ -10,7 +11,11 @@ import type { SimEvent } from "../sim/run";
 
 export interface SyncTarget {
   readonly meta: MetaState;
-  readonly run: { readonly seed: number; readonly state: { readonly time: number } };
+  readonly run: {
+    readonly seed: number;
+    readonly setup: { readonly charms: readonly string[] };
+    readonly state: { readonly time: number };
+  };
   onEvent(l: (e: SimEvent) => void): () => void;
   applyServerMeta(doc: ServerDoc, pendingWrites: boolean): void;
 }
@@ -27,10 +32,12 @@ function statsOf(m: MetaState): { playSeconds: number; opened: number; best: { s
   return { playSeconds: Math.floor(s.playSeconds), opened: s.opened, best };
 }
 
-/** saveMeta's arguments: the charm picks, and the campaign stats once the meta keeps them. */
-export function metaArgs(m: MetaState): Record<string, unknown> {
+/** saveMeta's arguments: the charms — being picked on the prestige screen, else the run's own (so a new device can
+ *  rebuild the run with them) — and the campaign stats once the meta keeps them. */
+export function metaArgs(m: MetaState, runCharms: readonly string[]): JsonObject {
+  const picked = m.offer ? [...m.picked] : [...runCharms];
   const stats = statsOf(m);
-  return stats ? { picked: [...m.picked], stats } : { picked: [...m.picked] };
+  return stats ? { picked, stats } : { picked };
 }
 
 export function connectServer(target: SyncTarget, server: ServerMeta, pumpEverySec = 5): () => void {
@@ -57,14 +64,15 @@ export function connectServer(target: SyncTarget, server: ServerMeta, pumpEveryS
         },
         `end-${runId}`,
       );
-      server.enqueue("saveMeta", metaArgs(target.meta), `meta-${runId}`);
+      server.enqueue("saveMeta", metaArgs(target.meta, target.run.setup.charms), `meta-${runId}`);
     }
     if (e.type === "perkBought") server.enqueue("buyPerk", { perkId: e.id, level: e.level - 1 }, `perk-${e.id}-${e.level}`);
     if (e.type === "charmPicked" || e.type === "runStarted")
-      server.enqueue("saveMeta", metaArgs(target.meta), `meta-${Date.now()}-${++saves}`);
+      server.enqueue("saveMeta", metaArgs(target.meta, target.run.setup.charms), `meta-${Date.now()}-${++saves}`);
   });
   const offDoc = server.onDoc((doc) => target.applyServerMeta(doc, server.hasPendingWrites()));
-  void server.load().then(() => server.pump());
+  // the server answered: what waits from an earlier session goes now, not at its back-off time
+  void server.load().then((doc) => (doc ? server.retryNow() : server.pump()));
   const timer = pumpEverySec > 0 ? setInterval(() => void server.pump(), pumpEverySec * 1000) : null;
   return () => {
     offEvent();

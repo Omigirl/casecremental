@@ -1,21 +1,23 @@
 import type { IDosGamesClient } from "@idosgames/core";
 import type { PortReply, ServerPort } from "./bridge";
+import type { JsonObject } from "./queue";
 
 // The SDK side of the server port (plan F7): CloudCode handlers through client.cloudCode.execute and the best_run
 // score through client.leaderboard.submitScore. SDK calls answer OperationResult and do not throw; a call that
 // hangs is cut off after `timeoutMs` and counts as offline.
+// Only a handler's own answer { ok: false, retry: false } refuses a call for good. Everything else that goes wrong is
+// "offline" (no answer: the connection, the session, a publish still spreading — never counted against the call) or
+// a refusal worth another try (counted, backed off).
 
 export const LEADERBOARD_ID = "best_run";
-/** CloudCode errors worth another try. HandlerNotFound / NoActiveRevision: a fresh publish takes a few minutes to
- *  reach every server (seen on ZVKC34TR-DEV), so they are not a refusal for good. */
-const RETRY_ERRORS = new Set([
-  "RateLimited",
-  "Timeout",
-  "ApiCallLimitExceeded",
-  "StatementCountExceeded",
-  "HandlerNotFound",
-  "NoActiveRevision",
-]);
+/** CloudCode errors that mean "not now" rather than an answer. HandlerNotFound / NoActiveRevision: a fresh publish
+ *  takes a few minutes to reach every server (seen on ZVKC34TR-DEV). */
+const NOT_NOW_ERRORS = new Set(["RateLimited", "Timeout", "HandlerNotFound", "NoActiveRevision"]);
+/** SDK failure reasons where no answer came from the game's server. */
+const NO_ANSWER = new Set(["connection", "unauthorized", "throttled"]);
+
+/** CloudCode's FunctionParameter type (JsonValue, which @idosgames/core does not export by name). */
+type FunctionParameter = Parameters<IDosGamesClient["cloudCode"]["execute"]>[1];
 
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
@@ -39,29 +41,32 @@ function readResult(raw: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
-export function clientPort(client: IDosGamesClient, timeoutMs = 10_000): ServerPort {
+/** The port for `owner`'s calls: while another account is signed in (or no one), every call waits as "offline". */
+export function clientPort(client: IDosGamesClient, owner: string | null = null, timeoutMs = 10_000): ServerPort {
   const offline: PortReply = { kind: "offline", reason: "timeout" };
+  const otherAccount = (): boolean => owner !== null && client.auth.context?.userID !== owner;
+  const notSignedIn: PortReply = { kind: "offline", reason: "another account is signed in" };
   return {
-    async call(name, args) {
-      const r = await withTimeout(client.cloudCode.execute(name, args as never), timeoutMs, null);
+    async call(name, args: JsonObject) {
+      if (otherAccount()) return notSignedIn;
+      const parameter: FunctionParameter = args;
+      const r = await withTimeout(client.cloudCode.execute(name, parameter), timeoutMs, null);
       if (r === null) return offline;
-      if (!r.ok) return r.reason === "server" ? { kind: "refused", reason: r.error, retry: true } : { kind: "offline", reason: r.error };
+      if (!r.ok) return NO_ANSWER.has(r.reason) ? { kind: "offline", reason: r.error } : { kind: "refused", reason: r.error, retry: true };
       const err = r.data.Error?.Error;
       if (err && err !== "None")
-        return RETRY_ERRORS.has(err) ? { kind: "offline", reason: err } : { kind: "refused", reason: err, retry: false };
+        return NOT_NOW_ERRORS.has(err) ? { kind: "offline", reason: err } : { kind: "refused", reason: err, retry: true };
       const data = readResult(r.data.FunctionResult);
-      if (!data) return { kind: "refused", reason: "no result", retry: false };
+      if (!data) return { kind: "refused", reason: "no result", retry: true };
       if (data.ok === false) return { kind: "refused", reason: String(data.reason ?? "refused"), retry: data.retry === true };
       return { kind: "ok", data };
     },
     async submitScore(score) {
+      if (otherAccount()) return notSignedIn;
       const r = await withTimeout(client.leaderboard.submitScore(LEADERBOARD_ID, score), timeoutMs, null);
       if (r === null) return offline;
-      return r.ok
-        ? { kind: "ok", data: {} }
-        : r.reason === "server"
-          ? { kind: "refused", reason: r.error, retry: false }
-          : { kind: "offline", reason: r.error };
+      if (r.ok) return { kind: "ok", data: {} };
+      return NO_ANSWER.has(r.reason) ? { kind: "offline", reason: r.error } : { kind: "refused", reason: r.error, retry: true };
     },
   };
 }

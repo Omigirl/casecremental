@@ -1,9 +1,9 @@
 import type { ServerDoc } from "../meta/bridge";
 import { applyServerDoc } from "../meta/merge";
-import type { CharmId } from "../sim/charms";
+import { charmPool, type CharmId } from "../sim/charms";
 import { buyEvolution } from "../sim/evolutions";
 import type { EvolutionId } from "../sim/evolved";
-import { buyPerk, completeVault, endCredits, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
+import { buyPerk, charmSlots, completeVault, endCredits, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
 import { Run, type ActionResult, type CardSpot, type SimEvent } from "../sim/run";
 import type { RarityId } from "../sim/types";
 import * as upgrader from "../sim/upgrader";
@@ -161,16 +161,34 @@ export class GameController {
   }
 
   /** A server answer (plan F7): merged into the meta, saved, shown. A run nothing has happened in yet (a new device
-   *  started a fresh Run 1) is rebuilt for the campaign the server knows, so its vault is the one the server expects. */
+   *  started a fresh Run 1) is rebuilt for the campaign the server knows — with the charms the server kept for the
+   *  run — so its vault is the one the server expects. */
   applyServerMeta(doc: ServerDoc, pendingWrites: boolean): void {
     applyServerDoc(this.meta, doc, pendingWrites);
-    const s = this.current.state;
-    if (s.lifetimeEarnings === 0 && !s.over && s.vault === null && setupFor(this.meta).run !== this.current.setup.run) {
-      this.current = new Run(this.current.seed, setupFor(this.meta));
+    const setup = setupFor(this.meta);
+    if (this.untouched() && setup.run !== this.current.setup.run) {
+      const pool = charmPool(setup.run);
+      const charms = doc.picked.filter((c): c is CharmId => (pool as readonly string[]).includes(c)).slice(0, charmSlots(this.meta));
+      this.current = new Run(this.current.seed, { ...setup, charms });
       this.emit({ type: "runStarted" });
     }
     this.save();
     this.refreshView();
+  }
+
+  /** Nothing has happened in the run yet: nothing earned, opened or spent, no card anywhere, no vault. */
+  private untouched(): boolean {
+    const s = this.current.state;
+    return (
+      s.lifetimeEarnings === 0 &&
+      s.opened === 0 &&
+      s.cash === this.current.setup.startCash &&
+      s.bench.phase === "empty" &&
+      s.tray.length === 0 &&
+      s.bot.cards.length === 0 &&
+      s.vault === null &&
+      !s.over
+    );
   }
 
   /** Save now (the page is closing): autosave runs only about once a second. */

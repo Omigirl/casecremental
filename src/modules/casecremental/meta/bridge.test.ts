@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ServerMeta, type PortReply, type ServerPort } from "./bridge";
-import { CallQueue } from "./queue";
+import { CallQueue, MAX_TRIES, type JsonObject } from "./queue";
 
 const doc = (over = {}) => ({
   ok: true,
@@ -81,6 +81,68 @@ describe("ServerMeta", () => {
     await s.pump();
     expect(calls).toEqual(["reportTrophy", "buyPerk"]);
     expect(s.hasPendingWrites()).toBe(true); // buyPerk waits for its retry
+  });
+
+  it("keeps an endRun through any number of offline pumps, and drains it when the server answers", async () => {
+    const store = memory();
+    let t = 0;
+    const down = fakePort({});
+    const a = new ServerMeta(down.port, new CallQueue(store), () => t);
+    a.enqueue("endRun", { runId: "r1", endedAt: 0 }, "end-r1");
+    for (let i = 0; i < MAX_TRIES * 5; i++) {
+      t += 3600;
+      await a.retryNow();
+    }
+    expect(a.hasPendingWrites()).toBe(true);
+    const up = fakePort({ endRun: [{ kind: "ok", data: doc({ score: 1, serverScore: true }) }] });
+    await new ServerMeta(up.port, new CallQueue(store), () => t).retryNow();
+    expect(up.calls).toEqual(["endRun"]);
+  });
+
+  it("says when the run ended as seconds ago at send time", async () => {
+    const seen: JsonObject[] = [];
+    const port: ServerPort = {
+      call: async (_name, args) => (seen.push(args), { kind: "ok", data: doc() }),
+      submitScore: async () => ({ kind: "ok", data: {} }),
+    };
+    const s = new ServerMeta(port, new CallQueue(null), () => 1000);
+    s.enqueue("endRun", { runId: "r1", endedAt: 400 }, "e");
+    await s.pump();
+    expect(seen[0]).toMatchObject({ endedAt: 400, endedAgoSec: 600 });
+  });
+
+  it("loads the server's meta after it refuses a write for good", async () => {
+    const { port, calls } = fakePort({
+      buyPerk: [{ kind: "refused", reason: "not enough CLOUT", retry: false }],
+      loadMeta: [{ kind: "ok", data: doc({ clout: 2 }) }],
+    });
+    const s = new ServerMeta(port, new CallQueue(null), () => 0);
+    const docs: number[] = [];
+    s.onDoc((d) => docs.push(d.clout));
+    s.enqueue("buyPerk", { perkId: "luck", level: 0 }, "p");
+    await s.pump();
+    expect(calls).toEqual(["buyPerk", "loadMeta"]);
+    expect(docs).toEqual([2]);
+  });
+
+  it("ignores a loadMeta answer a write's answer overtook", async () => {
+    let release: (r: PortReply) => void = () => {};
+    const port: ServerPort = {
+      call: (name) =>
+        name === "loadMeta"
+          ? new Promise<PortReply>((r) => (release = r))
+          : Promise.resolve({ kind: "ok", data: doc({ clout: 9, loops: 2 }) }),
+      submitScore: async () => ({ kind: "ok", data: {} }),
+    };
+    const s = new ServerMeta(port, new CallQueue(null), () => 0);
+    const docs: number[] = [];
+    s.onDoc((d) => docs.push(d.clout));
+    const loading = s.load();
+    s.enqueue("endRun", { runId: "r1" }, "e");
+    await s.pump();
+    release({ kind: "ok", data: doc({ clout: 1, loops: 1 }) }); // sent before the endRun, answered after it
+    expect(await loading).toBeNull();
+    expect(docs).toEqual([9]);
   });
 
   it("does not submit the score when the server did", async () => {

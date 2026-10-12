@@ -219,6 +219,41 @@ describe("GameController — the campaign", () => {
     expect(playing.run).toBe(old);
   });
 
+  it("keeps a run that has opened or spent anything, even with no earnings yet", () => {
+    const doc = {
+      clout: 9,
+      trophies: ["vault1_legend"],
+      perks: {},
+      loops: 1,
+      stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 9 },
+      picked: [],
+    };
+    const opened = new GameController(1);
+    opened.run.state.opened = 1;
+    const a = opened.run;
+    opened.applyServerMeta(doc, false);
+    expect(opened.run).toBe(a);
+    const spent = new GameController(1);
+    spent.run.state.cash -= 1;
+    const b = spent.run;
+    spent.applyServerMeta(doc, false);
+    expect(spent.run).toBe(b);
+  });
+
+  it("rebuilds a new device's run with the charms the server kept for it (valid ones, as many as the slots)", () => {
+    const doc = {
+      clout: 9,
+      trophies: ["vault1_legend"],
+      perks: { charmSlot: 0 },
+      loops: 1,
+      stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 9 },
+      picked: ["nope", "insider", "fever"],
+    };
+    const fresh = new GameController(1);
+    fresh.applyServerMeta(doc, false);
+    expect(fresh.run.setup.charms).toEqual(["insider"]);
+  });
+
   it("emits charmPicked on a pick, not on an un-pick", () => {
     const c = new GameController(1);
     const events: string[] = [];
