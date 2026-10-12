@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HUMAN, playGreedy } from "./bot";
+import { HUMAN, playGreedy, type PacingReport } from "./bot";
 import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
 import { VAULT_GROWTH, VAULT_PRICES } from "./tuning";
 
@@ -72,5 +72,63 @@ describe("pacing — the whole of Run 1 and a boosted Run 1 replay", () => {
     const again = med((r) => r.vaultAt, second);
     expect(again).toBeGreaterThan(300);
     expect(again).toBeLessThan(420);
+  });
+});
+
+describe("pacing — Runs 2 and 3 (spec §10)", () => {
+  // chain: Run 1 → Vault I → Run 2 → Vault II → Run 3 → Vault III → Run 3 replay, cheapest perk each time
+  const chain = SEEDS.map((s) => {
+    const meta = freshMeta();
+    const reports = [];
+    let earnings = playGreedy(s, 900).lifetimeEarnings;
+    for (const trophy of ["vault1", "vault2", "vault3"]) {
+      completeVault(meta, earnings, trophy, s);
+      const cheapest = [...PERK_IDS].sort(
+        (a, b) => (perkCost(a, meta.perks[a]) ?? Infinity) - (perkCost(b, meta.perks[b]) ?? Infinity),
+      )[0]!;
+      buyPerk(meta, cheapest);
+      const r = playGreedy(s + 100 * meta.loops, 900, HUMAN, setupFor(meta));
+      reports.push(r);
+      earnings = r.lifetimeEarnings;
+    }
+    return reports; // [run2, run3, run3 replay]
+  });
+  const med = (i: number, pick: (r: PacingReport) => number | undefined) => median(chain.map((c) => pick(c[i]!) ?? Infinity));
+
+  it("Run 2 catches up to Run 1's shelf in 1–2 min", () => {
+    const t = med(0, (r) => r.runCasesAt[1]);
+    expect(t).toBeGreaterThan(60);
+    expect(t).toBeLessThan(120);
+  });
+  it("Run 2 buys the locker by about 2–4 min and Vault II at 6–10 min, reaching High", () => {
+    expect(med(0, (r) => r.lockerAt)).toBeLessThan(240);
+    const v = med(0, (r) => r.vaultAt);
+    expect(v).toBeGreaterThan(360);
+    expect(v).toBeLessThan(600);
+    expect(median(chain.map((c) => c[0]!.topStage))).toBeGreaterThanOrEqual(3);
+  });
+  it("Run 3 catches up to Run 2's shelf in 1–2 min, buys the grid by 2–4 min, Vault III at 6–10 min, reaching Tripping", () => {
+    const t = med(1, (r) => r.runCasesAt[2]);
+    expect(t).toBeGreaterThan(60);
+    expect(t).toBeLessThan(120);
+    expect(med(1, (r) => r.gridAt)).toBeLessThan(240);
+    const v = med(1, (r) => r.vaultAt);
+    expect(v).toBeGreaterThan(360);
+    expect(v).toBeLessThan(600);
+    expect(median(chain.map((c) => c[1]!.topStage))).toBeGreaterThanOrEqual(4);
+  });
+  it("a Run 3 replay catches up in 1–2 min and vaults again by 5–7 min", () => {
+    const t = med(2, (r) => r.runCasesAt[3]);
+    expect(t).toBeGreaterThan(60);
+    expect(t).toBeLessThan(120);
+    const v = med(2, (r) => r.vaultAt);
+    expect(v).toBeGreaterThan(300);
+    expect(v).toBeLessThan(420);
+  });
+  it("never leaves the tray stuck full for long", () => {
+    for (const c of chain) for (const r of c) expect(r.longestTrayFull).toBeLessThan(10);
+  });
+  it("presses contracts in Run 2", () => {
+    expect(median(chain.map((c) => c[0]!.contracts))).toBeGreaterThan(0);
   });
 });
