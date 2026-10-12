@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Rect } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import { pixelViewport } from "../pixel/viewport";
-import { BEAM_ANGLES_LANDSCAPE, BEAM_ANGLES_PORTRAIT, BEAM_PALETTE, beamLayout, fitBeams, itemDistance, TEXT_BOX } from "./beams";
+import { BEAM_ANGLES_LANDSCAPE, BEAM_ANGLES_PORTRAIT, beamLayout, fitBeams, itemDistance, TEXT_BOX } from "./beams";
 import { endCornersOff } from "./beamTestKit";
 import { BEAM_ICON, BEAM_MOUTH, OPEN_H, VAULT_FRAME, vaultLayout } from "./vaultLayout";
+import { VAULT_LOOKS } from "./vaultLooks";
 
 const SCREENS = [
   { w: 1920, h: 1080 },
@@ -34,8 +35,8 @@ const inside = (r: Rect, s: { w: number; h: number }) =>
   r.x >= MARGIN && r.y >= MARGIN && r.x + r.w <= s.w - MARGIN && r.y + r.h <= s.h - MARGIN;
 
 describe("the vault's beams", () => {
-  it("has a palette and angles for five beams", () => {
-    expect(BEAM_PALETTE).toHaveLength(5);
+  it("has a palette per vault and angles for five beams", () => {
+    for (const look of Object.values(VAULT_LOOKS)) expect(look.palette, look.id).toHaveLength(5);
     expect(BEAM_ANGLES_LANDSCAPE).toHaveLength(5);
     expect(BEAM_ANGLES_PORTRAIT).toHaveLength(5);
   });
