@@ -11,13 +11,14 @@ import { wearOf } from "../sim/wear";
 // Text on the canvas, built from state in the current language every frame — so switching the
 // language mid-run (reel spinning, card up) updates it at once (Review Focus 2).
 
-/** The next step's hint under your reel. In portrait it would sit on a single card's top, so it is dropped there. */
-export function hintKey(b: Bench, portrait = false): StringKey | null {
+/** The next step's hint under your reel. In portrait it would sit on a single card's top, so it is dropped there. It is
+ *  quiet while auto-spin buys and keys for you (`auto`): it would flash every open. */
+export function hintKey(b: Bench, portrait = false, auto = false): StringKey | null {
   switch (b.phase) {
     case "empty":
-      return "hint.buy";
+      return auto ? null : "hint.buy";
     case "locked":
-      return "hint.key";
+      return auto ? null : "hint.key";
     case "spinning":
       return null;
     case "revealed":

@@ -29,6 +29,9 @@ describe("canvas labels", () => {
     const reel = { drop: DROP, tease: null, duration: 6 };
     expect(hintKey({ phase: "spinning", caseId: "bootcamp", reels: [reel, reel], elapsed: 1, fullDuration: 6 })).toBeNull();
     expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP] })).toBe("hint.sell");
+    expect(hintKey({ phase: "empty" }, false, true)).toBeNull(); // auto-spin buys and keys: no hint flashing every open
+    expect(hintKey({ phase: "locked", caseId: "bootcamp", free: false, count: 1 }, false, true)).toBeNull();
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP] }, false, true)).toBe("hint.sell");
   });
 
   it("hints at selling a single card, and stays quiet over a pair, even half-sold (it would cover their tops)", () => {

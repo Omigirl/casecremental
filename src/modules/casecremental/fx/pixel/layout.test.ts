@@ -65,6 +65,17 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     for (const [name, r] of Object.entries(items)) expect(inside(r, { ...l.table, y: l.table.y - 60, h: l.table.h + 60 }), name).toBe(true);
   });
 
+  it("bolts auto-spin's arm to the mat's right end: on the mat, clear of the case, the cards, the reels and the stations", () => {
+    const a = l.you.arm;
+    expect([a.w, a.h]).toEqual([ITEM_SIZE.arm.w, ITEM_SIZE.arm.h]);
+    expect(inside(a, l.you.mat)).toBe(true);
+    expect(overlap(a, box(l.you.caseSpot.x, l.you.caseSpot.y, 26, 34))).toBe(false); // the case sprite's frame, lid open
+    for (const n of [1, 2, 3, 5])
+      for (const p of [...revealSpots(l, n), ...botRevealSpots(l, n)]) expect(overlap(a, cardBox(p))).toBe(false);
+    for (const r of [l.you.reel, benchReelArea(l, 5, true), botReelArea(l, 2)]) if (r) expect(overlap(a, r)).toBe(false);
+    for (const name of ["bot", "key", "tray", "seller", "bin", "locker"]) expect(overlap(a, items[name]!), name).toBe(false);
+  });
+
   it("never lets items overlap (except the case on its mat)", () => {
     const names = Object.keys(items).filter((n) => n !== "case");
     for (let i = 0; i < names.length; i++)

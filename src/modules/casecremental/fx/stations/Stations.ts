@@ -5,11 +5,12 @@ import type { RarityId } from "../../sim/types";
 import type { LiftInfo } from "../hd/Lifted";
 import type { Pt, TableLayout } from "../pixel/layout";
 import type { RestorePlan } from "../restore";
+import { AutoSpinStation } from "./AutoSpinStation";
 import { BotStation } from "./BotStation";
 import type { StationDeps } from "./deps";
 import { LockerStation } from "./LockerStation";
 
-// The stations beside your bench (M3: the bot's pair, the locker): drawn from the sim every
+// The stations beside your bench (M3: the bot's pair, the locker; F2: auto-spin's arm): drawn from the sim every
 // frame, so a reload or a lobby trip redraws them as they are, each with its own event juice. The World owns your
 // bench, the room and the camera, and asks the stations about their cards and sales.
 
@@ -24,6 +25,7 @@ export class Stations {
   readonly hd = new Container();
   private readonly bot: BotStation;
   private readonly locker: LockerStation;
+  private readonly autoSpin: AutoSpinStation;
   private l: TableLayout | null = null;
 
   constructor(private readonly d: StationDeps) {
@@ -35,17 +37,22 @@ export class Stations {
     this.under.addChild(this.locker.under);
     this.over.addChild(this.locker.over);
     this.hd.addChild(this.locker.hd);
+    this.autoSpin = new AutoSpinStation(d);
+    this.under.addChild(this.autoSpin.under);
+    this.hd.addChild(this.autoSpin.hd);
   }
 
   layout(l: TableLayout): void {
     this.l = l;
     this.bot.layout(l);
     this.locker.layout(l);
+    this.autoSpin.layout(l);
   }
 
   update(dt: number, ms: number, s: RunState): void {
     this.bot.update(dt, ms, s);
     this.locker.update(dt, ms, s);
+    this.autoSpin.update(dt, s);
   }
 
   /** A fresh World (a reload, a lobby trip) or a new run: redraw what the sim holds. */
@@ -59,6 +66,7 @@ export class Stations {
     if (e.type === "setCompleted") this.fullSet();
     this.bot.onEvent(e);
     this.locker.onEvent(e);
+    this.autoSpin.onEvent(e);
   }
 
   /** Pick up a waiting card under the pointer (the locker's results first: they sit over the tray's end). */
@@ -93,9 +101,9 @@ export class Stations {
     return (spot === "locker" ? this.locker.results : this.bot.cards).centre(slot);
   }
 
-  /** A tap on a machine (the locker presses a trade-up); true when one took it. */
+  /** A tap on a machine (the arm flips auto-spin, the locker presses a trade-up); true when one took it. */
   tap(p: Pt, s: RunState): boolean {
-    return this.locker.tap(p, s.locker.on);
+    return this.autoSpin.tap(p, s) || this.locker.tap(p, s.locker.on);
   }
 
   /** A card the auto-seller's Collect sent into the locker flies there from `from` (world px). */
@@ -106,6 +114,7 @@ export class Stations {
   destroy(): void {
     this.bot.cards.destroy();
     this.locker.destroy();
+    this.autoSpin.destroy();
   }
 
   private clearAll(): void {
