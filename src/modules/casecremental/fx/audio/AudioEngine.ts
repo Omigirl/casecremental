@@ -268,7 +268,12 @@ export class AudioEngine {
   }
 
   private async preload(gen: number): Promise<void> {
-    const urls = [...this.files.music.values(), ...this.files.tracks.values(), ...[...this.files.sfx.values()].flat()];
+    const urls = [
+      ...[...this.files.music.values()].flat(),
+      ...(this.files.finale ? [this.files.finale] : []),
+      ...this.files.tracks.values(),
+      ...[...this.files.sfx.values()].flat(),
+    ];
     await Promise.all(urls.map((u) => this.loadBuffer(u)));
     if (gen !== this.loadGen || !this.ctx) return; // a dropped context's load: the current one fires
     this.updateMusic();
@@ -301,7 +306,7 @@ export class AudioEngine {
     this.stopTrack(0.6);
     const stage = musicFor(this.wantStage, [...this.files.music.keys()]);
     if (stage === null || this.loop?.stage === stage) return;
-    const buffer = this.buffers.get(this.files.music.get(stage)!);
+    const buffer = this.buffers.get(this.files.music.get(stage)![0]!);
     if (!buffer) return; // not decoded yet — preload() calls again when it is
     try {
       const at = this.loop ? nextBar(ctx.currentTime, this.loopStartedAt) : ctx.currentTime;

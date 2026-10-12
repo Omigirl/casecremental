@@ -96,7 +96,7 @@ describe("indexAudio tracks", () => {
     expect(files.tracks.get("vault-suspense")).toBe("s");
     expect(files.tracks.get("vault-fanfare")).toBe("f1");
     expect(files.tracks.get("prestige")).toBe("p");
-    expect(files.music.get(1)).toBe("m1");
+    expect(files.music.get(1)).toEqual(["m1"]);
   });
 
   it("indexes Vaults II and III's fanfares as their own tracks, never as spare takes of Vault I's", () => {
@@ -116,6 +116,33 @@ describe("indexAudio tracks", () => {
     expect(files.tracks.get("vault-intro")).toBe("i1");
     expect(files.tracks.get("vault-fanfare")).toBe("f1");
     expect(files.sfx.size).toBe(0);
+  });
+});
+
+describe("indexAudio playlists (finish spec §6)", () => {
+  it("lists a stage's loops in take order, music-<stage> first, whatever order the files come in", () => {
+    const files = indexAudio({
+      "/a/music-3-3.mp3": "c",
+      "/a/music-3.mp3": "a",
+      "/a/music-3-10.mp3": "j",
+      "/a/music-3-2.mp3": "b",
+      "/a/music-1.mp3": "m1",
+    });
+    expect(files.music.get(3)).toEqual(["a", "b", "c", "j"]); // numeric take order: 10 comes after 3
+    expect(files.music.get(1)).toEqual(["m1"]);
+    expect(files.sfx.size).toBe(0);
+  });
+
+  it("indexes the Run 4 finale loop on its own, never as a stage's loop or an effect", () => {
+    const files = indexAudio({ "/a/music-5.mp3": "m5", "/a/music-finale.mp3": "fin" });
+    expect(files.music.get(5)).toEqual(["m5"]);
+    expect(files.finale).toBe("fin");
+    expect(files.sfx.size).toBe(0);
+    expect(indexAudio({}).finale).toBeNull();
+  });
+
+  it("indexes the credits as a named track", () => {
+    expect(indexAudio({ "/a/credits.mp3": "cr" }).tracks.get("credits")).toBe("cr");
   });
 });
 

@@ -49,4 +49,12 @@ describe("the named tracks", () => {
     expect(files.tracks.get("vault-fanfare-2")).toMatch(/vault-fanfare-2/);
     expect(files.tracks.get("vault-fanfare-3")).toMatch(/vault-fanfare-3/);
   });
+
+  it("finds three loops each for stages 3–5, the Run 4 finale and the credits in assets/audio (finish spec §6)", () => {
+    const files = indexAudio(REAL_FILES);
+    expect([1, 2, 3, 4, 5].map((s) => files.music.get(s)?.length)).toEqual([1, 1, 3, 3, 3]);
+    expect(files.music.get(3)![0]).toMatch(/music-3\.mp3/); // the original loop opens its stage's playlist
+    expect(files.finale).toMatch(/music-finale/);
+    expect(files.tracks.get("credits")).toMatch(/credits/);
+  });
 });
