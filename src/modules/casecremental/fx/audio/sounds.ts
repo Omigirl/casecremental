@@ -51,6 +51,8 @@ export const SOUNDS = {
   "locker-store": { bus: "sfx", gain: 0.45 },
   "tradeup-press": { bus: "sfx", gain: 0.4 },
   "tradeup-reveal": { bus: "sfx", gain: 0.45 },
+  // Run 4 (F6): the Upgrader's loss; mean -27.1 dB, gain set against tradeup-press (-18.1 dB at 0.4).
+  "upgrader-shred": { bus: "sfx", gain: 1.1, maxSeconds: 1.6 },
 } as const satisfies Record<string, { bus: Bus; gain: number; maxSeconds?: number }>;
 
 export type SoundId = keyof typeof SOUNDS;
@@ -60,8 +62,8 @@ export function maxSecondsOf(id: SoundId): number | undefined {
   return (SOUNDS[id] as { maxSeconds?: number }).maxSeconds;
 }
 
-/** The vaults' fanfares: Vault I's, then Vaults II's and III's (Vault I's re-cut +2 and +4 semitones, plan M3-C). */
-export type FanfareId = "vault-fanfare" | "vault-fanfare-2" | "vault-fanfare-3";
+/** The vaults' fanfares: Vault I's, then Vaults II's and III's and The Last Case's (Vault I's re-cut +2, +4 and +7 semitones, plans M3-C and F6-C). */
+export type FanfareId = "vault-fanfare" | "vault-fanfare-2" | "vault-fanfare-3" | "vault-fanfare-4";
 
 /** Named music that replaces the stage loop: the vault's suspense, its intro (from the key turn to the impact) and
  *  the vault's fanfare, the prestige loop, and the credits after The Last Case (F6-C). */
@@ -78,6 +80,7 @@ export const TRACK_GAIN: Readonly<Record<TrackId, number>> = {
   "vault-fanfare": 1.5,
   "vault-fanfare-2": 1.5,
   "vault-fanfare-3": 1.5,
+  "vault-fanfare-4": 1.5,
   prestige: 1,
   credits: 1, // level-matched to the prestige loop by the generator (F5): it rides at its level
 };
@@ -114,9 +117,9 @@ export function indexAudio(urls: Record<string, string>): AudioFiles {
       finale ??= url;
       continue;
     }
-    // vault-fanfare-2 / -3 are Vaults II and III's own fanfares (tried before vault-fanfare, so they are never a
+    // vault-fanfare-2 / -3 / -4 are Vaults II's, III's and The Last Case's own fanfares (tried before vault-fanfare, so they are never a
     // spare take of Vault I's); a numbered file of any other track is a take of it
-    const track = /^(vault-suspense|vault-intro|vault-fanfare-[23]|vault-fanfare|prestige|credits)(?:-(\d+))?$/.exec(name);
+    const track = /^(vault-suspense|vault-intro|vault-fanfare-[234]|vault-fanfare|prestige|credits)(?:-(\d+))?$/.exec(name);
     if (track) {
       const trackId = track[1] as TrackId;
       if (!tracks.has(trackId)) tracks.set(trackId, url); // sorted, so a take -1 wins over a spare

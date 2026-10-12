@@ -42,6 +42,13 @@ describe("the named tracks", () => {
     expect(TRACK_GAIN["vault-fanfare-3"]).toBe(TRACK_GAIN["vault-fanfare"]);
   });
 
+  it("plays The Last Case's fanfare at Vault I's level, indexed as its own track (not a take of Vault I's)", () => {
+    expect(TRACK_GAIN["vault-fanfare-4"]).toBe(TRACK_GAIN["vault-fanfare"]);
+    const files = indexAudio({ "a/vault-fanfare-1.mp3": "u1", "a/vault-fanfare-4.mp3": "u4" });
+    expect(files.tracks.get("vault-fanfare")).toBe("u1");
+    expect(files.tracks.get("vault-fanfare-4")).toBe("u4");
+  });
+
   it("finds every named track's file in assets/audio", () => {
     const files = indexAudio(REAL_FILES);
     for (const id of Object.keys(TRACK_GAIN) as TrackId[]) expect(files.tracks.get(id), id).toBeDefined();
