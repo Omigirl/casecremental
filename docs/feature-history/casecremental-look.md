@@ -29,6 +29,15 @@ Changes agreed during the M2a review: campaign spec `2026-10-08-casecremental-ca
   user: "they are rare anyway"); richer finishes are for the later cases. A ★ knife also gets a b-roll showcase
   (`fx/hd/knifeFlight.ts`): it comes out of the card toward the viewer (3.5×), turns once on a turntable
   with a gentle tilt, and settles back in — slow (2.4 s), no jump (user).
+- **Finishes of cases 4–7 (M3-B)** (`fx/skins/patternsLate.ts`, plan `2026-10-12-casecremental-m3-b-skin-patterns.md`):
+  thirteen kinds, each a richer technique than cases 1–3 (PCB networks, hex cells, twill, perspective grid,
+  even-width neon contours, domain-warped hue wheel, layered stars, nebula gas, aurora curtains, thin-film bands,
+  fire, embers, molten ridges). No shaders: glow is bright palette colours on dark ones with a soft falloff, every
+  pixel one palette colour or a blend of two, tuned for the 26 × 10 in-game skin at scales 4–8. Some kinds draw
+  their own motion (`OWN_MOTION`: circuit/hex pulse, synthgrid/hueflow/aurora flow, flame/ember/molten `rise`);
+  `rise` is seamless because their noise repeats every texture height (`period` in `noise.ts`); on any other kind
+  `rise` falls back to the drift, and a test refuses such case data. Cases 1–3 pixels are pinned by a checksum.
+  Eyeball sheets: `SKIN_PREVIEW=1 npx vitest run tools/skins` → `art/preview/patterns/`.
 - **Code eyes.** The painted eyes are erased in the pipeline and redrawn in code (2×3 blocks on a 5×5
   visor patch, level, open/half/closed/happy, blinking) — the user preferred them to painted eyes.
 - **Press Start 2P everywhere, bundled** (the embedded game may only reach platform hosts). Monospace,

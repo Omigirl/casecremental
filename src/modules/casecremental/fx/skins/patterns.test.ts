@@ -39,6 +39,15 @@ describe("patterns", () => {
     expect(renderPattern(spec("camo", 1), 32, 16)).not.toEqual(renderPattern(spec("camo", 2), 32, 16));
   });
 
+  it("paints cases 1-3 exactly as before cases 4-7 arrived", () => {
+    // FNV-1a over every pixel of every skin of the first three cases at the in-game size, pinned before the
+    // pattern code was split: any change to those finishes shows up here.
+    let h = 0x811c9dc5;
+    for (const c of CASES.filter((x) => ["bootcamp", "wildwood", "bedrock"].includes(x.id)))
+      for (const s of c.skins) for (const b of renderPattern(s.pattern, 26, 10)) h = Math.imul(h ^ b, 16777619) >>> 0;
+    expect(h).toBe(2021169458);
+  });
+
   it("renders every skin of every case", () => {
     for (const c of CASES) for (const s of c.skins) expect(() => renderPattern(s.pattern, 40, 16)).not.toThrow();
   });
