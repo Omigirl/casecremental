@@ -2,9 +2,9 @@ import { Container, Text, type Application, type FederatedPointerEvent } from "p
 import type { GameController } from "../game/controller";
 import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
-import { caseById, skinById } from "../sim/content/cases";
+import { caseById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
-import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
+import { RARITY_INFO } from "../sim/rarity";
 import { createRng } from "../sim/rng";
 import type { Bench as BenchState, RunState, SimEvent } from "../sim/run";
 import type { AudioEngine } from "./audio/AudioEngine";
@@ -22,13 +22,10 @@ import { binCalling, fitCentre, hintKey, revealLines, trayFull } from "./labels"
 import { Bench } from "./pixel/Bench";
 import { bestSlot } from "./pixel/BenchCards";
 import { BenchReels } from "./pixel/BenchReels";
-import { BotCardView } from "./pixel/BotCard";
-import { BotSprite } from "./pixel/BotSprite";
 import { onPointerCancel } from "./pixel/drag";
 import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
-import { Reel } from "./pixel/Reel";
 import { Room } from "./pixel/Room";
 import { scaleTint } from "./pixel/tint";
 import { TrayView } from "./pixel/Tray";
@@ -36,6 +33,7 @@ import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
+import { Stations } from "./stations/Stations";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
 import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultBeams } from "./vault/VaultBeams";
@@ -61,9 +59,7 @@ export class World {
   /** Your bench's reels (multi-open stacks them) and its cards' reveal and sale juice. */
   private readonly benchReels: BenchReels;
   private readonly benchFx: BenchFx;
-  private readonly bot: BotSprite;
-  private readonly botReel: Reel;
-  private readonly botCard: BotCardView;
+  private readonly stations: Stations;
   private readonly tray: TrayView;
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
@@ -122,23 +118,31 @@ export class World {
     this.benchReels = new BenchReels(this.reelFrame, skins, (i) =>
       audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo), gain: i === 0 ? 1 : 0.5 }),
     );
-    this.botReel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { gain: 0.35, rate: 1.2 }));
-    this.bot = new BotSprite(lib);
-    this.botCard = new BotCardView(skins, controller, bake);
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     const juice = { hd: this.hd, audio, shake: this.shake, zoom: this.zoom, time: this.time };
     this.benchFx = new BenchFx(this.bench, juice, skins, () => this.vp.scale, this.hd.root);
+    this.stations = new Stations({
+      lib,
+      skins,
+      controller,
+      bake,
+      juice,
+      reelFrame: this.reelFrame,
+      rng: this.rng,
+      scale: () => this.vp.scale,
+      hud: () => ({ x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }),
+    });
     this.pixel.world.addChild(
       this.room.back,
       this.room.front,
+      this.stations.under,
       this.tray.root,
       this.benchReels.root,
-      this.botReel,
+      this.stations.reels,
       this.bench.root,
-      this.bot.root,
-      this.botCard.root,
+      this.stations.over,
     );
-    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.lifted.root);
+    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.stations.hd, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
@@ -162,14 +166,14 @@ export class World {
       this.vault.keyMove(e.global, e.pointerId);
       const p = this.worldPt(e);
       this.tray.pointerMove(p);
-      this.botCard.pointerMove(p);
+      this.stations.pointerMove(p);
       this.bench.pointerMove(p);
     });
     const up = (e: FederatedPointerEvent) => {
       if (this.vault.keyRelease(e.global, e.pointerId) === "turn") void this.controller.act({ type: "turnVaultKey" });
       const p = this.worldPt(e);
       this.tray.pointerUp(p);
-      this.botCard.pointerUp(p);
+      this.stations.pointerUp(p);
       this.bench.pointerUp(p);
     };
     app.stage.on("pointerup", up);
@@ -182,15 +186,13 @@ export class World {
     this.applyLayout();
     const first = caseById("bootcamp");
     this.benchReels.idle(first, this.rng.pick(first.skins), this.rng);
-    this.botReel.start(first, this.rng.pick(first.skins), this.rng);
     this.restore();
   }
 
   /** Redraw a run already in progress (the scene is rebuilt after a trip to the lobby). */
   private restore(): void {
     const plan = restorePlan(this.controller.run.state);
-    const br = plan.botReel; // its spin under way, or stopped on the drop its waiting card shows
-    if (br) this.botReel.start(caseById(br.caseId), skinById(br.skinId), this.rng, null, br.landed);
+    this.stations.restore(plan);
     if (plan.caseId) this.bench.showCase(plan.caseId, false);
     if (plan.caseId && plan.spinning) {
       this.benchReels.start(plan.caseId, plan.spinning, this.rng);
@@ -238,12 +240,8 @@ export class World {
     if (reels.landed.length) this.benchFx.reelLanded(); // a reel that lands before its teasing partner stops on its own
     this.bench.update(gameMs, b);
     const bot = run.state.bot;
-    this.bot.update(gameMs, bot);
-    const spin = bot.spin;
-    this.botReel.update(spin ? { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 } : null);
-    this.botCard.update(bot.cards[0] ?? null);
+    this.stations.update(realSeconds, gameMs, run.state);
     this.room.setBotOnline(bot.awake);
-    this.botReel.visible = !!this.l.bot.reel && bot.awake;
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
     this.tray.update(run.state.tray, run.setup.trayCapacity);
@@ -260,7 +258,7 @@ export class World {
     this.hd.setBinCalling(binCalling(run.state));
 
     const k = this.vp.scale;
-    this.lifted.update(this.tray.lifted() ?? this.botCard.lifted() ?? this.bench.lifted(), k, realSeconds);
+    this.lifted.update(this.tray.lifted() ?? this.stations.lifted() ?? this.bench.lifted(), k, realSeconds);
     this.benchFx.update(realSeconds);
     // camera: shake in whole px, zoom around the reveal cards
     const s = this.shake.update(realSeconds);
@@ -287,7 +285,7 @@ export class World {
     this.hd.destroy();
     this.bench.destroy();
     this.tray.destroy();
-    this.botCard.destroy();
+    this.stations.destroy();
     this.pixel.destroy();
     this.vaultBeams.destroy();
     this.vault.destroy();
@@ -310,7 +308,7 @@ export class World {
       return;
     }
     const p = this.worldPt(e);
-    if (!this.tray.pointerDown(p) && !this.botCard.pointerDown(p)) void this.bench.pointerDown(p);
+    if (!this.stations.grabCard(p) && !this.tray.pointerDown(p)) void this.bench.pointerDown(p);
   }
 
   /** The vault, read from the sim each frame (a reload picks it up where it is), and the lights. */
@@ -329,14 +327,15 @@ export class World {
     this.room.setLight(lights.room);
     const reels = scaleTint(0xffffff, lights.reels);
     this.benchReels.root.tint = reels;
-    this.botReel.tint = reels;
+    this.stations.reels.tint = reels;
     this.vaultBeams.tint = reels;
   }
 
   /** Every drag ends, nothing fired. For a touch the OS cancelled (`id`; no up comes), the vault's key only if that
    *  finger holds it (else it stays locked to a dead finger); the others follow any one pointer, so they go too. */
   private cancelDrags(id?: number): void {
-    for (const d of [this.bench, this.tray, this.botCard]) d.cancelDrag();
+    for (const d of [this.bench, this.tray]) d.cancelDrag();
+    this.stations.cancelDrags();
     this.vault.cancelDrag(id);
   }
 
@@ -354,11 +353,9 @@ export class World {
     this.pixel.resize(this.vp);
     this.room.layout(this.l);
     this.bench.layout(this.l);
-    this.bot.layout(this.l);
+    this.stations.layout(this.l);
     this.tray.layout(this.l);
     this.benchReels.layout(this.l);
-    if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
-    this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
     this.vaultBeams.layout(this.vault.layout(this.screen, this.vp.scale), this.vp.scale);
     const k = this.vp.scale;
@@ -408,6 +405,7 @@ export class World {
   }
 
   private onEvent(e: SimEvent): void {
+    this.stations.onEvent(e);
     switch (e.type) {
       case "caseBought":
         this.bench.showCase(e.caseId, true);
@@ -429,7 +427,7 @@ export class World {
           fromBench && e.source === "bench"
             ? this.bench.cardCentre(e.slot)
             : e.source === "bot"
-              ? this.botCard.centre()
+              ? this.stations.cardCentre("bot", e.slot)
               : e.source === "seller"
                 ? this.l.seller
                 : this.l.bin;
@@ -443,11 +441,6 @@ export class World {
         if (e.source === "tray" || e.source === "bot") this.bench.swallow();
         break;
       }
-      case "botWoke":
-        this.bot.wake();
-        this.hd.flash(0xffd28a, 0.15); // the station's lamp flickers on
-        this.audio.play("bot-wake");
-        break;
       case "sellerBought":
         this.hd.flash(0x3ddc84, 0.2);
         this.audio.play("seller-power-on");
@@ -458,21 +451,6 @@ export class World {
       case "dayJobStarted":
         this.audio.play("dayjob-work");
         break;
-      case "botUpgraded":
-        this.audio.play("bot-servo", { rate: 1.2 });
-        break;
-      case "botSpinStarted":
-        this.bot.open();
-        this.botReel.start(caseById(e.caseId), skinById(e.drops[0]!.skinId), this.rng);
-        this.audio.play("bot-reel-spin");
-        break;
-      case "botRevealed": {
-        const drop = e.drops[0]!; // M3-D draws the second card
-        const at = this.hd.toScreen(this.botCard.centre());
-        this.hd.particles.burst(at, RARITY_INFO[drop.rarity].color, 18, 160 * (this.vp.scale / 6));
-        this.audio.play("reveal-chime", { gain: 0.5, rate: 2 ** (RARITY_ORDER.indexOf(drop.rarity) / 6) });
-        break;
-      }
       case "dayJobDone": {
         const tb = this.l.table;
         const at = this.hd.toScreen({ x: tb.x + tb.w / 2, y: tb.y + 12 });
