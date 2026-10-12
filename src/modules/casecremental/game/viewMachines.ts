@@ -1,12 +1,21 @@
+import { AUTOSPIN_DELAY_LEVELS, autoSpinDelay, autoSpinDelayCost, autoSpinStatus, type AutoSpinStatus } from "../sim/autoSpin";
 import { SELLER_SPEED_LEVELS, sellerSpeedCost } from "../sim/autoSeller";
 import { botSpeed, botSpeedCost, botSpeedLevels } from "../sim/botOpener";
 import { capRaisedLater, runContent } from "../sim/campaign";
 import { lockerCapacity, lockerCounts, lockerSizeCost, lockerWaiting, tradeUpRarity } from "../sim/locker";
 import type { Run } from "../sim/run";
-import { AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LOCKER_COST, SELLER_COST, TRADE_UP_SECONDS } from "../sim/tuning";
+import {
+  AUTO_CONTRACT_COST,
+  AUTOSPIN_COST,
+  BOT_MULTI_COST,
+  BOT_WAKE_COST,
+  LOCKER_COST,
+  SELLER_COST,
+  TRADE_UP_SECONDS,
+} from "../sim/tuning";
 import type { Drop, RarityId } from "../sim/types";
 
-// The machines' part of the view (the bot, the auto-seller, the locker) — derived from the
+// The machines' part of the view (the bot, the auto-seller, the auto-spin, the locker) — derived from the
 // run, never stored separately. buildView (view.ts) puts them in the GameView.
 
 export interface TrayItemView {
@@ -14,6 +23,27 @@ export interface TrayItemView {
   rarity: RarityId;
   /** What it pays sold by hand right now, before combo. */
   value: number;
+}
+
+export interface AutoSpinView {
+  owned: boolean;
+  cost: number;
+  canBuy: boolean;
+  /** Auto-spin needs the auto-seller bought first. */
+  needsSeller: boolean;
+  /** The player's switch. */
+  on: boolean;
+  /** The switch can be flipped now (owned, and no vault opening in progress). */
+  canToggle: boolean;
+  status: AutoSpinStatus;
+  /** Seconds it waits after the bench empties before buying. */
+  delay: number;
+  delayLevel: number;
+  maxLevel: number;
+  delayCost: number | null;
+  canBuyDelay: boolean;
+  /** The case it buys; null = the dearest it can afford. */
+  pick: string | null;
 }
 
 export interface BotView {
@@ -151,5 +181,27 @@ export function lockerView(run: Run): LockerView {
     auto: lk.auto,
     autoCost: AUTO_CONTRACT_COST,
     canBuyAuto: open && autoAvailable && lk.on && !lk.auto && s.cash >= AUTO_CONTRACT_COST,
+  };
+}
+
+export function autoSpinView(run: Run): AutoSpinView {
+  const s = run.state;
+  const open = !run.locked();
+  const a = s.autoSpin;
+  const delayCost = autoSpinDelayCost(a.delayLevel);
+  return {
+    owned: a.owned,
+    cost: AUTOSPIN_COST,
+    canBuy: open && !a.owned && s.seller.on && s.cash >= AUTOSPIN_COST,
+    needsSeller: !s.seller.on,
+    on: a.on,
+    canToggle: open && a.owned,
+    status: autoSpinStatus(run),
+    delay: autoSpinDelay(a.delayLevel),
+    delayLevel: a.delayLevel,
+    maxLevel: AUTOSPIN_DELAY_LEVELS,
+    delayCost,
+    canBuyDelay: open && a.owned && delayCost !== null && s.cash >= delayCost,
+    pick: a.pick,
   };
 }

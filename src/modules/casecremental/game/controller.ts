@@ -34,6 +34,10 @@ export type Action =
   | { type: "tradeUp" }
   | { type: "sellLocker"; slot?: number }
   | { type: "buyAutoContract" }
+  | { type: "buyAutoSpin" }
+  | { type: "buyAutoSpinDelay" }
+  | { type: "setAutoSpin"; on: boolean }
+  | { type: "setAutoSpinCase"; caseId: string }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "turnVaultKey" }
@@ -209,6 +213,14 @@ export class GameController {
         return run.sellLockerCard(a.slot);
       case "buyAutoContract":
         return run.buyAutoContract();
+      case "buyAutoSpin":
+        return run.buyAutoSpin();
+      case "buyAutoSpinDelay":
+        return run.buyAutoSpinDelay();
+      case "setAutoSpin":
+        return run.setAutoSpin(a.on);
+      case "setAutoSpinCase":
+        return run.setAutoSpinCase(a.caseId);
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":

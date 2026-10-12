@@ -8,17 +8,20 @@ import type { Bench, Run } from "../sim/run";
 import { DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
 import {
+  autoSpinView,
   botView,
   lockerView,
   sellerView,
   trayItem,
+  type AutoSpinView,
   type BotView,
   type LockerView,
   type SellerView,
   type TrayItemView,
 } from "./viewMachines";
 
-export type { BotView, LockerView, SellerView, TrayItemView } from "./viewMachines";
+export { autoSpinView } from "./viewMachines";
+export type { AutoSpinView, BotView, LockerView, SellerView, TrayItemView } from "./viewMachines";
 
 // What the React overlay shows — derived from the run, never stored separately.
 
@@ -34,6 +37,8 @@ export interface CaseView {
   count: number;
   canBuy: boolean;
   canUnlock: boolean;
+  /** Auto-spin buys this one: the case you bought last or picked on the shelf. */
+  picked: boolean;
 }
 
 export interface UpgradeView {
@@ -88,6 +93,7 @@ export interface GameView {
     | null;
   bot: BotView;
   seller: SellerView;
+  autoSpin: AutoSpinView;
   locker: LockerView;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
@@ -126,6 +132,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       count: run.openCount(c.id),
       canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
       canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
+      picked: s.autoSpin.pick === c.id,
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {
@@ -189,6 +196,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     nextGoal: nextGoal(s.cash, cases, upgrades, vault),
     bot: botView(run),
     seller: sellerView(run),
+    autoSpin: autoSpinView(run),
     locker: lockerView(run),
     tray,
     dayJob,

@@ -251,6 +251,34 @@ describe("GameController — the campaign", () => {
     expect(c.run.state.cash).toBe(cash + 1000);
     expect(c.run.state.lifetimeEarnings).toBe(life);
   });
+
+  it("routes auto-spin's actions", () => {
+    const c = new GameController(1);
+    c.devAddCash(1e6);
+    expect(c.act({ type: "buyAutoSpin" })).toEqual({ ok: false, reason: "buy the auto-seller first" });
+    expect(c.act({ type: "buySeller" }).ok).toBe(true);
+    expect(c.act({ type: "buyAutoSpin" }).ok).toBe(true);
+    expect(c.act({ type: "buyAutoSpinDelay" }).ok).toBe(true);
+    expect(c.act({ type: "setAutoSpin", on: true }).ok).toBe(true);
+    expect(c.act({ type: "setAutoSpinCase", caseId: "bootcamp" }).ok).toBe(true);
+    expect(c.run.state.autoSpin).toMatchObject({ owned: true, on: true, delayLevel: 1, pick: "bootcamp" });
+  });
+
+  it("keeps auto-spin's switch across a reload (Review Focus 2)", () => {
+    const m = new Map<string, string>();
+    const store = {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    };
+    const a = new GameController(1, new SaveSlot(store));
+    a.devAddCash(1e6);
+    a.act({ type: "buySeller" });
+    a.act({ type: "buyAutoSpin" });
+    a.act({ type: "setAutoSpin", on: true });
+    const b = new GameController(2, new SaveSlot(store));
+    expect(b.run.state.autoSpin).toMatchObject({ owned: true, on: true, powered: true });
+  });
 });
 
 function openVaultAfterUnlock(c: GameController) {

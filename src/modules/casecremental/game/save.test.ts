@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
+import { freshAutoSpin } from "../sim/autoSpin";
 import { freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
 import { decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
@@ -144,7 +145,7 @@ describe("the local save", () => {
       return JSON.stringify(d);
     };
     const waiting = decodeSave(v3({ card: drop, spin: null }))!;
-    expect(waiting.v).toBe(4);
+    expect(waiting.v).toBe(5);
     expect(waiting.run.state.bot.cards).toEqual([drop]);
     expect(waiting.run.state.bot.multiLevel).toBe(0);
     expect(waiting.run.state.bot).not.toHaveProperty("card");
@@ -154,14 +155,63 @@ describe("the local save", () => {
     expect(spinning.run.state.bot.spin).toEqual({ caseId: "bootcamp", drops: [drop], elapsed: 1, duration: 3 });
   });
 
-  it("round-trips a version-4 save with a double spin and two cards", () => {
+  it("round-trips a version-5 save with a double spin and two cards", () => {
     const r = new Run(3, { ...DEFAULT_SETUP, run: 2, startCash: 1e6, botAwake: true });
     r.buyBotMulti();
     for (let i = 0; i < 60; i++) r.tick(1 / 30);
     expect(r.state.bot.spin?.drops).toHaveLength(2);
     const d: SaveData = { v: SAVE_VERSION, meta: freshMeta(), run: r.snapshot() };
     expect(decodeSave(encodeSave(d))).toEqual(d);
-    expect(SAVE_VERSION).toBe(4);
+    expect(SAVE_VERSION).toBe(5);
+  });
+
+  it("migrates a version-4 save: the grid is dropped (its spent cash is not refunded) and auto-spin is fresh (Review Focus 5)", () => {
+    const drop = { id: 1, skinId: CASES[0]!.skins[0]!.id, caseId: "bootcamp", rarity: "covert", float: 0.2, statTrak: false, value: 1 };
+    const d = JSON.parse(encodeSave(data()));
+    d.v = 4;
+    delete d.run.state.autoSpin;
+    d.run.state.grid = {
+      on: true,
+      rateLevel: 2,
+      sizeLevel: 1,
+      reserve: 0.5,
+      ticks: ["bootcamp"],
+      cells: [{ caseId: "bootcamp", t: 0.4, drop }, null],
+      buyClock: 0.3,
+      next: 1,
+    };
+    const cash = d.run.state.cash;
+    const loaded = decodeSave(JSON.stringify(d))!;
+    expect(loaded.v).toBe(5);
+    expect(loaded.run.state).not.toHaveProperty("grid");
+    expect(loaded.run.state.autoSpin).toEqual({ owned: false, on: false, delayLevel: 0, pick: null, clock: 0, powered: false });
+    expect(loaded.run.state.cash).toBe(cash);
+    expect(() => Run.fromSnapshot(loaded.run).tick(1 / 30)).not.toThrow();
+  });
+
+  it("round-trips a version-5 save with auto-spin on mid-delay; the reloaded run buys on the same tick (Review Focus 2)", () => {
+    const r = new Run(3, { ...DEFAULT_SETUP, startCash: 1e6 });
+    r.buySeller();
+    r.buyAutoSpin();
+    r.setAutoSpin(true);
+    r.setAutoSpinCase("bootcamp");
+    for (let i = 0; i < 30; i++) r.tick(1 / 30);
+    const d: SaveData = { v: SAVE_VERSION, meta: freshMeta(), run: r.snapshot() };
+    const loaded = decodeSave(encodeSave(d))!;
+    expect(loaded).toEqual(d);
+    const again = Run.fromSnapshot(loaded.run);
+    for (let i = 0; i < 20; i++) {
+      r.tick(1 / 30);
+      again.tick(1 / 30);
+    }
+    expect(again.state.bench.phase).toBe("locked");
+    expect(again.state.bench).toEqual(r.state.bench);
+  });
+
+  it("gives a v5 save that lacks auto-spin a fresh one", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.run.state.autoSpin;
+    expect(decodeSave(JSON.stringify(d))!.run.state.autoSpin).toEqual(freshAutoSpin());
   });
 
   it("migrates a version-2 save: a single card, a single reel, no multi-open (Review Focus 3)", () => {
@@ -176,7 +226,7 @@ describe("the local save", () => {
       return JSON.stringify(d);
     };
     const revealed = decodeSave(v2({ phase: "revealed", caseId: "bootcamp", drop }))!;
-    expect(revealed.v).toBe(4);
+    expect(revealed.v).toBe(5);
     expect(revealed.run.state.bench).toEqual({ phase: "revealed", caseId: "bootcamp", cards: [drop] });
     expect(revealed.run.state.upgrades.multiOpen).toBe(0);
     expect(revealed.run.state.heldSlot).toBe(0);

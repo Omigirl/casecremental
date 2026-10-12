@@ -50,4 +50,28 @@ describe("agent surface", () => {
     const api = createAgentApi(new GameController(1));
     expect(Object.keys(api.describeActions ?? {}).sort()).toEqual(Object.keys(api.actions ?? {}).sort());
   });
+
+  it("reports auto-spin and checks its switch's argument", async () => {
+    const c = new GameController(1);
+    const api = createAgentApi(c);
+    expect((api.state() as { autoSpin: unknown }).autoSpin).toEqual({
+      owned: false,
+      on: false,
+      delayLevel: 0,
+      delay: 1.5,
+      pick: null,
+      status: "off",
+    });
+    c.devAddCash(1e6);
+    await api.actions!.buySeller!({});
+    expect(await api.actions!.buyAutoSpin!({})).toEqual({ ok: true });
+    await expect(api.actions!.setAutoSpin!({ on: "yes" })).rejects.toThrow(/on must be true or false/);
+    expect(await api.actions!.setAutoSpin!({ on: true })).toEqual({ ok: true });
+    expect(await api.actions!.setAutoSpinCase!({ caseId: "bootcamp" })).toEqual({ ok: true });
+    expect((api.state() as { autoSpin: { on: boolean; pick: string; status: string } }).autoSpin).toMatchObject({
+      on: true,
+      pick: "bootcamp",
+      status: "on",
+    });
+  });
 });

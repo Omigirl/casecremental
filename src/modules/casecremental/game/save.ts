@@ -11,11 +11,12 @@ import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 // Version 2 (rework): the bot opens, the auto-seller sells; a version-1 save starts fresh.
 // Version 3: the bench holds several cases (multi-open); a version-2 save is migrated.
 // Version 4 (campaign): the bot holds several cards (its multi-open) and the setup knows its run; a version-3 save is migrated.
+// Version 5 (finish F2): the auto-buyer grid is gone and auto-spin arrives; a version-4 save is migrated.
 // A save that is missing, broken or from another version never stops the game — it is dropped with a
 // warning and a fresh run starts; storage errors are swallowed. M4 moves the same data to the server.
 
 export const SAVE_KEY = "casecremental.save";
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export interface SaveData {
   v: typeof SAVE_VERSION;
@@ -86,6 +87,14 @@ function migrateV3(d: unknown): unknown {
   return { ...d, v: 4, run: { ...d.run, setup, state: { ...s, bot } } };
 }
 
+/** A version-4 save had the auto-buyer grid (gone from every run; its spent cash is not refunded) and no auto-spin. */
+function migrateV4(d: unknown): unknown {
+  if (!isObj(d) || d.v !== 4 || !isObj(d.run) || !isObj(d.run.state)) return d;
+  const { grid, ...state } = d.run.state;
+  void grid;
+  return { ...d, v: 5, run: { ...d.run, state: { ...state, autoSpin: freshAutoSpin() } } };
+}
+
 const ZERO_UPGRADES = Object.fromEntries(UPGRADE_IDS.map((id) => [id, 0])) as Record<UpgradeId, number>;
 
 /** Fills in what an older or partial save leaves out (a perk or setup field added later). */
@@ -141,7 +150,7 @@ export const encodeSave = (data: SaveData): string => JSON.stringify(data);
 export function decodeSave(raw: string | null): SaveData | null {
   if (raw === null) return null;
   try {
-    const d: unknown = migrateV3(migrateV2(JSON.parse(raw)));
+    const d: unknown = migrateV4(migrateV3(migrateV2(JSON.parse(raw))));
     if (isSave(d)) return normalize(d);
   } catch {
     // fall through to the warning

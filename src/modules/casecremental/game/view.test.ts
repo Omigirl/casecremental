@@ -4,6 +4,9 @@ import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
 import {
+  AUTOSPIN_COST,
+  AUTOSPIN_DELAY_COSTS,
+  AUTOSPIN_DELAYS,
   BOT_WAKE_COST,
   CLOUT_DIVISOR,
   DAY_JOB_SECONDS,
@@ -221,5 +224,36 @@ describe("buildView — M2b", () => {
     expect(buildView(run).cases[0]!.count).toBe(2);
     run.state.cash = run.casePrice("bootcamp");
     expect(buildView(run).cases[0]!.count).toBe(1);
+  });
+
+  it("shows auto-spin on the Machines tab from Run 1: it needs the auto-seller, then its switch, status, delay and pick", () => {
+    const run = new Run(1);
+    run.state.cash = 1e6;
+    expect(buildView(run).autoSpin).toMatchObject({ owned: false, needsSeller: true, canBuy: false, cost: AUTOSPIN_COST });
+    run.buySeller();
+    expect(buildView(run).autoSpin).toMatchObject({ needsSeller: false, canBuy: true });
+    run.buyAutoSpin();
+    expect(buildView(run).autoSpin).toMatchObject({
+      owned: true,
+      canBuy: false,
+      on: false,
+      canToggle: true,
+      status: "off",
+      delay: AUTOSPIN_DELAYS[0],
+      delayLevel: 0,
+      maxLevel: 5,
+      delayCost: AUTOSPIN_DELAY_COSTS.baseCost,
+      canBuyDelay: true,
+      pick: null,
+    });
+    run.setAutoSpin(true);
+    run.setAutoSpinCase("bootcamp");
+    const v = buildView(run);
+    expect(v.autoSpin).toMatchObject({ on: true, status: "on", pick: "bootcamp" });
+    expect(v.cases.find((c) => c.id === "bootcamp")!.picked).toBe(true);
+    run.state.cash = 0;
+    expect(buildView(run).autoSpin.status).toBe("broke");
+    run.state.vault = { phase: "key" };
+    expect(buildView(run).autoSpin.canToggle).toBe(false);
   });
 });

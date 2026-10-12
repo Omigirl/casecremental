@@ -1,4 +1,5 @@
 import type { ModuleAgentApi } from "@idosgames/module-sdk";
+import { autoSpinDelay, autoSpinStatus } from "../sim/autoSpin";
 import { skinById, skinDisplayName } from "../sim/content/cases";
 import type { CharmId } from "../sim/charms";
 import { lockerCapacity, lockerCounts, tradeUpRarity } from "../sim/locker";
@@ -62,6 +63,14 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
           press: s.locker.press ? { rarity: s.locker.press.rarity, elapsed: s.locker.press.elapsed } : null,
           cards: s.locker.cards.map((d) => d?.rarity ?? null),
           auto: s.locker.auto,
+        },
+        autoSpin: {
+          owned: s.autoSpin.owned,
+          on: s.autoSpin.on,
+          delayLevel: s.autoSpin.delayLevel,
+          delay: autoSpinDelay(s.autoSpin.delayLevel),
+          pick: s.autoSpin.pick,
+          status: autoSpinStatus(c.run),
         },
         dayJob: s.dayJob,
         vault: s.vault?.phase ?? null,
@@ -136,6 +145,13 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       tradeUp: () => run({ type: "tradeUp" }),
       sellLocker: (args: Args) => run({ type: "sellLocker", slot: args?.slot === undefined ? undefined : Number(args.slot) }),
       buyAutoContract: () => run({ type: "buyAutoContract" }),
+      buyAutoSpin: () => run({ type: "buyAutoSpin" }),
+      buyAutoSpinDelay: () => run({ type: "buyAutoSpinDelay" }),
+      setAutoSpin: async (args: Args) => {
+        if (typeof args?.on !== "boolean") throw new Error(`on must be true or false (got ${JSON.stringify(args?.on)})`);
+        return c.act({ type: "setAutoSpin", on: args.on });
+      },
+      setAutoSpinCase: (args: Args) => run({ type: "setAutoSpinCase", caseId: String(args?.caseId ?? "") }),
       startDayJob: () => run({ type: "startDayJob" }),
       buyVault: () => run({ type: "buyVault" }),
       turnVaultKey: () => run({ type: "turnVaultKey" }),
@@ -186,6 +202,11 @@ export function createAgentApi(c: GameController): ModuleAgentApi {
       tradeUp: "Press the oldest ten of the lowest ready rarity in the locker into one skin of the next rarity.",
       sellLocker: "Sell a contract result waiting on the locker by hand: { slot? } (default: the first one waiting).",
       buyAutoContract: "Run 3: the locker presses on its own (the Collect rarity, else the lowest ready).",
+      buyAutoSpin:
+        "Buy auto-spin (needs the auto-seller; it starts OFF): while on, it buys the case you picked last at full multi-open width and turns the key.",
+      buyAutoSpinDelay: "Buy one auto-spin Delay level (it buys sooner after the bench empties: 1.5 s -> 0.2 s).",
+      setAutoSpin: "Switch auto-spin: { on: true|false }.",
+      setAutoSpinCase: "The case auto-spin buys: { caseId } (an unlocked case on this run's shelf; buying a case by hand picks it too).",
       startDayJob: "Broke with an empty bench: take a ~3 s day job.",
       buyVault: "Buy Vault Case I (all cases unlocked); then turn its key, and the opening ends the run.",
       turnVaultKey: "Turn the devil key in Vault Case I's lock (opens it).",
