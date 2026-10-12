@@ -3,13 +3,23 @@ import { BLACKOUT_SECONDS } from "../fx/vault/lights";
 import type { PrestigeView } from "../game/view";
 import { budgetFor, fitsBudget } from "../i18n/budgets";
 import { setLang, t } from "../i18n/index";
-import { VAULTS } from "../sim/content/vaults";
-import { bringText, charmChoices, PRESTIGE_DELAY_MS, prestigeDelayMs, runBrings, vaultNumeral } from "./prestigeRules";
+import {
+  bringText,
+  charmChoices,
+  endScreen,
+  PRESTIGE_DELAY_MS,
+  prestigeDelayMs,
+  prestigeTitle,
+  runBrings,
+  trophyLine,
+} from "./prestigeRules";
 
 const view = (over: Partial<PrestigeView>): PrestigeView => ({
   clout: 10,
   gained: 10,
   loops: 1,
+  nextRun: 2,
+  replay: false,
   perks: [],
   offer: ["insider", "ricochet", "goldRush"],
   picked: [],
@@ -20,19 +30,32 @@ const view = (over: Partial<PrestigeView>): PrestigeView => ({
 });
 
 describe("the prestige screen", () => {
-  it("names the vault that just opened, in both languages", () => {
-    expect(VAULTS.map((v) => vaultNumeral(v.id))).toEqual(["I", "II", "III", "IV"]); // IV: interim (plan F6-C)
+  it("names the vault that just opened, and The Last Case, in both languages", () => {
     try {
       setLang("en");
-      expect(t("prestige.title", { n: vaultNumeral("vault1") })).toBe("VAULT I OPENED");
-      expect(t("prestige.title", { n: vaultNumeral("vault3") })).toBe("VAULT III OPENED");
-      expect(t("prestige.trophy", { n: vaultNumeral("vault2") })).toBe("★ Vault II trophy");
+      expect(prestigeTitle("vault1")).toBe("VAULT I OPENED");
+      expect(prestigeTitle("vault3")).toBe("VAULT III OPENED");
+      expect(trophyLine("vault2")).toBe("★ Vault II trophy");
+      expect(prestigeTitle("lastcase")).toBe("THE LAST CASE OPENED");
+      expect(trophyLine("lastcase")).toBe("★ Singularity trophy");
+      expect(t("prestige.end")).toBe("THE END");
+      expect(t("prestige.again", { n: 4 })).toBe("RUN 4 AGAIN, BOOSTED");
       setLang("ru");
-      expect(t("prestige.title", { n: vaultNumeral("vault2") })).toBe("СЕЙФ II ВСКРЫТ");
-      expect(t("prestige.trophy", { n: vaultNumeral("vault3") })).toBe("★ Трофей «Сейф III»");
+      expect(prestigeTitle("vault2")).toBe("СЕЙФ II ВСКРЫТ");
+      expect(trophyLine("vault3")).toBe("★ Трофей «Сейф III»");
+      expect(prestigeTitle("lastcase")).toBe("ПОСЛЕДНИЙ КЕЙС ВСКРЫТ");
+      expect(trophyLine("lastcase")).toBe("★ Трофей «Сингулярность»");
+      expect(t("prestige.end")).toBe("КОНЕЦ");
+      expect(t("prestige.again", { n: 4 })).toBe("СНОВА ЗАБЕГ 4, СИЛЬНЕЕ");
     } finally {
       setLang("en");
     }
+  });
+
+  it("shows the credits while they roll, then the prestige screen (Review Focus 1)", () => {
+    expect(endScreen(null)).toBeNull();
+    expect(endScreen(view({ credits: true }))).toBe("credits");
+    expect(endScreen(view({ credits: false }))).toBe("prestige");
   });
 
   it("lets you pick charms up to your slots, and un-pick a picked one", () => {

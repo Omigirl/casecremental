@@ -7,10 +7,11 @@ import { getLang, t } from "../i18n/index";
 import type { VaultDef } from "../sim/content/vaults";
 import { PixelGear, PxButton, UiEnvContext } from "./parts";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
-import { bringText, charmChoices, runBrings, vaultNumeral } from "./prestigeRules";
+import { bringText, charmChoices, prestigeTitle, runBrings, trophyLine } from "./prestigeRules";
 
-// After the vault (M2b spec §8): the CLOUT it paid, the opened vault's trophy, what the next run brings, three charms to pick for the next
-// run, the perks to buy with CLOUT, and "Start next run".
+// After the vault (M2b spec §8; after The Last Case: THE END, finish spec §7.4): the CLOUT it paid, the opened vault's
+// trophy, what the next run brings (or THE END and Run 4 again), three charms to pick for the next run, the perks to buy
+// with CLOUT, and "Start next run".
 
 type Act = (a: Action) => void;
 
@@ -25,7 +26,7 @@ export function Prestige({
   act: Act;
   onSettings: () => void;
 }): ReactNode {
-  const n = vaultNumeral(vault);
+  const title = prestigeTitle(vault);
   const { scale } = useContext(UiEnvContext);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -36,7 +37,7 @@ export function Prestige({
       <div
         ref={box}
         role="dialog"
-        aria-label={t("prestige.title", { n })}
+        aria-label={title}
         style={{
           display: "grid",
           gap: 3 * scale,
@@ -48,7 +49,7 @@ export function Prestige({
         }}
       >
         <div className="cc-row-line">
-          <div className="cc-title">{t("prestige.title", { n })}</div>
+          <div className="cc-title">{title}</div>
           {/* the HUD is gone here, and this screen waits with its own music: mute or switch language from it */}
           <PxButton onClick={onSettings} title={t("hud.settings")} style={{ lineHeight: 1 }}>
             <PixelGear />
@@ -58,11 +59,13 @@ export function Prestige({
           <span className="cc-gold">{t("prestige.gained", { n: p.gained })}</span>
           <span className="cc-dim">{t("prestige.total", { n: p.clout })}</span>
         </div>
-        <div style={{ color: "#ffd34d" }}>{t("prestige.trophy", { n })}</div>
+        <div style={{ color: "#ffd34d" }}>{trophyLine(vault)}</div>
         <div className="cc-title">{t("prestige.nextrun", { n: p.nextRun })}</div>
         {p.replay ? (
           <>
-            <div className="cc-dim">{t("prestige.later")}</div>
+            <div className="cc-title cc-gold" style={{ fontSize: "calc(var(--fs) * 2)" }}>
+              {t("prestige.end")}
+            </div>
             <div>{t("prestige.again", { n: p.nextRun })}</div>
           </>
         ) : (
