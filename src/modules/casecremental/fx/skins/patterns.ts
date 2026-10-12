@@ -1,4 +1,4 @@
-import type { PatternSpec } from "../../sim/types";
+import type { PatternKind, PatternMotion, PatternSpec } from "../../sim/types";
 import { fbm, hash2, voronoi } from "./noise";
 import { hexToRgb, pick, ramp, spread, type PatternPoint, type Rgb } from "./paint";
 import {
@@ -13,16 +13,20 @@ import {
   molten,
   nebula,
   neonline,
+  OWN_MOTION as LATE_OWN_MOTION,
   starfield,
   synthgrid,
 } from "./patternsLate";
+import { datamosh, huecycle, kaleido, melt, rgbsplit, RUN4_OWN_MOTION, scanline } from "./patternsRun4";
 
 // The skin finishes: each maps a point of the texture to a colour of the skin's palette. Cases 1-3's ten live
 // here (army: camo, digital, tiger; forest: leaves, bark, moss; rocks: marble, granite, crystal, lava); cases
-// 4-7's thirteen richer ones in patternsLate.ts; the shared colour helpers in paint.ts.
+// 4-7's thirteen richer ones in patternsLate.ts, cases 8-9's six in patternsRun4.ts; the shared colour helpers in
+// paint.ts.
 
 export { hexToRgb, type Rgb } from "./paint";
-export { OWN_MOTION } from "./patternsLate";
+/** The motion each kind draws itself (cases 4–9): finishAt hands it the loop phase and lays nothing generic on top. */
+export const OWN_MOTION: Partial<Record<PatternKind, PatternMotion>> = { ...LATE_OWN_MOTION, ...RUN4_OWN_MOTION };
 
 /** Color at (u, v) ∈ [0,1)² of a 2.5 : 1 texture. `phase` (the loop phase, not wrapped here) reaches only the
  *  kinds that draw their own motion (OWN_MOTION); every other kind ignores it. */
@@ -96,14 +100,18 @@ export function patternColor(spec: PatternSpec, pal: readonly Rgb[], u: number, 
       return ember(pal, p, phase);
     case "molten":
       return molten(pal, p, phase);
-    // interim (plan F6-A): Run 4's six kinds share a plain finish until plan F6-B draws their own
     case "datamosh":
+      return datamosh(pal, p, phase);
     case "scanline":
+      return scanline(pal, p, phase);
     case "rgbsplit":
+      return rgbsplit(pal, p, phase);
     case "melt":
+      return melt(pal, p, phase);
     case "kaleido":
+      return kaleido(pal, p, phase);
     case "huecycle":
-      return pick(pal, spread(fbm(x, y, seed)));
+      return huecycle(pal, p, phase);
   }
 }
 

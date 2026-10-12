@@ -66,8 +66,10 @@ export class HdLayer {
   private flashAlpha = 0;
   private sellerOn = false;
   private readonly flashGate = new FlashGate();
+  private screenSize = { w: 1, h: 1 };
 
-  constructor(coinFrames: readonly Texture[]) {
+  /** `coinFrames`: the spinning coin (the flying coins; stage 5's gold rain). */
+  constructor(readonly coinFrames: readonly Texture[]) {
     const cone = canvasTexture(256, 256, (g) => {
       const grad = g.createRadialGradient(128, 0, 0, 128, 0, 256);
       grad.addColorStop(0, "rgba(255,214,150,0.55)");
@@ -130,6 +132,7 @@ export class HdLayer {
   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
     this.l = l;
     this.vp = vp;
+    this.screenSize = { w: screenW, h: screenH };
     const k = vp.scale;
     this.lamp.position.set(l.lamp.x * k, 0);
     this.lamp.width = l.table.w * k * 1.3;
@@ -188,6 +191,16 @@ export class HdLayer {
   toScreen(p: Pt): Pt {
     const k = this.vp?.scale ?? 1;
     return { x: p.x * k, y: p.y * k };
+  }
+
+  /** The screen in CSS px, as last laid out. */
+  get screen(): { w: number; h: number } {
+    return this.screenSize;
+  }
+
+  /** The pixel scale, as last laid out. */
+  get scale(): number {
+    return this.vp?.scale ?? 1;
   }
 
   update(dt: number): void {

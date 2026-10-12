@@ -3,7 +3,7 @@ import type { Filter } from "pixi.js";
 import type { TearFx } from "./Finale";
 
 /** GlitchFilter's fill mode for the gap a slice leaves: wrap the picture around (no black bars, no brightness change). */
-const FILL_LOOP = 2;
+export const FILL_LOOP = 2;
 
 /** The finale's screen tear on a GlitchFilter: slices offset sideways with a 3 px colour split (no inversion, no
  *  brightness change). Kept apart from Finale.ts so that file runs without the filter's canvas (its tests). */

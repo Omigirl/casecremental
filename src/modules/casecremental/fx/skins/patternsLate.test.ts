@@ -101,7 +101,8 @@ describe("the finishes of cases 4-7", () => {
     }
   });
 
-  it.each(Object.keys(OWN_MOTION) as PatternKind[])("%s's own motion moves and has no seam: phase 1 paints phase 0", (kind) => {
+  // cases 4–7's kinds only: Run 4's glitch kinds hold for a quarter loop (patternsRun4.test.ts checks them)
+  it.each(LATE.filter((k) => OWN_MOTION[k]))("%s's own motion moves and has no seam: phase 1 paints phase 0", (kind) => {
     expect(changed(kind, 0, 1 / 16)).toBeGreaterThan(0);
     // patternColor does not wrap the phase itself, so this holds only if the motion really is periodic
     expect(changed(kind, 0, 1)).toBe(0);

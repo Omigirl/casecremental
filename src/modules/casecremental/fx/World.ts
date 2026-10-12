@@ -23,7 +23,7 @@ import { binCalling, fitCentre, hintKey, revealLines, trayFull } from "./labels"
 import { Bench } from "./pixel/Bench";
 import { bestSlot } from "./pixel/BenchCards";
 import { BenchReels } from "./pixel/BenchReels";
-import { onPointerCancel } from "./pixel/drag";
+import { onPointerCancel, onPointerGone } from "./pixel/drag";
 import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
@@ -149,12 +149,12 @@ export class World {
       this.tray.over,
       this.stations.over,
     );
+    this.look = new StageLook(this.scene, this.hd); // first: its gold rain falls under the labels, cards and stations
     this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.stations.hd, this.tray.hd, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
-    this.look = new StageLook(this.scene);
     this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
     this.vaultBeams = new VaultBeams(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
@@ -188,6 +188,7 @@ export class World {
     app.stage.on("pointerupoutside", up);
     this.offs.push(controller.onEvent((e) => this.onEvent(e)));
     this.offs.push(onPointerCancel(app.canvas, (id) => this.cancelDrags(id)));
+    this.offs.push(onPointerGone(app.canvas, () => this.stations.pointerGone())); // Hot Hand's flames go out with it
 
     this.vp = pixelViewport(app.screen.width, app.screen.height);
     this.l = tableLayout(this.vp);
@@ -256,7 +257,7 @@ export class World {
     this.room.update(realSeconds * 1000);
     this.updateVault(realSeconds);
     this.hd.update(realSeconds);
-    this.look.update(realSeconds);
+    this.look.update(realSeconds, run.state);
     setTweenTimeScale(scale);
     this.updateText(b);
     this.hd.setBinCalling(binCalling(run.state));
@@ -286,12 +287,7 @@ export class World {
     this.cancelDrags(); // a drag left mid-air would leave the card "held" across a lobby trip
     for (const off of this.offs) off();
     this.app.stage.removeAllListeners();
-    this.hd.destroy();
-    this.bench.destroy();
-    this.tray.destroy();
-    this.stations.destroy();
-    this.pixel.destroy();
-    this.finale.destroy();
+    for (const x of [this.look, this.hd, this.bench, this.tray, this.stations, this.pixel, this.finale]) x.destroy();
     this.vaultBeams.destroy();
     this.vault.destroy();
     this.scene.destroy({ children: true });

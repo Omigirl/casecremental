@@ -21,7 +21,7 @@ import {
   type TrayItemView,
 } from "./viewMachines";
 
-import { evolutionsView, upgraderView, type EvolutionsView, type UpgraderView } from "./viewRun4";
+import { evolutionsView, hotHandView, upgraderView, type EvolutionsView, type UpgraderView } from "./viewRun4";
 
 export type { AutoSpinView, BotView, LockerView, SellerView, TrayItemView } from "./viewMachines";
 export { evolutionsView, upgraderView } from "./viewRun4";
@@ -110,6 +110,8 @@ export interface GameView {
   locker: LockerView;
   upgrader: UpgraderView;
   evolutions: EvolutionsView;
+  /** Hot Hand burns: the combo meter has flames. */
+  hotHand: boolean;
   tray: { items: TrayItemView[]; capacity: number };
   dayJob: { available: boolean; working: boolean; progress: number };
   vault: {
@@ -221,6 +223,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     locker: lockerView(run),
     upgrader: upgraderView(run),
     evolutions: evolutionsView(run),
+    hotHand: hotHandView(run),
     tray,
     dayJob,
     vault,

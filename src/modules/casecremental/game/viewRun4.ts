@@ -3,7 +3,7 @@ import { EVOLUTION_IDS, evolved, type EvolutionId } from "../sim/evolved";
 import { partDone, RECIPES, recipeDone, type RecipePart } from "../sim/evolutions";
 import { RARITY_ORDER } from "../sim/rarity";
 import type { Run } from "../sim/run";
-import { EVOLUTION_COSTS, UPGRADER_COST, UPGRADER_MULTS, UPGRADER_SPIN_SECONDS } from "../sim/tuning";
+import { EVOLUTION_COSTS, HOT_HAND_MIN_COMBO, UPGRADER_COST, UPGRADER_MULTS, UPGRADER_SPIN_SECONDS } from "../sim/tuning";
 import type { RarityId } from "../sim/types";
 import { stakeItems, upgraderChance } from "../sim/upgrader";
 import { lockerWaiting } from "../sim/locker";
@@ -106,3 +106,6 @@ export function evolutionsView(run: Run): EvolutionsView {
     }),
   };
 }
+
+/** Hot Hand burns (owned, combo at least HOT_HAND_MIN_COMBO): the HUD's combo meter gets flames. */
+export const hotHandView = (run: Run): boolean => evolved(run.state, "hotHand") && run.state.combo >= HOT_HAND_MIN_COMBO;

@@ -341,4 +341,15 @@ describe("buildView — M2b", () => {
     expect(buildView(run).evolutions.list[4]!.parts[1]).toMatchObject({ done: false, have: 31 });
     expect(buildView(new Run(1, { ...DEFAULT_SETUP, run: 3 })).evolutions.available).toBe(false);
   });
+
+  it("says when Hot Hand burns: owned and a combo of 25 or more", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 4 });
+    run.state.combo = 30;
+    expect(buildView(run).hotHand).toBe(false);
+    run.state.evolutions.owned = ["hotHand"];
+    run.state.combo = 24;
+    expect(buildView(run).hotHand).toBe(false);
+    run.state.combo = 25;
+    expect(buildView(run).hotHand).toBe(true);
+  });
 });

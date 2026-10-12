@@ -67,8 +67,10 @@ export class Coins {
     });
   }
 
-  floatText(at: Pt, text: string): void {
+  /** A gold word floating up from `at` (screen px); `tint` dims it to another colour (a loss). */
+  floatText(at: Pt, text: string, tint = 0xffffff): void {
     const t = new Text({ text, style: moneyStyle(this.textSize) });
+    t.tint = tint;
     t.anchor.set(0.5);
     t.position.set(at.x, at.y);
     this.container.addChild(t);
