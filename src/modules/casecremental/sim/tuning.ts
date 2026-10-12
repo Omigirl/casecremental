@@ -256,6 +256,22 @@ export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>>
 /** Run 3: the locker presses on its own. */
 export const AUTO_CONTRACT_COST = 250_000_000;
 
+/** The Upgrader (Run 4, finish spec §7.2): stake a locker rarity stack on a multiplier. */
+export const UPGRADER_COST = 2_000_000_000_000;
+export const UPGRADER_MULTS = [1.5, 2, 5, 10, 25, 100] as const;
+/** Win chance = this / multiplier (+ Loaded Dice), never past UPGRADER_MAX_CHANCE. */
+export const UPGRADER_WIN_BASE = 0.9;
+export const UPGRADER_MAX_CHANCE = 0.95;
+/** The dial's spin on the locker; the outcome is rolled at GO. */
+export const UPGRADER_SPIN_SECONDS = 3;
+/** A win pays a skin this many rarities above the stake's (up to ★): the steps of the first row whose multiplier
+ *  covers the target. */
+export const UPGRADER_RARITY_STEPS: ReadonlyArray<readonly [maxMult: number, steps: number]> = [
+  [2, 1],
+  [10, 2],
+  [100, 3],
+];
+
 /** Auto-spin (finish spec §3): your own bench's machine, bought in Run 1 once the auto-seller is on, then switched
  *  ON/OFF. F4: 5K, so both players switch it on well before Vault I (~45 s GREEDY, ~1.5 min CASUAL). */
 export const AUTOSPIN_COST = 5_000;

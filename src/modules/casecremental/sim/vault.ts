@@ -5,6 +5,7 @@ import { STAGE_NAMES } from "./intensity";
 import { rollDrop } from "./roll";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import { VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES } from "./tuning";
+import { settleUpgrader } from "./upgrader";
 
 // The run's vault (rework spec §4): bought once every case is unlocked, opened with the devil key; its five reels
 // land on a timeline, then the run ends (the tray and the locker are sold with it).
@@ -38,6 +39,8 @@ export function buyVault(ctx: RunCtx): ActionResult {
   s.locker.cards = [];
   s.locker.press = null;
   if (s.held === "locker") ctx.release();
+  // a running Upgrader spin settles: a win is cashed in, a loss is gone
+  settleUpgrader(ctx);
   s.dayJob = null; // a shift still running has no bench to come back to
   s.vault = { phase: "key" };
   ctx.emit({ type: "vaultBought", price: ctx.setup.vaultPrice });

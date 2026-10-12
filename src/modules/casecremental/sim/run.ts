@@ -1,7 +1,5 @@
 import * as autoSpin from "./autoSpin";
-import { freshAutoSpin } from "./autoSpin";
 import * as seller from "./autoSeller";
-import { freshSeller } from "./autoSeller";
 import * as bot from "./botOpener";
 import { freshBot, type CardSpot } from "./botOpener";
 import { runCaseIds } from "./campaign";
@@ -19,7 +17,6 @@ import { CASES, caseById, priceOf, unlockCostOf } from "./content/cases";
 import * as dayJob from "./dayJob";
 import { intensityLevel, nextStage, updateHeat } from "./intensity";
 import * as locker from "./locker";
-import { freshLocker } from "./locker";
 import { createRng, type Rng } from "./rng";
 import { rollDrop } from "./roll";
 import {
@@ -47,6 +44,7 @@ import {
   PITY_LUCK_LEVELS,
 } from "./tuning";
 import type { Drop, RarityId } from "./types";
+import * as upgrader from "./upgrader";
 import { effectsOf, upgradeCost, type Effects, type UpgradeId } from "./upgrades";
 import * as vault from "./vault";
 
@@ -55,7 +53,7 @@ export * from "./runTypes";
 
 // One run of the game: cash, the bench (where a case is bought → keyed → spun → revealed → sold),
 // upgrades, combo and intensity. Pure and deterministic from its seed; the renderer and the UI read
-// `state` and consume `drainEvents()`. The bot, auto-seller, locker, auto-spin, vault and day job are functions over this
+// `state` and consume `drainEvents()`. The bot, auto-seller, locker, auto-spin, Upgrader, vault and day job are functions over this
 // run as a `RunCtx` (their own files); the bench, upgrades and the tick order live here.
 
 export class Run implements RunCtx {
@@ -99,9 +97,10 @@ export class Run implements RunCtx {
       seen: {},
       tray: [],
       bot: freshBot(this.setup.botAwake),
-      seller: freshSeller(),
-      locker: freshLocker(),
-      autoSpin: freshAutoSpin(),
+      seller: seller.freshSeller(),
+      locker: locker.freshLocker(),
+      autoSpin: autoSpin.freshAutoSpin(),
+      upgrader: upgrader.freshUpgrader(),
       held: null,
       heldSlot: 0,
       vault: null,
@@ -350,6 +349,7 @@ export class Run implements RunCtx {
     bot.tickBot(this, dt);
     seller.tickSeller(this);
     locker.tickLocker(this, dt);
+    upgrader.tickUpgrader(this, dt);
     autoSpin.tickAutoSpin(this, dt);
     dayJob.tickDayJob(this, dt);
     vault.tickVault(this, dt);

@@ -8,8 +8,9 @@ import type { Tease } from "./tease";
 import { START_CASH, TRAY_BASE_CAPACITY, VAULT_PRICES } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import type { UpgradeId } from "./upgrades";
+import type { UpgraderState } from "./upgrader";
 
-// The run's shared types and the RunCtx the machines (bot, auto-seller, locker, auto-spin, vault, day job) are functions over.
+// The run's shared types and the RunCtx the machines (bot, auto-seller, locker, auto-spin, Upgrader, vault, day job) are functions over.
 
 /** One of your bench's reels: its drop, its own tease, and how long it runs (its crawl included). */
 export interface BenchReel {
@@ -104,6 +105,11 @@ export type SimEvent =
   | { type: "autoSpinPulled"; caseId: string; count: number }
   /** It turned the key (its arm swings); spinStarted comes first. */
   | { type: "autoSpinKeyed" }
+  | { type: "upgraderBought" }
+  /** GO: the stake left the locker and the dial spins; the outcome is already rolled (`roll` < `chance` wins). */
+  | { type: "upgraderStarted"; rarity: RarityId; inputs: Drop[]; mult: number; chance: number; roll: number; win: boolean }
+  /** The dial landed: a win's skin waits on the locker, a loss shreds the stake. */
+  | { type: "upgraderDone"; win: boolean; result: Drop | null; inputs: Drop[] }
   | { type: "vaultBought"; price: number }
   | { type: "vaultKeyTurned"; drops: Drop[] }
   | { type: "vaultReelLanded"; index: number; drop: Drop; amount: number }
@@ -153,6 +159,8 @@ export interface RunState {
   locker: LockerState;
   /** Auto-spin: your bench's machine (Run 1+). */
   autoSpin: AutoSpinState;
+  /** Run 4: the Upgrader on the locker. */
+  upgrader: UpgraderState;
   /** The card the player is dragging, if any: machines leave it alone. */
   held: CardSpot | null;
   /** Which card is held (a bench, bot or locker slot). */

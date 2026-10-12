@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { freshAutoSpin } from "../sim/autoSpin";
 import { freshMeta } from "../sim/meta";
+import { freshUpgrader } from "../sim/upgrader";
 import { DEFAULT_SETUP, Run } from "../sim/run";
 import { decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
 
@@ -221,6 +222,12 @@ describe("the local save", () => {
     }
     expect(again.state.bench.phase).toBe("locked");
     expect(again.state.bench).toEqual(r.state.bench);
+  });
+
+  it("gives a v5 save from before the Upgrader a fresh one", () => {
+    const d = JSON.parse(encodeSave(data()));
+    delete d.run.state.upgrader;
+    expect(decodeSave(JSON.stringify(d))!.run.state.upgrader).toEqual(freshUpgrader());
   });
 
   it("gives a v5 save that lacks auto-spin a fresh one", () => {

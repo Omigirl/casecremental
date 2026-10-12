@@ -23,7 +23,8 @@ import { wearOf } from "./wear";
 
 // The locker (Run 2, spec §5): it keeps skins — dragged in by hand (feeding the combo) or sent by the auto-seller's
 // Collect setting — and presses ten of a rarity into one of the next (CS trade-up rules). The results wait on top
-// of the locker like the bot's cards. In Run 3 the auto contract presses on its own.
+// of the locker like the bot's cards. In Run 3 the auto contract presses on its own. In Run 4 the Upgrader's dial runs on
+// the press (upgrader.ts).
 
 export interface PressState {
   rarity: RarityId;
@@ -190,6 +191,7 @@ export function collectInto(ctx: RunCtx, d: Drop, from: CardSpot, slot: number):
 
 /** Why the press can't start now, or null. */
 function pressBlocked(ctx: RunCtx): string | null {
+  if (ctx.state.upgrader.spin) return "the upgrader is spinning";
   const locker = ctx.state.locker;
   if (!locker.on) return "buy the locker first";
   if (locker.press) return "the press is busy";

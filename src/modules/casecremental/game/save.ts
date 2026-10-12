@@ -5,6 +5,7 @@ import { freshLocker } from "../sim/locker";
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
 import { MULTI_OPEN_MAX } from "../sim/tuning";
+import { freshUpgrader } from "../sim/upgrader";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 
 // The local save (M2b spec §9): the meta and the run in progress under one localStorage key, versioned.
@@ -117,6 +118,7 @@ function normalize(d: SaveData): SaveData {
         seller: { ...freshSeller(), ...d.run.state.seller },
         locker: { ...freshLocker(), ...d.run.state.locker },
         autoSpin: { ...freshAutoSpin(), ...d.run.state.autoSpin },
+        upgrader: { ...freshUpgrader(), ...d.run.state.upgrader },
         seen: d.run.state.seen ?? {},
         held: null,
         heldSlot: 0,
