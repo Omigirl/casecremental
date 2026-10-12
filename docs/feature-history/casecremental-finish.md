@@ -358,3 +358,8 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   queued five calls and play went on — they drained 15 s after unblocking and both sides matched; removing the game's
   local keys brought CLOUT, perks, loops and vault trophies back (and, after the fix, the right run); both tabs in EN
   and RU.
+- **After F6 merged** (2026-10-13): the catalog and DATA were regenerated — 31 trophies (Glitch and Fever Dream's, the
+  Run 4 vault's ★ Singularity `lastcase_legend`, minLoops 3) and the `loadedDice` charm; the Trophies catalog was
+  re-saved and CloudCode re-published on ZVKC34TR-DEV (revision 9, CodeHash 10a11997… = sha256 of the committed
+  bundle). An Upgrader win reports its skin like any drop (`trophyDropsOf` reads `upgraderDone`); the server needs no
+  change for it — a trophy is checked by its case's first run, not by how it was won.
