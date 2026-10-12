@@ -3,7 +3,7 @@ import type { BotState } from "../../sim/botOpener";
 import { Actor } from "./Actor";
 import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
-import type { TableLayout } from "./layout";
+import type { Pt, TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
 
 // The bot at its station (rework spec §1): asleep until woken; awake, it hops each time it opens a case on its reel.
@@ -32,6 +32,11 @@ export class BotSprite {
   /** It opens a case on its reel: the crouch-and-hop. */
   open(): void {
     this.awake.play(ANIMS.botOpen);
+  }
+
+  /** The awake bot's eye centres, world px, as drawn this frame (Cartel's shades sit on them); none while asleep. */
+  eyes(): Pt[] {
+    return this.awake.actor.visible ? this.awake.actor.eyesNow() : [];
   }
 
   update(ms: number, bot: BotState): void {

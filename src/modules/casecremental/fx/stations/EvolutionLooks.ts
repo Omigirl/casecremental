@@ -6,12 +6,15 @@ import { MULTI_OPEN_MAX } from "../../sim/tuning";
 import { benchReelArea, type Pt, type Rect, type TableLayout } from "../pixel/layout";
 import { slotRects } from "../reel/slotLayout";
 import type { StationDeps } from "./deps";
-import { BELT_SPEED, BELT_STRIPE, beltRect, rideAt, slotFrameRect } from "./evolutionRules";
+import { BELT_SPEED, BELT_STRIPE, beltRect, CHAIN_SAG, chainRect, hotHand, rideAt, shadesRect, slotFrameRect } from "./evolutionRules";
+import { BillStream, FlameTrail } from "./EvolutionStreams";
 
 // The evolutions' looks on the table (finish spec §7.3), drawn from the sim every frame so a reload shows every owned
-// look at once: Slot Machine's gold frame round your reel window (with five slot columns while ten reels spin) and
-// Assembly Line's belt left of the case, its rollers running while auto-spin is on. Events are one-shot juice only:
-// the evolve reveal, and a case riding the belt into the bench on each auto-spin buy.
+// look at once: Slot Machine's gold frame round your reel window (with five slot columns while ten reels spin),
+// Assembly Line's belt left of the case (its rollers running while auto-spin is on), Cartel's shades and gold chain on
+// the bot (on its eyes, so they follow every pose), Hot Hand's flames at the pointer while it burns. Events are
+// one-shot juice only: the evolve reveal, a case riding the belt into the bench on each auto-spin buy, Money Printer's
+// bills on each seller sale (EvolutionStreams.ts).
 
 const GOLD = 0xffd34d;
 const GOLD_DARK = 0x8a5a12;
@@ -20,15 +23,25 @@ const RUBBER = 0x1a1a1f;
 const RUBBER_TOP = 0x2c2c33;
 const ROLLER = 0x44444f;
 const BRASS = 0xb08d3a;
+const SHADES = 0x0b0b10;
+const GLINT = 0xffffff;
 
 export class EvolutionLooks {
   /** Pixel world, on the table under your bench: the belt and the case riding it. */
   readonly under = new Container();
   /** Pixel world, the reel row over your reels: the gold frame. */
+  readonly reelRow = new Container();
+  /** Pixel world, over the bot: its shades and chain. */
   readonly over = new Container();
-  /** HD layer. */
+  /** HD layer: the bills. */
   readonly hd = new Container();
   private readonly frame = new Graphics();
+  private readonly bling = new Graphics();
+  private readonly bills: BillStream;
+  private readonly flames: FlameTrail;
+  private blingKey = "";
+  /** The last pointer on the table (world px), or null until one is seen. */
+  private pointer: Pt | null = null;
   private readonly belt = new Graphics();
   private readonly rider = new Sprite();
   private l: TableLayout | null = null;
@@ -36,13 +49,43 @@ export class EvolutionLooks {
   private beltKey = "";
   private beltOffset = 0;
   private rideT = Infinity;
+  /** Cartel: black shades with a white glint over the bot's eyes and a gold chain with a medallion under them, redrawn
+   *  only when the bot's pose moves them. */
+  private drawBling(on: boolean): void {
+    const eyes = on ? this.botEyes() : [];
+    const sh = shadesRect(eyes);
+    const ch = chainRect(eyes);
+    this.bling.visible = sh !== null && ch !== null;
+    if (!sh || !ch) return;
+    const key = `${sh.x},${sh.y},${sh.w},${ch.x},${ch.y}`;
+    if (key === this.blingKey) return;
+    this.blingKey = key;
+    const g = this.bling.clear();
+    g.rect(sh.x, sh.y, sh.w, sh.h).fill(SHADES);
+    g.rect(sh.x + 1, sh.y, 1, 1).fill(GLINT);
+    const half = (ch.w - 1) / 2;
+    for (let i = 0; i < ch.w; i++) {
+      const f = (i - half) / half;
+      g.rect(ch.x + i, ch.y + Math.round(CHAIN_SAG * (1 - f * f)), 1, 1).fill(GOLD);
+    }
+    g.rect(ch.x + Math.floor(half), ch.y + CHAIN_SAG, 2, 2).fill(GOLD);
+  }
+
   /** The ground row of the rider's frame (its feet, like the bench's case actor). */
   private riderGround = 0;
 
-  constructor(private readonly d: StationDeps) {
+  constructor(
+    private readonly d: StationDeps,
+    /** The awake bot's eye centres this frame, world px (none asleep). */
+    private readonly botEyes: () => Pt[],
+  ) {
     this.rider.visible = false;
     this.under.addChild(this.belt, this.rider);
-    this.over.addChild(this.frame);
+    this.reelRow.addChild(this.frame);
+    this.over.addChild(this.bling);
+    this.bills = new BillStream(d.bake);
+    this.hd.addChild(this.bills.root);
+    this.flames = new FlameTrail(d.juice.hd.particles);
   }
 
   layout(l: TableLayout): void {
@@ -56,6 +99,17 @@ export class EvolutionLooks {
     const owned = s.evolutions.owned;
     this.drawFrame(l, s, owned.includes("slotMachine"));
     this.drawBelt(l, dt, s, owned.includes("assemblyLine"));
+    this.drawBling(owned.includes("cartel") && s.bot.awake);
+    const k = this.d.scale();
+    this.bills.update(dt, k);
+    const p = this.pointer;
+    const burning = hotHand(s) && p !== null && inside(l.table, p);
+    this.flames.update(dt, burning ? this.d.juice.hd.toScreen(p) : null, k);
+  }
+
+  /** The pointer moved (world px): Hot Hand's flames follow it. */
+  pointerMove(p: Pt): void {
+    this.pointer = p;
   }
 
   onEvent(e: SimEvent): void {
@@ -66,9 +120,16 @@ export class EvolutionLooks {
       case "evolved":
         this.reveal(e.id);
         break;
+      case "sold":
+        if (e.source === "seller" && this.l && this.d.controller.run.state.evolutions.owned.includes("moneyPrinter")) {
+          const { hd } = this.d.juice;
+          this.bills.launch(hd.toScreen({ x: this.l.seller.x, y: this.l.seller.y - 14 }), hd.toScreen(this.d.hud()), this.d.scale());
+        }
+        break;
       case "runStarted":
         this.rideT = Infinity;
         this.rider.visible = false;
+        this.bills.clear();
         break;
     }
   }
@@ -76,6 +137,8 @@ export class EvolutionLooks {
   destroy(): void {
     this.frame.destroy();
     this.belt.destroy();
+    this.bling.destroy();
+    this.bills.destroy();
   }
 
   /** Slot Machine: a 2-px gold frame with marquee lamps (steady, never blinking); dividers between the slot columns
@@ -145,6 +208,8 @@ export class EvolutionLooks {
     hd.coins.floatText(hd.toScreen({ x: l.table.x + l.table.w / 2, y: l.table.y + 12 }), t("float.evolved"));
   }
 }
+
+const inside = (r: Rect, p: Pt): boolean => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
 
 /** A 1-px outline of `r`. */
 function ring(g: Graphics, r: Rect, color: number): void {

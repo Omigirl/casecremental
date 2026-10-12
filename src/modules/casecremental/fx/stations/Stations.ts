@@ -42,9 +42,10 @@ export class Stations {
     this.autoSpin = new AutoSpinStation(d);
     this.under.addChild(this.autoSpin.under);
     this.hd.addChild(this.autoSpin.hd);
-    this.evolutions = new EvolutionLooks(d);
+    this.evolutions = new EvolutionLooks(d, () => this.bot.sprite.eyes());
     this.under.addChild(this.evolutions.under);
-    this.reels.addChild(this.evolutions.over); // after the bot's reels: the gold frame draws over your reel window
+    this.reels.addChild(this.evolutions.reelRow); // after the bot's reels: the gold frame draws over your reel window
+    this.over.addChild(this.evolutions.over); // over the bot: Cartel's shades
     this.hd.addChild(this.evolutions.hd);
   }
 
@@ -86,6 +87,7 @@ export class Stations {
   pointerMove(p: Pt): void {
     this.bot.cards.pointerMove(p);
     this.locker.results.pointerMove(p);
+    this.evolutions.pointerMove(p);
   }
 
   pointerUp(p: Pt): void {

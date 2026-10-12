@@ -40,4 +40,16 @@ describe("the overlay's stylesheet", () => {
     expect(bob).not.toMatch(/opacity|filter|background|color/);
     expect(UI_CSS).toContain("@media (prefers-reduced-motion: reduce) { .cc-tut-arrow { animation: none; } }");
   });
+
+  it("gives a burning combo meter flames that flicker by less than 0.1 (Hot Hand, photosensitivity)", () => {
+    expect(rule(".cc-hot::after")).toContain("animation: cc-flame");
+    const at = UI_CSS.indexOf("@keyframes cc-flame");
+    expect(at).toBeGreaterThanOrEqual(0);
+    const frames = UI_CSS.slice(at, UI_CSS.indexOf("\n", at));
+    const opacities = [...frames.matchAll(/opacity:\s*([\d.]+)/g)].map((m) => Number(m[1]));
+    expect(opacities.length).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...opacities) - Math.min(...opacities)).toBeLessThan(0.1);
+    expect(frames).not.toMatch(/filter|background|color/);
+    expect(UI_CSS).toContain(".cc-hot::after { animation: none; }");
+  });
 });
