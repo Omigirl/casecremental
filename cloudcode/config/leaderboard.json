@@ -1,0 +1,11 @@
+{
+  "LeaderboardID": "best_run",
+  "DisplayName": "Best run",
+  "IsEnabled": true,
+  "ScoreAggregation": "BestScore",
+  "ScoreDisplayName": "log10($) × 1000",
+  "BracketSize": 0,
+  "TopUsersLimit": 100,
+  "MinScoreToEnterTop": 0,
+  "Schedule": { "Mode": "AlwaysOn", "IsActive": true }
+}
