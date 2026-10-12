@@ -9,6 +9,7 @@ import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
 import { BenchCards, centreOf } from "./BenchCards";
 import { cardGrabbable, DragTracker, type Grabbable } from "./drag";
+import { dropTarget } from "./dropTargets";
 import { ITEM_SIZE, revealSpots, type Pt, type Rect, type TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
 
@@ -165,7 +166,11 @@ export class Bench {
     if (end.kind === "drop" && l) {
       const lock = { x: l.you.caseSpot.x, y: l.you.caseSpot.y - 10 };
       if (end.id === "key" && (dist(end.at, lock) <= 18 || inside(l.you.mat, end.at))) this.controller.act({ type: "insertKey" });
-      if (slot !== null && dist(end.at, l.bin) <= l.binR + 8) this.controller.act({ type: "sell", slot });
+      if (slot !== null) {
+        const target = dropTarget(l, end.at, this.controller.run.state.locker.on);
+        if (target === "bin") this.controller.act({ type: "sell", slot });
+        if (target === "locker") this.controller.act({ type: "storeCard", from: "bench", slot }); // the card leaves on lockerStored
+      }
     }
     if (slot !== null) this.controller.act({ type: "holdCard", spot: null });
     this.homeItems();

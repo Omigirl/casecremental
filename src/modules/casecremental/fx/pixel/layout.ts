@@ -31,6 +31,10 @@ export interface TableLayout {
   seller: Pt;
   bin: Pt;
   binR: number;
+  /** The locker's cabinet (spec §5; dark before Run 2): the front edge, between the tray and the bin. */
+  locker: Rect;
+  /** The auto-buyer machine (spec §6; dark before Run 3): the table's middle, in front of the stations, behind the tray. */
+  grid: Rect;
 }
 
 /** Nominal on-table sizes in world px (sprites are built to roughly these). */
@@ -40,6 +44,8 @@ export const ITEM_SIZE = {
   bot: { w: 40, h: 48 },
   seller: { w: 24, h: 30 },
   reveal: { w: 44, h: 30 },
+  locker: { w: 24, h: 30 },
+  grid: { w: 54, h: 18 },
 } as const;
 
 /** World px a side panel loses to chrome across its width: the frame (6 + 6), the panel padding
@@ -49,7 +55,36 @@ export const PANEL_CHROME = 18;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const r = Math.round;
 
+type Base = Omit<TableLayout, "locker" | "grid">;
+
 export function tableLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portrait">): TableLayout {
+  const b = baseLayout(vp);
+  const { w: lw, h: lh } = ITEM_SIZE.locker;
+  const locker: Rect = { x: b.bin.x - b.binR - 3 - lw, y: b.bin.y + b.binR - lh, w: lw, h: lh };
+  // the tray gives its right end to the locker (since M3)
+  const tray: Rect = { ...b.tray, w: Math.min(b.tray.w, locker.x - 2 - b.tray.x) };
+  const withLocker = { ...b, tray, locker };
+  return { ...withLocker, grid: gridRect(withLocker) };
+}
+
+/** The auto-buyer's machine: centred between your mat and the bot, in the band in front of them and behind the
+ *  front row (the seller, the tray, the locker), clear of the bin and of the locker's results. */
+function gridRect(l: Omit<TableLayout, "grid">): Rect {
+  const { w, h } = ITEM_SIZE.grid;
+  const sellerLeft = l.seller.x - ITEM_SIZE.seller.w / 2;
+  const sellerTop = l.seller.y - ITEM_SIZE.seller.h;
+  const results = Math.min(...lockerCardSpots(l, 2).map((p) => p.x - ITEM_SIZE.reveal.w / 2));
+  const top = Math.max(l.you.mat.y + l.you.mat.h, l.bot.spot.y, l.you.caseSpot.y) + 2;
+  const zone = l.portrait
+    ? { x0: sellerLeft + ITEM_SIZE.seller.w + 2, x1: Math.min(l.locker.x, results) - 2, y1: l.tray.y - 2 }
+    : { x0: l.table.x + 2, x1: Math.min(l.bin.x - l.binR, results) - 2, y1: Math.min(sellerTop, l.locker.y, l.tray.y) - 2 };
+  const between = Math.round((l.you.mat.x + l.you.mat.w + l.bot.spot.x - ITEM_SIZE.bot.w / 2) / 2 - w / 2);
+  const x = clamp(between, zone.x0, zone.x1 - w);
+  const y = top + Math.max(0, Math.min(4, Math.floor((zone.y1 - top - h) / 2)));
+  return { x, y, w, h };
+}
+
+function baseLayout(vp: Pick<PixelViewport, "worldW" | "worldH" | "portrait">): Base {
   const W = vp.worldW,
     H = vp.worldH,
     hudH = 18;
@@ -135,4 +170,31 @@ export function revealSpots(l: TableLayout, n: number): Pt[] {
   const span = step * (n - 1);
   const x0 = Math.round(clamp(l.you.reveal.x - span / 2, lo, hi - span));
   return Array.from({ length: n }, (_, i) => ({ x: x0 + i * step, y: l.you.reveal.y }));
+}
+
+/** Where the bot's n cards wait (spec §4): the first on bot.reveal, a second to its right — overlapping it where the
+ *  table is narrow, never by more than 38 px (6 px of it always shows to grab) and never past the table's edge. */
+export function botRevealSpots(l: Pick<TableLayout, "bot" | "table">, n: number): Pt[] {
+  if (n <= 1) return [l.bot.reveal];
+  const w = ITEM_SIZE.reveal.w;
+  const room = l.table.x + l.table.w - 1 - w / 2 - l.bot.reveal.x;
+  const step = Math.round(clamp(room / (n - 1), 6, w + 2));
+  return Array.from({ length: n }, (_, i) => ({ x: l.bot.reveal.x + i * step, y: l.bot.reveal.y }));
+}
+
+/** The bot's reel window: its one reel, or — for a double spin — a window reaching down to just above its cards'
+ *  spot (no card waits there while it spins). Null where the bot has no reel (portrait). */
+export function botReelArea(l: Pick<TableLayout, "bot">, n: number): Rect | null {
+  const r = l.bot.reel;
+  if (!r || n <= 1) return r;
+  return { ...r, h: Math.max(r.h, l.bot.reveal.y - ITEM_SIZE.reveal.h / 2 - 2 - r.y) };
+}
+
+/** Where n contract results wait (spec §5: "on the locker"): centred on the cabinet, the card's bottom 6 px into its
+ *  top, but never up into the bot's station; a Contract Killer pair fans 8 px apart. */
+export function lockerCardSpots(l: Pick<TableLayout, "locker" | "bot">, n: number): Pt[] {
+  const { h } = ITEM_SIZE.reveal;
+  const cx = l.locker.x + l.locker.w / 2;
+  const y = Math.max(l.locker.y + 6 - h, l.bot.spot.y + 1) + h / 2;
+  return Array.from({ length: Math.max(1, n) }, (_, i) => ({ x: cx + Math.round((i - (Math.max(1, n) - 1) / 2) * 8), y }));
 }

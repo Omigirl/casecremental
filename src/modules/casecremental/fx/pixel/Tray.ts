@@ -7,12 +7,13 @@ import type { LiftInfo } from "../hd/Lifted";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { cardFace } from "./cardFace";
 import { DragTracker } from "./drag";
+import { dropTarget } from "./dropTargets";
 import type { Pt, Rect, TableLayout } from "./layout";
 import { slotAt, traySlots } from "./traySlots";
 
 // The claim tray (M2b spec §4): the good drops the bot set aside, one small card per slot. Drag one to
-// the SELL bin (or tap it) to claim it — a sale by hand, so it feeds the combo. Dragged, it lifts at
-// full card size.
+// the SELL bin (or tap it) to claim it — a sale by hand, so it feeds the combo — or onto the locker to
+// keep it. Dragged, it lifts at full card size.
 
 export class TrayView {
   readonly root = new Container();
@@ -84,8 +85,9 @@ export class TrayView {
     const l = this.l;
     if (!id || !l) return;
     const index = Number(id.slice("tray:".length));
-    const onBin = end.kind === "drop" && Math.hypot(end.at.x - l.bin.x, end.at.y - l.bin.y) <= l.binR + 8;
-    if (end.kind === "tap" || onBin) this.controller.act({ type: "claim", index });
+    const target = end.kind === "drop" ? dropTarget(l, end.at, this.controller.run.state.locker.on) : null;
+    if (end.kind === "tap" || target === "bin") this.controller.act({ type: "claim", index });
+    if (target === "locker") this.controller.act({ type: "storeCard", from: "tray", slot: index });
   }
 
   cancelDrag(): void {
