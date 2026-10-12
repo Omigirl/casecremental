@@ -3,6 +3,7 @@ import {
   authErrorText,
   detectLoginLang,
   GAME_PREFS_KEY,
+  loginMsgText,
   loginT,
   saveLoginLang,
 } from "./i18n";
@@ -123,5 +124,30 @@ describe("sign-in strings", () => {
       for (const k of labels)
         expect(t(k).length, `${lang}:${k}`).toBeLessThanOrEqual(15);
     }
+  });
+});
+
+describe("stored messages", () => {
+  it("re-translate when the language changes", () => {
+    const code = { code: "INVALID_VERIFICATION_CODE" };
+    expect(loginMsgText(loginT("en"), code)).toBe(
+      authErrorText(loginT("en"), "INVALID_VERIFICATION_CODE"),
+    );
+    expect(loginMsgText(loginT("ru"), code)).toBe(
+      authErrorText(loginT("ru"), "INVALID_VERIFICATION_CODE"),
+    );
+    expect(loginMsgText(loginT("ru"), code)).not.toBe(
+      loginMsgText(loginT("en"), code),
+    );
+    const own = { key: "passwordChanged" } as const;
+    expect(loginMsgText(loginT("ru"), own)).toBe(loginT("ru")("passwordChanged"));
+    expect(loginMsgText(loginT("ru"), own)).not.toBe(loginMsgText(loginT("en"), own));
+  });
+
+  it("keeps an unknown server code as is and maps a missing one to the generic text", () => {
+    expect(loginMsgText(loginT("ru"), { code: "WEIRD_CODE" })).toBe("WEIRD_CODE");
+    expect(loginMsgText(loginT("en"), { code: undefined })).toBe(
+      loginT("en")("err.unknown"),
+    );
   });
 });

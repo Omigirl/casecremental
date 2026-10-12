@@ -5,7 +5,7 @@
 //   --s   the backdrop's integer pixel scale (world px → screen px),
 //   --hs  the hero chest's pixel scale,
 //   --lp  one pixel of the logo's font (its size / 8), for the outline and the extrusion,
-//   --fs  small text (tagline, hints, links) — a multiple of 8, as the font wants.
+//   --fs  small text (tagline, hints, links, errors): 12px on phones (readable), 16px on tall desktops.
 // Motion: the reel, the bobbing cases, the turning coins, the floating chest and a glow whose alpha
 // changes by less than 0.1 — no flashing; prefers-reduced-motion stops all of it.
 
@@ -26,7 +26,7 @@ const bevel = (
 export const LOGIN_CSS = `
 .ccl-root { position: absolute; inset: 0; overflow: hidden; background: ${INK}; color: ${TEXT};
   font-family: "Press Start 2P", monospace; font-size: 16px; line-height: 1.5; -webkit-font-smoothing: none;
-  --s: 2; --p: calc(var(--s) * 1px); --hs: 4; --lp: 3; --fs: 8px; --gap: 16px; --panel: 380px; --top: calc(var(--s) * 50px); }
+  --s: 2; --p: calc(var(--s) * 1px); --hs: 4; --lp: 3; --fs: 12px; --gap: 16px; --panel: 380px; --top: calc(var(--s) * 50px); }
 .ccl-root *, .ccl-root *::before, .ccl-root *::after { box-sizing: border-box; }
 
 /* ---- backdrop */
@@ -110,7 +110,7 @@ export const LOGIN_CSS = `
 .ccl-btn:hover:not(:disabled), .ccl-wallet > button:hover:not(:disabled) { filter: brightness(1.12); }
 .ccl-btn:active:not(:disabled) { transform: translateY(2px); ${bevel("#8a4b2a", "#c27a4a", "#4a2416", true)} }
 .ccl-primary:active:not(:disabled), .ccl-wallet > button:active:not(:disabled) { transform: translateY(2px); ${bevel(GOLD, "#fff3b0", "#c98a12", true)} }
-.ccl-btn:disabled { filter: grayscale(1) brightness(0.6); cursor: default; }
+.ccl-btn:disabled, .ccl-wallet > button:disabled { filter: grayscale(1) brightness(0.6); cursor: default; }
 .ccl-btn:focus-visible, .ccl-wallet > button:focus-visible, .ccl-link:focus-visible, .ccl-lang button:focus-visible,
 .ccl-remember input:focus-visible + .ccl-tick { outline: 2px solid ${GOLD}; outline-offset: 3px; }
 .ccl-btn-icon { position: absolute; left: 12px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%); image-rendering: pixelated; }
@@ -126,7 +126,7 @@ export const LOGIN_CSS = `
 .ccl-input { width: 100%; padding: 12px; border: 0; border-radius: 0; outline: none; font: inherit; font-size: 16px; color: ${TEXT};
   background: ${INK}; box-shadow: inset 0 2px 0 #000, 0 0 0 2px #4a3328; }
 .ccl-input:focus { box-shadow: inset 0 2px 0 #000, 0 0 0 2px ${GOLD}; }
-.ccl-input::placeholder { color: #6f6158; opacity: 1; }
+.ccl-input::placeholder { color: #9a8c7e; opacity: 1; }
 .ccl-input:disabled { opacity: 0.6; }
 
 .ccl-remember { position: relative; justify-self: center; display: flex; align-items: center; gap: 10px; padding: 4px;
