@@ -4,6 +4,7 @@ import { hdFontSize } from "../fx/pixel/screen";
 import { pixelViewport, type PixelViewport } from "../fx/pixel/viewport";
 import { getLang, onLangChange, type Lang } from "../i18n/index";
 import { getPrefs, onPrefsChange, type Prefs } from "./prefs";
+import { cashTweenAt } from "./cash";
 import { buttonImages } from "./pixelFrame";
 
 /** Re-render on a language switch (strings are read through t() during render). */
@@ -71,4 +72,25 @@ export function useDelayedFlag(flag: boolean, delayFor: (wasOffSinceMount: boole
     return () => clearTimeout(id);
   }, [flag]);
   return flag && shown;
+}
+
+/** `cash`, counting from its last shown value to a new one over `ms` (the HUD's number). */
+export function useAnimatedCash(cash: number, ms: number): number {
+  const [shown, setShown] = useState(cash);
+  const current = useRef(cash);
+  useEffect(() => {
+    const from = current.current;
+    if (from === cash) return;
+    const start = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const progress = ms > 0 ? (now - start) / ms : 1;
+      current.current = cashTweenAt(from, cash, progress);
+      setShown(current.current);
+      if (progress < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [cash, ms]);
+  return shown;
 }

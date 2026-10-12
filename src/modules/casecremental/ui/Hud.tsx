@@ -1,11 +1,10 @@
 import { useContext, useEffect, useRef, type ReactNode } from "react";
-import { useAnimatedNumber } from "@idosgames/react/ui";
 import { springElement } from "../fx/hd/tween";
 import type { GameView } from "../game/view";
 import { caseName, stageName, upgradeName } from "../i18n/content";
 import { getLang, t } from "../i18n/index";
 import { formatCash } from "../sim/format";
-import { fromCents, toCents } from "./cash";
+import { useAnimatedCash } from "./hooks";
 import { Bar, PixelGear, PxButton, UiEnvContext } from "./parts";
 
 // Top of the screen: the stage, the cash (large, gold), the combo, the next goal (always visible —
@@ -18,7 +17,7 @@ function goalName(goal: NonNullable<GameView["nextGoal"]>, vaultId: GameView["va
 
 export function Hud({ view, hudH, onSettings }: { view: GameView; hudH: number; onSettings: () => void }): ReactNode {
   const { scale } = useContext(UiEnvContext);
-  const shown = fromCents(useAnimatedNumber(toCents(view.cash), 350));
+  const shown = useAnimatedCash(view.cash, 350);
   const cashRef = useRef<HTMLDivElement>(null);
   const previous = useRef(view.cash);
   useEffect(() => {
