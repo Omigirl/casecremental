@@ -1,23 +1,23 @@
-import { autoSpinDelayCost } from "./autoSpin";
 import { sellerSpeedCost } from "./autoSeller";
+import { autoSpinDelayCost } from "./autoSpin";
 import { botSpeedCost, botWaiting } from "./botOpener";
 import { runCaseIds, runContent } from "./campaign";
 import { unlockCostOf } from "./content/cases";
-import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
 import { VAULTS } from "./content/vaults";
+import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
 import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
 import { DEFAULT_SETUP, Run, type ActionResult, type RunSetup, type SimEvent } from "./run";
-import { AUTOSPIN_COST, AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
+import { AUTO_CONTRACT_COST, AUTOSPIN_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
-// A greedy player at human speed, used by the pacing test to check how fast a run unfolds. It claims tray
-// items as soon as it can, sells what lands on the bench, the bot's station and the locker, presses a trade-up
-// when one is ready, unlocks the next case as soon as it can afford it plus one case, then — each when it has
-// twice the price — wakes the bot, buys the auto-seller, then auto-spin (switched on: from then on it
-// leaves the bench to the machine, picks each new case for it and shops whenever free), the locker (Run 2+, collecting Mil-Specs), the bot's
-// multi-open; it buys the cheapest remaining upgrade (bot and
-// seller Speed, auto-spin's Delay, locker size, the auto contract included) when it costs at most a quarter of
-// its cash, takes the day job when broke, and buys the vault as soon as it can.
+// A greedy player at human speed, used by the pacing test to check how fast a run unfolds. It claims tray items as
+// soon as it can, sells what lands on the bench, the bot's station and the locker, presses a trade-up when one is
+// ready, unlocks the next case as soon as it can afford it plus one case, then — each when it has twice the price —
+// wakes the bot, buys the auto-seller, then auto-spin (switched on: from then on it leaves the bench to the machine,
+// picks each new case for it and shops whenever free), the locker (Run 2+, collecting Mil-Specs) and the bot's
+// multi-open. It buys the cheapest remaining upgrade (bot and seller Speed, auto-spin's Delay, locker size, the auto
+// contract included) when it costs at most a quarter of its cash, takes the day job when broke with the bench empty
+// (auto-spin on or not), and buys the vault as soon as it can.
 // Two timing profiles (finish spec §5): HUMAN is the GREEDY player, a perfect one who never pauses; CASUAL has a real
 // player's slower hands and looks at the shop every 8 s (a due look comes before selling, and buys everything the
 // quarter-of-cash rule allows, one row after another), never holding back the vault. `playCampaign` chains the runs
@@ -186,6 +186,7 @@ export function playGreedy(
       busyUntil = s.time + timings.sell;
     } else if (s.autoSpin.on) {
       shop(); // the bench is the machine's: shop whenever free
+      run.startDayJob(); // broke with the bench empty: the day job, as without auto-spin (finish spec §3)
       busyUntil = s.time + timings.buy;
     } else if (b.phase === "locked") {
       run.insertKey();

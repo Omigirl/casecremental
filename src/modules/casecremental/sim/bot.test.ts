@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CASUAL, fullyBought, HUMAN, INCOME_WINDOW, playCampaign, playGreedy, playToFull, RUN_SECONDS, type BotTimings } from "./bot";
 import { VAULTS } from "./content/vaults";
 import { DEFAULT_SETUP, Run, type RunSetup, type SimEvent } from "./run";
@@ -86,6 +86,30 @@ describe("the timing profiles (finish spec §5)", () => {
     const { looks } = shopTimes(CASUAL, setup);
     expect(looks.length).toBeGreaterThan(40);
     expect(Math.max(...gaps(looks))).toBeLessThan(CASUAL.shopEvery + 2); // a look waits only for the action in hand
+  });
+
+  it("takes the day job when broke with the bench empty, auto-spin on or not (finish spec §3)", () => {
+    // once auto-spin is on, the run is held broke for 20 s: the bench empties, and the player must take the day job
+    const tick = Run.prototype.tick;
+    let brokeFrom: number | null = null;
+    const spy = vi.spyOn(Run.prototype, "tick").mockImplementation(function (this: Run, dt: number) {
+      tick.call(this, dt);
+      if (this.state.autoSpin.on) brokeFrom ??= this.state.time;
+      if (brokeFrom !== null && this.state.time < brokeFrom + 20) this.state.cash = 0;
+    });
+    try {
+      for (const timings of [HUMAN, CASUAL]) {
+        brokeFrom = null;
+        const jobs: number[] = [];
+        playGreedy(1, RUN_SECONDS, timings, DEFAULT_SETUP, {
+          onEvent: (e, t) => void (e.type === "dayJobStarted" && brokeFrom !== null && jobs.push(t)),
+        });
+        expect(brokeFrom).not.toBeNull();
+        expect(jobs.length, `${timings === HUMAN ? "GREEDY" : "CASUAL"}: day jobs while broke`).toBeGreaterThan(0);
+      }
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("the vault waits for no look at the shop: CASUAL buys it as soon as it can", () => {
