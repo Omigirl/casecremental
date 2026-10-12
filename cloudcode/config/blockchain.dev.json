@@ -1,0 +1,20 @@
+{
+  "SystemState": { "DepositsEnabled": false, "WithdrawalsEnabled": false, "NftDepositsEnabled": false, "NftWithdrawalsEnabled": true, "PlatformOverrides": { "Ios": true, "Android": true, "Web": true } },
+  "Networks": {
+    "solana": {
+      "NetworkID": "solana",
+      "DisplayName": "Solana devnet",
+      "Type": "Solana",
+      "ChainID": 103,
+      "ChainConfigVersion": 3,
+      "DepositsEnabled": false,
+      "WithdrawalsEnabled": false,
+      "NftDepositsEnabled": false,
+      "NftWithdrawalsEnabled": true,
+      "PlatformOverrides": { "Ios": true, "Android": true, "Web": true },
+      "NftCollections": []
+    }
+  },
+  "AccountSafety": { "MinAccountAgeDays": 0, "MultiAccountCheckEnabled": false, "BanOnSharedWithdrawalAddress": false, "PendingWithdrawalTtlHours": 1 },
+  "WalletLogin": { "Enabled": true, "WalletConnectProjectId": "" }
+}
