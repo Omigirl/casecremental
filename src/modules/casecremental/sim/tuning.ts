@@ -34,9 +34,9 @@ export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: 
   wildwood: { price: 15, unlockCost: 30 },
   bedrock: { price: 150, unlockCost: 1200 },
   mainframe: { price: 1_500, unlockCost: 12_000 },
-  neon: { price: 15_000, unlockCost: 150_000 },
-  deepspace: { price: 150_000, unlockCost: 1_500_000 },
-  inferno: { price: 1_500_000, unlockCost: 15_000_000 },
+  neon: { price: 15_000, unlockCost: 800_000 },
+  deepspace: { price: 150_000, unlockCost: 10_000_000 },
+  inferno: { price: 1_500_000, unlockCost: 300_000_000 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {
@@ -178,9 +178,11 @@ export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */
-export const VAULT_PRICES = [1_000_000, 50_000_000, 2_500_000_000] as const;
-/** A replay of the last run: its vault price grows this much per completed loop. */
-export const VAULT_GROWTH = 4;
+export const VAULT_PRICES = [1_200_000, 2_000_000_000, 420_000_000_000] as const;
+/** A replay of the last run: its vault price grows this much per completed loop. Only a little above
+ *  CATCH_UP_PER_VAULT: by Run 3 the upgrades are cheap and bought one click at a time, so a replay's ×3 sales
+ *  barely speed it up, and a much steeper vault would make the replay slower than the run it replays. */
+export const VAULT_GROWTH = 3.25;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;
@@ -227,10 +229,10 @@ export const TRADE_UP_COUNT = 10;
 export const TRADE_UP_SECONDS = 2.5;
 /** A contract pays its normal value × this (by its inputs' rarity), so it returns ~1.5× what its inputs would sell for. */
 export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>> = {
-  milspec: 4.5,
-  restricted: 5,
-  classified: 3.6,
-  covert: 3.6,
+  milspec: 4.77,
+  restricted: 5.25,
+  classified: 3.82,
+  covert: 3.82,
 };
 /** Run 3: the locker presses on its own. */
 export const AUTO_CONTRACT_COST = 250_000_000;
