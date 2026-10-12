@@ -2,6 +2,7 @@ import { Container, Text, type Application, type FederatedPointerEvent } from "p
 import type { GameController } from "../game/controller";
 import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
+import { autoSpinStatus } from "../sim/autoSpin";
 import { caseById } from "../sim/content/cases";
 import { vaultFor } from "../sim/content/vaults";
 import { formatCash } from "../sim/format";
@@ -388,7 +389,7 @@ export class World {
 
   /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
   private updateText(b: BenchState): void {
-    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait, this.controller.run.state.autoSpin.on); // no "Buy a case" while the vault is out or after the run
+    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait, autoSpinStatus(this.controller.run) === "on"); // none while the vault is out or after the run, nor while auto-spin works (it shows while it waits)
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const r = this.benchReels.area ?? this.l.you.reel; // under the reel window, whatever its height

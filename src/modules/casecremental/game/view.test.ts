@@ -264,7 +264,9 @@ describe("buildView — M2b", () => {
     const v = buildView(run);
     expect(v.autoSpin).toMatchObject({ on: true, status: "on", pick: "bootcamp" });
     expect(v.cases.find((c) => c.id === "bootcamp")!.picked).toBe(true);
+    expect(v.cases.filter((c) => c.buys).map((c) => c.id)).toEqual(["bootcamp"]); // the case it would buy now
     run.state.cash = 0;
+    expect(buildView(run).cases.some((c) => c.buys)).toBe(false); // nothing affordable: nothing to frame
     expect(buildView(run).autoSpin.status).toBe("broke");
     run.state.vault = { phase: "key" };
     expect(buildView(run).autoSpin.canToggle).toBe(false);

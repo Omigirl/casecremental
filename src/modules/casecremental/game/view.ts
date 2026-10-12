@@ -1,3 +1,4 @@
+import { autoSpinCase } from "../sim/autoSpin";
 import { capRaisedLater, runNumber } from "../sim/campaign";
 import type { CharmId } from "../sim/charms";
 import { caseById, unlockCostOf } from "../sim/content/cases";
@@ -39,6 +40,8 @@ export interface CaseView {
   canUnlock: boolean;
   /** Auto-spin buys this one: the case you bought last or picked on the shelf. */
   picked: boolean;
+  /** Auto-spin would buy this one now: the pick when affordable, else the dearest it can afford. */
+  buys: boolean;
 }
 
 export interface UpgradeView {
@@ -121,6 +124,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
   const benchFree = s.bench.phase === "empty";
   const open = !run.locked();
   const r = run.setup.run;
+  const buys = autoSpinCase(run);
   const cases = run.runCases().map((id, i, ids): CaseView => {
     const c = caseById(id);
     const unlocked = s.unlocked.includes(c.id);
@@ -137,6 +141,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
       canBuy: open && unlocked && benchFree && s.cash >= run.casePrice(c.id),
       canUnlock: open && !unlocked && previousUnlocked && s.cash >= unlockCostOf(c.id),
       picked: s.autoSpin.pick === c.id,
+      buys: s.autoSpin.owned && buys === c.id,
     };
   });
   const upgrades = UPGRADE_IDS.map((id): UpgradeView => {

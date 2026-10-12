@@ -11,7 +11,7 @@ import { dayJobButton } from "./dayJob";
 import { boardOpen, type Act } from "./machineRules";
 import { Bar, PixelTick, PxButton, UiEnvContext } from "./parts";
 import { stripFrameCss } from "./pixelFrame";
-import { picksShown, shelfIconK } from "./shelfFit";
+import { framedCase, picksShown, shelfUrgent, shelfIconK } from "./shelfFit";
 
 // The Case shelf (right panel, or a drawer tab on phones): each case with its pixel box, BUY at
 // its price or UNLOCK at its unlock cost. Every button sends an Action through the controller.
@@ -27,18 +27,28 @@ function CaseIcon({ c }: { c: CaseView }): ReactNode {
   return <div style={{ ...style, flex: "none", opacity: c.unlocked ? 1 : 0.4 }} />;
 }
 
-/** Auto-spin buys the case picked here (a hand BUY picks too); a gold frame marks it (finish spec §3). */
-function PickBox({ c, act, open }: { c: CaseView; act: Act; open: boolean }): ReactNode {
+/** The case's icon as auto-spin's pick button: a tick box in its corner shows (and sets) the pick, so the control costs
+ *  the row no height and no width. The whole icon is the touch target; a gold frame marks the case it buys. */
+function PickIcon({ c, act, open }: { c: CaseView; act: Act; open: boolean }): ReactNode {
+  const env = useContext(UiEnvContext);
   return (
-    <PxButton
-      on={c.picked}
+    <button
+      type="button"
+      className="cc-pick"
       disabled={!open}
+      aria-pressed={c.picked}
+      aria-label={t("shelf.pick")}
       title={t("shelf.pick")}
-      onClick={() => act({ type: "setAutoSpinCase", caseId: c.id })}
-      style={{ flex: "none", lineHeight: 1 }}
+      onClick={() => {
+        env.click();
+        act({ type: "setAutoSpinCase", caseId: c.id });
+      }}
     >
-      <PixelTick on={c.picked} />
-    </PxButton>
+      <CaseIcon c={c} />
+      <span className={c.picked ? "cc-pick-box on" : "cc-pick-box"}>
+        <PixelTick on={c.picked} />
+      </span>
+    </button>
   );
 }
 
@@ -55,12 +65,12 @@ function AutoSpinRow({ view, act }: { view: GameView; act: Act }): ReactNode {
   );
 }
 
-function CaseRow({ c, act, picks, open }: { c: CaseView; act: Act; picks: boolean; open: boolean }): ReactNode {
+function CaseRow({ c, act, picks, open, framed }: { c: CaseView; act: Act; picks: boolean; open: boolean; framed: boolean }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   return (
-    <div className="cc-row" style={picks && c.picked ? { boxShadow: `0 0 0 ${scale}px #ffd34d inset` } : undefined}>
+    <div className="cc-row" style={picks && framed ? { boxShadow: `0 0 0 ${scale}px #ffd34d inset` } : undefined}>
       <div className="cc-row-line">
-        <CaseIcon c={c} />
+        {picks && c.unlocked ? <PickIcon c={c} act={act} open={open} /> : <CaseIcon c={c} />}
         <span style={{ flex: 1 }}>{caseName(c.id)}</span>
       </div>
       {c.unlocked ? (
@@ -75,7 +85,6 @@ function CaseRow({ c, act, picks, open }: { c: CaseView; act: Act; picks: boolea
           <span className="cc-btn-sub">{formatCash(c.unlockCost, getLang())}</span>
         </PxButton>
       )}
-      {picks && c.unlocked ? <PickBox c={c} act={act} open={open} /> : null}
     </div>
   );
 }
@@ -118,16 +127,21 @@ function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
 }
 
 export function CaseShelf({ view, act, title = true }: { view: GameView; act: Act; title?: boolean }): ReactNode {
+  const framed = framedCase(view.cases);
+  const urgent = shelfUrgent(view, dayJobButton(view) !== null);
   return (
     <>
       {title ? <div className="cc-title">{t("panel.cases")}</div> : null}
       <div className="cc-scroll">
         <AutoSpinRow view={view} act={act} />
+        {/* what needs you now comes first, so it never sits below the fold of a long shelf */}
+        {urgent ? <DayJobRow view={view} act={act} /> : null}
+        {urgent ? <VaultRow view={view} act={act} /> : null}
         {view.cases.map((c) => (
-          <CaseRow key={c.id} c={c} act={act} picks={picksShown(view)} open={boardOpen(view)} />
+          <CaseRow key={c.id} c={c} act={act} picks={picksShown(view)} open={boardOpen(view)} framed={framed === c.id} />
         ))}
-        <VaultRow view={view} act={act} />
-        <DayJobRow view={view} act={act} />
+        {urgent ? null : <VaultRow view={view} act={act} />}
+        {urgent ? null : <DayJobRow view={view} act={act} />}
       </div>
     </>
   );

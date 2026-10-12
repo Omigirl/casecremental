@@ -6,7 +6,7 @@ import { pixelViewport } from "../fx/pixel/viewport";
 import { caseName } from "../i18n/content";
 import { setLang, t } from "../i18n/index";
 import { CASES } from "../sim/content/cases";
-import { BTN_CHROME, charsBesideIcon, picksShown, ROW_TEXT_CHROME, wrapLines } from "./shelfFit";
+import { BTN_CHROME, charsBesideIcon, framedCase, picksShown, shelfUrgent, ROW_TEXT_CHROME, wrapLines } from "./shelfFit";
 
 afterEach(() => setLang("en"));
 
@@ -67,5 +67,27 @@ describe("picksShown", () => {
   it("shows the shelf's pick boxes once auto-spin is bought", () => {
     expect(picksShown({ autoSpin: { owned: false } })).toBe(false);
     expect(picksShown({ autoSpin: { owned: true } })).toBe(true);
+  });
+});
+
+describe("framedCase", () => {
+  const c = (id: string, picked: boolean, buys: boolean) => ({ id, picked, buys });
+  it("frames the case auto-spin would buy, picked or not", () => {
+    expect(framedCase([c("a", false, false), c("b", false, true)])).toBe("b");
+    expect(framedCase([c("a", true, false), c("b", false, true)])).toBe("b"); // the pick is out of reach: the fallback is shown
+  });
+  it("frames the pick while nothing is affordable, and nothing before a pick", () => {
+    expect(framedCase([c("a", true, false), c("b", false, false)])).toBe("a");
+    expect(framedCase([c("a", false, false)])).toBeNull();
+  });
+});
+
+describe("shelfUrgent", () => {
+  it("lifts the vault and the day job to the top when you can buy the vault or are broke", () => {
+    const v = (shown: boolean, canBuy: boolean) => ({ vault: { shown, canBuy } });
+    expect(shelfUrgent(v(true, true), false)).toBe(true);
+    expect(shelfUrgent(v(true, false), false)).toBe(false);
+    expect(shelfUrgent(v(false, false), true)).toBe(true);
+    expect(shelfUrgent(v(false, false), false)).toBe(false);
   });
 });

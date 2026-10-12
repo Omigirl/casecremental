@@ -42,3 +42,12 @@ export function wrapLines(text: string, perLine: number): { lines: number; spill
   }
   return { lines, spills };
 }
+
+/** The case the shelf frames in gold: the one auto-spin would buy now, else your pick while nothing is affordable. */
+export function framedCase(cases: ReadonlyArray<{ id: string; picked: boolean; buys: boolean }>): string | null {
+  return (cases.find((c) => c.buys) ?? cases.find((c) => c.picked))?.id ?? null;
+}
+
+/** The vault is affordable, or the day job is on offer (`dayJob`): those rows go to the top of the shelf, in view. */
+export const shelfUrgent = (view: { vault: { shown: boolean; canBuy: boolean } }, dayJob: boolean): boolean =>
+  dayJob || (view.vault.shown && view.vault.canBuy);

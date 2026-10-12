@@ -21,6 +21,10 @@ export const UI_CSS = `
 .cc-scroll { overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable both-edges; padding-block: calc(var(--px) * 2px); display: flex; flex-direction: column; gap: calc(var(--px) * 3px); min-height: 0; }
 .cc-row { display: grid; gap: calc(var(--px) * 1px); padding: calc(var(--px) * 1px); background: rgba(18, 14, 16, 0.55); box-shadow: 0 0 0 var(--px) #120e10 inset; }
 .cc-row-line { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--px) * 2px); }
+.cc-pick { position: relative; flex: none; font: inherit; color: #fff6d5; background: none; border: 0; padding: 0; cursor: pointer; line-height: 0; }
+.cc-pick:disabled { cursor: default; filter: grayscale(1) brightness(0.6); }
+.cc-pick-box { position: absolute; right: calc(var(--px) * -1px); bottom: calc(var(--px) * -1px); display: block; padding: calc(var(--px) * 1px); background: #120e10; color: #a89a8c; line-height: 0; }
+.cc-pick-box.on { color: #ffd34d; }
 .cc-btn { font: inherit; color: #fff6d5; background: #8a4b2a; border: 0; cursor: pointer; white-space: nowrap;
   padding: calc(var(--px) * 2px) calc(var(--px) * 1px);
   box-shadow: inset 0 calc(var(--px) * -2px) 0 #4a2416, inset 0 var(--px) 0 #c27a4a, 0 0 0 var(--px) #120e10; }
