@@ -3,6 +3,8 @@ import { budgetFor, fitsBudget } from "./budgets";
 import { EN } from "./en";
 import { detectLang, getLang, onLangChange, setLang, t } from "./index";
 import { RU } from "./ru";
+import { CASES } from "../sim/content/cases";
+import { caseName } from "./content";
 
 afterEach(() => setLang("en"));
 
@@ -43,5 +45,26 @@ describe("string tables", () => {
     const strip = (s: string) => s.replace(/\{\w+\}/g, "");
     expect(fitsBudget(strip(EN[key as keyof typeof EN]), b)).toBe(true);
     expect(fitsBudget(strip(RU[key as keyof typeof EN]), b)).toBe(true);
+  });
+});
+
+describe("M3 strings with their values filled in", () => {
+  const fits = (key: keyof typeof EN, vars: Record<string, string | number>) => fitsBudget(t(key, vars), budgetFor(key));
+
+  it.each(["en", "ru"] as const)("the run lines fit with every run number and cap (%s)", (lang) => {
+    setLang(lang);
+    for (const n of [1, 2, 3])
+      for (const key of ["hud.run", "prestige.nextrun", "prestige.again"] as const) expect(fits(key, { n }), `${key} ${n}`).toBe(true);
+    for (const n of [3, 5, 20, 50])
+      for (const key of ["brings.multiOpen", "brings.botSpeed"] as const) expect(fits(key, { n }), `${key} ${n}`).toBe(true);
+    expect(fits("locker.count", { n: 50, max: 50 })).toBe(true);
+    for (const n of [9, 12]) for (const key of ["locker.size", "grid.rate"] as const) expect(fits(key, { n }), key).toBe(true);
+    expect(fits("grid.size", { n: 50 })).toBe(true);
+    for (const n of [25, 50, 75]) expect(fits("grid.reserve", { n })).toBe(true);
+  });
+
+  it.each(["en", "ru"] as const)("every case fits the prestige screen's new-case line (%s)", (lang) => {
+    setLang(lang);
+    for (const c of CASES) expect(fits("brings.case", { name: caseName(c.id) }), c.id).toBe(true);
   });
 });
