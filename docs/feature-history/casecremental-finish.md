@@ -154,9 +154,9 @@ skippable, replayable from Settings. Spec §4. The step machine is `ui/tutorialR
 - **Nothing shows** while the vault is out or after the run, while Settings or the dev sound board is open, or for
   `UI_BACK_S + 0.6` s while the panels fade back in after a vault. The progress keeps settling and hearing events
   meanwhile. The bubble takes the pointer only on its buttons, so a click or a drag under it goes through.
-- **Run 4's card** (`card.run4`) is written but cannot show until F6 sets `LAST_RUN = 4`; the i18n tests cover its strings.
-  Its Russian case names (Глитч, Горячка) are F3's guess: **F6 must keep `card.run4` in step with the names it gives
-  cases 8 and 9 in `i18n/content.ts`.**
+- **Run 4's card** (`card.run4`) was written before Run 4 existed; the i18n tests cover its strings. F6 made it follow the
+  cases: it fills `{glitch}`, `{fever}` and `{last}` from `caseName()` (Russian Fever Dream is «Бредовый сон»), so the card
+  cannot drift from `i18n/content.ts`.
 - **Browser pass (Task 5)** tested an exported copy of d5585e4, in headless Chrome. Screenshots are in
   `.superpowers/harness/shots/f3/` (scratch, not committed).
   - Every step in EN and RU at 1920×1080, 1024×768 and 390×844, including the second hop behind a tab (BOT → WAKE,
@@ -180,9 +180,9 @@ skippable, replayable from Settings. Spec §4. The step machine is `ui/tutorialR
   - F2's 0c6fcce, re-measured: the pick is a tick in the case icon's corner (no bar). With all Run 1 cases unlocked,
     auto-spin on and the vault affordable, Vault Case I's BUY is in view without scrolling at 1920×1080 and 1024×768, and
     the vault row and DAY JOB are in view in the 390×844 drawer. "Buy a case" shows while auto-spin waits (vault) or is
-    BROKE. The case auto-spin buys is framed and follows the pick. **Open (minor):** while it waits for the vault, the
+    BROKE. The case auto-spin buys is framed and follows the pick. **Was open (minor):** while it waits for the vault, the
     case it would buy otherwise (Bedrock) is still framed, in the same gold as the vault row's frame. So two gold frames
-    show at once, and one marks a case that is not being bought.
+    show at once, and one marks a case that is not being bought. *(Fixed in 5f7dd3e.)*
 
 ## F4 — pacing for real players (2026-10-13)
 
@@ -217,9 +217,9 @@ read it before touching `sim/tuning.ts`.
   - The synthetic Run 1 replay test and the Run 3 replay catch-up test were dropped: no player replays Run 1, and the replay
     row is its vault time.
   - The run rows loop to `LAST_RUN`, so Run 4 inherits them.
-- **Known limit.** A replay's vault grows by `VAULT_GROWTH` (3.4) while its sales grow by `CATCH_UP_PER_VAULT` (2.8), so the
-  90 s ratio worsens about 21 % per extra replay. The first replay is tested (worst seed 62); the rule fails from about the
-  4th replay (62, 75, 91). F9 decides whether later loops need a cap. 2.8 (not 3) keeps the first replay near its run:
+- **Known limit (superseded in F6-A).** With `VAULT_GROWTH` 3.4 against `CATCH_UP_PER_VAULT` 2.8 the 90 s ratio worsened
+  about 21 % per extra replay (62, 75, 91 from the 4th). `VAULT_GROWTH` is now 2.0 with The Last Case's catch-up 2, and a
+  test plays 15 replays, all within the rule (see F6). The reasoning on 2.8 (not 3) keeps the first replay near its run:
   with ×3 it climbs in about 42 % of Run 3's time and the CASUAL replay could not reach its band.
 - **The retune** (`sim/tuning.ts` only; a save keeps its own run's prices). Changed, old → new: `VAULT_PRICES` 1.2M / 2.4B / 800B
   → 300K / 450M / 120B; `VAULT_GROWTH` 3.25 → 3.4; `CATCH_UP_PER_VAULT` 3 → 2.8; `AUTOSPIN_COST` 40K → 5K; unlocks Bedrock
@@ -298,7 +298,7 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
 
 - **What the Title holds.** Currency `CLOUT` (initial 0, not tradable or purchasable); item catalog `Trophies` — one
   non-stackable, non-tradable item per Covert and ★ skin of every case plus each vault's legend, ids = skin ids,
-  generated from the content tables (24 today; 31 once F6's cases 8–9 and ★ Singularity land); ReadOnly user data
+  generated from the content tables (31 now, with Glitch, Fever Dream and ★ Singularity); ReadOnly user data
   `cc_meta` (perks, loops, campaign stats, charm picks, the last 20 ended run ids — written only by CloudCode);
   Internal `cc_anti` (first seen, last run end, trophy pacing); Public `cc_wallet` (empty, F8 fills it); leaderboard
   `best_run` (BestScore, AlwaysOn, score = floor(log10(lifetime earnings) × 1000) because earnings outgrow integers).
@@ -431,7 +431,8 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
   keys (`cc_meta` / `cc_anti` / `cc_wallet`) and the CloudCode policy (RateLimit, ResourcePolicy, the five-handler
   whitelist) as DEV, each section copied from DEV as read. The committed bundle went out as **live revision 1**, CodeHash
   0b42a1c2… — the same code as DEV revision 19 and the sha256 of `cloudcode/casecremental.bundle.js`. Live revision
-  numbers count from 1 and do not match DEV's.
+  numbers count from 1 and do not match DEV's. (Later, a comment-only edit to `casecremental.js` changed the committed
+  bundle's sha256 to f9cf10de…; live and DEV still run the code above and the bundle was not republished.)
 - **Left as they were:** the FOMO token (`Main` / `Main_IOU`, Solana mint D3Ca3V8n…) and the currency flags, both
   sent back exactly as read. The Blockchain section was not saved at all: mainnet network `solana`, account safety
   (7-day minimum age, multi-account check, ban on a shared withdrawal address) and wallet sign-in (on, WalletConnect id
@@ -451,8 +452,7 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
 
 Plans: `docs/superpowers/plans/2026-10-12-casecremental-f6a-run4-sim.md` (the sim), `-f6b-run4-screen.md` (the table's
 looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Three streams: F6-A in the main tree, the art in
-`f6-assets`, F6-B and F6-C in parallel worktrees. F6-B's own notes (finishes, evolution looks, the Upgrader's dial, stage
-5's layers and their frame times) belong in this section when it merges.
+`f6-assets`, F6-B and F6-C in parallel worktrees. F6-B (`f6b-screen`, merged in 9f6ce67) is in "F6-B on screen" below.
 
 - **Run 4's content** is `RUN_CONTENT[3]`: Glitch and Fever Dream (cases 8 and 9), the Upgrader, evolutions, bot speed
   x100, the bot opens x3; The Last Case is its vault (`VaultDef` `lastcase`, legend ★ Singularity). Every case has 13 skins
@@ -462,7 +462,7 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
   `caseName()`, so the card and the shelf cannot drift.
 - **Six finishes** (`PatternKind`): datamosh, scanline, rgbsplit (Glitch), melt, kaleido, huecycle (Fever Dream), with two
   motions: `glitch` holds, then jumps to a new arrangement (4 steps a loop), `drip` runs down through the noise's period.
-  F6-A shipped a plain interim finish so the sim could land first; F6-B draws the real ones.
+  F6-A shipped a plain interim finish so the sim could land first; F6-B drew the real ones (below).
 - **The Upgrader** (`sim/upgrader.ts`). The stake is the **whole** locker stack of one rarity. A win's rarity is 1/2/3 steps
   up by multiplier (`UPGRADER_RARITY_STEPS`) and pays the inputs' base value x the multiplier. Outcome and skin are rolled at
   GO, so a reload mid-spin ends the same way. It shares the locker's press: no trade-up or auto contract while it spins.
@@ -482,7 +482,8 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
   whose prices are Run 3's, so no Run 4 lever could reach its band: **`CATCH_UP_PER_VAULT` became a per-vault table**
   `[2.8, 2.8, 8, 2]` (Vault I, II, III, then The Last Case, which every replay repeats), read by `catchUpBoost(loops)`, and
   `VAULT_GROWTH` went 3.4 → 2.0 (the first tuning here used 2.05; the main branch settled on 2.0). Vaults I/II keep 2.8, so Runs 1–3 are bit-for-bit F4's. Run 4: catch-up 73 / 88, vault
-  314 / 351, 90 s rule 66 (max 67); replay 1 vault 222 / 272; replays 2–5 shrink to ~2.2–2.6 min. **The spec's replay band
+  314 / 351, 90 s rule 66 (max 67); replay 1 vault 221 / 272; CASUAL replays 2–5 take 197 / 152 / 147 / 126 s and settle
+  near 95–110 s by replay 8 (worst-seed ratios across replays 1–15: 63–71, all <= 90). **The spec's replay band
   applies to the first replay only** (ruling): later replays are a post-credits victory lap and may be faster, but the 90 s
   rule must hold for at least 15 replays. The Upgrader's EV stays <= 1 (Loaded Dice x1.1; no Money-Printer tripling of
   Upgrader wins). Thin margins: GREEDY Run 4 vault 314/360 (one seed 354), CASUAL replay 1 272/240
@@ -513,7 +514,7 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
   "RUN 4 AGAIN, BOOSTED" (`prestigeTitle`, `trophyLine`); F6-A's interim "VAULT IV OPENED" and the stale "RUN 4: IN A LATER
   UPDATE" are gone. THE END is plain gold text: `cc-title`'s shadow shows through `cc-gold`'s clipped gradient.
 - **`fx/World.ts` did not grow:** `syncVault`/`restoreVault` moved to `fx/vault/vaultSync.ts` (540 → 535 lines with the
-  finale and the credits' music wired).
+  finale and the credits' music wired; 532 after F6-B's review fixes folded the destroy calls).
 - **Browser pass (F6-C Task 6)**, headless Chrome on the Intel UHD over CDP, the scratch harness, screenshots in
   `.superpowers/harness/shots/f6c/`. Vault III → "NEXT: RUN 4" with its brings and no later-update line. Run 4: The Last Case
   on the shelf and as the HUD goal at 450T; an Upgrader spin (a win) settled when the vault was bought; the intro's reels
@@ -525,6 +526,41 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
   ms at the time (other agents' browsers shared the GPU; the same table read 6 ms earlier). So The Last Case costs no more
   than Vault III; the 20 ms budget still needs a check on an idle machine. Only the known PixiJS resize warnings in the
   console.
+
+### F6-B on screen (2026-10-13, branch `f6b-screen`, merged 9f6ce67; fixes d2fab8e)
+
+Plan `-f6b-run4-screen.md`. Everything here is looks; the sim rules are above.
+
+- **The six finishes** (`fx/skins/patternsRun4.ts`): datamosh, scanline tear and RGB split for Glitch; melting,
+  kaleidoscope and hue-cycling for Fever Dream. Glitch skins animate at fps 6, so they jump at most 3 times a second (a
+  test pins it). `patternsLate.test`'s "own motion moves within 1/16" check runs over the older kinds only, because the
+  glitch kinds hold a quarter loop by design. Kaleido reads as a small tiled lattice at scales 4-6.
+- **Slot Machine:** five slot columns in the reel row and a gold frame (`slotRects`). The landscape reel window is about 84
+  px wide, so the gaps close to 1 px and each column is 16 px (`SLOT_MIN_W`), showing the middle of a card going by like
+  a drum; portrait gets 24 px or more. The skins are hard to identify while it spins.
+- **Assembly Line:** a belt feeding the bench, with a case riding in.
+- **Cartel:** shades and a chain that follow the bot art's eye points per frame (`Actor.eyesNow()`, `BotSprite.eyes()`),
+  so they track every pose and bob; the layer sits right over the bot sprite.
+- **Money Printer:** green bills beside the coin stream. Not for Upgrader wins (`Drop.upgraded`), matching the sim.
+- **Hot Hand:** five pooled pixel-flame sprites on the pointer (`FlameTrail`), cleared on pointer-leave and touch
+  end/cancel (`onPointerGone` in `drag.ts`). **Ruling:** under prefers-reduced-motion the flames stay visible but still,
+  like the combo meter's CSS flames. The combo meter's flames sit behind its outlined text; the flame at the pointer is
+  small, so the meter carries most of the look.
+- **The Upgrader's dial** on the locker: the needle's angle comes from the roll, and snaps to its landed angle on
+  `upgraderDone` (the sim ends the spin before any frame shows its end). A win fades the dial in over 0.15 s
+  (`dialAlpha`, `DIAL_WIN_FADE_SECONDS`) so the popped card shows; a loss shreds the stack (`upgrader-shred`, a dimmed red
+  SHREDDED); tick sounds are at most 20 a second. A reload mid-spin continues the same roll and replays no press sound; a
+  reload after the end shows no dial.
+- **Stage 5** (`StageLook`): warp, gold rain (cap 48), glitch bursts and a strobe, all through the flash gate
+  (`HdLayer.takeFlash()`). The strobe strength is 0.09 (the test asserts < 0.1). StageLook appends its filters to the
+  target, so the Finale's tear stays last, and has `destroy()`. At stage 5 the gate granted 8 in 10 s, at most 2 in any
+  second.
+- **Frame time.** Headless Chrome on the Intel UHD (ANGLE D3D11), 1920x1080, production build, Run 4 with everything bought
+  and the heat held at stage 5: p50 12.0-12.1, **p95 18.1-18.3**, p99 24-30 ms across six 10 s windows. The layers cost
+  almost nothing (p95 18.3-18.5 on, 18.2-18.4 off). The dev server read p95 36-60 under load from other agents.
+  **Headed measurement: pending F9's browser pass (result to be filled in by the controller).**
+- **Not checked in a browser:** a Covert/★ reveal of each new finish, case boxes opening frame by frame, the RU dial text
+  on screen (unit-tested), the RU shelf names, 1024x768.
 
 ## F8 — Solana (2026-10-13)
 
