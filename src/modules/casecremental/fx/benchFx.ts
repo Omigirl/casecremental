@@ -4,6 +4,7 @@ import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
 import type { Bench as BenchState } from "../sim/run";
 import type { Drop, SkinDef } from "../sim/types";
 import { KnifeFlight } from "./hd/knifeFlight";
+import { bigReveal } from "./juice/bigReveal";
 import type { Juice } from "./juice/juice";
 import type { Bench } from "./pixel/Bench";
 import { bestSlot, knifeSlot } from "./pixel/BenchCards";
@@ -62,7 +63,7 @@ export class BenchFx {
 
   /** The reels land and the cards come up. */
   revealed(drops: readonly Drop[]): void {
-    const { hd, audio, shake, zoom, time } = this.juice;
+    const { hd, audio, shake } = this.juice;
     shake.add(0.12); // the reel lands
     audio.play("reel-stop", { gain: 0.6 });
     const v = this.scale() / 6; // spark speeds were tuned at scale 6 (1080p)
@@ -78,26 +79,7 @@ export class BenchFx {
       const b = cardBurst(d.rarity, this.scale());
       hd.particles.burst(this.at(i), RARITY_INFO[d.rarity].color, b.count, b.speed);
     });
-    switch (best.rarity) {
-      case "classified":
-        shake.add(0.2);
-        break;
-      case "covert":
-        time.hitStop(0.08);
-        zoom.punch(1.1, 0.15);
-        shake.add(0.55);
-        audio.play("covert-impact");
-        audio.duck(1.2);
-        break;
-      case "gold":
-        time.slowMo(0.2, 2.2, 0.7);
-        zoom.punch(1.3, 1.8);
-        shake.add(0.8);
-        hd.flash(0xffd700, 0.7);
-        audio.play("jackpot-swell");
-        audio.duck(2.6, 0.2);
-        break;
-    }
+    bigReveal(this.juice, best.rarity, true);
   }
 
   /** Redraw the cards still waiting after a reload (no juice). */

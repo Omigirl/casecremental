@@ -3,6 +3,7 @@ import { Container, Sprite, Text, type Texture } from "pixi.js";
 import { moneyStyle } from "../hd/font";
 import { floatAway, pop } from "../hd/tween";
 import type { Pt } from "../pixel/layout";
+import { SpritePool } from "./spritePool";
 
 // Money you can see: spinning pixel coins arc from the sold skin to the cash counter, and the
 // amount pops and floats up in gold. Lives in the HD layer (screen px); coins are drawn at the
@@ -24,8 +25,11 @@ export class Coins {
   private readonly texts = new Set<Text>();
   private pixelScale = 1;
   private textSize = 16;
+  private readonly pool: SpritePool;
 
-  constructor(private readonly frames: readonly Texture[]) {}
+  constructor(private readonly frames: readonly Texture[]) {
+    this.pool = new SpritePool(frames[0]!);
+  }
 
   setScale(pixelScale: number, textSize: number): void {
     this.pixelScale = pixelScale;
@@ -36,13 +40,8 @@ export class Coins {
     const k = this.pixelScale;
     const n = Math.min(24, Math.max(1, Math.round(Math.log10(amount + 1) * 4)));
     for (let i = 0; i < n; i++) {
-      const s = new Sprite(this.frames[0]);
-      s.anchor.set(0.5);
-      s.scale.set(k);
-      s.visible = false;
-      this.container.addChild(s);
       this.flights.push({
-        s,
+        s: this.take(),
         from: { x: from.x + (Math.random() - 0.5) * 10 * k, y: from.y + (Math.random() - 0.5) * 10 * k },
         ctrl: { x: (from.x + to.x) / 2 + (Math.random() - 0.5) * 40 * k, y: Math.min(from.y, to.y) - (8 + Math.random() * 30) * k },
         to,
@@ -51,6 +50,20 @@ export class Coins {
         age: 0,
       });
     }
+  }
+
+  /** One coin from `from` to `to` (a machine's sale — cheap enough for ten a second). */
+  spark(from: Pt, to: Pt): void {
+    const k = this.pixelScale;
+    this.flights.push({
+      s: this.take(),
+      from,
+      ctrl: { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 12 * k },
+      to,
+      delay: 0,
+      dur: 0.5,
+      age: 0,
+    });
   }
 
   floatText(at: Pt, text: string): void {
@@ -72,7 +85,7 @@ export class Coins {
       const t = (f.age - f.delay) / f.dur;
       if (t < 0) return true;
       if (t >= 1) {
-        f.s.destroy();
+        this.pool.release(f.s);
         return false;
       }
       const u = 1 - t;
@@ -91,6 +104,17 @@ export class Coins {
       gsap.killTweensOf(t.scale);
     }
     this.texts.clear();
+    for (const f of this.flights) this.pool.release(f.s);
     this.flights = [];
+    this.pool.destroy();
+  }
+
+  private take(): Sprite {
+    const s = this.pool.take();
+    s.anchor.set(0.5);
+    s.scale.set(this.pixelScale);
+    s.visible = false;
+    this.container.addChild(s);
+    return s;
   }
 }

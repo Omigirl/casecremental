@@ -5,6 +5,7 @@ import type { Pt, TableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { PixelViewport } from "../pixel/viewport";
 import { binLight, lampFlicker, makeMotes, stepMotes, type Box, type Mote } from "./ambience";
+import { FlashGate } from "./flashGate";
 import { pixelStyle } from "./font";
 import type { LightLevels } from "../vault/lights";
 
@@ -37,6 +38,8 @@ export class HdLayer {
   readonly overlay = new Container();
   readonly particles: Particles;
   readonly coins: Coins;
+  /** The soft radial dot (glows, flashes). */
+  readonly glowTexture: Texture;
   private readonly textures: Texture[];
   private readonly lamp: Sprite;
   private readonly vignette: Sprite;
@@ -61,6 +64,7 @@ export class HdLayer {
   private asleep = true;
   private flashAlpha = 0;
   private sellerOn = false;
+  private readonly flashGate = new FlashGate();
 
   constructor(coinFrames: readonly Texture[]) {
     const cone = canvasTexture(256, 256, (g) => {
@@ -80,6 +84,7 @@ export class HdLayer {
       [0, "rgba(255,255,255,1)"],
       [1, "rgba(255,255,255,0)"],
     ]);
+    this.glowTexture = soft;
     const dot = radial(16, [
       [0, "rgba(255,255,255,1)"],
       [0.5, "rgba(255,255,255,0.6)"],
@@ -151,8 +156,9 @@ export class HdLayer {
     this.glowTarget = color === null ? 0 : 0.85;
   }
 
-  /** A full-screen flash that fades out (★ drops, stage-ups). */
+  /** A full-screen flash that fades out (★ drops, stage-ups, power-ons). Refused past three a second (photosensitivity). */
   flash(color: number, strength = 0.8): void {
+    if (!this.flashGate.take(this.t)) return;
     this.flashRect.tint = color;
     this.flashAlpha = Math.max(this.flashAlpha, strength);
   }
