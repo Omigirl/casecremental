@@ -3,6 +3,7 @@ import type { SkinDef, WeaponId } from "../../sim/types";
 import { motionFps, renderSkinFrames } from "./motion";
 import { renderPattern } from "./patterns";
 import { SILHOUETTE_BOX, SILHOUETTES } from "./silhouettes";
+import { shrinkImage } from "./thumb";
 
 // A skin in the pixel world (spec §5): the weapon's greyscale base sprite shades the skin's
 // procedural pattern; outline pixels stay as drawn. Falls back to the old polygon silhouettes
@@ -109,6 +110,10 @@ const canvasTexture: ToTexture = (img) => {
 /** Every skin's frames, baked once: a still skin is one texture (today's exact pixels), a moving one its loop. */
 export class SkinTextures {
   private readonly cache = new Map<string, Texture[]>();
+  /** Each skin's still frame (its loop's first), kept for its size and for shrinking. */
+  private readonly stills = new Map<string, PixelImage>();
+  /** Shrunk still frames, by `${id}@${w}x${h}`. */
+  private readonly thumbs = new Map<string, Texture>();
   constructor(
     private readonly bases: Map<WeaponId, PixelImage>,
     private readonly toTexture: ToTexture = canvasTexture,
@@ -123,6 +128,7 @@ export class SkinTextures {
       const base = this.bases.get(skin.weapon) ?? fallbackBase(skin.weapon);
       images = [{ w: base.w, h: base.h, data: tintWeapon(base, renderPattern(skin.pattern, base.w, base.h)) }];
     }
+    this.stills.set(skin.id, images[0]!);
     const frames = images.map(this.toTexture);
     this.cache.set(skin.id, frames);
     return frames;
@@ -132,6 +138,26 @@ export class SkinTextures {
     return this.frames(skin)[0]!;
   }
 
+  /** The still frame's size in px (26×10 for a still skin; a moving one's loop can be bigger). */
+  size(skin: SkinDef): { w: number; h: number } {
+    this.frames(skin);
+    const s = this.stills.get(skin.id)!;
+    return { w: s.w, h: s.h };
+  }
+
+  /** The still frame shrunk to w×h (thumb.ts), baked once per size; the full texture when it already fits. */
+  thumb(skin: SkinDef, w: number, h: number): Texture {
+    const s = this.size(skin);
+    if (w >= s.w && h >= s.h) return this.texture(skin);
+    const key = `${skin.id}@${w}x${h}`;
+    let tex = this.thumbs.get(key);
+    if (!tex) {
+      tex = this.toTexture(shrinkImage(this.stills.get(skin.id)!, w, h));
+      this.thumbs.set(key, tex);
+    }
+    return tex;
+  }
+
   fps(skin: SkinDef): number {
     return motionFps(skin);
   }
@@ -139,5 +165,8 @@ export class SkinTextures {
   destroy(): void {
     for (const frames of this.cache.values()) for (const t of frames) t.destroy(true);
     this.cache.clear();
+    for (const t of this.thumbs.values()) t.destroy(true);
+    this.thumbs.clear();
+    this.stills.clear();
   }
 }
