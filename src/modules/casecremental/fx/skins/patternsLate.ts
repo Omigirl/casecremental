@@ -1,6 +1,6 @@
 import type { PatternKind, PatternMotion } from "../../sim/types";
 import { fbm, hash2 } from "./noise";
-import { at, clamp01, cycle, fract, mix, ramp, smoothstep, type PatternPoint, type Rgb } from "./paint";
+import { at, clamp01, cycle, fract, mix, ramp, smoothstep, spread, tail, type PatternPoint, type Rgb } from "./paint";
 
 // Thirteen finishes for cases 4-7 (spec: M3 §3): Mainframe (circuit, hex, carbon), Neon Nights (synthgrid,
 // neonline, hueflow), Deep Space (starfield, nebula, aurora, iridescent), Inferno (flame, ember, molten).
@@ -16,6 +16,7 @@ export const OWN_MOTION: Partial<Record<PatternKind, PatternMotion>> = {
   hex: "pulse",
   synthgrid: "flow",
   hueflow: "flow",
+  aurora: "flow",
 };
 
 const TAU = Math.PI * 2;
@@ -171,4 +172,76 @@ export function hueflow(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
   const qy = fbm(ax + 5.2, ay + 1.3, p.seed, 3);
   const n = fbm(ax + 2.5 * qx, ay + 2.5 * qy, p.seed + 9, 4);
   return cycle(pal, n * 2.2 + p.u * 0.6 - t);
+}
+
+// ── Deep Space ──────────────────────────────────────────────────────────────────────────────────
+
+/** A star in the cell of size `cell` (texture-height units) around (X, Y), present with probability
+ *  `chance`: 2 = its core, 1 = a spike of its cross (when `cross`), 0 = none. */
+function star(X: number, Y: number, cell: number, chance: number, r: number, seed: number, cross: boolean): number {
+  const i = Math.floor(X / cell);
+  const j = Math.floor(Y / cell);
+  if (hash2(i, j, seed) >= chance) return 0;
+  const sx = (i + 0.25 + 0.5 * hash2(i, j, seed + 1)) * cell;
+  const sy = (j + 0.25 + 0.5 * hash2(i, j, seed + 2)) * cell;
+  const dx = Math.abs(X - sx);
+  const dy = Math.abs(Y - sy);
+  if (dx < r && dy < r) return 2;
+  if (cross && ((dx < r * 0.6 && dy < r * 3) || (dy < r * 0.6 && dx < r * 3))) return 1;
+  return 0;
+}
+
+/** Three depths of stars over a faint dust lane: far ones dim and dense, near ones bright with a cross.
+ *  Roles: 0 space, 1 dust, 2 far star, second-to-last = mid star, last = near star. */
+export function starfield(pal: readonly Rgb[], p: PatternPoint): Rgb {
+  const X = p.u * 2.5;
+  const k = 4 / Math.max(1, p.scale);
+  if (star(X, p.v, 0.42 * k, 0.45, 0.05, p.seed + 10, true)) return hot(pal);
+  if (star(X, p.v, 0.22 * k, 0.4, 0.045, p.seed + 20, false)) return at(pal, pal.length - 2);
+  if (star(X, p.v, 0.13 * k, 0.35, 0.04, p.seed + 30, false)) return at(pal, 2);
+  const lane = smoothstep(0.45, 0.75, fbm(X * 2.2, p.v * 2.2 + X * 0.6, p.seed, 4));
+  return mix(at(pal, 0), at(pal, 1), 0.75 * lane);
+}
+
+/** Gas clouds: twice domain-warped noise through the palette's dark-to-bright ramp, stars only where the gas
+ *  is thin. Roles: 0 .. second-to-last = gas (thin to dense), last = stars. */
+export function nebula(pal: readonly Rgb[], p: PatternPoint): Rgb {
+  const ax = p.x * 0.4;
+  const ay = p.y * 0.4;
+  const wx = fbm(ax, ay, p.seed + 3, 3);
+  const wy = fbm(ax + 7.1, ay + 2.3, p.seed + 3, 3);
+  const d = spread(fbm(ax + 3 * wx, ay + 3 * wy, p.seed, 5));
+  if (d < 0.4 && star(p.u * 2.5, p.v, 0.16, 0.25, 0.045, p.seed + 40, false)) return hot(pal);
+  return ramp(pal.slice(0, Math.max(1, pal.length - 1)), d ** 1.2);
+}
+
+/** Northern lights: curtains of fine vertical rays hanging from a wavy lower edge (sharp at the bottom,
+ *  fading upward), a fainter curtain higher up, as a dark-to-bright ramp. Flow: the curtains sway and the
+ *  rays drift once round a small circle per loop. */
+export function aurora(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
+  const X = p.u * 2.5;
+  const c = 0.35 * Math.cos(TAU * t);
+  const s = 0.35 * Math.sin(TAU * t);
+  const k = Math.max(1, p.scale) / 4;
+  let I = 0;
+  for (let layer = 0; layer < 2; layer++) {
+    const seed = p.seed + 50 * layer;
+    const edge = 0.7 - 0.28 * layer + 0.3 * (fbm(X * 1.1 * k + c, 3 + s, seed, 3) - 0.5) + 0.07 * Math.sin(X * 3 * k + seed);
+    const rays = 0.45 + 0.55 * fbm(X * 10 * k + 2 * c, p.v * 0.8 + s, seed + 7, 3);
+    const below = p.v - edge;
+    const profile = below > 0 ? Math.exp(-below * 28) : Math.exp(below * 3.5);
+    I = Math.max(I, profile * rays * (layer ? 0.6 : 1.1));
+  }
+  return ramp(pal, clamp01(I));
+}
+
+/** Oil slick: swirled film thickness turned into thin interference bands that cycle through the bright
+ *  colours, broken by pools of bare dark metal. Roles: 0 metal, 1 .. last = the film's band colours. */
+export function iridescent(pal: readonly Rgb[], p: PatternPoint): Rgb {
+  const ax = p.x * 0.3;
+  const ay = p.y * 0.3;
+  const n = fbm(ax, ay, p.seed, 4);
+  const w = fbm(ax + 4 * n, ay + 4 * n, p.seed + 17, 4);
+  if (w < 0.4) return at(pal, 0);
+  return cycle(tail(pal, 1), (w - 0.4) * 3.5 + p.v * 0.6);
 }

@@ -5,7 +5,7 @@ import { hexToRgb, OWN_MOTION, patternColor, renderPattern, type Rgb } from "./p
 // The finishes of cases 4–7 (spec: M3 §3). Every kind is checked for the same contract as cases 1–3 plus
 // what makes it richer; the kind-specific tests sit below.
 
-const LATE: PatternKind[] = ["circuit", "hex", "carbon", "synthgrid", "neonline", "hueflow"];
+const LATE: PatternKind[] = ["circuit", "hex", "carbon", "synthgrid", "neonline", "hueflow", "starfield", "nebula", "aurora", "iridescent"];
 /** Five unrelated hues, darkest first: a blend of two of them can't pass for a third by accident. */
 const PALETTE = ["#05040a", "#2a1450", "#d02870", "#30c8f0", "#fff4c0"];
 const RGB = PALETTE.map(hexToRgb);
@@ -161,5 +161,28 @@ describe("Neon Nights", () => {
   it("hueflow goes all the way round the palette", () => {
     const px = [7, 8, 9].flatMap((seed) => pixels("hueflow", undefined, seed));
     for (let i = 0; i < RGB.length; i++) expect(share(px, [i]), `colour ${i}`).toBeGreaterThan(0.02);
+  });
+});
+
+describe("Deep Space", () => {
+  it.each<PatternKind>(["starfield", "nebula"])("%s: the brightest colour is stars - specks, not a fill", (kind) => {
+    for (const seed of [7, 8, 9]) {
+      const stars = pixels(kind, undefined, seed).filter(([, , c]) => same(c, RGB[4]!)).length / 2048;
+      expect(stars).toBeGreaterThan(0);
+      expect(stars).toBeLessThan(0.15);
+    }
+  });
+
+  it("aurora: curtains hang from a bright lower edge over a dark bottom", () => {
+    for (const seed of [7, 8, 9]) {
+      const px = pixels("aurora", undefined, seed);
+      expect(Math.max(band(px, 0.4, 0.6), band(px, 0.6, 0.8))).toBeGreaterThan(2 * band(px, 0.9, 1));
+    }
+  });
+
+  it("iridescent: pools of bare dark metal between film bands of every other colour", () => {
+    const px = [7, 8, 9].flatMap((seed) => pixels("iridescent", undefined, seed));
+    expect(px.filter(([, , c]) => same(c, RGB[0]!)).length).toBeGreaterThan(0);
+    for (let i = 1; i < RGB.length; i++) expect(share(px, [i]), `colour ${i}`).toBeGreaterThan(0.02);
   });
 });

@@ -22,7 +22,12 @@ export type PatternKind =
   // Neon Nights
   | "synthgrid"
   | "neonline"
-  | "hueflow";
+  | "hueflow"
+  // Deep Space
+  | "starfield"
+  | "nebula"
+  | "aurora"
+  | "iridescent";
 
 /** A moving finish (spec: animated skins §4; `rise`: M3 spec §3). */
 export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise";
