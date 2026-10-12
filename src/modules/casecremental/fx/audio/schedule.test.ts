@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { barSeconds, comboPitch, crossfade, jitter, musicFor, nextBar, pickVariant } from "./schedule";
+import {
+  barSeconds,
+  comboPitch,
+  crossfade,
+  FINALE_RUN,
+  jitter,
+  LOOP_PLAYS,
+  musicFor,
+  nextBar,
+  nextReady,
+  pickVariant,
+  playlistFor,
+  swapTime,
+} from "./schedule";
 
 describe("mixer schedule", () => {
   it("never repeats a variant back to back", () => {
@@ -47,5 +60,33 @@ describe("mixer schedule", () => {
     expect(musicFor(1, [1, 2])).toBe(1);
     expect(musicFor(4, [1, 2])).toBe(2);
     expect(musicFor(1, [])).toBeNull();
+  });
+});
+
+describe("stage playlists (finish spec §6)", () => {
+  it("plays a stage's own loops, plus Run 4's finale in stage 5 from Run 4 on", () => {
+    expect(playlistFor(["a", "b", "c"], 5, 3, "f")).toEqual(["a", "b", "c"]);
+    expect(playlistFor(["a", "b", "c"], 5, FINALE_RUN, "f")).toEqual(["a", "b", "c", "f"]);
+    expect(playlistFor(["a", "b", "c"], 5, FINALE_RUN + 1, "f")).toEqual(["a", "b", "c", "f"]);
+    expect(playlistFor(["a", "b", "c"], 4, FINALE_RUN, "f")).toEqual(["a", "b", "c"]);
+    expect(playlistFor(["a"], 5, FINALE_RUN, null)).toEqual(["a"]);
+  });
+
+  it("hands a loop over after it has played twice, on the bar line nearest that end", () => {
+    expect(LOOP_PLAYS).toBe(2);
+    expect(swapTime(0, 32)).toBe(64);
+    expect(swapTime(3, 32)).toBe(67); // on the grid the loop started on
+    expect(swapTime(0, 32.04)).toBe(64); // an mp3 a few ms long stays on its grid
+    expect(swapTime(0, 31.97)).toBe(64);
+    expect(swapTime(0, 10)).toBe(20);
+    expect(swapTime(5, 0.2)).toBe(7); // at least one bar
+  });
+
+  it("skips loops that are not ready, wrapping, and gives up when none is", () => {
+    expect(nextReady(1, 3, (i) => i !== 1)).toBe(2);
+    expect(nextReady(2, 3, (i) => i === 0)).toBe(0);
+    expect(nextReady(0, 3, () => false)).toBeNull();
+    expect(nextReady(4, 3, () => true)).toBe(1); // a cursor past a shorter playlist wraps
+    expect(nextReady(0, 0, () => true)).toBeNull();
   });
 });

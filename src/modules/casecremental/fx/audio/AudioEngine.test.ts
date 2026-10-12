@@ -413,3 +413,150 @@ describe("AudioEngine.onReady", () => {
     expect(TRACK_GAIN["vault-intro"]).toBe(1.4);
   });
 });
+
+const PLAYLISTS = {
+  "/a/music-1.mp3": "m1",
+  "/a/music-3.mp3": "m3",
+  "/a/music-3-2.mp3": "m3b",
+  "/a/music-3-3.mp3": "m3c",
+  "/a/music-4.mp3": "m4",
+  "/a/music-5.mp3": "m5",
+  "/a/music-5-2.mp3": "m5b",
+  "/a/music-5-3.mp3": "m5c",
+  "/a/music-finale.mp3": "fin",
+  "/a/prestige.mp3": "pres",
+};
+
+/** An engine playing `stage`, with a settable clock; `loops()` lists the stage loops started as [url, when]. */
+async function playing(stage: number, fail: (url: string) => boolean = () => false) {
+  const f = fakeContext("running", fail);
+  const a = new AudioEngine(PLAYLISTS, deps(f.ctx));
+  a.setMusicOn(true);
+  a.setStage(stage);
+  a.unlock();
+  await a.ready;
+  const at = (t: number) => void ((f.ctx as unknown as { currentTime: number }).currentTime = t);
+  const loops = () => f.started.filter((s) => s.loop && s.url !== "pres").map((s) => [s.url, s.when] as const);
+  return { ...f, a, at, loops };
+}
+
+describe("AudioEngine stage playlists (finish spec §6)", () => {
+  it("plays a stage's loops in turn, each twice, from its first, swapped on the bar line where its second play ends", async () => {
+    const { a, at, loops } = await playing(3);
+    expect(loops()).toEqual([["m3", 0]]); // a fresh engine (a reload) starts at the first loop
+    at(19);
+    a.tick(1);
+    expect(loops()).toHaveLength(1); // not yet: more than SWAP_LEAD before the swap
+    at(19.9);
+    a.tick(1);
+    a.tick(1); // asked again on the next frame: already scheduled
+    expect(loops()).toEqual([
+      ["m3", 0],
+      ["m3b", 20],
+    ]);
+    at(39.9);
+    a.tick(1);
+    at(59.9);
+    a.tick(1);
+    expect(loops()).toEqual([
+      ["m3", 0],
+      ["m3b", 20],
+      ["m3c", 40],
+      ["m3", 60],
+    ]);
+  });
+
+  it("crossfades over one bar: the outgoing loop stops just after the fade", async () => {
+    const { a, at, stops } = await playing(3);
+    at(19.9);
+    a.tick(1);
+    expect(stops).toContainEqual({ url: "m3", when: 20 + 2 + 0.05 });
+  });
+
+  it("a stage with one loop just keeps looping", async () => {
+    const { a, at, loops } = await playing(1);
+    for (const t of [19.9, 39.9]) {
+      at(t);
+      a.tick(1);
+    }
+    expect(loops()).toEqual([["m1", 0]]);
+  });
+
+  it("stage 5 takes the finale only in Run 4, after its own loops", async () => {
+    const r3 = await playing(5);
+    for (const t of [19.9, 39.9, 59.9]) {
+      r3.at(t);
+      r3.a.tick(3);
+    }
+    expect(r3.loops().map(([u]) => u)).toEqual(["m5", "m5b", "m5c", "m5"]);
+    const r4 = await playing(5);
+    for (const t of [19.9, 39.9, 59.9, 79.9]) {
+      r4.at(t);
+      r4.a.tick(4);
+    }
+    expect(r4.loops().map(([u]) => u)).toEqual(["m5", "m5b", "m5c", "fin", "m5"]);
+  });
+
+  it("a stage change swaps on the next bar line, and coming back brings that stage's next loop", async () => {
+    const { a, at, loops } = await playing(3);
+    at(5.3);
+    a.setStage(4);
+    expect(loops().at(-1)).toEqual(["m4", 6]);
+    at(9);
+    a.setStage(3);
+    expect(loops().at(-1)).toEqual(["m3b", 10]);
+  });
+
+  it("a stage change in the moment before a swap cancels it: the new stage takes that bar line", async () => {
+    const { a, at, loops, stops } = await playing(3);
+    at(19.9);
+    a.tick(1); // m3b is scheduled at 20
+    a.setStage(4);
+    expect(loops().at(-1)).toEqual(["m4", 20]);
+    expect(stops).toContainEqual({ url: "m3b", when: undefined }); // stopped before it ever plays
+    at(21);
+    a.setStage(3);
+    expect(loops().at(-1)).toEqual(["m3b", 22]); // it comes first when stage 3 is back
+  });
+
+  it("a late frame (a hidden tab) swaps on the next bar line from now, never in the past", async () => {
+    const { a, at, loops } = await playing(3);
+    at(25.3);
+    a.tick(1);
+    expect(loops().at(-1)).toEqual(["m3b", 26]);
+  });
+
+  it("a vault track pauses the playlist; handing back starts the stage's next loop", async () => {
+    const { a, at, loops } = await playing(3);
+    a.setTrack("prestige");
+    at(19.9);
+    a.tick(1);
+    expect(loops()).toEqual([["m3", 0]]);
+    a.setTrack(null);
+    expect(loops().at(-1)).toEqual(["m3b", 19.9]);
+  });
+
+  it("a loop that fails to decode is skipped", async () => {
+    const { a, at, loops } = await playing(3, (url) => url === "m3b");
+    at(19.9);
+    a.tick(1);
+    expect(loops().at(-1)).toEqual(["m3c", 20]);
+  });
+
+  it("the sound board can hold one loop (the finale included) until the game asks for a stage, and skip to the next", async () => {
+    const { a, at, loops } = await playing(3);
+    expect(a.loopCount(5)).toBe(4); // three loops and the finale
+    expect(a.loopCount(2)).toBe(0);
+    at(3.1);
+    a.auditionLoop(5, 3);
+    expect(loops().at(-1)).toEqual(["fin", 4]);
+    at(23.9);
+    a.tick(1);
+    expect(loops().at(-1)).toEqual(["fin", 4]); // held: no swap
+    a.setStage(3);
+    expect(loops().at(-1)![0]).toBe("m3b");
+    at(31.1);
+    a.skipLoop();
+    expect(loops().at(-1)![0]).toBe("m3c");
+  });
+});

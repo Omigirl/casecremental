@@ -252,6 +252,7 @@ export class World {
     this.bench.update(gameMs, b);
     const bot = run.state.bot;
     this.stations.update(realSeconds, gameMs, run.state);
+    this.audio.tick(run.setup.run); // the stage playlist's clock, and the run (Run 4's finale in stage 5)
     this.room.setBotOnline(bot.awake);
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
