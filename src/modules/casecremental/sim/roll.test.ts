@@ -44,9 +44,13 @@ describe("rollDrop", () => {
     SLOW,
   );
 
-  it("drops more coverts with luck", () => {
-    expect(histogram(10, 100_000).covert).toBeGreaterThan(histogram(0, 100_000).covert * 1.5);
-  });
+  it(
+    "drops more coverts with luck",
+    () => {
+      expect(histogram(10, 100_000).covert).toBeGreaterThan(histogram(0, 100_000).covert * 1.5);
+    },
+    SLOW,
+  );
 
   it("returns a skin of the rolled rarity from that case, with consistent value", () => {
     const rng = createRng(5);
