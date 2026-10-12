@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CASES } from "../../sim/content/cases";
-import type { PatternMotion, SkinDef, SkinMotion, WeaponMotion } from "../../sim/types";
-import { frameAt, frameSize, motionFrames, renderSkinFrame, renderSkinFrames, SKIN_H, SKIN_W } from "./motion";
+import type { PatternKind, PatternMotion, PatternSpec, SkinDef, SkinMotion, WeaponMotion } from "../../sim/types";
+import { finishAt, frameAt, frameSize, motionFrames, renderSkinFrame, renderSkinFrames, SKIN_H, SKIN_W } from "./motion";
+import { hexToRgb, OWN_MOTION, patternColor } from "./patterns";
 import type { PixelImage } from "./pixelSkin";
 
 const rifle = CASES[0]!.skins.find((s) => s.weapon === "rifle")!;
@@ -42,7 +43,7 @@ describe("renderSkinFrames", () => {
     }
   });
 
-  it.each<PatternMotion>(["flow", "shimmer", "pulse", "sparkle"])("%s moves the finish but never the outline", (kind) => {
+  it.each<PatternMotion>(["flow", "shimmer", "pulse", "sparkle", "rise"])("%s moves the finish but never the outline", (kind) => {
     const frames = renderSkinFrames(moving({ pattern: kind }));
     expect(frames.some((f) => !same(f, frames[0]!))).toBe(true);
     for (let i = 0; i < frames[0]!.data.length; i += 4) {
@@ -67,6 +68,7 @@ describe("renderSkinFrames", () => {
       { pattern: "shimmer" },
       { pattern: "pulse" },
       { pattern: "sparkle" },
+      { pattern: "rise" },
       { weapon: "bob" },
       { weapon: "recoil" },
       { weapon: "bolt" },
@@ -92,5 +94,22 @@ describe("renderSkinFrames", () => {
     const plain = renderSkinFrames(moving({ weapon: "flip" }, knifeSkin));
     const caught = lit.filter((f, n) => !same(f, plain[n]!)).length;
     expect(caught).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("finishes that draw their own motion", () => {
+  const PAL = ["#05040a", "#2a1450", "#d02870", "#30c8f0", "#fff4c0"];
+  const RGB = PAL.map(hexToRgb);
+  const spec = (kind: PatternKind): PatternSpec => ({ kind, palette: PAL, scale: 4, seed: 7 });
+  const points = [0.1, 0.35, 0.6, 0.85].flatMap((u) => [0.2, 0.5, 0.8].map((v) => [u, v] as const));
+
+  it("a finish without its own rise drifts instead, so its loop never pops", () => {
+    for (const t of [0, 0.3, 0.7])
+      for (const [u, v] of points)
+        expect(finishAt(spec("camo"), RGB, "rise", u, v, t)).toEqual(finishAt(spec("camo"), RGB, "flow", u, v, t));
+  });
+
+  it("every skin that rises draws its own rise (content guard)", () => {
+    for (const c of CASES) for (const s of c.skins) if (s.motion?.pattern === "rise") expect(OWN_MOTION[s.pattern.kind], s.id).toBe("rise");
   });
 });

@@ -3,10 +3,12 @@
 export type RarityId = "milspec" | "restricted" | "classified" | "covert" | "gold";
 export type WearId = "FN" | "MW" | "FT" | "WW" | "BS";
 export type WeaponId = "rifle" | "sniper" | "pistol" | "heavyPistol" | "smg" | "shotgun" | "mg" | "knife";
-export type PatternKind = "camo" | "digital" | "tiger" | "leaves" | "bark" | "moss" | "marble" | "granite" | "crystal" | "lava";
+export type PatternKind =
+  // cases 1-3
+  "camo" | "digital" | "tiger" | "leaves" | "bark" | "moss" | "marble" | "granite" | "crystal" | "lava";
 
-/** A moving finish (spec: animated skins §4). */
-export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle";
+/** A moving finish (spec: animated skins §4; `rise`: M3 spec §3). */
+export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise";
 /** A moving weapon: the code-drawn silhouette is transformed before it is rasterised. */
 export type WeaponMotion = "bob" | "recoil" | "bolt" | "flip";
 
