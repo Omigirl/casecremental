@@ -110,3 +110,49 @@ Plan: docs/superpowers/plans/2026-10-12-casecremental-f2-autospin.md · spec §3
       (1065/882 px). Vault Case I's BUY sits below the fold while "Waits: vault" shows at the top, and scrolling to
       the vault hides that status. The phone drawer is the same: the vault row and the day job sit below the fold.
     - The bench hint is hidden whenever auto-spin is on, even in `broke`/`vault` (Task 6 review minor).
+
+## F5 — music for the late stages
+
+Stages 3-5 each play a three-loop playlist instead of one loop, Run 4's stage 5 adds a finale loop, and a credits track
+waits for F6-C. Spec §6; plan `docs/superpowers/plans/2026-10-12-casecremental-f5-music.md`.
+
+- **The eight tracks.** Made with ElevenLabs `eleven_music_v2_5`, instrumental, one take each (generated outside the
+  plan; the credits spent are not recorded). The prompts and the ffmpeg recipes (gain, limiter, trim, fade) are in
+  `art/manifest.json`; the raw takes are in `art/source/audio/*-take-1.mp3`. No loop was built with the ffmpeg
+  fallback. Measured: every loop is exactly 32.000 s; means 3b/3c -13.6 dB (3's first loop -13.3), 4b/4c -13.1
+  (-12.8), 5b/5c/finale -15.1 (-14.8); the credits are 73.2 s at -16.2 (the prestige loop -16.1). Peaks -0.7 to
+  -3.4 dB. Never re-encode them in the repo (mp3 padding breaks the loop point).
+- **Naming.** `music-<stage>-<n>` (the first loop stays `music-<stage>`), `music-finale`, `credits`: `indexAudio`'s
+  variant convention builds the playlists from the file names, so adding a loop is dropping a file.
+- **Playlist rules.** A loop plays twice (64 s), then the next hands over on the bar line nearest its end with the
+  existing one-bar crossfade. Each stage keeps a cursor, so coming back to a stage brings its next loop, not the same
+  one. A stage change cancels a pending hand-over (the loop scheduled on the audio clock up to `SWAP_LEAD` early never
+  plays, and its stage hears it first next time). A hidden tab keeps the current loop looping (no frames, no `tick`);
+  the swap lands on the next bar line from the moment frames return. A loop that fails to decode is skipped, never
+  silence. Nothing is saved: a reload starts at the first loop. The finale is stage 5's last playlist entry from Run 4
+  on, never before.
+- **The seam.** `World.update` calls `audio.tick(run)` once a frame. That one call is both the clock and the run
+  number, so `fx/audio/` never imports the sim. The playlist code lives in `fx/audio/stageMusic.ts` (pure rules in
+  `schedule.ts`).
+- **`credits`** has `TRACK_GAIN` 1 and is played by F6-C with `setTrack("credits", { loop: false })` (a one-shot).
+- **Sound board** (dev): Music row Sober..Unhinged, Next loop (skip to hear a hand-over), Credits; Loops row 3·1 ..
+  5·3, 5·F audition one loop held. Closing it hands the music back to the game's stage.
+- **Checked by a machine:** the board's rows and buttons render and every button runs without console errors; all
+  eight files are served (200). The playlist timing is unit-tested. Nothing was heard (the tab is muted).
+- **Known by ear-less inspection, listen for them:** loop seams unchecked by ear; `music-3-2`'s last second is about
+  3 dB quieter; the credits are dynamically flat (no clear build and peak).
+- **Listening checklist (headphones, dev build, music and effects at default):**
+  1. Each loop on its own (Loops buttons): seamless at the 32 s seam (no click, gap or jump); A minor, 120 BPM, the
+     stage's instruments (Rhodes and round bass throughout; High funk-house, Tripping psychedelic synth-funk, Unhinged
+     big-room funk); 5·F a climax, not a different game.
+  2. Level: switch 3·1/3·2/3·3, 4·1/4·2/4·3, 5·1/5·2/5·3/5·F. None jumps out or drops away (matched within ~1 dB).
+  3. Hand-overs: play High, press Next loop a few times. Each new loop enters on a downbeat with a one-bar blend: no
+     flam, no tempo wobble, no key clash. Repeat for Tripping and Unhinged. Let one stage run ~2½ min untouched: loop 1
+     twice, loop 2 twice, then loop 3.
+  4. Stage changes in play: a change still lands on a bar line, and going back to a stage brings a loop you did not
+     just hear.
+  5. Credits: warm and triumphant in A major; builds, peaks mid-way, ends cleanly (no cut-off, no loop); level close
+     to the prestige loop's.
+  6. Vault hand-back: open a vault and play into the next run. The intro, fanfare and prestige play over silence, with
+     no stage loop bleeding through for a bar.
+- **Verdict:** not yet listened to by a human.

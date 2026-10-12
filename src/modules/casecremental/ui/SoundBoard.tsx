@@ -6,7 +6,8 @@ import type { RarityId } from "../sim/types";
 import { PxButton, UiEnvContext } from "./parts";
 
 // Dev builds only (Settings shows it when import.meta.env.DEV): every generated sound with one
-// button per variant, played exactly as generated, and the stage loops — for listening through
+// button per variant, played exactly as generated, and the stage loops (every loop of every playlist, the finale
+// and the credits, with a skip to hear each hand-over) — for listening through
 // the audio before re-rolling any of it — and a forced next drop, to see the big moments on
 // demand. English only; players never see it.
 
@@ -27,13 +28,21 @@ export function SoundBoard({
 }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const [armed, setArmed] = useState<RarityId | "fake" | null>(null);
+  const [credits, setCredits] = useState(false);
   const force = (r: RarityId | "fake") => {
     onForce(r);
     setArmed(r);
   };
   const close = () => {
+    if (credits) audio.setTrack(null); // the credits were the board's; hand the music back
     audio.setStage(stage); // back to the game's own loop
     onClose();
+  };
+  /** One loop of a stage's playlist, held (the credits stop first). */
+  const audition = (s: number, i: number) => {
+    if (credits) (audio.setTrack(null), setCredits(false));
+    audio.setMusicOn(true);
+    audio.auditionLoop(s, i);
   };
   return (
     <div className="cc-modal" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -55,7 +64,26 @@ export function SoundBoard({
           <span className="cc-tabs">
             <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(1))}>Sober</PxButton>
             <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(2))}>Buzzed</PxButton>
+            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(3))}>High</PxButton>
+            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(4))}>Tripping</PxButton>
+            <PxButton onClick={() => (audio.setMusicOn(true), audio.setStage(5))}>Unhinged</PxButton>
+            <PxButton onClick={() => audio.skipLoop()}>Next loop</PxButton>
+            <PxButton on={credits} onClick={() => (audio.setMusicOn(true), audio.setTrack("credits", { loop: false }), setCredits(true))}>
+              Credits
+            </PxButton>
             <PxButton onClick={() => audio.setMusicOn(false)}>Off</PxButton>
+          </span>
+        </div>
+        <div className="cc-row-line">
+          <span>Loops</span>
+          <span className="cc-tabs">
+            {[3, 4, 5].flatMap((s) =>
+              Array.from({ length: audio.loopCount(s) }, (_, i) => (
+                <PxButton key={`${s}-${i}`} onClick={() => audition(s, i)}>
+                  {s === 5 && i === audio.loopCount(5) - 1 ? "5·F" : `${s}·${i + 1}`}
+                </PxButton>
+              )),
+            )}
           </span>
         </div>
         <div className="cc-row-line">
