@@ -393,10 +393,11 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
 - **Run 4's pacing** (F6-A Task 8; medians of 5 seeds, seconds, GREEDY / CASUAL). Run 4's catch-up is "Inferno unlocked",
   whose prices are Run 3's, so no Run 4 lever could reach its band: **`CATCH_UP_PER_VAULT` became a per-vault table**
   `[2.8, 2.8, 8, 2]` (Vault I, II, III, then The Last Case, which every replay repeats), read by `catchUpBoost(loops)`, and
-  `VAULT_GROWTH` went 3.4 → 2.05. Vaults I/II keep 2.8, so Runs 1–3 are bit-for-bit F4's. Run 4: catch-up 73 / 88, vault
+  `VAULT_GROWTH` went 3.4 → 2.0 (the first tuning here used 2.05; the main branch settled on 2.0). Vaults I/II keep 2.8, so Runs 1–3 are bit-for-bit F4's. Run 4: catch-up 73 / 88, vault
   314 / 351, 90 s rule 66 (max 67); replay 1 vault 222 / 272; replays 2–5 shrink to ~2.2–2.6 min. **The spec's replay band
   applies to the first replay only** (ruling): later replays are a post-credits victory lap and may be faster, but the 90 s
-  rule must hold for at least 15 replays. Thin margins: GREEDY Run 4 vault 314/360 (one seed 354), CASUAL replay 1 272/240
+  rule must hold for at least 15 replays. The Upgrader's EV stays <= 1 (Loaded Dice x1.1; no Money-Printer tripling of
+  Upgrader wins). Thin margins: GREEDY Run 4 vault 314/360 (one seed 354), CASUAL replay 1 272/240
   (one seed 230).
 - **The art** (stream `f6-assets`): `case-glitch` and `case-feverdream` (4 frames, 23x31 / 22x31, from one 2-row grid
   take), `vault-case-4` (black glass, gold seams; 68x78, Vault I's geometry), `upgrader-shred` (take 2: take 1 had a sharp
@@ -428,7 +429,7 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
 - **Browser pass (F6-C Task 6)**, headless Chrome on the Intel UHD over CDP, the scratch harness, screenshots in
   `.superpowers/harness/shots/f6c/`. Vault III → "NEXT: RUN 4" with its brings and no later-update line. Run 4: The Last Case
   on the shelf and as the HUD goal at 450T; an Upgrader spin (a win) settled when the vault was bought; the intro's reels
-  under the lighter dim; the tear at impact +0.1 to +1.2 s; the five beams, ★ Singularity. The replay's vault costs x2.05
+  under the lighter dim; the tear at impact +0.1 to +1.2 s; the five beams, ★ Singularity. The replay's vault costs x2.0 (900T from 450T)
   and its credits came up 2.9 s after the run ended, with SKIP at +5.0 s. Reloads at intro 2.0 s (the reels resume),
   impact +0.5 s (the tear finishes) and 8 s into the credits (they start over, credits track) all held. Russian and
   portrait (390x844, 820x1180): every credits line on one line, nothing clipped, SKIP inside the screen. Frame times through
