@@ -33,7 +33,8 @@ export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: 
   wildwood: { price: 15, unlockCost: 30 },
   bedrock: { price: 150, unlockCost: 1200 },
   mainframe: { price: 1_500, unlockCost: 12_000 },
-  neon: { price: 15_000, unlockCost: 800_000 },
+  // unlock 2M (F2: Run 3's catch-up stays above 1 min with auto-spin)
+  neon: { price: 15_000, unlockCost: 2_000_000 },
   deepspace: { price: 150_000, unlockCost: 10_000_000 },
   inferno: { price: 1_500_000, unlockCost: 300_000_000 },
 };
@@ -177,7 +178,8 @@ export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
 /** Each run's vault price the first time it is reached; a replay of the last run multiplies it by VAULT_GROWTH. */
-export const VAULT_PRICES = [1_200_000, 2_000_000_000, 450_000_000_000] as const;
+// F2: raised with auto-spin (the greedy player's bench runs on the machine); F4 retunes for real players.
+export const VAULT_PRICES = [1_200_000, 2_400_000_000, 800_000_000_000] as const;
 /** A replay of the last run: its vault price grows this much per completed loop. Only a little above
  *  CATCH_UP_PER_VAULT: by Run 3 the upgrades are cheap and bought one click at a time, so a replay's ×3 sales
  *  barely speed it up, and a much steeper vault would make the replay slower than the run it replays. */

@@ -1,18 +1,20 @@
+import { autoSpinDelayCost } from "./autoSpin";
 import { sellerSpeedCost } from "./autoSeller";
 import { botSpeedCost, botWaiting } from "./botOpener";
 import { runCaseIds, runContent } from "./campaign";
 import { unlockCostOf } from "./content/cases";
 import { lockerSizeCost, lockerWaiting, tradeUpRarity } from "./locker";
 import { DEFAULT_SETUP, Run, type RunSetup } from "./run";
-import { AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
+import { AUTOSPIN_COST, AUTO_CONTRACT_COST, BOT_MULTI_COST, BOT_WAKE_COST, LAST_RUN, LOCKER_COST, SELLER_COST } from "./tuning";
 import { UPGRADE_IDS, upgradeCost } from "./upgrades";
 
 // A greedy player at human speed, used by the pacing test to check how fast a run unfolds. It claims tray
 // items as soon as it can, sells what lands on the bench, the bot's station and the locker, presses a trade-up
 // when one is ready, unlocks the next case as soon as it can afford it plus one case, then — each when it has
-// twice the price — wakes the bot, buys the auto-seller, the locker (Run 2+, collecting Mil-Specs), the bot's
+// twice the price — wakes the bot, buys the auto-seller, then auto-spin (switched on: from then on it
+// leaves the bench to the machine, picks each new case for it and shops whenever free), the locker (Run 2+, collecting Mil-Specs), the bot's
 // multi-open; it buys the cheapest remaining upgrade (bot and
-// seller Speed, locker size, the auto contract included) when it costs at most a quarter of
+// seller Speed, auto-spin's Delay, locker size, the auto contract included) when it costs at most a quarter of
 // its cash, takes the day job when broke, and buys the vault as soon as it can.
 
 export interface BotTimings {
@@ -31,6 +33,8 @@ export interface PacingReport {
   botAwakeAt?: number;
   /** When the auto-seller was bought. */
   sellerAt?: number;
+  /** When auto-spin was bought and switched on. */
+  autoSpinAt?: number;
   allUnlockedAt?: number;
   /** When the last case of run N's shelf was unlocked (runCasesAt[1] = Bedrock). */
   runCasesAt: Record<number, number>;
@@ -72,9 +76,11 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
     for (const e of run.drainEvents()) {
       if (e.type === "caseUnlocked") {
         report.caseUnlockedAt[e.caseId] ??= s.time;
+        run.setAutoSpinCase(e.caseId); // a player picks the new case for auto-spin
         if (run.vaultShown()) report.allUnlockedAt ??= s.time;
         for (let n = 1; n <= LAST_RUN; n++) if (runCaseIds(n).every((id) => s.unlocked.includes(id))) report.runCasesAt[n] ??= s.time;
       }
+      if (e.type === "autoSpinToggled" && e.on) report.autoSpinAt ??= s.time;
       if (e.type === "stageChanged") {
         report.stageReachedAt[e.stage] ??= s.time;
         if (s.vault === null) report.topStage = Math.max(report.topStage, e.stage);
@@ -106,6 +112,9 @@ export function playGreedy(seed: number, seconds: number, timings: BotTimings = 
       busyUntil = s.time + timings.sell;
     } else if (s.locker.on && tradeUpRarity(s.locker.items) && run.tradeUp().ok) {
       busyUntil = s.time + timings.sell;
+    } else if (s.autoSpin.on) {
+      spend(run); // the bench is the machine's: shop whenever free
+      busyUntil = s.time + timings.buy;
     } else if (b.phase === "locked") {
       run.insertKey();
       busyUntil = s.time + timings.key;
@@ -142,6 +151,11 @@ function spend(run: Run): void {
     run.buySeller();
     return;
   }
+  if (s.seller.on && !s.autoSpin.owned && s.cash >= AUTOSPIN_COST * 2) {
+    run.buyAutoSpin();
+    run.setAutoSpin(true);
+    return;
+  }
   if (content.locker && !s.locker.on && s.cash >= LOCKER_COST * 2) {
     run.buyLocker();
     run.setCollect("milspec");
@@ -157,6 +171,7 @@ function spend(run: Run): void {
   };
   for (const id of UPGRADE_IDS) offer(upgradeCost(id, s.upgrades[id], run.setup.run), () => run.buyUpgrade(id));
   if (s.bot.awake) offer(botSpeedCost(s.bot.speedLevel, run.setup.run), () => run.buyBotSpeed());
+  if (s.autoSpin.owned) offer(autoSpinDelayCost(s.autoSpin.delayLevel), () => run.buyAutoSpinDelay());
   if (s.seller.on) offer(sellerSpeedCost(s.seller.speedLevel), () => run.buySellerSpeed());
   if (s.locker.on) offer(lockerSizeCost(s.locker.sizeLevel), () => run.buyLockerSize());
   if (s.locker.on && content.autoContract && !s.locker.auto) offer(AUTO_CONTRACT_COST, () => run.buyAutoContract());
