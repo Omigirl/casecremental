@@ -76,6 +76,19 @@ describe("buildView", () => {
 });
 
 describe("buildView — M2b", () => {
+  it("says which bench cards wait and which card is held (F3: the tutorial points at them)", () => {
+    const run = new Run(1);
+    expect(buildView(run)).toMatchObject({ held: null, benchCards: [] });
+    run.buyCase("bootcamp");
+    run.insertKey();
+    for (let i = 0; i < 600 && run.state.bench.phase === "spinning"; i++) run.tick(1 / 30);
+    expect(buildView(run).benchCards).toEqual([true]);
+    run.setHeld("bench", 0);
+    expect(buildView(run).held).toBe("bench");
+    run.sell(0);
+    expect(buildView(run)).toMatchObject({ held: null, benchCards: [] });
+  });
+
   it("shows the bot asleep and wakeable, then spinning and its card", () => {
     const run = new Run(1);
     run.state.cash = BOT_WAKE_COST;

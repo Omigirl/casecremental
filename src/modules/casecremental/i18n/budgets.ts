@@ -19,6 +19,13 @@ const BY_PREFIX: Array<[string, number]> = [
   ["autospin.", 20],
   ["brings.", 24], // the prestige screen's "what the next run brings" lines
   ["shelf.", 20],
+  ["tut.skip", 20],
+  ["tut.ok", 8],
+  ["tut.replay", 16], // a Settings button
+  ["tut.", 60], // a bubble: at most 3 lines of 24 characters (ui/tutorialPlace.ts BUBBLE_CHARS)
+  ["card.title", 24],
+  ["card.tap", 24],
+  ["card.", 150], // a new-run card's paragraph wraps inside the card
   // content names (content.ts)
   ["case.vault", 14],
   ["case.", 12],

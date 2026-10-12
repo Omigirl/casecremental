@@ -89,6 +89,25 @@ export const EN = {
   "brings.autoContract": "Auto contract",
   "brings.multiOpen": "Multi-open up to x{n}",
   "brings.botSpeed": "Bot speed up to x{n}",
+  // the tutorial (finish spec §4)
+  "tut.buy": "Tap a case to buy it",
+  "tut.key": "Turn the key: drag it to the case, or tap the case",
+  "tut.sell": "Drag the skin to SELL, or just tap it",
+  "tut.upgrades": "Spend cash on upgrades",
+  "tut.unlock": "Unlock the next case",
+  "tut.bot": "Wake the bot: it opens cases on its own",
+  "tut.seller": "The auto-seller sells for you; good drops wait in the tray",
+  "tut.autospin": "Auto-spin opens your cases while you watch",
+  "tut.vault": "This is the run's goal",
+  "tut.skip": "Skip tutorial",
+  "tut.ok": "OK",
+  "tut.replay": "REPLAY TUTORIAL",
+  "card.title": "RUN {n}: WHAT'S NEW",
+  "card.tap": "Tap to continue",
+  "card.run2": "The bot gets a second reel: two cases a spin. The locker keeps your skins and trades 10 of one rarity up for a rarer skin.",
+  "card.run3": "Multi-open goes up to x5. The auto contract presses trade-ups on its own.",
+  "card.run4":
+    "Two new cases, Glitch and Fever Dream. The Upgrader stakes skins for bigger ones, maxed upgrades evolve, and The Last Case waits at the end.",
 } as const;
 
 export type StringKey = keyof typeof EN;

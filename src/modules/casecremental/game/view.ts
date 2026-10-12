@@ -4,7 +4,7 @@ import { caseById, unlockCostOf } from "../sim/content/cases";
 import { vaultFor, type VaultDef } from "../sim/content/vaults";
 import { STAGE_NAMES } from "../sim/intensity";
 import { charmSlots, freshMeta, PERK_IDS, perkCost, type MetaState, type PerkId } from "../sim/meta";
-import type { Bench, Run } from "../sim/run";
+import type { Bench, CardSpot, Run } from "../sim/run";
 import { DAY_JOB_SECONDS, LAST_RUN, PERK_COSTS, VAULT_OPENING_SECONDS } from "../sim/tuning";
 import { UPGRADE_IDS, UPGRADE_INFO, upgradeCap, upgradeCost, type UpgradeId } from "../sim/upgrades";
 import {
@@ -84,6 +84,10 @@ export interface GameView {
   stage: number;
   stageName: string;
   phase: Bench["phase"];
+  /** The card the player holds (picked up to drag), or null. */
+  held: CardSpot | null;
+  /** Your bench's card slots while revealed: true = a card waits there. [] otherwise. */
+  benchCards: boolean[];
   cases: CaseView[];
   upgrades: UpgradeView[];
   nextGoal:
@@ -191,6 +195,8 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
     stage: s.stage,
     stageName: STAGE_NAMES[s.stage - 1] ?? "",
     phase: s.bench.phase,
+    held: s.held,
+    benchCards: s.bench.phase === "revealed" ? s.bench.cards.map((c) => c !== null) : [],
     cases,
     upgrades,
     nextGoal: nextGoal(s.cash, cases, upgrades, vault),

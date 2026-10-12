@@ -7,6 +7,7 @@ import { CASES } from "../sim/content/cases";
 import { caseName } from "./content";
 import { AUTOSPIN_DELAYS } from "../sim/tuning";
 import { delaySeconds } from "../ui/autoSpinRules";
+import { wrapLines } from "../ui/shelfFit";
 
 afterEach(() => setLang("en"));
 
@@ -67,5 +68,34 @@ describe("M3 strings with their values filled in", () => {
   it.each(["en", "ru"] as const)("every case fits the prestige screen's new-case line (%s)", (lang) => {
     setLang(lang);
     for (const c of CASES) expect(fits("brings.case", { name: caseName(c.id) }), c.id).toBe(true);
+  });
+});
+
+describe("F3 strings", () => {
+  const fits = (key: keyof typeof EN, vars: Record<string, string | number>) => fitsBudget(t(key, vars), budgetFor(key));
+  const BUBBLE_KEYS = [
+    "tut.buy",
+    "tut.key",
+    "tut.sell",
+    "tut.upgrades",
+    "tut.unlock",
+    "tut.bot",
+    "tut.seller",
+    "tut.autospin",
+    "tut.vault",
+  ] as const;
+
+  it.each(["en", "ru"] as const)("every bubble wraps into at most 3 lines of 24 characters (%s)", (lang) => {
+    setLang(lang);
+    for (const key of BUBBLE_KEYS) {
+      const w = wrapLines(t(key), 24);
+      expect(w.lines, key).toBeLessThanOrEqual(3);
+      expect(w.spills, key).toBe(false);
+    }
+  });
+
+  it.each(["en", "ru"] as const)("the new-run card's title fits for Runs 2, 3 and 4 (%s)", (lang) => {
+    setLang(lang);
+    for (const n of [2, 3, 4]) expect(fits("card.title", { n }), `run ${n}`).toBe(true);
   });
 });
