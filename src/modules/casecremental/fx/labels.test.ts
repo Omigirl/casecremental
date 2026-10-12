@@ -63,10 +63,13 @@ describe("trayFull", () => {
 });
 
 describe("binCalling", () => {
-  it("calls for a card waiting on your bench or at the bot's station", () => {
+  it("calls for a card waiting on your bench, at the bot's station or on the locker", () => {
     const empty = { phase: "empty" } as const;
-    expect(binCalling({ bench: empty, bot: { cards: [] } })).toBe(false);
-    expect(binCalling({ bench: { phase: "revealed", caseId: "bootcamp", cards: [DROP] }, bot: { cards: [] } })).toBe(true);
-    expect(binCalling({ bench: empty, bot: { cards: [null, DROP] } })).toBe(true);
+    expect(binCalling({ bench: empty, bot: { cards: [] }, locker: { cards: [] } })).toBe(false);
+    expect(binCalling({ bench: { phase: "revealed", caseId: "bootcamp", cards: [DROP] }, bot: { cards: [] }, locker: { cards: [] } })).toBe(
+      true,
+    );
+    expect(binCalling({ bench: empty, bot: { cards: [null, DROP] }, locker: { cards: [] } })).toBe(true);
+    expect(binCalling({ bench: empty, bot: { cards: [] }, locker: { cards: [null, DROP] } })).toBe(true);
   });
 });

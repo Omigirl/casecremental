@@ -308,7 +308,8 @@ export class World {
       return;
     }
     const p = this.worldPt(e);
-    if (!this.stations.grabCard(p) && !this.tray.pointerDown(p)) void this.bench.pointerDown(p);
+    if (this.stations.grabCard(p) || this.tray.pointerDown(p) || this.bench.pointerDown(p)) return;
+    this.stations.tap(p, run.state);
   }
 
   /** The vault, read from the sim each frame (a reload picks it up where it is), and the lights. */
@@ -395,6 +396,14 @@ export class World {
     if (this.trayFullLabel.text !== full) this.trayFullLabel.text = full;
   }
 
+  /** Where a card waiting at `from` sits (world px). */
+  private spotOf(from: "bench" | "bot" | "locker" | "tray" | "grid", slot: number): Pt {
+    if (from === "bench") return this.bench.cardCentre(slot);
+    if (from === "bot" || from === "locker") return this.stations.cardCentre(from, slot);
+    const r = from === "tray" ? this.l.tray : this.l.grid;
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+  }
+
   private placeLabels(): void {
     const k = this.vp.scale;
     const card = this.labelAt;
@@ -421,16 +430,19 @@ export class World {
         this.benchFx.revealed(e.drops);
         break;
       case "sold": {
-        // only a bench sale clears the card; the bot's and the tray's sales burst coins from the bin
+        // only a bench sale clears the card (the stations' cards follow the sim); coins burst from the card sold by
+        // hand, the seller, the grid's machine (its vault cash-in), or the bin (a tray claim)
         const fromBench = e.from === "bench";
         const src =
           fromBench && e.source === "bench"
             ? this.bench.cardCentre(e.slot)
-            : e.source === "bot"
-              ? this.stations.cardCentre("bot", e.slot)
+            : e.source === "bot" || e.source === "locker"
+              ? this.stations.cardCentre(e.source, e.slot)
               : e.source === "seller"
                 ? this.l.seller
-                : this.l.bin;
+                : e.source === "grid"
+                  ? { x: this.l.grid.x + this.l.grid.w / 2, y: this.l.grid.y }
+                  : this.l.bin;
         const at = this.hd.toScreen(src);
         this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
@@ -438,9 +450,15 @@ export class World {
         this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
         if (e.amount >= 100) this.audio.play("coin-cascade", { delay: 0.1 });
         if (fromBench) this.benchFx.left(e.slot, e.source === "bench", this.controller.run.state.bench); // a machine sale just clears it
-        if (e.source === "tray" || e.source === "bot") this.bench.swallow();
+        if (e.source === "tray" || e.source === "bot" || e.source === "locker") this.bench.swallow();
         break;
       }
+      case "lockerStored":
+        // the station opens its door and plays the sound; a card the Collect sent flies in from its spot (one dragged
+        // in was let go over the cabinet). A refused store emits nothing, so the card stays.
+        if (!e.byHand) this.stations.storedFrom(this.spotOf(e.from, e.slot), e.drop.rarity);
+        if (e.from === "bench") this.benchFx.left(e.slot, false, this.controller.run.state.bench);
+        break;
       case "sellerBought":
         this.hd.flash(0x3ddc84, 0.2);
         this.audio.play("seller-power-on");

@@ -3,6 +3,7 @@ import { skinName, wearName, weaponName } from "../i18n/content";
 import { getLang, type StringKey } from "../i18n/index";
 import { skinById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
+import { lockerWaiting, type LockerState } from "../sim/locker";
 import type { Bench, RunState } from "../sim/run";
 import type { Drop } from "../sim/types";
 import { wearOf } from "../sim/wear";
@@ -43,7 +44,7 @@ export function trayFull(state: { seller: { on: boolean }; tray: readonly unknow
   return state.seller.on && state.tray.length >= capacity;
 }
 
-/** The sell bin's light calls while a card waits to be sold: on your bench or at the bot's station. */
-export function binCalling(state: { bench: Bench; bot: Pick<RunState["bot"], "cards"> }): boolean {
-  return state.bench.phase === "revealed" || botWaiting(state.bot);
+/** The sell bin's light calls while a card waits to be sold: on your bench, at the bot's station or on the locker. */
+export function binCalling(state: { bench: Bench; bot: Pick<RunState["bot"], "cards">; locker: Pick<LockerState, "cards"> }): boolean {
+  return state.bench.phase === "revealed" || botWaiting(state.bot) || lockerWaiting(state.locker);
 }
