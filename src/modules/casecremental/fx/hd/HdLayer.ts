@@ -11,7 +11,7 @@ import type { LightLevels } from "../vault/lights";
 
 // The full-resolution layer over the pixel world (spec §2): the lamp's warm light, a vignette, dust
 // drifting in the light, the glow under the case / reveal, the sleeping bot's Z's, the powered-off
-// auto-seller's standby LED, sparks and coins. Everything here is in screen (CSS) px.
+// auto-seller's standby LED, sparks and coin amounts (the coins themselves fly in the pixel world, coins.ts). Everything here is in screen (CSS) px.
 
 const MOTES = 36;
 
@@ -147,7 +147,7 @@ export class HdLayer {
     for (const z of this.zs) z.style.fontSize = hdFontSize(k);
     this.drawLed();
     this.led.position.set(l.seller.x * k, (l.seller.y - 26) * k);
-    this.coins.setScale(k, hdFontSize(k, 16));
+    this.coins.setTextSize(hdFontSize(k, 16));
   }
 
   /** Glow under the reveal in the rarity's colour (null fades it out). */

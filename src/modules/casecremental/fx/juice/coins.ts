@@ -5,9 +5,10 @@ import { floatAway, pop } from "../hd/tween";
 import type { Pt } from "../pixel/layout";
 import { SpritePool } from "./spritePool";
 
-// Money you can see: spinning pixel coins arc from the sold skin to the cash counter, and the
-// amount pops and floats up in gold. Lives in the HD layer (screen px); coins are drawn at the
-// pixel world's integer scale.
+// Money you can see: spinning pixel coins arc from the sold skin to the cash counter, and the amount pops and floats up
+// in gold. The coins fly in the pixel world (world px, whole pixels), in a layer the World puts under the reels and the
+// bench's cards, so a stream of sales passes behind a reel's window instead of covering it (F1: at ×5 a column of them
+// hid all five markers). The amounts are HD text (screen px).
 
 interface Flight {
   s: Sprite;
@@ -20,10 +21,12 @@ interface Flight {
 }
 
 export class Coins {
+  /** The flying coins: pixel world, world px. */
+  readonly flyers = new Container();
+  /** The amounts that pop and float up (HD, screen px). */
   readonly container = new Container();
   private flights: Flight[] = [];
   private readonly texts = new Set<Text>();
-  private pixelScale = 1;
   private textSize = 16;
   private readonly pool: SpritePool;
 
@@ -31,19 +34,18 @@ export class Coins {
     this.pool = new SpritePool(frames[0]!);
   }
 
-  setScale(pixelScale: number, textSize: number): void {
-    this.pixelScale = pixelScale;
+  setTextSize(textSize: number): void {
     this.textSize = textSize;
   }
 
+  /** Coins from `from` to `to`, world px; more for a bigger amount. */
   burst(from: Pt, to: Pt, amount: number): void {
-    const k = this.pixelScale;
     const n = Math.min(24, Math.max(1, Math.round(Math.log10(amount + 1) * 4)));
     for (let i = 0; i < n; i++) {
       this.flights.push({
         s: this.take(),
-        from: { x: from.x + (Math.random() - 0.5) * 10 * k, y: from.y + (Math.random() - 0.5) * 10 * k },
-        ctrl: { x: (from.x + to.x) / 2 + (Math.random() - 0.5) * 40 * k, y: Math.min(from.y, to.y) - (8 + Math.random() * 30) * k },
+        from: { x: from.x + (Math.random() - 0.5) * 10, y: from.y + (Math.random() - 0.5) * 10 },
+        ctrl: { x: (from.x + to.x) / 2 + (Math.random() - 0.5) * 40, y: Math.min(from.y, to.y) - (8 + Math.random() * 30) },
         to,
         delay: i * 0.025,
         dur: 0.55 + Math.random() * 0.25,
@@ -52,13 +54,12 @@ export class Coins {
     }
   }
 
-  /** One coin from `from` to `to` (a machine's sale — cheap enough for ten a second). */
+  /** One coin from `from` to `to`, world px (a machine's sale — cheap enough for ten a second). */
   spark(from: Pt, to: Pt): void {
-    const k = this.pixelScale;
     this.flights.push({
       s: this.take(),
       from,
-      ctrl: { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 12 * k },
+      ctrl: { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 12 },
       to,
       delay: 0,
       dur: 0.5,
@@ -112,9 +113,9 @@ export class Coins {
   private take(): Sprite {
     const s = this.pool.take();
     s.anchor.set(0.5);
-    s.scale.set(this.pixelScale);
+    s.scale.set(1);
     s.visible = false;
-    this.container.addChild(s);
+    this.flyers.addChild(s);
     return s;
   }
 }

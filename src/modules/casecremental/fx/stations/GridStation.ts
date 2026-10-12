@@ -77,10 +77,15 @@ export class GridStation {
     return this.card.knifeFlying;
   }
 
-  /** World centre of cell i, screen px (sparks and breakouts start there). */
-  cellCentre(i: number): Pt {
+  /** World centre of cell i, world px. */
+  private cellWorld(i: number): Pt {
     const r = this.rects[i] ?? this.l?.grid ?? { x: 0, y: 0, w: 0, h: 0 };
-    return this.d.juice.hd.toScreen({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+  }
+
+  /** World centre of cell i, screen px (breakouts start there). */
+  cellCentre(i: number): Pt {
+    return this.d.juice.hd.toScreen(this.cellWorld(i));
   }
 
   update(dt: number, s: RunState): void {
@@ -153,7 +158,7 @@ export class GridStation {
   sold(e: SoldEvent): boolean {
     if (e.from !== "grid" && e.source !== "grid") return false;
     if (this.spark.ready(this.t)) {
-      this.d.juice.hd.coins.spark(this.cellCentre(e.slot), this.d.hud());
+      this.d.juice.hd.coins.spark(this.cellWorld(e.slot), this.d.hud());
       this.d.juice.audio.play("coin-clink", { gain: 0.3, rate: 1.4 });
     }
     return true;

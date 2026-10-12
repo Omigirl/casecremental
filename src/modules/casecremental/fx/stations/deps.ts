@@ -20,7 +20,7 @@ export interface StationDeps {
   readonly rng: Rng;
   /** The pixel scale now (it changes on resize). */
   readonly scale: () => number;
-  /** Where coins fly: the HUD's cash, screen px. */
+  /** Where coins fly: the HUD's cash, world px. */
   readonly hud: () => Pt;
   /** A ★ knife showcase is in the air somewhere (your bench's or a station's): a grid ★ waits for it to land. */
   readonly knifeFlying: () => boolean;

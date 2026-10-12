@@ -131,7 +131,7 @@ export class World {
       reelFrame: this.reelFrame,
       rng: this.rng,
       scale: () => this.vp.scale,
-      hud: () => ({ x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }),
+      hud: () => ({ x: this.l.worldW / 2, y: this.l.hudH / 2 }),
       knifeFlying: () => this.benchFx.knifeFlying || this.stations.knifeFlying(),
     });
     this.pixel.world.addChild(
@@ -139,6 +139,7 @@ export class World {
       this.room.front,
       this.stations.under,
       this.tray.root,
+      this.hd.coins.flyers,
       this.benchReels.root,
       this.stations.reels,
       this.bench.root,
@@ -455,7 +456,7 @@ export class World {
                 ? this.l.seller
                 : this.l.bin;
         const at = this.hd.toScreen(src);
-        this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
+        this.hd.coins.burst(src, { x: this.l.worldW / 2, y: this.l.hudH / 2 }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
         this.audio.play(e.source === "seller" ? "seller-sell" : "cash-register");
         this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
