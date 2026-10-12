@@ -57,19 +57,21 @@ Plan: docs/superpowers/plans/2026-10-12-casecremental-f2-autospin.md · spec §3
 - **The order of its beats.** The bench empties, the Delay runs (1.5 s, down to 0.2 s over 5 levels), it buys, and a
   fixed 0.5 s key beat (`AUTOSPIN_KEY_SECONDS`) follows, so the case visibly lands before the arm turns the key. The
   spec says both "waits its delay, and turns the key" and "Delay between the bench emptying and the next buy". This
-  order satisfies both. Delay and key beat share one `clock`.
-- **It turns the key of any locked case on the bench**, hand-bought and Ricochet ones included. A hand buy while the
-  clock already stands past the beat gets its key on the next tick, with no beat. That is cosmetic and was left alone.
+  order satisfies both. Delay and key beat share one `clock`; it is reset to 0 whenever a case lands on the bench (the
+  machine's buy, `Run.buyCase`, a Ricochet free case), so every locked case waits the full beat for its key.
+- **It turns the key of any locked case on the bench**, hand-bought and Ricochet ones included, after the same beat
+  (the final review fixed hand buys and free cases getting their key on the next tick when the clock stood past it).
 - **It stays ON when broke** (status `broke`: BROKE on the shelf, the lamp blinks amber, the day job appears). It buys
   the moment it can: the delay stays due, so a tray claim restarts it at once (seen in the browser).
 - **It buys nothing while the vault is out and affordable** (status `vault`: "Waits: vault", the lamp steady amber).
   Otherwise it would spend the vault's cash and keep the bench busy, and the vault's BUY needs an empty bench. While
   the vault is open the switch is disabled.
-- **The pick** is the case it buys: the last case you bought by hand, or the one you ticked in the shelf's pick box.
-  Machine buys never change it. When the pick is too dear it buys the dearest case it can afford and keeps the pick.
-  With no pick yet (`null`), it buys the dearest affordable case and no shelf row has the gold frame. The pick box
-  exists because the BUY buttons are disabled while the machine keeps the bench busy. Without it you could not change
-  the pick once it ran.
+- **The pick** is the case it buys: the last case you bought by hand, or the one you ticked on the shelf. Machine buys
+  never change it. When the pick is too dear it buys the dearest case it can afford and keeps the pick. With no pick
+  yet (`null`), it buys the dearest affordable case. The tick exists because the BUY buttons are disabled while the
+  machine keeps the bench busy; without it you could not change the pick once it ran. It is a tick on the case's icon
+  (`PickIcon`), not a separate bar row. `CaseView.buys` marks the case auto-spin would buy now (only while it is ON) and
+  `framedCase` gives that one the gold frame, else your pick while nothing is affordable.
 - **The switch is on the case shelf** (top of the list, and on the Machines row) because BUY lives there. The bench
   has no BUY button for it to sit beside. A tap on the arm flips it too. It is off after purchase and keeps its state
   for the run. A new run starts with auto-spin not owned.
@@ -103,13 +105,19 @@ Plan: docs/superpowers/plans/2026-10-12-casecremental-f2-autospin.md · spec §3
     - Run 3: no grid anywhere. The Machines tab shows seller, auto-spin, locker and auto contract. Bot ×50 and ×5 both
       work. Vault II's list reads Deep Space, Inferno, Auto contract, Multi-open up to x5, Bot speed up to x50.
     - Console clean.
-  - **Found, open:**
-    - The pick box is a full-width bar. `.cc-row` is a CSS grid, so its `flex: none` does nothing. The bar holds a
-      lone tick, and its only label is a hover tooltip.
-    - Each unlocked case gains one bar row. With the shelf's auto-spin row, the Run 1 shelf at 1920×1080 overflows
-      (1065/882 px). Vault Case I's BUY sits below the fold while "Waits: vault" shows at the top, and scrolling to
-      the vault hides that status. The phone drawer is the same: the vault row and the day job sit below the fold.
-    - The bench hint is hidden whenever auto-spin is on, even in `broke`/`vault` (Task 6 review minor).
+  - **Found, then fixed in 0c6fcce and the final-review wave** (not yet re-measured in a browser):
+    - The pick box was a full-width bar (`.cc-row` is a CSS grid, so `flex: none` did nothing). It is now the tick on the
+      case icon.
+    - The Run 1 shelf at 1920×1080 overflowed (1065/882 px), so Vault Case I's BUY sat below the fold while "Waits:
+      vault" showed at the top; the phone drawer was the same. `shelfUrgent` now puts the vault row and the day job at the
+      top while the vault is affordable (`canBuy` or `blockedBy: "bench"`) or the day job is on offer. It keys on
+      affordability, not on the bench: the first version used `canBuy`, which flickers with the bench, so the rows jumped
+      under the player's finger and a mis-tap could buy the vault. The fold fix is not yet measured in a browser (F3's
+      browser check should).
+    - The bench hint was hidden whenever auto-spin was on. It is now hidden only while `autoSpinStatus === "on"`, so it
+      shows while the machine waits (`broke`, `vault`) or is off.
+    - The `broke` lamp blinks, but the HD glow stays steady amber (`glowColor`): a 60 px additive glow flipping
+      amber/dark red at 2 Hz broke the "pulsing light changes < 0.1 per beat" rule.
 
 ## F5 — music for the late stages
 
