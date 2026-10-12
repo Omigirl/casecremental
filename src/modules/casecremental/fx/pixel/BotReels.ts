@@ -21,6 +21,8 @@ export class BotReels {
   private online = false;
   /** Ticks are muted while a reload sets the reels straight onto their drops. */
   private quiet = false;
+  /** The last spin started: reels made later (a rotation out of portrait, a resize) pick it up. */
+  private last: { caseId: string; skinIds: string[]; rng: Rng } | null = null;
 
   constructor(frameSet: SpriteSet, skins: SkinTextures, onTick: (i: number) => void) {
     this.root = new StackedReels(frameSet, skins, (i) => {
@@ -42,17 +44,13 @@ export class BotReels {
 
   /** A new spin (or a reload): one reel per case, each landing on its skin; `landed`: already stopped there. */
   start(caseId: string, skinIds: readonly string[], rng: Rng, landed = false): void {
+    this.last = { caseId, skinIds: [...skinIds], rng };
     const n = Math.max(1, skinIds.length);
     if (n !== this.n) {
       this.n = n;
       this.apply();
     }
-    const c = caseById(caseId);
-    skinIds.forEach((id, i) => this.root.start(i, c, skinById(id), rng));
-    if (!landed) return;
-    this.quiet = true;
-    skinIds.forEach((_, i) => this.root.update(i, LANDED));
-    this.quiet = false;
+    this.spin(landed);
   }
 
   update(spin: BotSpin | null): void {
@@ -63,6 +61,22 @@ export class BotReels {
   private apply(): void {
     const area = this.l ? botReelArea(this.l, this.n) : null;
     this.root.visible = this.online && !!area;
-    if (area) this.root.layout(stackRects(area, this.n, REEL_MAX_H));
+    if (!area) return;
+    const made = this.root.count;
+    this.root.layout(stackRects(area, this.n, REEL_MAX_H));
+    // new reels were never started: set them on the last spin's drops (a spin under way moves on with update)
+    if (this.root.count > made) this.spin(true);
+  }
+
+  /** Each reel onto the last spin's skins, or already stopped there (quietly). */
+  private spin(landed: boolean): void {
+    const r = this.last;
+    if (!r) return;
+    const c = caseById(r.caseId);
+    r.skinIds.forEach((id, i) => this.root.start(i, c, skinById(id), r.rng));
+    if (!landed) return;
+    this.quiet = true;
+    r.skinIds.forEach((_, i) => this.root.update(i, LANDED));
+    this.quiet = false;
   }
 }

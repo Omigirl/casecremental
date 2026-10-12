@@ -33,7 +33,9 @@ export class Room {
   private readonly matFallback = new Graphics();
   private readonly tray: NineSliceSprite;
   private readonly seller: Sprite;
+  /** The bot's dark reel window while it sleeps; awake, its reels draw their own frames (two for a double spin). */
   private readonly botReel: NineSliceSprite;
+  private botOnline = false;
   private l: TableLayout | null = null;
 
   constructor(lib: SpriteLibrary, reelFrame: SpriteSet) {
@@ -86,7 +88,7 @@ export class Room {
     this.tray.width = l.tray.w + 2;
     this.tray.position.set(l.tray.x - 1, Math.round(l.tray.y + (l.tray.h - this.tray.height) / 2));
     this.seller.position.set(Math.round(l.seller.x - this.seller.width / 2), l.seller.y - this.seller.height);
-    this.botReel.visible = !!l.bot.reel;
+    this.botReel.visible = !!l.bot.reel && !this.botOnline;
     if (l.bot.reel) {
       this.botReel.position.set(l.bot.reel.x, l.bot.reel.y);
       this.botReel.width = l.bot.reel.w;
@@ -96,9 +98,10 @@ export class Room {
     if (this.shelves) this.shelves.position.set(Math.round((l.worldW - this.shelves.width) / 2), 6);
   }
 
-  /** The bot's reel window lights up once the bot is awake (its reel is online). */
+  /** The bot's reel window shows, dimmed, while the bot sleeps; once it is awake its reels take its place. */
   setBotOnline(on: boolean): void {
-    this.botReel.tint = on ? 0xffffff : 0x444455;
+    this.botOnline = on;
+    this.botReel.visible = !!this.l?.bot.reel && !on;
   }
 
   /** The auto-seller powers on when bought (rework spec §1). */
