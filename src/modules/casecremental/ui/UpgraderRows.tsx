@@ -63,6 +63,7 @@ export function UpgraderRows({ view, act }: { view: GameView; act: Act }): React
           </PxButton>
         )}
       </div>
+      {u.hint && !u.spinning && <div className="cc-dim">{t(u.hint === "press" ? "upgrader.hintPress" : "upgrader.hintResults")}</div>}
     </>
   );
 }

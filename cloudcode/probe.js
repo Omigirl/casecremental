@@ -86,4 +86,14 @@ handlers.probe = function (args, context) {
  *   snapshot removed — kept answering CLOUT 0 and no items for 5+ minutes, though StateVersions.InventoryV2 went up.
  *   (One earlier run, probe v5, did show up on the client.) So the game takes CLOUT and trophies from the handlers'
  *   views (loadMeta etc.), never from client.data.user's inventory alone. Reported to the user as a platform issue.
+ *
+ * Found for the F7 review fixes (revisions 10–11, a one-handler probe `probe` applying a CLOUT op with a given Reason,
+ * guest DVK0YSQLHQ3YVQD2ZVKC34TR-DEV, run from Node with a device-id guest):
+ * - The Reason is an idempotency key ACROSS executions: grant 1 with Reason X in three separate executions → CLOUT
+ *   0 → 1 → 1 → 1 (all three answered Success); a new Reason → 2. Grant 5 with an earlier grant's Reason → no change.
+ * - A FAILED op does not use its Reason up: consume 50 with Reason C on 2 CLOUT → "insufficient balance"; after a grant,
+ *   consume 50 with C → applied (62 → 12).
+ * - A replay of an applied consume is checked against the balance first: consume 50 with C again on 12 CLOUT →
+ *   "insufficient balance" (not Success); with Reason D on 112 → 62, D again on 62 → Success, still 62.
+ * - How long a Reason is remembered was not measured (the runs spanned ~3 minutes).
  */

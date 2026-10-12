@@ -71,6 +71,8 @@ export class BenchReels {
   private lastElapsed: number | null = null;
   /** Whether a spin frame was shown since the last start: the first frame after it snaps the reels to their landing. */
   private spun = false;
+  /** The Last Case's free spin has the reel (freeSpin) until the next open: the bench's own frames leave it alone. */
+  private free = false;
 
   constructor(frameSet: SpriteSet, skins: SkinTextures, onTick: (i: number) => void) {
     this.root = new StackedReels(frameSet, skins, onTick);
@@ -98,6 +100,7 @@ export class BenchReels {
   start(caseId: string, reels: readonly BenchReel[], rng: Rng): void {
     this.n = Math.max(1, reels.length);
     this.tall = this.n > 1;
+    this.free = false;
     this.leaned = null;
     this.leaning = false;
     this.lastElapsed = null;
@@ -107,8 +110,16 @@ export class BenchReels {
     reels.forEach((r, i) => this.root.start(i, c, skinById(r.drop.skinId), rng, r.tease));
   }
 
+  /** The Last Case's free spin (Finale.ts): one reel of the vault's source case, landing as the lid opens. */
+  freeSpin(c: CaseDef, winner: SkinDef, rng: Rng, start: boolean, elapsed: number, duration: number): void {
+    if (start) this.idle(c, winner, rng);
+    this.free = true;
+    this.root.update(0, { elapsed, fullDuration: duration, crawl: 0 });
+  }
+
   /** Move every reel: the lean (the first frame the strongest tease is into its crawl) and the early landings. */
   update(b: BenchState): ReelFrame {
+    if (this.free) return { lean: null, landed: [] };
     if (tallWindow(b) !== this.tall) {
       this.tall = !this.tall; // landed: back to compact
       this.apply();

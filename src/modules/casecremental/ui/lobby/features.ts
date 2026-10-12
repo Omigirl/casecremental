@@ -5,12 +5,12 @@ import { TrophyCase } from "./TrophyCase";
 
 // The game's two lobby tabs (plan F7): the stock inventory and leaderboard modules could not be installed (the
 // catalog was offline and src/modules.ts is platform-owned), so the game registers its own. Registered again when
-// the language changes, so their labels follow it.
+// the language changes, so their labels follow it: register() replaces a feature by id, so an open tab stays open
+// (unregistering first would close it).
 
 export function registerLobbyTabs(features: FeatureRegistry): () => void {
   let off: Array<() => void> = [];
   const register = (): void => {
-    for (const f of off) f();
     off = [
       features.register({
         id: "casecremental-trophies",

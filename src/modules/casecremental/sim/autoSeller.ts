@@ -92,7 +92,7 @@ export function autoTake(ctx: RunCtx, d: Drop, from: CardSpot, slot = 0): boolea
   const s = ctx.state;
   if (collectInto(ctx, d, from, slot)) return true;
   if (sellsAt(s.seller.threshold, d.rarity)) {
-    const amount = ctx.payout(d, false) * sellerMult(s); // Money Printer: x3
+    const amount = ctx.payout(d, false) * (d.upgraded ? 1 : sellerMult(s)); // Money Printer: x3, but not on an Upgrader win
     ctx.earn(amount);
     ctx.emit({ type: "sold", drop: d, amount, combo: s.combo, source: "seller", from, slot });
     return true;

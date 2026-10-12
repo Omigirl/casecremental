@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CASES, caseById, priceOf, skinById, unlockCostOf } from "./cases";
+import { RARITY_ORDER } from "../rarity";
 import type { RarityId } from "../types";
 
 describe("cases", () => {
@@ -29,6 +30,15 @@ describe("cases", () => {
     const count = (r: string) => c.skins.filter((s) => s.rarity === r).length;
     expect([count("milspec"), count("restricted"), count("classified"), count("covert"), count("gold")]).toEqual([5, 3, 2, 2, 1]);
     expect(c.skins.find((s) => s.rarity === "gold")?.weapon).toBe("knife");
+  });
+
+  it("has a skin of every rarity in every case (the Upgrader picks its target skin from the case)", () => {
+    for (const c of CASES)
+      for (const r of RARITY_ORDER)
+        expect(
+          c.skins.some((s) => s.rarity === r),
+          `${c.id} ${r}`,
+        ).toBe(true);
   });
 
   it("uses globally unique skin ids and valid palettes", () => {

@@ -165,8 +165,9 @@ export const HOARDER_PER_SKIN = 0.01;
 export const FEVER_PAY_MULT = 1.5;
 export const FEVER_STAGE_BONUS = 1;
 export const COLLECTOR_MULT = 2;
-/** Loaded Dice (Run 4): the Upgrader's win chance + this. */
-export const LOADED_DICE_BONUS = 0.1;
+/** Loaded Dice (Run 4): the Upgrader's win chance x this (multiplicative, so its EV stays under 1 at every target:
+ *  0.9 / m x 1.1 = 0.99 / m). */
+export const LOADED_DICE_MULT = 1.1;
 
 export const TRAY_BASE_CAPACITY = 12;
 
@@ -199,12 +200,12 @@ export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 // measures ~30–75 s); each run's middle — its unlocks — sets how long the run takes instead. F6-A: The Last Case 450T
 // (its 90 s rule ~65 s, replays included).
 export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000, 450_000_000_000_000] as const;
-/** A replay of the last run: its vault price grows this much per completed loop, a little above the replay's boost
- *  (The Last Case's CATCH_UP_PER_VAULT), so each replay's vault costs about as many seconds of its income as the last
- *  (F6-A: 2.05 / 2; F4's 3.4 / 2.8 made each loop ~21 % dearer, and the 90 s rule broke by the third replay). Replay
- *  after replay the fixed costs (unlocks, upgrades) shrink against the income, so later replays get shorter (~2.5 min
- *  by the fifth). */
-export const VAULT_GROWTH = 2.05;
+/** A replay of the last run: its vault price grows this much per completed loop, about the replay's boost
+ *  (The Last Case's CATCH_UP_PER_VAULT), so each replay's vault costs about as many seconds of its income as the last.
+ *  Spec §5's replay band holds for the FIRST replay only; later replays run faster (a post-credits victory lap:
+ *  ~4.5 min for the first, ~2 min by the fifth, ~1.6 min by the fifteenth) while the 90 s rule holds for at least 15 CASUAL
+ *  replays (pacing.test.ts; measured 61-74 s of income). F4's 3.4 broke the rule by the third replay. */
+export const VAULT_GROWTH = 2.0;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;
@@ -238,20 +239,31 @@ export const PERK_COSTS = {
 
 /**
  * Server plausibility (plan F7): the most a run can earn after `t` seconds with `loops` vaults behind it is
- * 10^min(ceilLog10, baseLog10 + perSqrtSecond·√t + perLoop·loops). Calibrated in meta/plausibility.test.ts against
- * a superhuman greedy player with ×3 headroom; CloudCode applies the same curve (cloudcode/data.json). Calibrated
- * 2026-10-13 (Runs 1–3): that player vaults Run 1 at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at
- * ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump from a short run, so it is steep.
+ * 10^min(ceilLog10, baseLog10 + perSqrtSecond·√t + perLoop·min(loops, V) + perReplay·max(0, loops − V)), V = the
+ * campaign's vaults. Calibrated in meta/plausibility.test.ts against a superhuman greedy player with ×3 headroom;
+ * CloudCode applies the same curve (cloudcode/data.json). Calibrated 2026-10-13 (Runs 1–3): that player vaults Run 1
+ * at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump
+ * from a short run, so it is steep. Replays of the last run grow only ~0.3 log10 each (F7 review, 2026-10-13: the FAST
+ * bot's replays 10^15.2 → 10^19.4 over 15), so past the campaign each loop adds perReplay, not perLoop. The server
+ * gives the loop terms only to a run that took the minimum run time (SERVER_MIN_VAULT_SEC): a run that ends at once
+ * gets the time-only cap (10^3 → 0 CLOUT).
  */
-export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, ceilLog10: 300 } as const;
+export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, perReplay: 0.5, ceilLog10: 300 } as const;
 /** The most CLOUT one endRun pays: a capped claim near 10^ceilLog10 would otherwise overflow the Title's int64 balance
  *  (and the CloudCode policy's daily CLOUT cap, 1e12). A real run pays thousands. */
 export const SERVER_MAX_CLOUT_PER_RUN = 1e11;
-/** A first run the server never saw start may claim at most this long. */
-export const SERVER_FIRST_RUN_MAX_SEC = 6 * 3600;
-/** Trophy reports: at least this many seconds apart, and at most this many per minute of a run. */
+/** The least a run takes before the server counts its vault (a loop, the legend), by run 1…LAST_RUN, then for every
+ *  replay of the last run. Calibrated 2026-10-13 against the superhuman FAST bot of meta/plausibility.test.ts (its
+ *  fastest vaults, seeds 1–6: Run 1 187 s, Run 2 66 s, Run 3 95 s, Run 4 123 s, replays down to ~34 s by the 15th),
+ *  which must clear them by ×1.25; every value is also at most a third of the CASUAL median (≈430, 320, 430, 350 s,
+ *  replays ≈100 s by the 15th). A scripted client that skips the game has to wait at least this long per vault. */
+export const SERVER_MIN_VAULT_SEC = [120, 45, 60, 80] as const;
+export const SERVER_MIN_REPLAY_SEC = 25;
+/** Trophy reports: at least this many seconds apart, and a token bucket in server time — this many a minute, at most
+ *  TROPHY_BURST at once. A report over the limit is asked to retry later, never refused for good. */
 export const TROPHY_GAP_SEC = 2;
-export const TROPHIES_PER_RUN_MINUTE = 30;
+export const TROPHIES_PER_MINUTE = 2;
+export const TROPHY_BURST = 3;
 /** Campaign stats sanity: no one opens more cases a second than this (bench, bot and every machine together). */
 export const MAX_OPENS_PER_SECOND = 2000;
 

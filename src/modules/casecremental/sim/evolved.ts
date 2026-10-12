@@ -37,8 +37,8 @@ export const sellerMult = (s: Pick<RunState, "evolutions">): number => (evolved(
 export function botRoll(ctx: RunCtx, caseId: string): Drop {
   if (!evolved(ctx.state, "cartel")) return ctx.rollFor(caseId);
   const a = ctx.rollFor(caseId);
+  ctx.state.opened--; // one case, rolled twice: both rolls see the same count (Lucky Seven fires on neither extra)
   const b = ctx.rollFor(caseId);
-  ctx.state.opened--; // one case, rolled twice
   return b.value > a.value ? b : a;
 }
 

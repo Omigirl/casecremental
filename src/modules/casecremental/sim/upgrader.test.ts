@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { runCaseIds } from "./campaign";
 import { Run } from "./run";
 import { DEFAULT_SETUP, type RunSnapshot } from "./runTypes";
-import { LOADED_DICE_BONUS, UPGRADER_COST, UPGRADER_MULTS, UPGRADER_SPIN_SECONDS } from "./tuning";
+import { LOADED_DICE_MULT, MONEY_PRINTER_MULT, UPGRADER_COST, UPGRADER_MULTS, UPGRADER_SPIN_SECONDS } from "./tuning";
 import type { Drop, RarityId } from "./types";
 import { buyUpgrader, rarityStepsFor, setUpgraderStake, setUpgraderTarget, upgraderChance, upgraderGo, upgraderResult } from "./upgrader";
 import { createRng } from "./rng";
+import { upgraderView } from "../game/viewRun4";
+import { autoTake } from "./autoSeller";
 
 const DT = 1 / 30;
 const drop = (id: number, rarity: RarityId, over: Partial<Drop> = {}): Drop => ({
@@ -34,12 +36,31 @@ const spinOut = (r: Run) => {
 };
 
 describe("the Upgrader's odds", () => {
-  it("wins 0.9 / multiplier, +10 points with Loaded Dice, never past 0.95", () => {
+  it("wins 0.9 / multiplier, x1.1 with Loaded Dice, never past 0.95", () => {
     expect(UPGRADER_MULTS).toEqual([1.5, 2, 5, 10, 25, 100]);
     expect(upgraderChance(1.5, [])).toBeCloseTo(0.6, 9);
     expect(upgraderChance(100, [])).toBeCloseTo(0.009, 9);
-    expect(upgraderChance(2, ["loadedDice"])).toBeCloseTo(0.45 + LOADED_DICE_BONUS, 9);
+    expect(upgraderChance(2, ["loadedDice"])).toBeCloseTo(0.45 * LOADED_DICE_MULT, 9);
     expect(upgraderChance(1, ["loadedDice"])).toBe(0.95);
+  });
+
+  it("never has an EV above 1 at any target, even with Loaded Dice and Money Printer", () => {
+    for (const charms of [[], ["loadedDice"]] as const)
+      for (const mult of UPGRADER_MULTS) {
+        const chance = upgraderChance(mult, charms);
+        expect(chance * mult, `x${mult} ${charms.join()}`).toBeLessThanOrEqual(1);
+        // a win is worth inputs x mult and Money Printer must not triple it: the seller pays it at face value
+        const r = run4([], ["loadedDice"]);
+        r.buySeller();
+        r.setSellerThreshold("gold");
+        r.state.evolutions.owned.push("moneyPrinter");
+        const won = upgraderResult([drop(1, "milspec")], mult, createRng(2), () => 9);
+        r.drainEvents();
+        expect(autoTake(r, won, "locker")).toBe(true);
+        const sale = r.drainEvents().find((e) => e.type === "sold");
+        if (sale?.type === "sold" && sale.source === "seller") expect(sale.amount).toBeCloseTo(r.payout(won, false), 6);
+        expect(MONEY_PRINTER_MULT).toBeGreaterThan(1);
+      }
   });
 
   it("pays a skin one rarity up to x2, two up to x10, three beyond, never past ★", () => {
@@ -96,6 +117,17 @@ describe("the Upgrader", () => {
     r.state.locker.press = null;
     r.state.locker.cards = [drop(60, "classified")];
     expect(upgraderGo(r)).toEqual({ ok: false, reason: "take the results first" });
+  });
+
+  it("hints why GO waits: a result on the locker or a running press", () => {
+    const r = run4([drop(1, "milspec")]);
+    setUpgraderStake(r, "milspec");
+    expect(upgraderView(r)).toMatchObject({ canGo: true, hint: null });
+    r.state.locker.cards = [drop(60, "classified")];
+    expect(upgraderView(r)).toMatchObject({ canGo: false, hint: "results" });
+    r.state.locker.cards = [];
+    r.state.locker.press = { elapsed: 0 } as never;
+    expect(upgraderView(r)).toMatchObject({ canGo: false, hint: "press" });
   });
 
   it("refuses an empty stake and keeps it picked (Review Focus 3)", () => {

@@ -11,12 +11,12 @@ var CURRENCY = "CLOUT";
 var LEADERBOARD = "best_run";
 var META_KEY = "cc_meta";
 var ANTI_KEY = "cc_anti";
+/** Public String key: the player's verified Solana wallet, shown on the leaderboard (plan F8). */
+var WALLET_KEY = "cc_wallet";
 var KEEP_RUNS = 20;
 /** Whether endRun moves best_run itself. The probe found leaderboard event tokens land in MilestoneTokensEarned, not
  *  in the BestScore, so the client submits the score (client.leaderboard.submitScore) after endRun answers. */
 var SERVER_SCORE = false;
-/** Makes every perk operation's Reason unique, even two in the same millisecond. */
-var opSeq = 0;
 
 function fail(reason, retry) {
   return { ok: false, reason: reason, retry: !!retry };
@@ -27,12 +27,24 @@ function num(x) {
 function clamp(x, lo, hi) {
   return Math.min(Math.max(x, lo), hi);
 }
+/** An own key of a plain table (never "constructor" or "__proto__" through the prototype). */
+function has(table, key) {
+  return typeof key === "string" && Object.prototype.hasOwnProperty.call(table, key);
+}
+/** A base58 Solana address (32-44 characters, no 0, O, I or l) - the client's isSolanaAddress. */
+function isSolanaAddress(s) {
+  return typeof s === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+}
 
 // ---- the server API (only here) ----
 // ReadUserData(["InventoryV2"]) answers the data itself (no {Success, Data}); Items are keyed by ItemID.
 // GetUserCustomData() answers every bucket ({Success, Data: {ReadOnly: {key: {Value}}}}); it is read once per call.
-// SetUserCustomData(bucket, key, string). ApplyResourceOperation({Operation, Reason}): Reason is required and works
-// as an idempotency key, so each operation gets its own.
+// SetUserCustomData(bucket, key, string). ApplyResourceOperation({Operation, Reason}): Reason is required and is an
+// idempotency key per player ACROSS executions (DEV probe, 2026-10-13: the same Reason in three executions applied
+// once, even with another amount; an op that FAILED does not use its Reason up; a replay of an applied consume is still
+// checked against the balance first). So a retried endRun / reportTrophy / buyPerk never pays or charges twice.
+// ReadUserData(["Blockchain"]) (or any other field tried) answers {} (DEV probe, 2026-10-13, revisions 15-16): CloudCode
+// cannot read the player's verified wallet, so the client sends it with endRun (plan F8, publishWallet).
 function makeIo(server, context) {
   var custom = null;
   var inv = null;
@@ -65,6 +77,12 @@ function makeIo(server, context) {
         return null;
       }
     },
+    /** A String key's value as stored (no JSON parse), or null. */
+    readRaw: function (bucket, key) {
+      var b = customData()[bucket];
+      var rec = b && b[key];
+      return rec && typeof rec.Value === "string" ? rec.Value : null;
+    },
     writeData: function (bucket, key, value) {
       var s = typeof value === "string" ? value : JSON.stringify(value);
       var r = server.SetUserCustomData(bucket, key, s);
@@ -81,7 +99,7 @@ function makeIo(server, context) {
     ownedTrophies: function () {
       var items = inventory().Items || {};
       var out = [];
-      for (var id in items) if (DATA.trophies[id] && items[id] && items[id].TotalAmount > 0) out.push(id);
+      for (var id in items) if (has(DATA.trophies, id) && items[id] && items[id].TotalAmount > 0) out.push(id);
       return out;
     },
     apply: function (op, reason) {
@@ -95,7 +113,10 @@ function makeIo(server, context) {
 // ---- the game's rules (mirrors of sim/meta.ts and meta/plausibility.ts, tested against them) ----
 function maxPlausibleLog10(elapsedSec, loops) {
   var c = DATA.cap;
-  return Math.min(c.ceilLog10, c.baseLog10 + c.perSqrtSecond * Math.sqrt(Math.max(0, elapsedSec)) + c.perLoop * Math.max(0, loops));
+  var l = Math.max(0, loops);
+  var v = DATA.vaults.length;
+  var loopTerm = c.perLoop * Math.min(l, v) + c.perReplay * Math.max(0, l - v);
+  return Math.min(c.ceilLog10, c.baseLog10 + c.perSqrtSecond * Math.sqrt(Math.max(0, elapsedSec)) + loopTerm);
 }
 function scoreFor(e) {
   return e > 1 ? Math.floor(Math.log10(e) * 1000) : 0;
@@ -106,6 +127,14 @@ function cloutFor(e) {
 function perkCost(id, level) {
   var p = DATA.perks[id];
   return level >= p.maxLevel ? null : Math.ceil(p.baseCost * Math.pow(p.growth, level));
+}
+/** The least a run takes before its vault (index k of DATA.vaults) counts; a replay of the last uses minReplaySec. */
+function minRunSec(k, loops) {
+  return loops >= DATA.vaults.length ? DATA.minReplaySec : DATA.minRunSec[k];
+}
+function vaultIndex(trophy) {
+  for (var k = 0; k < DATA.vaults.length; k++) if (DATA.vaults[k].trophy === trophy) return k;
+  return -1;
 }
 function cloutEntry(n) {
   return { Type: "VirtualCurrency", CurrencyID: CURRENCY, Amount: n };
@@ -135,14 +164,41 @@ function readMeta(io) {
         return DATA.charms.indexOf(c) >= 0;
       })
     : [];
-  f.runs = Array.isArray(m.runs) ? m.runs.slice(-KEEP_RUNS) : [];
+  // each paid run: { id, score, gained } (revision 9 kept bare ids)
+  f.runs = (Array.isArray(m.runs) ? m.runs.slice(-KEEP_RUNS) : []).map(function (r) {
+    return typeof r === "string" ? { id: r, score: 0, gained: 0 } : { id: String(r && r.id), score: num(r && r.score) || 0, gained: num(r && r.gained) || 0 };
+  });
   return f;
 }
+function findRun(meta, runId) {
+  for (var i = 0; i < meta.runs.length; i++) if (meta.runs[i].id === runId) return meta.runs[i];
+  return null;
+}
+/** The anti-cheat clock (Internal: the client never sees it) - when the server first saw the player, when the last run
+ *  ended and the last counted vault, and the trophy token bucket. */
 function readAnti(io) {
   var a = io.readData("Internal", ANTI_KEY);
-  if (!a || typeof a !== "object") return { firstSeen: io.now(), lastEndAt: null, trophyAt: 0, trophyRuns: {} };
-  if (!a.trophyRuns || typeof a.trophyRuns !== "object") a.trophyRuns = {};
-  return a;
+  var now = io.now();
+  if (!a || typeof a !== "object") a = {};
+  var firstSeen = num(a.firstSeen);
+  return {
+    firstSeen: firstSeen === null ? now : Math.min(firstSeen, now),
+    lastEndAt: num(a.lastEndAt),
+    finaleAt: num(a.finaleAt),
+    trophyAt: num(a.trophyAt) || 0,
+    trophyTokens: num(a.trophyTokens),
+  };
+}
+/** Puts the player's Solana wallet in the Public key the leaderboard reads (plan F8). `claimed` is what the client read
+ *  from the platform's own state (client.blockchain.getUserState, filled only after the wallet signed a challenge):
+ *  an address, null for "this account has none" (the key is cleared), or absent when the client could not tell (the
+ *  key is left alone). CloudCode cannot check it (see makeIo), so the mark is cosmetic, like best_run; a failed write
+ *  never fails the run. */
+function publishWallet(io, claimed) {
+  var stored = io.readRaw("Public", WALLET_KEY);
+  if (isSolanaAddress(claimed)) {
+    if (stored !== claimed) io.writeData("Public", WALLET_KEY, claimed);
+  } else if (claimed === null && stored) io.writeData("Public", WALLET_KEY, "");
 }
 function view(io, meta) {
   return { ok: true, clout: io.clout(), trophies: io.ownedTrophies(), perks: meta.perks, loops: meta.loops, stats: meta.stats, picked: meta.picked };
@@ -156,22 +212,22 @@ var RULES = {
   },
 
   reportTrophy: function (io, a) {
-    var t = DATA.trophies[a.skinId];
+    var t = has(DATA.trophies, a.skinId) ? DATA.trophies[a.skinId] : null;
     if (!t || t.vault) return fail("not a trophy");
     var meta = readMeta(io);
-    if (t.minLoops > meta.loops) return fail("case not reached yet");
+    // retry: the run that reaches the case may not have counted yet (the client queues the retry behind its endRun)
+    if (t.minLoops > meta.loops) return fail("case not reached yet", true);
     if (io.ownedTrophies().indexOf(a.skinId) >= 0) return view(io, meta);
     var anti = readAnti(io);
     var now = io.now();
-    if (now - (num(anti.trophyAt) || 0) < DATA.trophyGapSec) return fail("too fast", true);
-    var runId = typeof a.runId === "string" ? a.runId.slice(0, 40) : "?";
-    var used = num(anti.trophyRuns[runId]) || 0;
-    var allowed = Math.ceil(DATA.trophiesPerRunMinute * Math.max(1, (num(a.elapsedSec) || 0) / 60));
-    if (used >= allowed) return fail("too many trophies this run");
+    if (now - anti.trophyAt < DATA.trophyGapSec) return fail("too fast", true);
+    // a token bucket in server time (the client's clock and run id are not trusted): trophiesPerMinute, trophyBurst at once
+    var since = Math.max(0, now - (anti.trophyAt || anti.firstSeen));
+    var tokens = Math.min(DATA.trophyBurst, (anti.trophyTokens === null ? DATA.trophyBurst : anti.trophyTokens) + (since * DATA.trophiesPerMinute) / 60);
+    if (tokens < 1) return fail("too many trophies, later", true);
     if (!io.apply({ Grant: { Standard: { Entries: [itemEntry(a.skinId)] } } }, "trophy:" + io.userId + ":" + a.skinId)) return fail("grant failed", true);
     anti.trophyAt = now;
-    anti.trophyRuns = {};
-    anti.trophyRuns[runId] = used + 1; // only the current run is kept
+    anti.trophyTokens = tokens - 1;
     io.writeData("Internal", ANTI_KEY, anti);
     return view(io, meta);
   },
@@ -182,49 +238,79 @@ var RULES = {
     var elapsed = num(a.elapsedSec);
     if (runId === null || earnings === null || earnings < 0 || elapsed === null || elapsed < 0) return fail("bad run report");
     var meta = readMeta(io);
-    if (meta.runs.indexOf(runId) >= 0) {
+    var paid = findRun(meta, runId);
+    if (paid) {
+      publishWallet(io, a.wallet);
       var dup = view(io, meta);
       dup.duplicate = true;
-      dup.gained = 0;
-      dup.score = 0;
+      dup.gained = paid.gained;
+      dup.score = paid.score;
       dup.capped = false;
       dup.serverScore = SERVER_SCORE;
       return dup;
     }
     var anti = readAnti(io);
     var now = io.now();
-    var last = num(anti.lastEndAt);
-    var endedAt = clamp(num(a.endedAt) === null ? now : a.endedAt, last === null ? 0 : last, now);
-    var window = last === null ? DATA.firstRunMaxSec : endedAt - last;
-    var used = Math.min(elapsed, window);
-    var capped = Math.min(earnings, Math.pow(10, maxPlausibleLog10(used, meta.loops)));
+    // The run's time is bounded by the server's own clock: since the last run ended, or since the server first saw the
+    // player. The end comes as "seconds ago" (no client clock skew); a bare endedAt is the revision-9 client's.
+    var floor = anti.lastEndAt === null ? anti.firstSeen : Math.max(anti.firstSeen, anti.lastEndAt);
+    var ago = num(a.endedAgoSec);
+    var claimed = ago !== null ? now - Math.max(0, ago) : num(a.endedAt) === null ? now : a.endedAt;
+    var endedAt = clamp(claimed, floor, now);
+    var used = Math.min(elapsed, endedAt - floor);
+    // The vault counts when it is the one the server expects - or a later one (a lost endRun is caught up) - and the
+    // run took the minimum time, and every vault it stands for fits in the time since the last counted one.
+    var cur = Math.min(meta.loops, DATA.vaults.length - 1);
+    var k = vaultIndex(a.trophy);
+    var finale = false;
+    if (a.finaleReached === true && k >= cur && used >= minRunSec(k, meta.loops)) {
+      var need = 0;
+      for (var j = cur; j <= k; j++) need += minRunSec(j, meta.loops);
+      finale = endedAt - (anti.finaleAt === null ? anti.firstSeen : Math.max(anti.firstSeen, anti.finaleAt)) >= need;
+    }
+    // The loop terms of the cap go only to a run that took the minimum run time in server time: a run that ends at
+    // once (a fresh runId right after the last end) gets the time-only cap, 10^3, which pays 0. A counted catch-up run
+    // is capped as the run it was (vault k has k vaults behind it).
+    var capLoops = finale ? Math.max(meta.loops, k) : used >= minRunSec(cur, meta.loops) ? meta.loops : 0;
+    var capped = Math.min(earnings, Math.pow(10, maxPlausibleLog10(used, capLoops)));
     var gain = Math.min(cloutFor(capped), DATA.maxCloutPerRun);
     var score = scoreFor(capped);
-    var vault = DATA.vaults[Math.min(meta.loops, DATA.vaults.length - 1)];
-    var finale = a.finaleReached === true && a.trophy === vault.trophy;
     var grant = { Standard: { Entries: gain > 0 ? [cloutEntry(gain)] : [] } };
-    if (finale && io.ownedTrophies().indexOf(vault.legend) < 0) grant.Standard.Entries.push(itemEntry(vault.legend));
     if (SERVER_SCORE && score > 0) grant.Standard.EventTokens = [{ Address: { Type: "Leaderboard", EntityID: LEADERBOARD }, Amount: score, Source: "casecremental:endRun" }];
-    // the run's id is the Reason: a replay the meta write missed is still paid only once by the platform
+    // the run's id is the Reason: a retry after a failed meta write is paid only once by the platform
     if ((grant.Standard.Entries.length > 0 || grant.Standard.EventTokens) && !io.apply({ Grant: grant }, "endRun:" + io.userId + ":" + runId))
       return fail("grant failed", true);
-    if (finale) meta.loops += 1;
+    // every vault the run stands for brings its legend (a catch-up brings the skipped ones too), each with its own Reason
+    if (finale) {
+      var owned = io.ownedTrophies();
+      for (var v = cur; v <= k; v++) {
+        var legend = DATA.vaults[v].legend;
+        if (owned.indexOf(legend) < 0 && !io.apply({ Grant: { Standard: { Entries: [itemEntry(legend)] } } }, "legend:" + io.userId + ":" + legend))
+          return fail("grant failed", true);
+      }
+    }
+    if (finale) {
+      meta.loops = k > cur ? k + 1 : meta.loops + 1;
+      anti.finaleAt = endedAt;
+    }
     meta.stats.cloutEarned += gain;
-    meta.runs.push(runId);
+    meta.runs.push({ id: runId, score: score, gained: gain });
     meta.runs = meta.runs.slice(-KEEP_RUNS);
     anti.lastEndAt = endedAt;
-    io.writeData("ReadOnly", META_KEY, meta);
+    if (!io.writeData("ReadOnly", META_KEY, meta)) return fail("save failed", true);
     io.writeData("Internal", ANTI_KEY, anti);
+    publishWallet(io, a.wallet);
     var out = view(io, meta);
     out.gained = gain;
     out.score = score;
     out.capped = capped < earnings;
+    out.finale = finale;
     out.serverScore = SERVER_SCORE;
     return out;
   },
 
   buyPerk: function (io, a) {
-    if (!DATA.perks[a.perkId]) return fail("unknown perk");
+    if (!has(DATA.perks, a.perkId)) return fail("unknown perk");
     var meta = readMeta(io);
     var level = meta.perks[a.perkId];
     if (num(a.level) !== null && a.level !== level) {
@@ -234,13 +320,12 @@ var RULES = {
     }
     var cost = perkCost(a.perkId, level);
     if (cost === null) return fail("max level");
-    var tag = a.perkId + ":" + level + ":" + Math.floor(io.now() * 1000) + ":" + ++opSeq; // no "." in a Reason
-    if (!io.apply({ Consume: { Standard: { Entries: [cloutEntry(cost)] } } }, "perk:" + tag)) return fail("not enough CLOUT");
+    // One Reason per perk level: two tabs buying the same level at once are charged once (the platform applies a Reason
+    // once), and a retry after a failed meta write does not charge again - so there is no refund to undo it.
+    if (!io.apply({ Consume: { Standard: { Entries: [cloutEntry(cost)] } } }, "perk:" + io.userId + ":" + a.perkId + ":" + level))
+      return fail("not enough CLOUT");
     meta.perks[a.perkId] = level + 1;
-    if (!io.writeData("ReadOnly", META_KEY, meta)) {
-      io.apply({ Grant: { Standard: { Entries: [cloutEntry(cost)] } } }, "refund:" + tag);
-      return fail("save failed", true);
-    }
+    if (!io.writeData("ReadOnly", META_KEY, meta)) return fail("save failed", true);
     return view(io, meta);
   },
 

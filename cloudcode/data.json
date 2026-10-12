@@ -255,10 +255,18 @@
     "baseLog10": 3,
     "perSqrtSecond": 0.3,
     "perLoop": 4,
+    "perReplay": 0.5,
     "ceilLog10": 300
   },
-  "firstRunMaxSec": 21600,
+  "minRunSec": [
+    120,
+    45,
+    60,
+    80
+  ],
+  "minReplaySec": 25,
   "trophyGapSec": 2,
-  "trophiesPerRunMinute": 30,
+  "trophiesPerMinute": 2,
+  "trophyBurst": 3,
   "maxOpensPerSecond": 2000
 }

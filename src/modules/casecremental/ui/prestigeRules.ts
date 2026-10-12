@@ -7,13 +7,22 @@ import { t } from "../i18n/index";
 import { botSpeed } from "../sim/botOpener";
 import { runCaseIds, runContent } from "../sim/campaign";
 
-const NUMERALS = { vault1: "I", vault2: "II", vault3: "III", lastcase: "IV" } as const; // lastcase: interim (plan F6-C)
-
-/** The vault's number on the prestige screen ("VAULT II OPENED", "★ Vault II trophy"). */
-export const vaultNumeral = (id: VaultDef["id"]): (typeof NUMERALS)[VaultDef["id"]] => NUMERALS[id];
-
 // The prestige screen's rules (M2b spec §8): pick up to `slots` of the three offered charms; the screen
-// waits for the blackout when you watched the run end, and comes up at once after a reload.
+// waits for the blackout when you watched the run end, and comes up at once after a reload. After The Last Case the
+// credits come first, then THE END (finish spec §7.4).
+
+const NUMERALS: Readonly<Record<Exclude<VaultDef["id"], "lastcase">, string>> = { vault1: "I", vault2: "II", vault3: "III" };
+
+/** The prestige screen's title: "VAULT II OPENED", or The Last Case's own. */
+export const prestigeTitle = (id: VaultDef["id"]): string =>
+  id === "lastcase" ? t("prestige.lastTitle") : t("prestige.title", { n: NUMERALS[id] });
+
+/** The trophy the vault left: "★ Vault II trophy", or ★ Singularity. */
+export const trophyLine = (id: VaultDef["id"]): string =>
+  id === "lastcase" ? t("prestige.lastTrophy") : t("prestige.trophy", { n: NUMERALS[id] });
+
+/** What the end of a run shows: the credits while they roll (after The Last Case), else the prestige screen. */
+export const endScreen = (p: PrestigeView | null): "credits" | "prestige" | null => (p ? (p.credits ? "credits" : "prestige") : null);
 
 export function charmChoices(p: PrestigeView): Array<{ id: CharmId; picked: boolean; enabled: boolean }> {
   return p.offer.map((id) => {

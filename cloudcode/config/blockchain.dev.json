@@ -16,5 +16,5 @@
     }
   },
   "AccountSafety": { "MinAccountAgeDays": 0, "MultiAccountCheckEnabled": false, "BanOnSharedWithdrawalAddress": false, "PendingWithdrawalTtlHours": 1 },
-  "WalletLogin": { "Enabled": true, "WalletConnectProjectId": "" }
+  "WalletLogin": { "Enabled": true, "WalletConnectProjectId": "02e026fbed2a0533ea6637cf47888b9d" }
 }

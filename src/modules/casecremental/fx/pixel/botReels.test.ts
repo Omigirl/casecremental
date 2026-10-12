@@ -63,3 +63,36 @@ describe("BotReels", () => {
     expect(ticks).toEqual([]);
   });
 });
+
+describe("BotReels free spin (The Last Case's finale)", () => {
+  const setup = () => {
+    const ticks: number[] = [];
+    const r = new BotReels(frameSet, skins, (i) => ticks.push(i));
+    r.layout(landscape);
+    r.setOnline(true);
+    r.start("bootcamp", ["bc_woodland", "bc_desert"], createRng(1));
+    return { r, ticks };
+  };
+
+  it("ignores the sim's frames (null or a frozen spin) while free: no tick, no landing", () => {
+    const { r, ticks } = setup();
+    r.freeSpin("bootcamp", ["bc_woodland", "bc_desert"], createRng(2), false, 1, 3);
+    const x = strip(r, 0).x;
+    ticks.length = 0;
+    r.update({ caseId: "bootcamp", drops: [], elapsed: 2.9, duration: 3 }); // the frozen spin
+    expect(strip(r, 0).x).toBe(x);
+    r.update(null);
+    expect(edge(r, 0)).toBe(0); // not landed
+    expect(strip(r, 0).x).toBe(x);
+    expect(ticks).toEqual([]);
+  });
+
+  it("start() clears the flag: the sim's frames drive it again", () => {
+    const { r } = setup();
+    r.freeSpin("bootcamp", ["bc_woodland", "bc_desert"], createRng(2), false, 1, 3);
+    r.start("bootcamp", ["bc_woodland", "bc_desert"], createRng(3));
+    r.update({ caseId: "bootcamp", drops: [], elapsed: 2.99, duration: 3 });
+    r.update(null);
+    expect(edge(r, 0)).toBeGreaterThan(0); // landed by the sim's own clear
+  });
+});

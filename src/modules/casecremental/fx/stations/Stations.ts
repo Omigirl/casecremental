@@ -125,6 +125,11 @@ export class Stations {
     return this.autoSpin.tap(p, s) || this.locker.tap(p, s.locker.on);
   }
 
+  /** The Last Case's free spin (Finale.ts): the bot's reels spin until the lid opens. */
+  finaleSpin(caseId: string, skinIds: readonly string[], start: boolean, elapsed: number, duration: number): void {
+    this.bot.finaleSpin(caseId, skinIds, start, elapsed, duration);
+  }
+
   /** A card the auto-seller's Collect sent into the locker flies there from `from` (world px). */
   storedFrom(from: Pt, rarity: RarityId): void {
     this.locker.storedFrom(from, rarity);

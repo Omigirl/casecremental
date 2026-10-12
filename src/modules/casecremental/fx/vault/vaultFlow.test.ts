@@ -3,7 +3,7 @@ import type { VaultState } from "../../sim/run";
 import { VAULT_OPENING_SECONDS } from "../../sim/tuning";
 import { VAULT_CUES } from "./cues";
 import { BLACKOUT_SECONDS, LIGHTS_UP_SECONDS, lightCues } from "./lights";
-import { applyMusic, bindMusicResync, musicPlan, PowerCycle, type MusicAudio } from "./vaultFlow";
+import { afterRunTrack, applyMusic, bindMusicResync, musicPlan, PowerCycle, type MusicAudio } from "./vaultFlow";
 
 const at = (vault: VaultState | null, over = false) => ({ vault, over });
 const opening = (t: number): VaultState => ({ phase: "opening", t, drops: [], landed: 0 });
@@ -78,6 +78,21 @@ describe("the music after a lobby trip picks up where the vault is", () => {
   });
 });
 
+describe("the music after The Last Case (finish spec §7.4)", () => {
+  it("picks the credits track while the credits roll, the prestige loop after (Review Focus 1)", () => {
+    const over = at(null, true);
+    expect(musicPlan(over, "dark", "vault-fanfare", "credits").track).toBe("credits");
+    expect(musicPlan(over, "dark").track).toBe("prestige");
+    expect(musicPlan(over, "blackout", "vault-fanfare", "credits")).toMatchObject({ track: "credits", musicOn: false });
+  });
+
+  it("falls back to the prestige loop without a credits track (Review Focus 3)", () => {
+    expect(afterRunTrack(true, true)).toBe("credits");
+    expect(afterRunTrack(true, false)).toBe("prestige");
+    expect(afterRunTrack(false, true)).toBe("prestige");
+  });
+});
+
 describe("applyMusic", () => {
   it("arms a silent plan's track as the plan says (a one-shot stays a one-shot), with the music off", () => {
     const r = recorder();
@@ -118,6 +133,14 @@ describe("PowerCycle", () => {
     expect(r.calls).toEqual(["play blackout", 'track prestige {"loop":true}', "music on"]);
     run(p, 3);
     expect(r.calls).toHaveLength(3); // once
+  });
+
+  it("fades to black, then starts the run's after-track in the dark (the credits after The Last Case)", () => {
+    const r = recorder();
+    const p = new PowerCycle(r.audio);
+    p.blackout("credits");
+    run(p, BLACKOUT_SECONDS + 0.05);
+    expect(r.calls).toEqual(["play blackout", 'track credits {"loop":true}', "music on"]);
   });
 
   it("is already dark after a reload on the prestige screen, leaving the music to musicPlan", () => {

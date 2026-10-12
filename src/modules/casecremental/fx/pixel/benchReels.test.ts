@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Bench, BenchReel } from "../../sim/run";
 import type { Drop } from "../../sim/types";
 import { Texture, TextureSource, type Container } from "pixi.js";
+import { caseById } from "../../sim/content/cases";
 import { createRng } from "../../sim/rng";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { BenchReels, earlyLandings, leanHeld, leanReel, tallWindow } from "./BenchReels";
@@ -118,5 +119,52 @@ describe("BenchReels landing", () => {
     r.update(revealed(reels));
     r.update(revealed(reels));
     expect(edge(r)).toBeGreaterThan(0);
+  });
+});
+
+describe("BenchReels free spin (The Last Case's finale)", () => {
+  const tex = new Texture({ source: new TextureSource({ width: 4, height: 4 }) });
+  const frameSet = { frames: [tex] } as unknown as SpriteSet;
+  const skins = { texture: () => tex, size: () => ({ w: 26, h: 10 }), thumb: () => tex } as unknown as SkinTextures;
+  const c = caseById("bootcamp");
+  const setup = () => {
+    const ticks: number[] = [];
+    const r = new BenchReels(frameSet, skins, (i) => ticks.push(i));
+    r.layout(tableLayout({ worldW: 320, worldH: 180, portrait: false }));
+    return { r, ticks };
+  };
+  const strip = (r: BenchReels) => (r.root.children[0] as Container).children[3] as Container;
+  const edge = (r: BenchReels) => {
+    const s = strip(r);
+    return (s.children[s.children.length - 1] as unknown as { context: { instructions: unknown[] } }).context.instructions.length;
+  };
+  const frozen = (): Bench =>
+    ({ phase: "spinning", caseId: "bootcamp", reels: [reel(0.9, 3)], elapsed: 2.9, fullDuration: 3 }) as unknown as Bench;
+
+  it("ignores the bench's frames while free: no lean, no landing, no tick, the strip stays", () => {
+    const { r, ticks } = setup();
+    r.freeSpin(c, c.skins[0]!, createRng(1), true, 1, 3);
+    const x = strip(r).x;
+    ticks.length = 0;
+    expect(r.update(frozen())).toEqual({ lean: null, landed: [] });
+    expect(r.update({ phase: "empty" })).toEqual({ lean: null, landed: [] });
+    expect(strip(r).x).toBe(x);
+    expect(edge(r)).toBe(0);
+    expect(ticks).toEqual([]);
+  });
+
+  it("start() clears the flag: the bench reacts again", () => {
+    const { r } = setup();
+    r.freeSpin(c, c.skins[0]!, createRng(1), true, 1, 3);
+    const base = reel(0.9, 3);
+    r.start("bootcamp", [{ ...base, drop: { ...base.drop, skinId: "bc_woodland" } }], createRng(2));
+    const b = {
+      phase: "spinning",
+      caseId: "bootcamp",
+      reels: [{ ...base, drop: { ...base.drop, skinId: "bc_woodland" } }],
+      elapsed: 2.9,
+      fullDuration: 3,
+    } as unknown as Bench;
+    expect(r.update(b).lean).not.toBeNull(); // the tease leans in again
   });
 });

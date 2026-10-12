@@ -144,6 +144,12 @@ describe("indexAudio playlists (finish spec §6)", () => {
   it("indexes the credits as a named track", () => {
     expect(indexAudio({ "/a/credits.mp3": "cr" }).tracks.get("credits")).toBe("cr");
   });
+
+  it("knows which named tracks it has (a credits track may be missing)", () => {
+    const a = new AudioEngine({ "a/prestige.mp3": "p" });
+    expect(a.hasTrack("prestige")).toBe(true);
+    expect(a.hasTrack("credits")).toBe(false);
+  });
 });
 
 describe("AudioEngine tracks and caps", () => {

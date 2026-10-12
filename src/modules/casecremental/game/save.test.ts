@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
 import { freshAutoSpin } from "../sim/autoSpin";
 import { freshEvolutions } from "../sim/evolved";
+import { vaultFor } from "../sim/content/vaults";
+import { LAST_RUN } from "../sim/tuning";
 import { freshMeta } from "../sim/meta";
 import { freshUpgrader } from "../sim/upgrader";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
+import { browserSlot, decodeSave, encodeSave, SAVE_KEY, SAVE_VERSION, SaveSlot, type SaveData } from "./save";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -31,6 +33,19 @@ describe("the local save", () => {
     const d = data();
     d.run.setup = { ...d.run.setup, vaultPrice: 1_234_567, valueBoost: 9 };
     expect(decodeSave(encodeSave(d))!.run.setup).toMatchObject({ vaultPrice: 1_234_567, valueBoost: 9 });
+  });
+
+  it("rolls a Run 3 replay save (loops >= 3) back so it plays a first Run 4, but leaves Run 4 players alone", () => {
+    const legacy = data();
+    legacy.meta.loops = 4;
+    legacy.meta.trophies = ["vault1", "vault2", "vault3"];
+    expect(decodeSave(encodeSave(legacy))!.meta.loops).toBe(3); // the next run is Run 4's first
+    legacy.meta.loops = 2;
+    expect(decodeSave(encodeSave(legacy))!.meta.loops).toBe(2);
+    const done = data();
+    done.meta.loops = 6;
+    done.meta.trophies = [vaultFor(LAST_RUN).trophy];
+    expect(decodeSave(encodeSave(done))!.meta.loops).toBe(6);
   });
 
   it("drops a missing, broken, foreign or old save — with a warning, never a throw", () => {
@@ -68,6 +83,20 @@ describe("the local save", () => {
     expect(broken.load()).toBeNull();
     expect(() => broken.clear()).not.toThrow();
     expect(new SaveSlot(null).load()).toBeNull();
+  });
+
+  it("keeps one save per account, and the first account adopts an older build's unkeyed save", () => {
+    const store = memory();
+    store.setItem(SAVE_KEY, encodeSave(data()));
+    vi.stubGlobal("localStorage", store);
+    try {
+      expect(browserSlot("A").load()).toEqual(data());
+      expect(store.m.has(SAVE_KEY)).toBe(false);
+      expect(store.m.has(`${SAVE_KEY}.A`)).toBe(true);
+      expect(browserSlot("B").load()).toBeNull(); // another account starts its own campaign
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("fills in what an older or partial save leaves out, so nothing turns into NaN or crashes", () => {

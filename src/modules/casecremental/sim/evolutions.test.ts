@@ -3,6 +3,7 @@ import { AUTOSPIN_DELAY_LEVELS } from "./autoSpin";
 import { SELLER_SPEED_LEVELS } from "./autoSeller";
 import { botSpeedLevels } from "./botOpener";
 import { runCaseIds } from "./campaign";
+import { botRoll } from "./evolved";
 import { buyEvolution, recipeDone, RECIPES } from "./evolutions";
 import { Run } from "./run";
 import { DEFAULT_SETUP } from "./runTypes";
@@ -113,6 +114,22 @@ describe("what evolutions do", () => {
     }
     expect(cartelValue).toBeGreaterThan(plainValue * 1.2);
     expect(cartel.state.opened).toBeLessThanOrEqual(plain.state.opened + 5); // one open per case, not two
+  });
+
+  it("Cartel's two rolls both see the same opened count (Lucky Seven never fires on a discarded roll)", () => {
+    const r = rich();
+    r.state.evolutions.owned.push("cartel");
+    r.state.opened = 5;
+    const seen: number[] = [];
+    const roll = r.rollFor.bind(r);
+    r.rollFor = (...a: Parameters<Run["rollFor"]>) => {
+      const d = roll(...a);
+      seen.push(r.state.opened);
+      return d;
+    };
+    botRoll(r, "bootcamp");
+    expect(seen).toEqual([6, 6]);
+    expect(r.state.opened).toBe(6);
   });
 
   it("Money Printer triples the auto-seller's sales, never a hand sale", () => {

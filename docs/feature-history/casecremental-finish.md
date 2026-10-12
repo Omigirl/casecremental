@@ -311,21 +311,21 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   only `makeIo` speaks `server.*`, so Vitest runs every rule with a fake (`cloudcode/casecremental.test.ts`). Every
   handler answers a view (CLOUT, trophies, perks, loops, stats, picks) or `{ ok: false, reason, retry }`, never throws.
 - **Server authority and offline.** The local meta is a cache that always plays. Every call goes through a FIFO queue
-  persisted in `localStorage["casecremental.serverQueue"]`, retried with back-off (2, 5, 15, 60, 300 s) and dropped
-  after 12 tries; one saveMeta waits at a time (the newest). CLOUT and perks follow the server only when no
+  persisted in `localStorage["casecremental.serverQueue"]` (per account since the review fixes), retried with back-off
+  (2, 5, 15, 60, 300 s) and dropped after 12 tries (changed by the review fixes, below); one saveMeta waits at a time (the newest). CLOUT and perks follow the server only when no
   endRun/buyPerk is queued AND the server has seen at least as many vaults as the local meta (else the larger perk
   level and the local CLOUT stay: a save from before F7 keeps its progress, it is never uploaded). Loops and stats
   only grow. A run nothing has happened in yet is rebuilt when the server knows more vaults (a new device), so its
   vault is the one endRun expects. The local save is still restored synchronously before any of this, so the game and
   the tutorial's first look never wait for the server.
 - **Plausibility.** endRun caps earnings at 10^min(300, 3 + 0.3·√t + 4·loops), t = the claimed run time bounded by the
-  time since the server last saw a run end (a first run may claim 6 h). Calibrated against a superhuman greedy bot
+  time since the server last saw a run end (a first run may claim 6 h — replaced by the review fixes). Calibrated against a superhuman greedy bot
   (every action 0.05 s), seeds 1–6: it vaults Run 1 at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at
   ≥ 100 s with 10^12.1; perLoop has to carry Run 2's jump from a short run, so it is steep (and the cap is loose for
   late loops). Still refused: $1M in Run 1's first minute (cap 10^5.3), 10^11 in its first 10 min (10^10.3). One run
   pays at most 1e11 CLOUT (int64 and the policy's 1e12/day cap). endRun is idempotent by runId (`"r" + seed`, also the
   resource-operation Reason); buyPerk carries the level before the purchase, so a replay answers `stale`. Trophy
-  reports: ≥ 2 s apart, ≤ 30 per run-minute, only for cases the player's loops have reached; legends come only with
+  reports: ≥ 2 s apart, ≤ 30 per run-minute (replaced by a server-time bucket in the review fixes), only for cases the player's loops have reached; legends come only with
   the vault, through endRun.
 - **What the probe found** (`cloudcode/probe.js`, the findings block): `ReadUserData(["InventoryV2"])` answers the data
   with no wrapper and Items keyed by ItemID; `GetUserCustomData()` returns every bucket; `SetUserCustomData(bucket, key,
@@ -334,8 +334,8 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   a publish reaches the handler whitelist only after a few minutes.
 - **best_run is moved by the client.** Leaderboard event tokens from CloudCode land in MilestoneTokensEarned, not in
   the BestScore, so `SERVER_SCORE = false` and the client calls `client.leaderboard.submitScore` with the score endRun
-  computed. **The board can be forged through the raw API; CLOUT, perks and trophies cannot** (only CloudCode grants
-  them, with the caps above).
+  computed. **The board can be forged through the raw API.** CLOUT, perks and trophies are granted only by CloudCode,
+  but that is all it guarantees — see "F7 review fixes" for what a scripted client can and cannot do.
 - **Platform issue seen on DEV:** CloudCode's grants did not reach the client's own inventory reads for one guest
   (`getClientState` kept CLOUT 0 for 5+ minutes while CloudCode read 11), but did for others. The game therefore takes
   CLOUT and trophies from the handlers' views, and the Trophy Case adds loadMeta's trophies to the inventory's. The
@@ -358,3 +358,206 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   queued five calls and play went on — they drained 15 s after unblocking and both sides matched; removing the game's
   local keys brought CLOUT, perks, loops and vault trophies back (and, after the fix, the right run); both tabs in EN
   and RU.
+- **After F6 merged** (2026-10-13): the catalog and DATA were regenerated — 31 trophies (Glitch and Fever Dream's, the
+  Run 4 vault's ★ Singularity `lastcase_legend`, minLoops 3) and the `loadedDice` charm; the Trophies catalog was
+  re-saved and CloudCode re-published on ZVKC34TR-DEV (revision 9, CodeHash 10a11997… = sha256 of the committed
+  bundle). An Upgrader win reports its skin like any drop (`trophyDropsOf` reads `upgraderDone`); the server needs no
+  change for it — a trophy is checked by its case's first run, not by how it was won.
+
+### F7 review fixes (2026-10-13, DEV CloudCode revision 13)
+
+- **Nothing important is dropped any more.** Time offline (no answer: connection, session, `HandlerNotFound` /
+  `NoActiveRevision` while a publish spreads, another account signed in) never counts against a call and backs off at
+  most 60 s. An endRun or buyPerk is dropped only when its handler answers `{ ok: false, retry: false }`; unknown platform
+  errors are retried (counted, capped back-off). reportTrophy / saveMeta / submitScore still give up after 12 answered
+  failures. A full queue (200) drops the oldest droppable call, never a write. The `online` event and a successful
+  loadMeta wake the queue. After a write is refused for good the client loads the server's meta. A loadMeta answer
+  that a write's answer overtook is ignored.
+- **A lost endRun no longer stalls the meta.** endRun accepts the vault the trophy names when it is at or past the one
+  the server expects (`k ≥ min(loops, 3)`), sets `loops = k + 1`, caps that run as the run it was, and grants every
+  skipped vault's legend too (each with its own Reason `legend:<user>:<legend>`). A failed meta write answers
+  `retry: true`. The queue holds one endRun per run id.
+- **Reason idempotency holds across executions** (DEV probe, revisions 10–11, findings in `cloudcode/probe.js`): the same
+  Reason in three separate executions applied once, even with another amount; a failed op does not use its Reason up;
+  a replayed consume is still checked against the balance first. How long the platform remembers a Reason is unknown.
+  So a retried endRun (`endRun:<user>:<runId>`) or reportTrophy (`trophy:<user>:<skin>`) cannot pay twice, and buyPerk
+  now uses one Reason per level (`perk:<user>:<perk>:<level>`): two tabs buying the same level are charged once, and a
+  retry after a failed meta write doesn't charge again (so there is no refund any more).
+- **Time comes from the server.** A run's time is bounded by the time since the last run ended, or since the server first
+  saw the player (loadMeta writes `firstSeen`); the 6 h first-run window is gone. The client sends `endedAgoSec` at
+  send time (no clock skew); a bare `endedAt` is clamped to ≥ max(last end, first seen), so `endedAt: 0` earns nothing.
+  A vault counts only after a minimum run time (`SERVER_MIN_VAULT_SEC` = 120/45/60/80 s, replays 25 s — the FAST bot's
+  fastest vaults ÷ 1.25, and at most a third of the CASUAL medians; `meta/plausibility.test.ts` holds both), and a
+  catch-up only when the time since the last counted vault covers every vault it stands for.
+- **Trophy reports** use a token bucket in server time (2 a minute, 3 at once, ≥ 2 s apart); over the limit, or for a
+  case the server's loops haven't reached yet, they are asked to retry, never refused for good. The client's run id and
+  elapsed time are no longer trusted for it. A trophy report, save or score waiting for its retry no longer holds up the
+  queue (only a waiting endRun/buyPerk does), so a trophy for a new case waits for the endRun queued after it.
+- **What this guarantees, and what not** (revision 14). The server cannot verify that a run was played: there is no
+  server-side RNG. What it enforces, all in server time:
+  - one endRun pays at most cloutFor(10^cap) with cap = 3 + 0.3·√used (+ 4 per loop up to 4, + 0.5 per replay loop
+    after), `used` = seconds since the previous endRun (or the first loadMeta), capped at 1e11 CLOUT a run and by the
+    Title's policy at 1e12 CLOUT a day. The loop terms count only when `used` ≥ the minimum run time, so an endRun that
+    comes at once pays 0 (under 25 s: ≤ 1 CLOUT), and firing many runIds back to back pays nothing;
+  - loops (and the vault legends) advance by one counted vault at a time, each needing its minimum run time: ≥ 305 s from
+    the first loadMeta to all four legends, then ≥ 25 s per replay loop;
+  - so a scripted client can still out-earn a real player: at loops 4, one run every 25 s claims up to ~1.7e8 CLOUT
+    (a real Run 4 replay pays ~4e5), growing ×1.78 per counted replay until the 1e11-a-run and 1e12-a-day caps. What
+    it cannot do is earn anything without the time passing, pay a run twice, buy a perk level twice, or touch another
+    player's data;
+  - case trophies only for cases its loops have reached, at ≤ 2 a minute (3 at once).
+  CLOUT has no outside value; **before trophies become Solana NFTs (F8) they need a stronger proof than this** (e.g.
+  server-side drops).
+- **Accounts.** The call queue (`casecremental.serverQueue.<userID>`) and the local save (`casecremental.save.<userID>`)
+  are per account; the first account that loads after the update adopts the browser's unkeyed save and queue
+  (`meta/account.ts`). The port sends nothing while another account is signed in (a sign-out runs the module's setup
+  again for the next account, and the earlier session's timers keep running harmlessly).
+- **Smaller fixes.** A duplicate endRun answers the run's own score and gain (`cc_meta.runs` keeps `{ id, score, gained }`;
+  revision 9's bare ids still read). Trophy, perk and charm lookups use own keys only (`constructor`, `__proto__`). The
+  new-device rebuild requires an untouched run (nothing earned, opened or spent, no card anywhere) and restores the
+  run's charms: saveMeta now sends the run's own charms during a run (the meta's picks are cleared when a run starts).
+  The lobby tabs re-register on a language change without unregistering first (register replaces by id), so an open
+  tab stays open. Call arguments are typed JSON.
+- **Verified on DEV** (revision 13, CodeHash 24b2df3d… = sha256 of the committed bundle, Node guests with the real
+  bridge, queue and clientPort): `endedAt: 0` → 0 CLOUT, no vault; a finale 10 s after the first loadMeta and a Last Case
+  skip → refused; a Run 2 endRun 175 s after the first loadMeta with Run 1's endRun missing → counted, loops 2,
+  `vault2_legend`, not capped, and its duplicate answered the same score and gain; offline (fetch failing) 15 pumps kept
+  reportTrophy/endRun/buyPerk with 0 strikes, then drained: CLOUT 7 = 10 − 3, startCash 1, loops 1, `bc_knife` and
+  `vault1_legend`.
+
+
+## F6 — Run 4, The Last Case, the credits (2026-10-13)
+
+Plans: `docs/superpowers/plans/2026-10-12-casecremental-f6a-run4-sim.md` (the sim), `-f6b-run4-screen.md` (the table's
+looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Three streams: F6-A in the main tree, the art in
+`f6-assets`, F6-B and F6-C in parallel worktrees. F6-B's own notes (finishes, evolution looks, the Upgrader's dial, stage
+5's layers and their frame times) belong in this section when it merges.
+
+- **Run 4's content** is `RUN_CONTENT[3]`: Glitch and Fever Dream (cases 8 and 9), the Upgrader, evolutions, bot speed
+  x100, the bot opens x3; The Last Case is its vault (`VaultDef` `lastcase`, legend ★ Singularity). Every case has 13 skins
+  (5/3/2/2/1): the spec's "14" was resolved to the count every other case has. Unlock costs are Glitch 1.5T, Fever Dream
+  25T, The Last Case 450T (the plan's 6B / 150B sat below Inferno and broke "pricier up the ladder"). Fever Dream in Russian
+  is «Бредовый сон» (not «Горячка»: the charm Fever is «Лихорадка»); Run 4's new-run card fills the case names from
+  `caseName()`, so the card and the shelf cannot drift.
+- **Six finishes** (`PatternKind`): datamosh, scanline, rgbsplit (Glitch), melt, kaleido, huecycle (Fever Dream), with two
+  motions: `glitch` holds, then jumps to a new arrangement (4 steps a loop), `drip` runs down through the noise's period.
+  F6-A shipped a plain interim finish so the sim could land first; F6-B draws the real ones.
+- **The Upgrader** (`sim/upgrader.ts`). The stake is the **whole** locker stack of one rarity. A win's rarity is 1/2/3 steps
+  up by multiplier (`UPGRADER_RARITY_STEPS`) and pays the inputs' base value x the multiplier. Outcome and skin are rolled at
+  GO, so a reload mid-spin ends the same way. It shares the locker's press: no trade-up or auto contract while it spins.
+  **A vault bought mid-spin settles it** (a win is cashed in, a loss is gone) before the screen goes to the vault.
+  **Its EV stays at or under 1** (ruling): Loaded Dice multiplies the win chance by 1.1 (not +10 points), and Money Printer
+  does not triple an Upgrader win; otherwise a x1.5 stake was a money pump.
+- **Evolutions** (`sim/evolutions.ts`, `sim/evolved.ts`). Hot Hand's recipe reads the run's best combo (it never drops), and
+  the best combo is recorded before a lapsed combo resets (the plan's order zeroed it first). Cartel's double roll counts as
+  one open. Money Printer multiplies the auto-seller only. Assembly Line's free case is one case (not the multi-open width),
+  one tier up the unlocked shelf; the top case stays itself. Slot Machine raises the bench to 10 (`BENCH_OPEN_MAX`).
+- **Why the new actions are not `Run` methods:** `sim/run.ts` is past the file-size rule, so the controller, the agent and
+  the greedy player call the sim functions with the run (as F2 did for auto-spin).
+- **The save stayed at version 5:** the new fields default in `normalize`. The campaign's stats live in the meta
+  (`meta.stats`: play time and opens over completed runs, the best drop of any run, CLOUT earned) and `meta.credits` holds
+  the credits across a reload. F7 mirrors the meta and caps the stats server-side.
+- **Run 4's pacing** (F6-A Task 8; medians of 5 seeds, seconds, GREEDY / CASUAL). Run 4's catch-up is "Inferno unlocked",
+  whose prices are Run 3's, so no Run 4 lever could reach its band: **`CATCH_UP_PER_VAULT` became a per-vault table**
+  `[2.8, 2.8, 8, 2]` (Vault I, II, III, then The Last Case, which every replay repeats), read by `catchUpBoost(loops)`, and
+  `VAULT_GROWTH` went 3.4 → 2.0 (the first tuning here used 2.05; the main branch settled on 2.0). Vaults I/II keep 2.8, so Runs 1–3 are bit-for-bit F4's. Run 4: catch-up 73 / 88, vault
+  314 / 351, 90 s rule 66 (max 67); replay 1 vault 222 / 272; replays 2–5 shrink to ~2.2–2.6 min. **The spec's replay band
+  applies to the first replay only** (ruling): later replays are a post-credits victory lap and may be faster, but the 90 s
+  rule must hold for at least 15 replays. The Upgrader's EV stays <= 1 (Loaded Dice x1.1; no Money-Printer tripling of
+  Upgrader wins). Thin margins: GREEDY Run 4 vault 314/360 (one seed 354), CASUAL replay 1 272/240
+  (one seed 230).
+- **The art** (stream `f6-assets`): `case-glitch` and `case-feverdream` (4 frames, 23x31 / 22x31, from one 2-row grid
+  take), `vault-case-4` (black glass, gold seams; 68x78, Vault I's geometry), `upgrader-shred` (take 2: take 1 had a sharp
+  peak). One take each (about 420 ElevenLabs credits an image, double the plan's guess; 849.4 credits in all). The Last
+  Case's fanfare is Vault I's re-cut +7 semitones with the tempo kept (`rubberband=pitch=1.498307`, +1.9 dB, limiter;
+  13.80 s, mean -17.6 dB against Vault I's -17.3: the limiter caps more gain). Nobody has listened to it yet.
+- **The Last Case's look** (`fx/vault/vaultLooks.ts`): white/gold/void beams, pale-gold light, the densest chaos by count
+  only (5 bursts a kick, rain and sparks x2.5, twins on every beam item: the beams' spacing rule allows no more). The pools
+  are sized once from `MAX_DENSITY` 2.5. The flash schedule and the beat throbs stay global.
+- **The finale** (`fx/vault/finaleRules.ts`, pure; `Finale.ts`), both functions of the vault's clock, so a reload lands on
+  the same frame. The screen tears from the impact for 1.5 s: a `GlitchFilter` on the scene and the vault (loop fill, a
+  3 px colour split, no brightness change), slices reseeded at most 3 times a second, **each reseed asking the flash gate**
+  (`HdLayer.takeFlash()`), so the tear, the impact flash and the kicks together never pass 3 a second; a refused reseed
+  holds the slices. From the key turn the bench's reel and the bot's reels free-spin the vault's source case and land as
+  the lid opens; while they spin they ignore their own frames (the bot's spin is frozen under the vault and would fight
+  it) until their next real start. The vault's dim is 0.55 instead of 0.86 for the intro so they show. A reload mid-tear
+  finishes the window without replaying the impact.
+- **The credits** (`ui/Credits.tsx`, rules in `ui/creditsRules.ts`) roll instead of the prestige screen while
+  `meta.credits` is set: after every opening of The Last Case, replays included. A 70 s scroll, SKIP shown only after 5 s,
+  `endCredits` at the end or on SKIP. A reload starts them over from the top. The maker's name is the git author's, a
+  constant (`MADE_BY`). The dark plays the `credits` track from the blackout (`afterRunTrack`), falling back to the
+  prestige loop when the file is missing, and the prestige loop once they end. Russian says ХАЙП for CLOUT, as everywhere
+  in the Russian game. F6-A's interim "START ends the credits first" is gone.
+- **THE END:** after The Last Case the prestige screen reads "THE LAST CASE OPENED", "★ Singularity trophy", "THE END",
+  "RUN 4 AGAIN, BOOSTED" (`prestigeTitle`, `trophyLine`); F6-A's interim "VAULT IV OPENED" and the stale "RUN 4: IN A LATER
+  UPDATE" are gone. THE END is plain gold text: `cc-title`'s shadow shows through `cc-gold`'s clipped gradient.
+- **`fx/World.ts` did not grow:** `syncVault`/`restoreVault` moved to `fx/vault/vaultSync.ts` (540 → 535 lines with the
+  finale and the credits' music wired).
+- **Browser pass (F6-C Task 6)**, headless Chrome on the Intel UHD over CDP, the scratch harness, screenshots in
+  `.superpowers/harness/shots/f6c/`. Vault III → "NEXT: RUN 4" with its brings and no later-update line. Run 4: The Last Case
+  on the shelf and as the HUD goal at 450T; an Upgrader spin (a win) settled when the vault was bought; the intro's reels
+  under the lighter dim; the tear at impact +0.1 to +1.2 s; the five beams, ★ Singularity. The replay's vault costs x2.0 (900T from 450T)
+  and its credits came up 2.9 s after the run ended, with SKIP at +5.0 s. Reloads at intro 2.0 s (the reels resume),
+  impact +0.5 s (the tear finishes) and 8 s into the credits (they start over, credits track) all held. Russian and
+  portrait (390x844, 820x1180): every credits line on one line, nothing clipped, SKIP inside the screen. Frame times through
+  the impact at 1920x1080 were p95 31–36 ms for both Vault III and The Last Case, on a machine whose idle table read p95 24
+  ms at the time (other agents' browsers shared the GPU; the same table read 6 ms earlier). So The Last Case costs no more
+  than Vault III; the 20 ms budget still needs a check on an idle machine. Only the known PixiJS resize warnings in the
+  console.
+
+## F8 — Solana (2026-10-13)
+
+Spec §9; plan `docs/superpowers/plans/2026-10-12-casecremental-f8-solana.md`. Sign-in with a Solana wallet, wallet
+players marked on the board, and a devnet spike for ★ trophies as NFTs — **cut**.
+
+- **Sign-in.** `src/walletLogin.tsx` renders the SDK's `LazySolanaWalletLogin` (`@idosgames/wallet/react/lazy`: AppKit
+  loads only when the button is tapped, and inside the idosgames.com frame it signs through the site's wallet), in
+  login and link mode, on the network key `solana` (`SOLANA_NETWORK_ID`; the baked `IDOS_WEB3_NETWORK_ID` wins when the
+  platform sets one — it is empty on this web2 Title). Both Titles have `Blockchain.WalletLogin.Enabled = true`. Live
+  `ZVKC34TR` keeps its existing mainnet network `solana` (the FOMO token's) — sign-in is an off-chain `signMessage`,
+  no transaction, no fee. `ZVKC34TR-DEV` got `solana` on devnet (ChainID 103), payload in
+  `cloudcode/config/blockchain.dev.json`, for the spike.
+- **WalletConnect project id: needed even on desktop.** The plan assumed browser-extension wallets work without one
+  and only phones need it; in testing the wallet sign-in did not work without it, so the user created a Reown project
+  and supplied the id `02e026fbed2a0533ea6637cf47888b9d` (public by design, not a secret). It is saved on both Titles
+  (`WalletLogin.WalletConnectProjectId`) and in the DEV payload; the platform bakes it into `src/idos.title.ts`
+  (`IDOS_WEB3_WALLETCONNECT_PROJECT_ID`) at build time, and a local run needs `VITE_WALLETCONNECT_PROJECT_ID` in
+  `.env.local`.
+- **The wallet is an identity only.** The lobby's wallet panel stays hidden (web2 Title, `IDOS_WEB3 = false`); no
+  deposit or withdraw anywhere. Guardrail checked 2026-10-13: no store offer or lootbox on DEV (both empty) and none
+  priced in `Main`/`Main_IOU`/crypto on live (the idle-rpg seed's offers and its `gear_summon` lootbox cost GEMS, or
+  nothing); nothing in
+  `src/modules/casecremental` names `Main`, FOMO, `requestTokenWithdrawal` or `depositToken`. Cases cost in-game cash.
+- **Wallet players on the board.** The Leaders tab reads the Public key `cc_wallet` for the listed players
+  (`client.userCustomData.batchGetPublicUserCustomDataOf`, `walletsFrom`) and shows `name ◎` or `◎ abcd…wxyz`
+  (`rowLabel`), tooltip "Signed in with a Solana wallet" / «Вход через кошелёк Solana»; anything that is not a base58
+  address is ignored, and a failed read just shows no marks.
+- **CloudCode cannot see the wallet — so the client sends it.** The plan had endRun read the verified address from
+  `server.ReadUserData(["Blockchain"])`. A DEV probe (revisions 15–16, a Solana wallet player signed in from Node)
+  found `ReadUserData` answers `{}` for `Blockchain` and every other field tried except `InventoryV2`, and `server.*`
+  has no other user-state read. So the client reads `client.blockchain.getUserState()` at endRun's send time
+  (`meta/clientPort.ts`, `meta/wallet.ts`: `LastWalletLogin` on `solana`, else a `LinkedWallets` entry that is
+  `SignatureVerified` — the platform fills these only after the wallet signed its challenge) and sends `wallet`: an
+  address → endRun writes Public `cc_wallet`; `null` (no wallet) → it clears the key; absent (the read failed, or an
+  older client) → it leaves the key alone. CloudCode checks the format but cannot prove ownership, and a player can
+  write their own Public keys anyway (`setPublicData` works — checked), so **the ◎ mark is cosmetic, like best_run**:
+  honest clients get it right, a scripted one can claim any address. If the platform ever exposes `Blockchain` to
+  CloudCode, read it in `makeIo` and prefer it over the client's claim.
+- **Verified on DEV** (CloudCode revision 18, CodeHash 809dc96d… = sha256 of the committed bundle): a throwaway Solana
+  keypair signed in with `loginWithWalletSolana` from Node (`client.blockchain.getUserState()` answered
+  `LastWalletLogin { NetworkID: "solana", Address }` and `LinkedWallets.solana { LinkType: "SignatureVerified",
+  IsSignatureVerified: true }`), ended a run → `cc_wallet` = its address, and the board's batch read shows it; a
+  device-id guest that wrote a fake `cc_wallet` itself had it cleared to "" by its next endRun. Revision 17 does not
+  exist on DEV (skipped by the platform); 15–16 were the throwaway probes.
+- **★ trophy → Solana NFT spike: CUT** (2026-10-13, ~15 minutes, no on-chain step, nothing spent, no Title change to
+  roll back). Cut rule 1 at Step 1: DEV's `solana` network has no `RewardPoolAddress` (nor `VaultDepositAddress`,
+  `RpcUrl`, `ChainTicker`) — the engine filled none of them when the devnet network was saved, so the platform has no
+  devnet pool program for this Title to release an NFT from (live's mainnet network has no `RewardPoolAddress`
+  either). On the SDK side, `@idosgames/wallet` 0.6.2 has no Solana NFT withdrawal: `withdrawNftEvm` /
+  `submitEvmNftWithdrawal(721)` are EVM-only, `useSolanaBridge` has only `depositToken` / `withdrawToken`, and the Solana
+  pool adapter (`createPlatformPoolAdapter`) submits only the token instruction `withdraw_spl`. `@idosgames/core`'s
+  `requestNFTWithdrawal` would answer a `SolanaWithdrawalSignature` (Mint, WalletAddress, Amount, Nonce, ProgramID,
+  Domain, SignatureHex…), but nothing in the SDK submits it for an NFT and there is no program address to submit to.
+  And per the F7 review, trophies would first need a stronger proof than the plausibility caps (server-side drops)
+  before they could carry outside value. **★ trophies stay in-game items; revisit when `@idosgames/wallet` ships a
+  Solana NFT withdrawal and the platform gives the Title a pool program (`RewardPoolAddress`).**

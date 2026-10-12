@@ -8,9 +8,11 @@ import {
   MAX_OPENS_PER_SECOND,
   PERK_COSTS,
   SERVER_CAP,
-  SERVER_FIRST_RUN_MAX_SEC,
   SERVER_MAX_CLOUT_PER_RUN,
-  TROPHIES_PER_RUN_MINUTE,
+  SERVER_MIN_REPLAY_SEC,
+  SERVER_MIN_VAULT_SEC,
+  TROPHIES_PER_MINUTE,
+  TROPHY_BURST,
   TROPHY_GAP_SEC,
 } from "../sim/tuning";
 import { TROPHIES, TROPHY_CATALOG } from "./trophies";
@@ -30,9 +32,12 @@ export interface ServerData {
   /** The most CLOUT one endRun pays. */
   maxCloutPerRun: number;
   cap: typeof SERVER_CAP;
-  firstRunMaxSec: number;
+  /** Indexed like `vaults`: the least a run takes before its vault counts; replays of the last run use minReplaySec. */
+  minRunSec: number[];
+  minReplaySec: number;
   trophyGapSec: number;
-  trophiesPerRunMinute: number;
+  trophiesPerMinute: number;
+  trophyBurst: number;
   maxOpensPerSecond: number;
 }
 
@@ -46,9 +51,11 @@ export function buildServerData(): ServerData {
     cloutDivisor: CLOUT_DIVISOR,
     maxCloutPerRun: SERVER_MAX_CLOUT_PER_RUN,
     cap: SERVER_CAP,
-    firstRunMaxSec: SERVER_FIRST_RUN_MAX_SEC,
+    minRunSec: [...SERVER_MIN_VAULT_SEC],
+    minReplaySec: SERVER_MIN_REPLAY_SEC,
     trophyGapSec: TROPHY_GAP_SEC,
-    trophiesPerRunMinute: TROPHIES_PER_RUN_MINUTE,
+    trophiesPerMinute: TROPHIES_PER_MINUTE,
+    trophyBurst: TROPHY_BURST,
     maxOpensPerSecond: MAX_OPENS_PER_SECOND,
   };
 }

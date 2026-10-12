@@ -6,7 +6,7 @@ import { RARITY_ORDER } from "./rarity";
 import type { Rng } from "./rng";
 import { fail, OK, type ActionResult, type RunCtx } from "./runTypes";
 import {
-  LOADED_DICE_BONUS,
+  LOADED_DICE_MULT,
   UPGRADER_COST,
   UPGRADER_MAX_CHANCE,
   UPGRADER_MULTS,
@@ -45,10 +45,10 @@ export interface UpgraderState {
 
 export const freshUpgrader = (): UpgraderState => ({ on: false, stake: null, target: 0, spin: null });
 
-/** 0.9 / multiplier, +10 points with Loaded Dice, never past 0.95. */
+/** 0.9 / multiplier, x1.1 with Loaded Dice (0.99 / multiplier: the EV never passes 1), never past 0.95. */
 export function upgraderChance(mult: number, charms: readonly CharmId[]): number {
-  const bonus = charms.includes("loadedDice") ? LOADED_DICE_BONUS : 0;
-  return Math.min(UPGRADER_MAX_CHANCE, UPGRADER_WIN_BASE / mult + bonus);
+  const dice = charms.includes("loadedDice") ? LOADED_DICE_MULT : 1;
+  return Math.min(UPGRADER_MAX_CHANCE, (UPGRADER_WIN_BASE / mult) * dice);
 }
 
 /** How many rarities above the stake's a win pays at this multiplier. */
@@ -66,7 +66,7 @@ export function upgraderResult(inputs: readonly Drop[], mult: number, rng: Rng, 
   const float = inputs.reduce((a, d) => a + d.float, 0) / inputs.length;
   const statTrak = inputs.every((d) => d.statTrak);
   const value = inputs.reduce((a, d) => a + d.value, 0) * mult;
-  return { id: nextId(), caseId, skinId: skin.id, rarity, float, wear: wearOf(float).id, statTrak, value };
+  return { id: nextId(), caseId, skinId: skin.id, rarity, float, wear: wearOf(float).id, statTrak, value, upgraded: true };
 }
 
 /** The locker items GO would stake now (all of the stake rarity; none when no stake is picked). */

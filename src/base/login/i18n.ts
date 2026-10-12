@@ -186,6 +186,20 @@ export function authErrorText(t: LoginT, code: string | undefined): string {
   return key in EN ? t(key as LoginStringKey) : code;
 }
 
+/**
+ * A message the screen keeps by what it IS, not by its words: either one of the screen's own strings
+ * (`key`) or a server refusal code (`code`). Translated at render, so the EN/RU toggle re-words a
+ * message that is already on screen.
+ */
+export type LoginMsg =
+  | { key: LoginStringKey }
+  | { code: string | undefined };
+
+/** The player-readable text of a stored message, in the language of `t`. */
+export function loginMsgText(t: LoginT, msg: LoginMsg): string {
+  return "key" in msg ? t(msg.key) : authErrorText(t, msg.code);
+}
+
 /** The game's prefs key (src/modules/casecremental/ui/prefs.ts PREFS_KEY). */
 export const GAME_PREFS_KEY = "casecremental:prefs";
 
