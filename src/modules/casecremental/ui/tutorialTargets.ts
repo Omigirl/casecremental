@@ -1,5 +1,5 @@
 import { cameraPoint, type CameraState } from "../fx/camera";
-import { ITEM_SIZE, revealSpots, type Rect, type TableLayout } from "../fx/pixel/layout";
+import { caseRect, ITEM_SIZE, revealSpots, type Rect, type TableLayout } from "../fx/pixel/layout";
 import { toScreen } from "../fx/pixel/screen";
 import type { TargetId } from "./tutorialRules";
 
@@ -15,11 +15,8 @@ export const isWorldTarget = (id: TargetId): boolean => id.startsWith("world:");
  *  still waiting, or the sell bin's mouth (its drop circle). Null for a DOM target. */
 export function worldTargetRect(id: TargetId, l: TableLayout, benchCards: readonly boolean[]): Rect | null {
   switch (id) {
-    case "world:bench": {
-      const c = l.you.caseSpot; // actors stand on their spot: the case's bottom centre
-      const { w, h } = ITEM_SIZE.case;
-      return { x: c.x - w / 2, y: c.y - h, w, h };
-    }
+    case "world:bench":
+      return caseRect(l); // the case is a tap target too: it turns the key (fx/pixel/benchInput.ts)
     case "world:card": {
       const slot = Math.max(0, benchCards.indexOf(true));
       const p = revealSpots(l, Math.max(1, benchCards.length))[slot] ?? l.you.reveal;

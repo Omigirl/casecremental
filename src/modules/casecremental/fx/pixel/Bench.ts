@@ -8,19 +8,19 @@ import { Actor } from "./Actor";
 import { Animated } from "./Animated";
 import { ANIMS } from "./anims";
 import { BenchCards, centreOf } from "./BenchCards";
+import { benchGrabbables, releaseTurnsKey } from "./benchInput";
 import { cardGrabbable, DragTracker, type Grabbable } from "./drag";
 import { dropTarget } from "./dropTargets";
-import { ITEM_SIZE, revealSpots, type Pt, type Rect, type TableLayout } from "./layout";
+import { ITEM_SIZE, revealSpots, type Pt, type TableLayout } from "./layout";
 import type { SpriteLibrary } from "./sprites";
 
 // Your bench: the case on the mat, the key (drag it into the lock), the revealed skin cards (multi-open:
-// side by side; drag each into the SELL bin) and the bin. Taps work too.
+// side by side; drag each into the SELL bin) and the bin. Taps work too, and a tap on the locked case turns the key.
 // Every change goes through controller.act — the one input path. A dragged item leaves the pixel
 // world and is drawn lifted in the HD layer (lifted()) until it is let go.
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
-const inside = (r: Rect, p: Pt) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
-/** A card's drag id is `card<slot>`; the key's is "key". */
+/** A card's drag id is `card<slot>`; the key's is "key", the case's "case". */
 const cardSlot = (id: string | null): number | null => (id?.startsWith("card") ? Number(id.slice(4)) : null);
 /** The card count of the current open (1 when the bench holds none). */
 const cardCount = (b: BenchState): number =>
@@ -162,10 +162,9 @@ export class Bench {
     const end = this.drag.up(p);
     const slot = end.kind === "none" ? null : cardSlot(end.id);
     const l = this.l;
-    if (end.kind === "tap") this.controller.act(slot === null ? { type: "insertKey" } : { type: "sell", slot });
+    if (l && releaseTurnsKey(end, l)) this.controller.act({ type: "insertKey" });
+    if (end.kind === "tap" && slot !== null) this.controller.act({ type: "sell", slot });
     if (end.kind === "drop" && l) {
-      const lock = { x: l.you.caseSpot.x, y: l.you.caseSpot.y - 10 };
-      if (end.id === "key" && (dist(end.at, lock) <= 18 || inside(l.you.mat, end.at))) this.controller.act({ type: "insertKey" });
       if (slot !== null) {
         const target = dropTarget(l, end.at, this.controller.run.state.locker.on);
         if (target === "bin") this.controller.act({ type: "sell", slot });
@@ -215,12 +214,22 @@ export class Bench {
   }
 
   private grabbables(): Grabbable[] {
-    const out: Grabbable[] = [];
-    if (this.phase === "locked" && this.keyAtLock <= 0) out.push({ id: "key", rect: this.key.actor.box() });
-    // where cards overlap (portrait) the one drawn on top, the later slot, is grabbed first
-    for (const slot of this.cards.waiting().reverse())
-      if (cardGrabbable(this.phase, true, this.cards.knifeOut === slot)) out.push({ id: `card${slot}`, rect: this.cards.rect(slot) });
-    return out;
+    if (!this.l) return [];
+    return benchGrabbables({
+      phase: this.phase,
+      keyBusy: this.keyAtLock > 0,
+      key: this.key.actor.box(),
+      layout: this.l,
+      // where cards overlap (portrait) the one drawn on top, the later slot, is grabbed first
+      cards: this.cards
+        .waiting()
+        .reverse()
+        .map((slot) => ({
+          slot,
+          rect: this.cards.rect(slot),
+          grabbable: cardGrabbable(this.phase, true, this.cards.knifeOut === slot),
+        })),
+    });
   }
 
   destroy(): void {

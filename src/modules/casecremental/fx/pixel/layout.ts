@@ -54,6 +54,14 @@ export const ITEM_SIZE = {
   arm: { w: 10, h: 18 },
 } as const;
 
+/** The case on your mat, in world px: it stands on its spot (the bottom centre). Tapping it turns the key, and the
+ *  tutorial points here (ui/tutorialTargets.ts). */
+export function caseRect(l: Pick<TableLayout, "you">): Rect {
+  const c = l.you.caseSpot;
+  const { w, h } = ITEM_SIZE.case;
+  return { x: c.x - w / 2, y: c.y - h, w, h };
+}
+
 /** World px a side panel loses to chrome across its width: the frame (6 + 6), the panel padding
  *  (1 + 1), the row padding (1 + 1) and the button padding (1 + 1) — ui/styles.ts, ui/parts.tsx. */
 export const PANEL_CHROME = 18;
