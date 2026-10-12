@@ -504,3 +504,60 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
   ms at the time (other agents' browsers shared the GPU; the same table read 6 ms earlier). So The Last Case costs no more
   than Vault III; the 20 ms budget still needs a check on an idle machine. Only the known PixiJS resize warnings in the
   console.
+
+## F8 — Solana (2026-10-13)
+
+Spec §9; plan `docs/superpowers/plans/2026-10-12-casecremental-f8-solana.md`. Sign-in with a Solana wallet, wallet
+players marked on the board, and a devnet spike for ★ trophies as NFTs — **cut**.
+
+- **Sign-in.** `src/walletLogin.tsx` renders the SDK's `LazySolanaWalletLogin` (`@idosgames/wallet/react/lazy`: AppKit
+  loads only when the button is tapped, and inside the idosgames.com frame it signs through the site's wallet), in
+  login and link mode, on the network key `solana` (`SOLANA_NETWORK_ID`; the baked `IDOS_WEB3_NETWORK_ID` wins when the
+  platform sets one — it is empty on this web2 Title). Both Titles have `Blockchain.WalletLogin.Enabled = true`. Live
+  `ZVKC34TR` keeps its existing mainnet network `solana` (the FOMO token's) — sign-in is an off-chain `signMessage`,
+  no transaction, no fee. `ZVKC34TR-DEV` got `solana` on devnet (ChainID 103), payload in
+  `cloudcode/config/blockchain.dev.json`, for the spike.
+- **WalletConnect project id: needed even on desktop.** The plan assumed browser-extension wallets work without one
+  and only phones need it; in testing the wallet sign-in did not work without it, so the user created a Reown project
+  and supplied the id `02e026fbed2a0533ea6637cf47888b9d` (public by design, not a secret). It is saved on both Titles
+  (`WalletLogin.WalletConnectProjectId`) and in the DEV payload; the platform bakes it into `src/idos.title.ts`
+  (`IDOS_WEB3_WALLETCONNECT_PROJECT_ID`) at build time, and a local run needs `VITE_WALLETCONNECT_PROJECT_ID` in
+  `.env.local`.
+- **The wallet is an identity only.** The lobby's wallet panel stays hidden (web2 Title, `IDOS_WEB3 = false`); no
+  deposit or withdraw anywhere. Guardrail checked 2026-10-13: no store offer or lootbox on DEV (both empty) and none
+  priced in `Main`/`Main_IOU`/crypto on live (the idle-rpg seed's offers and its `gear_summon` lootbox cost GEMS, or
+  nothing); nothing in
+  `src/modules/casecremental` names `Main`, FOMO, `requestTokenWithdrawal` or `depositToken`. Cases cost in-game cash.
+- **Wallet players on the board.** The Leaders tab reads the Public key `cc_wallet` for the listed players
+  (`client.userCustomData.batchGetPublicUserCustomDataOf`, `walletsFrom`) and shows `name ◎` or `◎ abcd…wxyz`
+  (`rowLabel`), tooltip "Signed in with a Solana wallet" / «Вход через кошелёк Solana»; anything that is not a base58
+  address is ignored, and a failed read just shows no marks.
+- **CloudCode cannot see the wallet — so the client sends it.** The plan had endRun read the verified address from
+  `server.ReadUserData(["Blockchain"])`. A DEV probe (revisions 15–16, a Solana wallet player signed in from Node)
+  found `ReadUserData` answers `{}` for `Blockchain` and every other field tried except `InventoryV2`, and `server.*`
+  has no other user-state read. So the client reads `client.blockchain.getUserState()` at endRun's send time
+  (`meta/clientPort.ts`, `meta/wallet.ts`: `LastWalletLogin` on `solana`, else a `LinkedWallets` entry that is
+  `SignatureVerified` — the platform fills these only after the wallet signed its challenge) and sends `wallet`: an
+  address → endRun writes Public `cc_wallet`; `null` (no wallet) → it clears the key; absent (the read failed, or an
+  older client) → it leaves the key alone. CloudCode checks the format but cannot prove ownership, and a player can
+  write their own Public keys anyway (`setPublicData` works — checked), so **the ◎ mark is cosmetic, like best_run**:
+  honest clients get it right, a scripted one can claim any address. If the platform ever exposes `Blockchain` to
+  CloudCode, read it in `makeIo` and prefer it over the client's claim.
+- **Verified on DEV** (CloudCode revision 18, CodeHash 809dc96d… = sha256 of the committed bundle): a throwaway Solana
+  keypair signed in with `loginWithWalletSolana` from Node (`client.blockchain.getUserState()` answered
+  `LastWalletLogin { NetworkID: "solana", Address }` and `LinkedWallets.solana { LinkType: "SignatureVerified",
+  IsSignatureVerified: true }`), ended a run → `cc_wallet` = its address, and the board's batch read shows it; a
+  device-id guest that wrote a fake `cc_wallet` itself had it cleared to "" by its next endRun. Revision 17 does not
+  exist on DEV (skipped by the platform); 15–16 were the throwaway probes.
+- **★ trophy → Solana NFT spike: CUT** (2026-10-13, ~15 minutes, no on-chain step, nothing spent, no Title change to
+  roll back). Cut rule 1 at Step 1: DEV's `solana` network has no `RewardPoolAddress` (nor `VaultDepositAddress`,
+  `RpcUrl`, `ChainTicker`) — the engine filled none of them when the devnet network was saved, so the platform has no
+  devnet pool program for this Title to release an NFT from (live's mainnet network has no `RewardPoolAddress`
+  either). On the SDK side, `@idosgames/wallet` 0.6.2 has no Solana NFT withdrawal: `withdrawNftEvm` /
+  `submitEvmNftWithdrawal(721)` are EVM-only, `useSolanaBridge` has only `depositToken` / `withdrawToken`, and the Solana
+  pool adapter (`createPlatformPoolAdapter`) submits only the token instruction `withdraw_spl`. `@idosgames/core`'s
+  `requestNFTWithdrawal` would answer a `SolanaWithdrawalSignature` (Mint, WalletAddress, Amount, Nonce, ProgramID,
+  Domain, SignatureHex…), but nothing in the SDK submits it for an NFT and there is no program address to submit to.
+  And per the F7 review, trophies would first need a stronger proof than the plausibility caps (server-side drops)
+  before they could carry outside value. **★ trophies stay in-game items; revisit when `@idosgames/wallet` ships a
+  Solana NFT withdrawal and the platform gives the Title a pool program (`RewardPoolAddress`).**

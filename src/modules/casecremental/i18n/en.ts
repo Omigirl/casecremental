@@ -19,6 +19,7 @@ export const EN = {
   "lobby.best": "Best run",
   "lobby.you": "You",
   "lobby.player": "Player",
+  "lobby.wallet": "Signed in with a Solana wallet",
   "lobby.offline": "Can't reach the server. Try again later.",
   "lobby.empty": "No runs yet. Open a vault to get on the board.",
   "lobby.loading": "Loading…",

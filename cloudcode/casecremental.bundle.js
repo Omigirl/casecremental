@@ -13,6 +13,8 @@ var CURRENCY = "CLOUT";
 var LEADERBOARD = "best_run";
 var META_KEY = "cc_meta";
 var ANTI_KEY = "cc_anti";
+/** Public String key: the player's verified Solana wallet, shown on the leaderboard (plan F8). */
+var WALLET_KEY = "cc_wallet";
 var KEEP_RUNS = 20;
 /** Whether endRun moves best_run itself. The probe found leaderboard event tokens land in MilestoneTokensEarned, not
  *  in the BestScore, so the client submits the score (client.leaderboard.submitScore) after endRun answers. */
@@ -31,6 +33,10 @@ function clamp(x, lo, hi) {
 function has(table, key) {
   return typeof key === "string" && Object.prototype.hasOwnProperty.call(table, key);
 }
+/** A base58 Solana address (32-44 characters, no 0, O, I or l) - the client's isSolanaAddress. */
+function isSolanaAddress(s) {
+  return typeof s === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+}
 
 // ---- the server API (only here) ----
 // ReadUserData(["InventoryV2"]) answers the data itself (no {Success, Data}); Items are keyed by ItemID.
@@ -39,6 +45,8 @@ function has(table, key) {
 // idempotency key per player ACROSS executions (DEV probe, 2026-10-13: the same Reason in three executions applied
 // once, even with another amount; an op that FAILED does not use its Reason up; a replay of an applied consume is still
 // checked against the balance first). So a retried endRun / reportTrophy / buyPerk never pays or charges twice.
+// ReadUserData(["Blockchain"]) (or any other field tried) answers {} (DEV probe, 2026-10-13, revisions 15-16): CloudCode
+// cannot read the player's verified wallet, so the client sends it with endRun (plan F8, publishWallet).
 function makeIo(server, context) {
   var custom = null;
   var inv = null;
@@ -70,6 +78,12 @@ function makeIo(server, context) {
       } catch (e) {
         return null;
       }
+    },
+    /** A String key's value as stored (no JSON parse), or null. */
+    readRaw: function (bucket, key) {
+      var b = customData()[bucket];
+      var rec = b && b[key];
+      return rec && typeof rec.Value === "string" ? rec.Value : null;
     },
     writeData: function (bucket, key, value) {
       var s = typeof value === "string" ? value : JSON.stringify(value);
@@ -177,6 +191,17 @@ function readAnti(io) {
     trophyTokens: num(a.trophyTokens),
   };
 }
+/** Puts the player's Solana wallet in the Public key the leaderboard reads (plan F8). `claimed` is what the client read
+ *  from the platform's own state (client.blockchain.getUserState, filled only after the wallet signed a challenge):
+ *  an address, null for "this account has none" (the key is cleared), or absent when the client could not tell (the
+ *  key is left alone). CloudCode cannot check it (see makeIo), so the mark is cosmetic, like best_run; a failed write
+ *  never fails the run. */
+function publishWallet(io, claimed) {
+  var stored = io.readRaw("Public", WALLET_KEY);
+  if (isSolanaAddress(claimed)) {
+    if (stored !== claimed) io.writeData("Public", WALLET_KEY, claimed);
+  } else if (claimed === null && stored) io.writeData("Public", WALLET_KEY, "");
+}
 function view(io, meta) {
   return { ok: true, clout: io.clout(), trophies: io.ownedTrophies(), perks: meta.perks, loops: meta.loops, stats: meta.stats, picked: meta.picked };
 }
@@ -217,6 +242,7 @@ var RULES = {
     var meta = readMeta(io);
     var paid = findRun(meta, runId);
     if (paid) {
+      publishWallet(io, a.wallet);
       var dup = view(io, meta);
       dup.duplicate = true;
       dup.gained = paid.gained;
@@ -275,6 +301,7 @@ var RULES = {
     anti.lastEndAt = endedAt;
     if (!io.writeData("ReadOnly", META_KEY, meta)) return fail("save failed", true);
     io.writeData("Internal", ANTI_KEY, anti);
+    publishWallet(io, a.wallet);
     var out = view(io, meta);
     out.gained = gain;
     out.score = score;

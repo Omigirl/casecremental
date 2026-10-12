@@ -1,6 +1,7 @@
 import type { IDosGamesClient } from "@idosgames/core";
 import type { PortReply, ServerPort } from "./bridge";
 import type { JsonObject } from "./queue";
+import { verifiedSolanaWallet } from "./wallet";
 
 // The SDK side of the server port (plan F7): CloudCode handlers through client.cloudCode.execute and the best_run
 // score through client.leaderboard.submitScore. SDK calls answer OperationResult and do not throw; a call that
@@ -41,6 +42,19 @@ function readResult(raw: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
+/**
+ * The Solana wallet the platform verified for the signed-in account (plan F8), read at send time: an address, null for
+ * none, or undefined when the read failed (then endRun leaves the leaderboard's wallet key as it is).
+ */
+async function signedInWallet(client: IDosGamesClient, timeoutMs: number): Promise<string | null | undefined> {
+  try {
+    const r = await withTimeout(client.blockchain.getUserState(), timeoutMs, null);
+    return r && r.ok ? verifiedSolanaWallet(r.data.State) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The port for `owner`'s calls: while another account is signed in (or no one), every call waits as "offline". */
 export function clientPort(client: IDosGamesClient, owner: string | null = null, timeoutMs = 10_000): ServerPort {
   const offline: PortReply = { kind: "offline", reason: "timeout" };
@@ -49,7 +63,9 @@ export function clientPort(client: IDosGamesClient, owner: string | null = null,
   return {
     async call(name, args: JsonObject) {
       if (otherAccount()) return notSignedIn;
-      const parameter: FunctionParameter = args;
+      // endRun publishes the player's wallet for the leaderboard; CloudCode cannot read it itself (meta/wallet.ts)
+      const wallet = name === "endRun" ? await signedInWallet(client, timeoutMs) : undefined;
+      const parameter: FunctionParameter = wallet === undefined ? args : { ...args, wallet };
       const r = await withTimeout(client.cloudCode.execute(name, parameter), timeoutMs, null);
       if (r === null) return offline;
       if (!r.ok) return NO_ANSWER.has(r.reason) ? { kind: "offline", reason: r.error } : { kind: "refused", reason: r.error, retry: true };
