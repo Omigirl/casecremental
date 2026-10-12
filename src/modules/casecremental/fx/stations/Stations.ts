@@ -1,4 +1,5 @@
 import { Container } from "pixi.js";
+import { t } from "../../i18n/index";
 import type { RunState, SimEvent } from "../../sim/run";
 import type { RarityId } from "../../sim/types";
 import type { LiftInfo } from "../hd/Lifted";
@@ -25,8 +26,9 @@ export class Stations {
   private readonly bot: BotStation;
   private readonly locker: LockerStation;
   private readonly grid: GridStation;
+  private l: TableLayout | null = null;
 
-  constructor(d: StationDeps) {
+  constructor(private readonly d: StationDeps) {
     this.bot = new BotStation(d);
     this.reels.addChild(this.bot.reels.root);
     this.over.addChild(this.bot.sprite.root, this.bot.cards.root);
@@ -41,6 +43,7 @@ export class Stations {
   }
 
   layout(l: TableLayout): void {
+    this.l = l;
     this.bot.layout(l);
     this.locker.layout(l);
     this.grid.layout(l);
@@ -60,6 +63,7 @@ export class Stations {
   onEvent(e: SimEvent): void {
     if (e.type === "runStarted") this.clearAll();
     if (e.type === "vaultBought") this.cancelDrags();
+    if (e.type === "setCompleted") this.fullSet();
     this.bot.onEvent(e);
     this.locker.onEvent(e);
     this.grid.onEvent(e);
@@ -120,5 +124,14 @@ export class Stations {
 
   private clearAll(): void {
     this.bot.cards.clearAll();
+  }
+
+  /** Collector's Eye (spec §8): every skin of a case revealed this run — its drops pay x2 from now on. */
+  private fullSet(): void {
+    const tb = this.l?.table;
+    if (!tb) return;
+    const { hd, audio } = this.d.juice;
+    hd.coins.floatText(hd.toScreen({ x: tb.x + tb.w / 2, y: tb.y + 12 }), t("float.set"));
+    audio.play("reward-chime");
   }
 }

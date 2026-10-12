@@ -1,10 +1,16 @@
 import { Container, Graphics, Text, Texture } from "pixi.js";
 import { t } from "../../i18n/index";
+import { skinById } from "../../sim/content/cases";
 import { gridStalled } from "../../sim/grid";
 import { RARITY_INFO } from "../../sim/rarity";
 import type { RunState, SimEvent } from "../../sim/run";
+import type { Drop } from "../../sim/types";
+import { cardBurst } from "../benchFx";
+import { BreakoutCard, BreakoutQueue, breakoutPeak, breakoutSeconds, breakoutTarget } from "../hd/breakout";
 import { pixelStyle } from "../hd/font";
+import { bigReveal } from "../juice/bigReveal";
 import { Actor } from "../pixel/Actor";
+import { cardFace } from "../pixel/cardFace";
 import { GridBoard } from "../pixel/GridBoard";
 import type { Pt, Rect, TableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
@@ -16,7 +22,7 @@ import { boardRect, caseColor, gridCells } from "./gridRules";
 // The auto-buyer grid (spec §6, Run 3+; a dark machine before): a board of tiny case cells over the machine's
 // pigeonholes. Bought cases drop in, flicker and open; each opened cell flashes in its drop's colour and a sold drop
 // sends one coin spark to the HUD; a stalled grid keeps its cells lit with a TRAY FULL hint. Covert and ★ break out
-// over the table (Task 7). Machines fire ten times a second here, so every sound and spark is throttled.
+// over the table, one at a time (fx/hd/breakout). Machines fire ten times a second here, so every sound and spark is throttled.
 
 const DIM = 0x8a8a9a;
 const POSE: Pose = { frame: 0, dx: 0, dy: 0, bodyDy: 0, headDy: 0, eyes: "open", look: 0 };
@@ -35,6 +41,9 @@ export class GridStation {
   private readonly openSound = new Throttle(0.2);
   private readonly spark = new Throttle(0.15);
   private readonly storeSound = new Throttle(0.25);
+  private readonly queue = new BreakoutQueue();
+  private readonly card: BreakoutCard;
+  private state: RunState | null = null;
   private l: TableLayout | null = null;
   private rects: Rect[] = [];
   private size = -1;
@@ -48,12 +57,14 @@ export class GridStation {
     this.under.addChild(this.machine, this.backing, this.board.cells);
     this.stall.anchor.set(0.5, 1);
     this.stall.visible = false;
-    this.hd.addChild(this.board.flashes, this.stall);
+    this.card = new BreakoutCard(d.juice.hd.glowTexture);
+    this.hd.addChild(this.board.flashes, this.stall, this.card.root);
   }
 
   layout(l: TableLayout): void {
     this.l = l;
     this.machine.place(l.grid.x + l.grid.w / 2, l.grid.y + l.grid.h);
+    this.card.stop(); // its screen px changed
     this.frame = -1;
     this.size = -1; // re-lay the cells on the next update
     const k = this.d.scale();
@@ -82,6 +93,11 @@ export class GridStation {
       this.backing.visible = g.on;
     }
     this.board.update(dt, g.cells, g.on, this.powerT, caseColor);
+    this.state = s;
+    const { start, expired } = this.queue.step(this.t);
+    for (const w of expired) this.board.opened(w.cell, RARITY_INFO[w.drop.rarity].color, true); // waited too long: a big flash
+    if (start) this.breakOut(start.drop, start.cell);
+    this.card.update(dt);
     const stalled = g.on && gridStalled(g);
     this.stall.visible = stalled && Math.floor(this.t * 4) % 2 === 0; // ~2 Hz, like the tray's
     if (stalled) {
@@ -107,7 +123,8 @@ export class GridStation {
         if (this.buySound.ready(this.t)) audio.play("grid-buy");
         break;
       case "gridOpened":
-        this.board.opened(e.cell, RARITY_INFO[e.drop.rarity].color, e.drop.rarity === "classified");
+        if (e.drop.rarity === "covert" || e.drop.rarity === "gold") this.queue.push({ drop: e.drop, cell: e.cell, at: this.t });
+        else this.board.opened(e.cell, RARITY_INFO[e.drop.rarity].color, e.drop.rarity === "classified");
         if (this.openSound.ready(this.t)) audio.play("grid-open");
         break;
       case "stored":
@@ -115,7 +132,13 @@ export class GridStation {
         break;
       case "runStarted":
         this.board.clear();
+        this.queue.clear();
+        this.card.stop();
         this.powerT = Infinity;
+        break;
+      case "vaultBought": // the vault takes the screen: nothing breaks out over it
+        this.queue.clear();
+        this.card.stop();
         break;
     }
   }
@@ -133,6 +156,45 @@ export class GridStation {
 
   destroy(): void {
     this.board.clear();
+    this.card.stop();
+  }
+
+  /** A Covert or ★ from cell `cell` bursts out over the table: the breakout sound, then the big reveal's juice
+   *  (Covert's hit, ★'s slow-mo, flash — through the flash gate — and its knife showcase). No camera zoom: it centres
+   *  on your bench. */
+  private breakOut(drop: Drop, cell: number): void {
+    const l = this.l;
+    const s = this.state;
+    if (!l || !s) return;
+    const { hd, audio } = this.d.juice;
+    const k = this.d.scale();
+    const art = this.d.skins.frames(skinById(drop.skinId))[0] ?? null;
+    const gold = drop.rarity === "gold";
+    const from = this.cellCentre(cell);
+    const peak = hd.toScreen(breakoutPeak(l));
+    const cellWorld = { x: from.x / k, y: from.y / k };
+    this.card.start({
+      full: this.bake(art, drop),
+      empty: gold ? this.bake(null, drop) : null,
+      knife: gold ? art : null,
+      color: RARITY_INFO[drop.rarity].color,
+      from,
+      peak,
+      to: hd.toScreen(breakoutTarget(s, drop.id, cell, l, cellWorld)),
+      total: breakoutSeconds(drop.rarity),
+      scale: k,
+    });
+    audio.play("grid-breakout");
+    const b = cardBurst(drop.rarity, k);
+    hd.particles.burst(peak, RARITY_INFO[drop.rarity].color, b.count, b.speed);
+    bigReveal(this.d.juice, drop.rarity, false);
+  }
+
+  private bake(art: Texture | null, drop: Drop): Texture {
+    const face = cardFace(art, drop);
+    const tex = this.d.bake(face);
+    face.destroy({ children: true });
+    return tex;
   }
 
   private relayout(size: number): void {
