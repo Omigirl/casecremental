@@ -80,8 +80,7 @@ export class World {
   /** The card the label lines sit under (the best one waiting). */
   private labelAt: Pt = { x: 0, y: 0 };
   private readonly offline = new Text({ text: "", style: pixelStyle(8, 0x6a6f80) });
-  private readonly trayFullLabel = new Text({ text: "", style: pixelStyle(8, 0xffb020) });
-  private trayBlink = 0;
+  private readonly trayFullLabel = new Text({ text: "", style: pixelStyle(8, 0xff5a4a) });
   private vp: PixelViewport;
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
@@ -114,7 +113,7 @@ export class World {
       return tex;
     };
     this.bench = new Bench(lib, skins, controller, bake);
-    this.tray = new TrayView(skins, controller, bake);
+    this.tray = new TrayView(skins, controller, bake, { scale: () => this.vp.scale, onLand: () => audio.play("tray-store") });
     // the other reels tick more quietly, so two reels never sound like a doubled click
     this.benchReels = new BenchReels(this.reelFrame, skins, (i) =>
       audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo), gain: i === 0 ? 1 : 0.5 }),
@@ -143,9 +142,10 @@ export class World {
       this.benchReels.root,
       this.stations.reels,
       this.bench.root,
+      this.tray.over,
       this.stations.over,
     );
-    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.stations.hd, this.lifted.root);
+    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.stations.hd, this.tray.hd, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
@@ -256,9 +256,9 @@ export class World {
     this.room.setBotOnline(bot.awake);
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
-    this.tray.update(run.state.tray, run.setup.trayCapacity);
-    this.trayBlink += realSeconds;
-    this.trayFullLabel.visible = trayFull(run.state, run.setup.trayCapacity) && Math.floor(this.trayBlink * 4) % 2 === 0; // ~2 Hz
+    const trayIsFull = trayFull(run.state, run.setup.trayCapacity);
+    this.tray.update(run.state.tray, run.setup.trayCapacity, realSeconds, trayIsFull);
+    this.trayFullLabel.visible = trayIsFull; // steady while full; the frame pulses (Tray.ts)
     this.room.setSellerOn(run.state.seller.on);
     this.hd.setSellerOn(run.state.seller.on);
     this.room.update(realSeconds * 1000);
@@ -454,7 +454,9 @@ export class World {
               ? this.stations.cardCentre(e.source, e.slot)
               : e.source === "seller"
                 ? this.l.seller
-                : this.l.bin;
+                : e.source === "tray"
+                  ? this.tray.claimed(e.drop.id) // it pops out where it was; the coins start there
+                  : this.l.bin;
         const at = this.hd.toScreen(src);
         this.hd.coins.burst(src, { x: this.l.worldW / 2, y: this.l.hudH / 2 }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
@@ -490,8 +492,8 @@ export class World {
       }
       case "stored":
         if (e.from === "grid") break; // the grid's station plays its own (throttled) sound
+        this.tray.arriving(e.drop.id, this.spotOf(e.from, e.slot)); // it slides in from its spot; tray-store plays as it lands
         if (e.from === "bench") this.benchFx.left(e.slot, false, this.controller.run.state.bench);
-        this.audio.play("tray-store");
         break;
       case "vaultBought":
         // the screen goes to the vault: it slams in, the suspense loop takes over the music
