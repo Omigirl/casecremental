@@ -311,21 +311,21 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   only `makeIo` speaks `server.*`, so Vitest runs every rule with a fake (`cloudcode/casecremental.test.ts`). Every
   handler answers a view (CLOUT, trophies, perks, loops, stats, picks) or `{ ok: false, reason, retry }`, never throws.
 - **Server authority and offline.** The local meta is a cache that always plays. Every call goes through a FIFO queue
-  persisted in `localStorage["casecremental.serverQueue"]`, retried with back-off (2, 5, 15, 60, 300 s) and dropped
-  after 12 tries; one saveMeta waits at a time (the newest). CLOUT and perks follow the server only when no
+  persisted in `localStorage["casecremental.serverQueue"]` (per account since the review fixes), retried with back-off
+  (2, 5, 15, 60, 300 s) and dropped after 12 tries (changed by the review fixes, below); one saveMeta waits at a time (the newest). CLOUT and perks follow the server only when no
   endRun/buyPerk is queued AND the server has seen at least as many vaults as the local meta (else the larger perk
   level and the local CLOUT stay: a save from before F7 keeps its progress, it is never uploaded). Loops and stats
   only grow. A run nothing has happened in yet is rebuilt when the server knows more vaults (a new device), so its
   vault is the one endRun expects. The local save is still restored synchronously before any of this, so the game and
   the tutorial's first look never wait for the server.
 - **Plausibility.** endRun caps earnings at 10^min(300, 3 + 0.3·√t + 4·loops), t = the claimed run time bounded by the
-  time since the server last saw a run end (a first run may claim 6 h). Calibrated against a superhuman greedy bot
+  time since the server last saw a run end (a first run may claim 6 h — replaced by the review fixes). Calibrated against a superhuman greedy bot
   (every action 0.05 s), seeds 1–6: it vaults Run 1 at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at
   ≥ 100 s with 10^12.1; perLoop has to carry Run 2's jump from a short run, so it is steep (and the cap is loose for
   late loops). Still refused: $1M in Run 1's first minute (cap 10^5.3), 10^11 in its first 10 min (10^10.3). One run
   pays at most 1e11 CLOUT (int64 and the policy's 1e12/day cap). endRun is idempotent by runId (`"r" + seed`, also the
   resource-operation Reason); buyPerk carries the level before the purchase, so a replay answers `stale`. Trophy
-  reports: ≥ 2 s apart, ≤ 30 per run-minute, only for cases the player's loops have reached; legends come only with
+  reports: ≥ 2 s apart, ≤ 30 per run-minute (replaced by a server-time bucket in the review fixes), only for cases the player's loops have reached; legends come only with
   the vault, through endRun.
 - **What the probe found** (`cloudcode/probe.js`, the findings block): `ReadUserData(["InventoryV2"])` answers the data
   with no wrapper and Items keyed by ItemID; `GetUserCustomData()` returns every bucket; `SetUserCustomData(bucket, key,
@@ -334,8 +334,8 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   a publish reaches the handler whitelist only after a few minutes.
 - **best_run is moved by the client.** Leaderboard event tokens from CloudCode land in MilestoneTokensEarned, not in
   the BestScore, so `SERVER_SCORE = false` and the client calls `client.leaderboard.submitScore` with the score endRun
-  computed. **The board can be forged through the raw API; CLOUT, perks and trophies cannot** (only CloudCode grants
-  them, with the caps above).
+  computed. **The board can be forged through the raw API.** CLOUT, perks and trophies are granted only by CloudCode,
+  but that is all it guarantees — see "F7 review fixes" for what a scripted client can and cannot do.
 - **Platform issue seen on DEV:** CloudCode's grants did not reach the client's own inventory reads for one guest
   (`getClientState` kept CLOUT 0 for 5+ minutes while CloudCode read 11), but did for others. The game therefore takes
   CLOUT and trophies from the handlers' views, and the Trophy Case adds loadMeta's trophies to the inventory's. The
@@ -363,3 +363,52 @@ before F6 merged; Task 8, promotion to the live Title, waits for review).
   re-saved and CloudCode re-published on ZVKC34TR-DEV (revision 9, CodeHash 10a11997… = sha256 of the committed
   bundle). An Upgrader win reports its skin like any drop (`trophyDropsOf` reads `upgraderDone`); the server needs no
   change for it — a trophy is checked by its case's first run, not by how it was won.
+
+### F7 review fixes (2026-10-13, DEV CloudCode revision 13)
+
+- **Nothing important is dropped any more.** Time offline (no answer: connection, session, `HandlerNotFound` /
+  `NoActiveRevision` while a publish spreads, another account signed in) never counts against a call and backs off at
+  most 60 s. An endRun or buyPerk is dropped only when its handler answers `{ ok: false, retry: false }`; unknown platform
+  errors are retried (counted, capped back-off). reportTrophy / saveMeta / submitScore still give up after 12 answered
+  failures. A full queue (200) drops the oldest droppable call, never a write. The `online` event and a successful
+  loadMeta wake the queue. After a write is refused for good the client loads the server's meta. A loadMeta answer
+  that a write's answer overtook is ignored.
+- **A lost endRun no longer stalls the meta.** endRun accepts the vault the trophy names when it is at or past the one
+  the server expects (`k ≥ min(loops, 3)`), sets `loops = k + 1`, and caps that run as the run it was. A failed meta
+  write answers `retry: true`.
+- **Reason idempotency holds across executions** (DEV probe, revisions 10–11, findings in `cloudcode/probe.js`): the same
+  Reason in three separate executions applied once, even with another amount; a failed op does not use its Reason up;
+  a replayed consume is still checked against the balance first. How long the platform remembers a Reason is unknown.
+  So a retried endRun (`endRun:<user>:<runId>`) or reportTrophy (`trophy:<user>:<skin>`) cannot pay twice, and buyPerk
+  now uses one Reason per level (`perk:<user>:<perk>:<level>`): two tabs buying the same level are charged once, and a
+  retry after a failed meta write doesn't charge again (so there is no refund any more).
+- **Time comes from the server.** A run's time is bounded by the time since the last run ended, or since the server first
+  saw the player (loadMeta writes `firstSeen`); the 6 h first-run window is gone. The client sends `endedAgoSec` at
+  send time (no clock skew); a bare `endedAt` is clamped to ≥ max(last end, first seen), so `endedAt: 0` earns nothing.
+  A vault counts only after a minimum run time (`SERVER_MIN_VAULT_SEC` = 120/45/60/80 s, replays 25 s — the FAST bot's
+  fastest vaults ÷ 1.25, and at most a third of the CASUAL medians; `meta/plausibility.test.ts` holds both), and a
+  catch-up only when the time since the last counted vault covers every vault it stands for.
+- **Trophy reports** use a token bucket in server time (2 a minute, 3 at once, ≥ 2 s apart); over the limit they are
+  asked to retry, never refused for good. The client's run id and elapsed time are no longer trusted for it.
+- **What this guarantees, and what not.** The server cannot verify that a run was played: there is no server-side RNG.
+  A scripted client using the raw API can still claim CLOUT up to the plausibility cap of the real time that passed,
+  the vault legends no faster than the minimum run times (≥ 305 s from the first loadMeta to all four), and case
+  trophies only for cases its loops have reached, at ≤ 2 a minute. It cannot pay twice for a run, buy a perk twice,
+  claim anything for time that did not pass, or touch another player's data. CLOUT has no outside value; **before
+  trophies become Solana NFTs (F8) they need a stronger proof than this** (e.g. server-side drops).
+- **Accounts.** The call queue (`casecremental.serverQueue.<userID>`) and the local save (`casecremental.save.<userID>`)
+  are per account; the first account that loads after the update adopts the browser's unkeyed save and queue
+  (`meta/account.ts`). The port sends nothing while another account is signed in (a sign-out runs the module's setup
+  again for the next account, and the earlier session's timers keep running harmlessly).
+- **Smaller fixes.** A duplicate endRun answers the run's own score and gain (`cc_meta.runs` keeps `{ id, score, gained }`;
+  revision 9's bare ids still read). Trophy, perk and charm lookups use own keys only (`constructor`, `__proto__`). The
+  new-device rebuild requires an untouched run (nothing earned, opened or spent, no card anywhere) and restores the
+  run's charms: saveMeta now sends the run's own charms during a run (the meta's picks are cleared when a run starts).
+  The lobby tabs re-register on a language change without unregistering first (register replaces by id), so an open
+  tab stays open. Call arguments are typed JSON.
+- **Verified on DEV** (revision 13, CodeHash 24b2df3d… = sha256 of the committed bundle, Node guests with the real
+  bridge, queue and clientPort): `endedAt: 0` → 0 CLOUT, no vault; a finale 10 s after the first loadMeta and a Last Case
+  skip → refused; a Run 2 endRun 175 s after the first loadMeta with Run 1's endRun missing → counted, loops 2,
+  `vault2_legend`, not capped, and its duplicate answered the same score and gain; offline (fetch failing) 15 pumps kept
+  reportTrophy/endRun/buyPerk with 0 strikes, then drained: CLOUT 7 = 10 − 3, startCash 1, loops 1, `bc_knife` and
+  `vault1_legend`.
