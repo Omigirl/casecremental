@@ -36,7 +36,25 @@ describe("the vaults' looks", () => {
       },
       fanfare: "vault-fanfare",
       chaos: { burstsPerKick: 2, stream: 1, rain: 1, sparks: 1, shimmer: { from: 0.02, span: 0.06, sat: 0.35 } },
+      finale: false,
     });
+  });
+
+  it("gives The Last Case its own chest, fanfare, white/gold/void beams and the finale", () => {
+    const l = vaultLook("lastcase");
+    expect(l).toMatchObject({ chest: "vault-case-4", fanfare: "vault-fanfare-4", finale: true });
+    expect(LOOKS.filter((x) => x.finale).map((x) => x.id)).toEqual(["lastcase"]);
+    expect(l.palette).toEqual([0xffffff, 0xffd34d, 0x1a0f2e, 0xffd34d, 0xffffff]);
+  });
+
+  it("is the densest vault of all, within the pools' bound", () => {
+    const [, , c, d] = LOOKS.map((x) => x.chaos);
+    expect(MAX_DENSITY).toBe(2.5);
+    expect(d!.burstsPerKick).toBeGreaterThan(c!.burstsPerKick);
+    expect(d!.rain).toBeGreaterThan(c!.rain);
+    expect(d!.sparks).toBeGreaterThan(c!.sparks);
+    expect(d!.stream).toBe(2); // twins on every item: the most the beams' spacing rule allows
+    expect(d!.burstsPerKick / LOOKS[0]!.chaos.burstsPerKick).toBeCloseTo(2.5, 9);
   });
 
   it("gives Vaults II and III their own chest, fanfare, beams and light", () => {

@@ -4,10 +4,10 @@ import type { FanfareId } from "../audio/sounds";
 // How each vault looks and sounds (spec M3 §7): the same last-chance ticket on the same 17.4 s timeline,
 // parametrised by the run's VaultDef — the chest's art, the beams' colours, the light's tints, the fanfare and how
 // dense the chaos is. Each vault is wilder than the last through count and density only: more firework bursts on
-// the same kicks, twin items on the beams' streams, more rain and edge sparks. Nothing here can touch the flash
-// schedule (chaosPlan FLASHES, from VAULT_CUES.fireworks) or the beat-throb amplitudes (beat.ts
-// BEAT_LIGHT_AMPLITUDES): those are the photosensitivity limits, the same for every vault. Vault I's entry is
-// exactly the look it had before M3.
+// the same kicks, twin items on the beams' streams, more rain and edge sparks; The Last Case (Run 4) is the densest and
+// the only `finale`. Nothing here can touch the flash schedule (chaosPlan FLASHES, from VAULT_CUES.fireworks) or the
+// beat-throb amplitudes (beat.ts BEAT_LIGHT_AMPLITUDES): those are the photosensitivity limits, the same for every
+// vault. Vault I's entry is exactly the look it had before M3.
 
 export type VaultId = VaultDef["id"];
 
@@ -47,10 +47,12 @@ export interface VaultLook {
   light: VaultLight;
   fanfare: FanfareId;
   chaos: VaultChaosLook;
+  /** The grand ending (The Last Case): the screen tears at the impact and every reel spins until the lid opens (Finale.ts). */
+  finale: boolean;
 }
 
-/** The densest any vault gets (× Vault I): the chaos's and the beams' pools are sized for it once. */
-export const MAX_DENSITY = 2;
+/** The densest any vault gets (× Vault I): The Last Case's; the chaos's and the beams' pools are sized for it once. */
+export const MAX_DENSITY = 2.5;
 
 export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
   vault1: {
@@ -68,6 +70,7 @@ export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
     },
     fanfare: "vault-fanfare",
     chaos: { burstsPerKick: 2, stream: 1, rain: 1, sparks: 1, shimmer: { from: 0.02, span: 0.06, sat: 0.35 } },
+    finale: false,
   },
   vault2: {
     id: "vault2",
@@ -84,6 +87,7 @@ export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
     },
     fanfare: "vault-fanfare-2",
     chaos: { burstsPerKick: 3, stream: 1.5, rain: 1.5, sparks: 1.5, shimmer: { from: 0.78, span: 0.1, sat: 0.3 } },
+    finale: false,
   },
   vault3: {
     id: "vault3",
@@ -100,8 +104,8 @@ export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
     },
     fanfare: "vault-fanfare-3",
     chaos: { burstsPerKick: 4, stream: 2, rain: 2, sparks: 2, shimmer: { from: 0.08, span: 0.05, sat: 0.2 } },
+    finale: false,
   },
-  // its own chest and fanfare (F6 assets); the chaos is still Vault III's (interim) until plan F6-C finishes the look
   lastcase: {
     id: "lastcase",
     chest: "vault-case-4", // black glass with gold glitch seams
@@ -116,7 +120,9 @@ export const VAULT_LOOKS: Readonly<Record<VaultId, VaultLook>> = {
       open: 0xfff0b0,
     },
     fanfare: "vault-fanfare-4",
-    chaos: { burstsPerKick: 4, stream: 2, rain: 2, sparks: 2, shimmer: { from: 0.12, span: 0.04, sat: 0.15 } },
+    // the densest of all: x2.5 Vault I's fireworks, rain and sparks; twins on every item (the beams' spacing rule's most)
+    chaos: { burstsPerKick: 5, stream: 2, rain: 2.5, sparks: 2.5, shimmer: { from: 0.12, span: 0.04, sat: 0.15 } },
+    finale: true,
   },
 };
 
