@@ -25,7 +25,7 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
 - **Charm pools are per run** (`CHARM_POOLS` in `sim/charms.ts`):
   - Run 1 offers only charms that work with Run 1's systems;
   - Chain Reaction, Contract Killer and Hoarder come with Run 2; Fever and Collector's Eye with Run 3.
-- **Pacing targets** (spec §10, `sim/pacing.test.ts` with the greedy player, 5 seeds):
+- **Pacing targets** (spec §10, `sim/pacing.test.ts` with the greedy player, 5 seeds) (F4 replaced these with spec §5's GREEDY/CASUAL targets and the 90 s rule, see `casecremental-finish.md`):
   - catching up to the previous run's shelf takes 1–2 min;
   - Vaults II and III open at 6–10 min.
 - **`VAULT_GROWTH` is 3.25, not 4:**
@@ -33,8 +33,7 @@ patterns, see `casecremental-look.md`), M3-D (on screen) and M3-E (vaults) in `d
     a ×4 vault made the replay slower than the run it replays;
   - so each replay loop is only slightly harder than the last;
   - getting 4 back would need run-scaled upgrade costs.
-  - Vault prices were 1.2M / 2B / 420B here; F2 raised them to 1.2M / 2.4B / 800B with auto-spin (see
-    `casecremental-finish.md`).
+  - Vault prices: see `casecremental-finish.md` for the current prices.
 - **The save is version 4** (F2 moved it to 5, see `casecremental-finish.md`). A v3 save is migrated: the bot's
   single card becomes `cards: [card]`, and the setup gets `run: 1`. Older saves go through v2 → v3 first.
 

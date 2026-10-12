@@ -184,6 +184,66 @@ skippable, replayable from Settings. Spec §4. The step machine is `ui/tutorialR
     case it would buy otherwise (Bedrock) is still framed, in the same gold as the vault row's frame. So two gold frames
     show at once, and one marks a case that is not being bought.
 
+## F4 — pacing for real players (2026-10-13)
+
+Plan: docs/superpowers/plans/2026-10-12-casecremental-f4-pacing.md · spec §5. The plan's levers table is the retuning guide:
+read it before touching `sim/tuning.ts`.
+
+- **Why.** The user's play-test: "runs are too slow… vault cases 2 and 3 are too hard to buy". M1–M3 were tuned to a perfect
+  player who never pauses, so real players took far longer than the tests said.
+- **Two profiles** (`sim/bot.ts`). GREEDY (`HUMAN`) is the old perfect player: buy 0.3 s, key 0.4, sell 0.5, reveal 0.25, and
+  it shops at every free moment (`shopEvery: 0`). CASUAL: buy 0.8, key 0.8, sell 1.2, reveal 0.8, and a look at the shop only
+  every 8 s (`shopEvery: 8`). A CASUAL look buys everything the quarter-of-cash rule allows, one row after another, like a
+  player at the shop; between looks it plays the bench. The vault is outside the look: both players buy it the moment they
+  can afford it with an empty bench (a real player sees the vault row and its BUY at once, F2's `shelfUrgent`).
+- **Player fixes found while tuning** (both are the model's, not the sim's). A due look comes before selling: with a fast bot
+  a card is always waiting, so a player that sold first never reached its look and CASUAL simply never shopped. GREEDY had the
+  same starvation once Run 2 got dearer (it sat on 1.2e8 and never bought a 4M unlock), so it now tries one purchase before
+  it sells. Tests pin both.
+- **How the 90 s rule is measured** (`playToFull`, `pacing.test.ts`). The rule: the vault costs at most 90 s of the run's
+  full-shelf income.
+  - "Fully bought" includes the Machines rows.
+  - Income is net cash per second over `INCOME_WINDOW` after the run is fully bought. It is 300 s, not 60: knives arrive
+    about 1.5 a minute, so a 60 s window mostly measured whether a knife landed in it (Run 2 ratios 43 to 154 on one
+    config; the same config read 46–63 at 300 s). It is a five-minute average, a little more lenient than "90 s" sounds.
+  - It is measured in a probe of the same seed with the vault out of reach (`vaultPrice` +Infinity, only in the probe,
+    never saved or shown), because a CASUAL player usually buys the vault before everything is bought.
+  - It is checked for every seed, Runs 1–3 and the first replay (CASUAL).
+- **Target priority when they clash:** the 90 s rule, then CASUAL's bands, then GREEDY's. So GREEDY's Runs 2–3 vault floor
+  is 3 min, not 4 (the perfect player's Run 2 vaults at about 3.4 min once CASUAL and the rule fit).
+- **Decisions.**
+  - No auto-spin perk (spec §3 left it to F4). Run 2+ buys auto-spin within its catch-up, and a perk would need a meta
+    field, a prestige row and EN/RU strings. Revisit in F9 if CASUAL's catch-up needs it.
+  - The synthetic Run 1 replay test and the Run 3 replay catch-up test were dropped: no player replays Run 1, and the replay
+    row is its vault time.
+  - The run rows loop to `LAST_RUN`, so Run 4 inherits them.
+- **Known limit.** A replay's vault grows by `VAULT_GROWTH` (3.4) while its sales grow by `CATCH_UP_PER_VAULT` (2.8), so the
+  90 s ratio worsens about 21 % per extra replay. The first replay is tested (worst seed 62); the rule fails from about the
+  4th replay (62, 75, 91). F9 decides whether later loops need a cap. 2.8 (not 3) keeps the first replay near its run:
+  with ×3 it climbs in about 42 % of Run 3's time and the CASUAL replay could not reach its band.
+- **The retune** (`sim/tuning.ts` only; a save keeps its own run's prices). Changed, old → new: `VAULT_PRICES` 1.2M / 2.4B / 800B
+  → 300K / 450M / 120B; `VAULT_GROWTH` 3.25 → 3.4; `CATCH_UP_PER_VAULT` 3 → 2.8; `AUTOSPIN_COST` 40K → 5K; unlocks Bedrock
+  1,200 → 600, Mainframe 12K → 650K, Neon 2M → 20M, Deep Space 10M → 1B, Inferno 300M → 55B. Each run's length now comes
+  from its unlock ladder; the vault is a short save at the end (CASUAL: 60–100 s after the last unlock).
+  Medians of 5 seeds, seconds, GREEDY / CASUAL (band):
+
+  | | GREEDY | CASUAL |
+  |---|---|---|
+  | Run 1 vault | 282 (240–360) | 429 (360–540) |
+  | Run 2 catch-up | 67 (30–90) | 101 (60–120) |
+  | Run 2 vault | 204 (180–360) | 317 (300–480) |
+  | Run 3 catch-up | 85 (30–90) | 102 (60–120) |
+  | Run 3 vault | 347 (180–360) | 427 (300–480) |
+  | Replay vault | 209 (180–300) | 253 (240–420) |
+
+  Before (F2): GREEDY Run 1 vault 455, Run 2 386, Run 3 388, replay 384; CASUAL never vaulted. GREEDY's Run 1 opening: Wildwood
+  135, Bedrock 201, Buzzed 53, bot 133, seller 198, auto-spin 236. CASUAL's: seller 301, auto-spin 333. 90 s rule, worst CASUAL
+  seed: Run 1 39, Run 2 74, Run 3 62, replay 62. Stages reached (GREEDY): Run 2 stage 4, Run 3 stage 5. The tray was never full.
+- **Thin margins.** GREEDY Run 3 catch-up 85/90, GREEDY Run 3 vault 347/360 and the CASUAL replay 253/240 sit close to
+  their edges; neighbouring configs moved medians 15–20 s, so any change to a tuning number or a player can flip one.
+- **Test hygiene.** Other agents' git worktrees live in `.claude/worktrees/`, which the module path filter matched, so runs
+  collected foreign copies of the tests. `vite.config.ts` now excludes `.claude/**` and `.superpowers/**` from vitest.
+
 ## F5 — music for the late stages
 
 Stages 3-5 each play a three-loop playlist instead of one loop, Run 4's stage 5 adds a finale loop, and a credits track
