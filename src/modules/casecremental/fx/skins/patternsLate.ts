@@ -1,6 +1,6 @@
 import type { PatternKind, PatternMotion } from "../../sim/types";
 import { fbm, hash2 } from "./noise";
-import { at, clamp01, fract, mix, ramp, smoothstep, type PatternPoint, type Rgb } from "./paint";
+import { at, clamp01, cycle, fract, mix, ramp, smoothstep, type PatternPoint, type Rgb } from "./paint";
 
 // Thirteen finishes for cases 4-7 (spec: M3 §3): Mainframe (circuit, hex, carbon), Neon Nights (synthgrid,
 // neonline, hueflow), Deep Space (starfield, nebula, aurora, iridescent), Inferno (flame, ember, molten).
@@ -14,6 +14,8 @@ import { at, clamp01, fract, mix, ramp, smoothstep, type PatternPoint, type Rgb 
 export const OWN_MOTION: Partial<Record<PatternKind, PatternMotion>> = {
   circuit: "pulse",
   hex: "pulse",
+  synthgrid: "flow",
+  hueflow: "flow",
 };
 
 const TAU = Math.PI * 2;
@@ -97,4 +99,76 @@ export function carbon(pal: readonly Rgb[], p: PatternPoint): Rgb {
   const fibre = 0.1 * hash2(flat ? i : Math.floor(p.x * 6), flat ? Math.floor(p.y * 6) : j, p.seed);
   const coat = smoothstep(0.55, 1, 1 - Math.abs(fract((p.u * 2.5 + p.v) * 0.45 + 0.25 * fbm(p.x * 0.2, p.y * 0.2, p.seed, 3)) - 0.5) * 2);
   return ramp(pal, clamp01(bulge * (flat ? 0.62 : 0.4) + fibre + 0.35 * coat));
+}
+
+// ── Neon Nights ─────────────────────────────────────────────────────────────────────────────────
+
+/** Synthwave: a striped sun sinking behind the horizon over a perspective grid. Flow: the grid rolls toward
+ *  you by one line and the sun's stripes slide down by one per loop. Roles: 0 night, 1 sky at the horizon,
+ *  2 grid and the sun's foot, 3 horizon glow, last = the sun's top. */
+export function synthgrid(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
+  const X = p.u * 2.5;
+  const H = 0.5 + 0.08 * (hash2(1, 2, p.seed) - 0.5);
+  if (p.v < H) {
+    const sx = 0.55 + 1.4 * hash2(3, 4, p.seed);
+    const sy = H - 0.06;
+    const r = 0.34;
+    const dy = p.v - sy;
+    if (Math.hypot(X - sx, dy) < r) {
+      const k = (dy + r) / (2 * r);
+      const cut = dy > -0.1 && fract((dy + 0.1) / 0.14 - t) < 0.2 + 0.45 * clamp01((dy + 0.1) / r);
+      if (!cut) return mix(hot(pal), at(pal, 2), k);
+    }
+    return mix(at(pal, 0), at(pal, 1), clamp01(p.v / H) ** 1.5);
+  }
+  const dz = p.v - H;
+  const z = 0.25 / (dz + 0.03);
+  const D = 0.35 * Math.max(1, p.scale);
+  const phase = z * D + t;
+  const dH = Math.abs(fract(phase + 0.5) - 0.5) / ((D * 0.25) / (dz + 0.03) ** 2);
+  const xw = (X - 1.25) * z * 1.25 * Math.max(1, p.scale);
+  const dV = Math.abs(fract(xw + 0.5) - 0.5) / (z * 1.25 * Math.max(1, p.scale));
+  const fog = smoothstep(0.06, 0.2, dz);
+  const grid = (1 - smoothstep(0.012, 0.045, Math.min(dH, dV))) * fog;
+  const glow = 1 - smoothstep(0, 0.09, dz);
+  if (glow > grid) return mix(at(pal, 0), at(pal, 3), glow);
+  return mix(at(pal, 0), at(pal, 2), grid);
+}
+
+/** Neon tubes: contour lines of noise, one tube per middle palette colour, kept an even width by measuring
+ *  their distance (value over gradient), with a pale core and a soft halo on black.
+ *  Roles: 0 black, 1 halo, 2 .. second-to-last = tubes, last = core tint. */
+export function neonline(pal: readonly Rgb[], p: PatternPoint): Rgb {
+  const tubes = pal.length >= 4 ? pal.slice(2, pal.length - 1) : [hot(pal)];
+  let best = 0;
+  let tube = tubes[0]!;
+  let core = false;
+  for (let k = 0; k < tubes.length; k++) {
+    const s = p.seed + 31 * k;
+    const ax = p.x * 0.3;
+    const ay = p.y * 0.3;
+    const n = fbm(ax, ay, s, 3);
+    const e = 0.01;
+    const g = Math.hypot(fbm(ax + e, ay, s, 3) - n, fbm(ax, ay + e, s, 3) - n) / e + 1e-4;
+    const dv = Math.abs(n - 0.5) / g / 0.3 / Math.max(1, p.scale);
+    const glow = (1 - clamp01((dv - 0.045) / 0.16)) ** 1.5;
+    if (glow > best) {
+      best = glow;
+      tube = tubes[k]!;
+      core = dv < 0.045;
+    }
+  }
+  if (core) return mix(tube, hot(pal), 0.4);
+  return ramp([at(pal, 0), at(pal, 1), tube], best);
+}
+
+/** Liquid colour: twice domain-warped noise mapped through the palette as a wheel (the last colour flows back
+ *  into the first). Flow: the bands march one full turn of the wheel per loop. */
+export function hueflow(pal: readonly Rgb[], p: PatternPoint, t = 0): Rgb {
+  const ax = p.x * 0.35;
+  const ay = p.y * 0.35;
+  const qx = fbm(ax, ay, p.seed, 3);
+  const qy = fbm(ax + 5.2, ay + 1.3, p.seed, 3);
+  const n = fbm(ax + 2.5 * qx, ay + 2.5 * qy, p.seed + 9, 4);
+  return cycle(pal, n * 2.2 + p.u * 0.6 - t);
 }

@@ -5,7 +5,7 @@ import { hexToRgb, OWN_MOTION, patternColor, renderPattern, type Rgb } from "./p
 // The finishes of cases 4–7 (spec: M3 §3). Every kind is checked for the same contract as cases 1–3 plus
 // what makes it richer; the kind-specific tests sit below.
 
-const LATE: PatternKind[] = ["circuit", "hex", "carbon"];
+const LATE: PatternKind[] = ["circuit", "hex", "carbon", "synthgrid", "neonline", "hueflow"];
 /** Five unrelated hues, darkest first: a blend of two of them can't pass for a third by accident. */
 const PALETTE = ["#05040a", "#2a1450", "#d02870", "#30c8f0", "#fff4c0"];
 const RGB = PALETTE.map(hexToRgb);
@@ -140,5 +140,26 @@ describe("Mainframe", () => {
       });
       expect(ok, c.join(",")).toBe(true);
     }
+  });
+});
+
+describe("Neon Nights", () => {
+  it("synthgrid: dark sky on top, and its flow rolls the grid in while the sky above the sun stays", () => {
+    const still = pixels("synthgrid");
+    expect(band(still, 0, 0.1)).toBeLessThan(band(still, 0.4, 0.7));
+    const later = pixels("synthgrid", 0.5);
+    still.forEach(([, v, c], n) => {
+      if (v < 0.05) expect(later[n]![2]).toEqual(c);
+    });
+    expect(later.some(([, v, c], n) => v > 0.75 && !same(c, still[n]![2]))).toBe(true);
+  });
+
+  it("neonline: tubes on black - most of the texture stays near the darkest colours", () => {
+    for (const seed of [7, 8, 9]) expect(share(pixels("neonline", undefined, seed), [0, 1])).toBeGreaterThan(0.5);
+  });
+
+  it("hueflow goes all the way round the palette", () => {
+    const px = [7, 8, 9].flatMap((seed) => pixels("hueflow", undefined, seed));
+    for (let i = 0; i < RGB.length; i++) expect(share(px, [i]), `colour ${i}`).toBeGreaterThan(0.02);
   });
 });

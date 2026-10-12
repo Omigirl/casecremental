@@ -18,7 +18,11 @@ export type PatternKind =
   // Mainframe
   | "circuit"
   | "hex"
-  | "carbon";
+  | "carbon"
+  // Neon Nights
+  | "synthgrid"
+  | "neonline"
+  | "hueflow";
 
 /** A moving finish (spec: animated skins §4; `rise`: M3 spec §3). */
 export type PatternMotion = "flow" | "shimmer" | "pulse" | "sparkle" | "rise";
