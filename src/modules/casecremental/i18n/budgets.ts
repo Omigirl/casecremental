@@ -4,6 +4,7 @@ const BY_PREFIX: Array<[string, number]> = [
   ["hud.", 16],
   ["panel.", 12],
   ["tab.", 10],
+  ["lobby.", 52], // the lobby tabs (plan F7): DOM text in the host's kit, not the pixel font's narrow columns
   ["btn.", 8],
   ["label.", 8],
   ["hint.", 18],

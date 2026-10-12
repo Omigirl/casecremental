@@ -1,0 +1,18 @@
+{
+  "Enabled": true,
+  "RevealLogsToClient": false,
+  "RevealStackTraceToClient": false,
+  "PersistExecutionLog": true,
+  "ExecutionLogTtlDays": 7,
+  "ResourcePolicy": {
+    "Enabled": true,
+    "AllowEventTokens": true,
+    "AllowedGrantTypes": ["VirtualCurrency", "Item"],
+    "AllowedConsumeTypes": ["VirtualCurrency"],
+    "Caps": { "VirtualCurrency:CLOUT": { "PerPlayerDaily": 1000000000000 } }
+  },
+  "RateLimit": {
+    "UserLimit": { "MaxRequests": 120, "WindowSeconds": 60, "BlockDurationSeconds": 60 },
+    "PerHandlerUserLimit": { "reportTrophy": { "MaxRequests": 40, "WindowSeconds": 60, "BlockDurationSeconds": 30 } }
+  }
+}

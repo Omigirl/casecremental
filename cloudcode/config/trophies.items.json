@@ -1,0 +1,721 @@
+{
+  "Catalogs": {
+    "Trophies": {
+      "Items": {
+        "bc_commander": {
+          "ItemID": "bc_commander",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Commander's Pride",
+          "Description": "bootcamp Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "bootcamp"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "bootcamp"
+          },
+          "CustomData": {
+            "skinId": "bc_commander",
+            "source": "bootcamp"
+          }
+        },
+        "bc_warlord": {
+          "ItemID": "bc_warlord",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Warlord",
+          "Description": "bootcamp Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "bootcamp"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "bootcamp"
+          },
+          "CustomData": {
+            "skinId": "bc_warlord",
+            "source": "bootcamp"
+          }
+        },
+        "bc_knife": {
+          "ItemID": "bc_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Field Marshal",
+          "Description": "bootcamp ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "bootcamp"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "bootcamp"
+          },
+          "CustomData": {
+            "skinId": "bc_knife",
+            "source": "bootcamp"
+          }
+        },
+        "ww_spirit": {
+          "ItemID": "ww_spirit",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Forest Spirit",
+          "Description": "wildwood Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "wildwood"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "wildwood"
+          },
+          "CustomData": {
+            "skinId": "ww_spirit",
+            "source": "wildwood"
+          }
+        },
+        "ww_elder": {
+          "ItemID": "ww_elder",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Elder Oak",
+          "Description": "wildwood Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "wildwood"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "wildwood"
+          },
+          "CustomData": {
+            "skinId": "ww_elder",
+            "source": "wildwood"
+          }
+        },
+        "ww_knife": {
+          "ItemID": "ww_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Heartwood",
+          "Description": "wildwood ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "wildwood"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "wildwood"
+          },
+          "CustomData": {
+            "skinId": "ww_knife",
+            "source": "wildwood"
+          }
+        },
+        "br_magma": {
+          "ItemID": "br_magma",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Magma Core",
+          "Description": "bedrock Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "bedrock"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "bedrock"
+          },
+          "CustomData": {
+            "skinId": "br_magma",
+            "source": "bedrock"
+          }
+        },
+        "br_diamond": {
+          "ItemID": "br_diamond",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Diamond Hands",
+          "Description": "bedrock Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "bedrock"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "bedrock"
+          },
+          "CustomData": {
+            "skinId": "br_diamond",
+            "source": "bedrock"
+          }
+        },
+        "br_knife": {
+          "ItemID": "br_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Molten Crown",
+          "Description": "bedrock ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "bedrock"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "bedrock"
+          },
+          "CustomData": {
+            "skinId": "br_knife",
+            "source": "bedrock"
+          }
+        },
+        "mf_root": {
+          "ItemID": "mf_root",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Root Access",
+          "Description": "mainframe Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "mainframe"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "mainframe"
+          },
+          "CustomData": {
+            "skinId": "mf_root",
+            "source": "mainframe"
+          }
+        },
+        "mf_zeroday": {
+          "ItemID": "mf_zeroday",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Zero Day",
+          "Description": "mainframe Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "mainframe"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "mainframe"
+          },
+          "CustomData": {
+            "skinId": "mf_zeroday",
+            "source": "mainframe"
+          }
+        },
+        "mf_knife": {
+          "ItemID": "mf_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Blue Screen",
+          "Description": "mainframe ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "mainframe"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "mainframe"
+          },
+          "CustomData": {
+            "skinId": "mf_knife",
+            "source": "mainframe"
+          }
+        },
+        "nn_demon": {
+          "ItemID": "nn_demon",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Neon Demon",
+          "Description": "neon Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "neon"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "neon"
+          },
+          "CustomData": {
+            "skinId": "nn_demon",
+            "source": "neon"
+          }
+        },
+        "nn_racer": {
+          "ItemID": "nn_racer",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Midnight Racer",
+          "Description": "neon Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "neon"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "neon"
+          },
+          "CustomData": {
+            "skinId": "nn_racer",
+            "source": "neon"
+          }
+        },
+        "nn_knife": {
+          "ItemID": "nn_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Prism",
+          "Description": "neon ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "neon"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "neon"
+          },
+          "CustomData": {
+            "skinId": "nn_knife",
+            "source": "neon"
+          }
+        },
+        "ds_cosmicray": {
+          "ItemID": "ds_cosmicray",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Cosmic Ray",
+          "Description": "deepspace Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "deepspace"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "deepspace"
+          },
+          "CustomData": {
+            "skinId": "ds_cosmicray",
+            "source": "deepspace"
+          }
+        },
+        "ds_blackhole": {
+          "ItemID": "ds_blackhole",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Black Hole Sun",
+          "Description": "deepspace Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "deepspace"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "deepspace"
+          },
+          "CustomData": {
+            "skinId": "ds_blackhole",
+            "source": "deepspace"
+          }
+        },
+        "ds_knife": {
+          "ItemID": "ds_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Starforged",
+          "Description": "deepspace ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "deepspace"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "deepspace"
+          },
+          "CustomData": {
+            "skinId": "ds_knife",
+            "source": "deepspace"
+          }
+        },
+        "in_phoenix": {
+          "ItemID": "in_phoenix",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Phoenix",
+          "Description": "inferno Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "inferno"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "inferno"
+          },
+          "CustomData": {
+            "skinId": "in_phoenix",
+            "source": "inferno"
+          }
+        },
+        "in_dragon": {
+          "ItemID": "in_dragon",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Dragon's Breath",
+          "Description": "inferno Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "inferno"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "inferno"
+          },
+          "CustomData": {
+            "skinId": "in_dragon",
+            "source": "inferno"
+          }
+        },
+        "in_knife": {
+          "ItemID": "in_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Forgeheart",
+          "Description": "inferno ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "inferno"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "inferno"
+          },
+          "CustomData": {
+            "skinId": "in_knife",
+            "source": "inferno"
+          }
+        },
+        "gl_fatal": {
+          "ItemID": "gl_fatal",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Fatal Exception",
+          "Description": "glitch Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "glitch"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "glitch"
+          },
+          "CustomData": {
+            "skinId": "gl_fatal",
+            "source": "glitch"
+          }
+        },
+        "gl_null": {
+          "ItemID": "gl_null",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Null Pointer",
+          "Description": "glitch Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "glitch"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "glitch"
+          },
+          "CustomData": {
+            "skinId": "gl_null",
+            "source": "glitch"
+          }
+        },
+        "gl_knife": {
+          "ItemID": "gl_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Segfault",
+          "Description": "glitch ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "glitch"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "glitch"
+          },
+          "CustomData": {
+            "skinId": "gl_knife",
+            "source": "glitch"
+          }
+        },
+        "fd_lucid": {
+          "ItemID": "fd_lucid",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "AK-Pew | Lucid Dream",
+          "Description": "feverdream Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "feverdream"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "feverdream"
+          },
+          "CustomData": {
+            "skinId": "fd_lucid",
+            "source": "feverdream"
+          }
+        },
+        "fd_feverpitch": {
+          "ItemID": "fd_feverpitch",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "Longshot | Fever Pitch",
+          "Description": "feverdream Covert",
+          "Tags": [
+            "trophy",
+            "covert",
+            "feverdream"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Covert",
+            "CollectionID": "feverdream"
+          },
+          "CustomData": {
+            "skinId": "fd_feverpitch",
+            "source": "feverdream"
+          }
+        },
+        "fd_knife": {
+          "ItemID": "fd_knife",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Daydream",
+          "Description": "feverdream ★",
+          "Tags": [
+            "trophy",
+            "gold",
+            "feverdream"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "feverdream"
+          },
+          "CustomData": {
+            "skinId": "fd_knife",
+            "source": "feverdream"
+          }
+        },
+        "vault1_legend": {
+          "ItemID": "vault1_legend",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Event Horizon",
+          "Description": "vault1 legend",
+          "Tags": [
+            "trophy",
+            "gold",
+            "vault1"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "vault1"
+          },
+          "CustomData": {
+            "skinId": "vault1_legend",
+            "source": "vault1"
+          }
+        },
+        "vault2_legend": {
+          "ItemID": "vault2_legend",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Overdrive",
+          "Description": "vault2 legend",
+          "Tags": [
+            "trophy",
+            "gold",
+            "vault2"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "vault2"
+          },
+          "CustomData": {
+            "skinId": "vault2_legend",
+            "source": "vault2"
+          }
+        },
+        "vault3_legend": {
+          "ItemID": "vault3_legend",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Supernova",
+          "Description": "vault3 legend",
+          "Tags": [
+            "trophy",
+            "gold",
+            "vault3"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "vault3"
+          },
+          "CustomData": {
+            "skinId": "vault3_legend",
+            "source": "vault3"
+          }
+        },
+        "lastcase_legend": {
+          "ItemID": "lastcase_legend",
+          "CatalogID": "Trophies",
+          "ItemClass": "Trophy",
+          "DisplayName": "★ Hookblade | Singularity",
+          "Description": "lastcase legend",
+          "Tags": [
+            "trophy",
+            "gold",
+            "lastcase"
+          ],
+          "IsStackable": false,
+          "IsTradable": false,
+          "Weight": 0,
+          "Metadata": {
+            "RarityID": "Star",
+            "CollectionID": "lastcase"
+          },
+          "CustomData": {
+            "skinId": "lastcase_legend",
+            "source": "lastcase"
+          }
+        }
+      }
+    }
+  }
+}

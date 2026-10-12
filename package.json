@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "art": "node tools/art/build.mjs",
+    "cloud": "node tools/cloud/bundle.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "node tools/hooks/install.mjs"

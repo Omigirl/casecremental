@@ -1,3 +1,5 @@
+import type { ServerDoc } from "../meta/bridge";
+import { applyServerDoc } from "../meta/merge";
 import type { CharmId } from "../sim/charms";
 import { buyEvolution } from "../sim/evolutions";
 import type { EvolutionId } from "../sim/evolved";
@@ -158,6 +160,19 @@ export class GameController {
     this.refreshView();
   }
 
+  /** A server answer (plan F7): merged into the meta, saved, shown. A run nothing has happened in yet (a new device
+   *  started a fresh Run 1) is rebuilt for the campaign the server knows, so its vault is the one the server expects. */
+  applyServerMeta(doc: ServerDoc, pendingWrites: boolean): void {
+    applyServerDoc(this.meta, doc, pendingWrites);
+    const s = this.current.state;
+    if (s.lifetimeEarnings === 0 && !s.over && s.vault === null && setupFor(this.meta).run !== this.current.setup.run) {
+      this.current = new Run(this.current.seed, setupFor(this.meta));
+      this.emit({ type: "runStarted" });
+    }
+    this.save();
+    this.refreshView();
+  }
+
   /** Save now (the page is closing): autosave runs only about once a second. */
   saveNow(): void {
     this.save();
@@ -236,9 +251,12 @@ export class GameController {
         return run.buyVault();
       case "turnVaultKey":
         return run.turnVaultKey();
-      case "buyPerk":
+      case "buyPerk": {
         if (!run.state.over) return { ok: false, reason: "perks are bought between runs" };
-        return this.emitOnOk(buyPerk(this.meta, a.id), { type: "perkBought" });
+        const r = buyPerk(this.meta, a.id);
+        if (r.ok) this.emit({ type: "perkBought", id: a.id, level: this.meta.perks[a.id] });
+        return r;
+      }
       case "pickCharm":
         return this.pickCharm(a.id);
       case "startNextRun":
@@ -253,8 +271,11 @@ export class GameController {
         return upgrader.upgraderGo(run);
       case "buyEvolution":
         return buyEvolution(run, a.id);
-      case "endCredits":
-        return this.emitOnOk(endCredits(this.meta), { type: "creditsEnded" });
+      case "endCredits": {
+        const r = endCredits(this.meta);
+        if (r.ok) this.emit({ type: "creditsEnded" });
+        return r;
+      }
     }
   }
 
@@ -284,11 +305,6 @@ export class GameController {
       }
       this.emit(e);
     }
-  }
-
-  private emitOnOk(r: ActionResult, e: SimEvent): ActionResult {
-    if (r.ok) this.emit(e);
-    return r;
   }
 
   private emit(e: SimEvent): void {

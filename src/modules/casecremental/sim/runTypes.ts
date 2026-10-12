@@ -3,6 +3,7 @@ import type { BotState, CardSpot } from "./botOpener";
 import type { CharmId } from "./charms";
 import type { EvolutionId, EvolutionState } from "./evolved";
 import type { LockerState } from "./locker";
+import type { PerkId } from "./meta";
 import type { Rng } from "./rng";
 import type { SellerState } from "./autoSeller";
 import type { Tease } from "./tease";
@@ -120,7 +121,8 @@ export type SimEvent =
   | { type: "runStarted" }
   /** Emitted by the controller (prestige screen). */
   | { type: "charmPicked" }
-  | { type: "perkBought" }
+  /** Emitted by the controller (prestige screen); `level` is the perk's level after the purchase. */
+  | { type: "perkBought"; id: PerkId; level: number }
   /** Emitted by the controller: the credits ended (skipped or run out). */
   | { type: "creditsEnded" };
 

@@ -236,6 +236,25 @@ export const PERK_COSTS = {
   biggerTray: { baseCost: 4, growth: 2, maxLevel: 3 },
 } as const;
 
+/**
+ * Server plausibility (plan F7): the most a run can earn after `t` seconds with `loops` vaults behind it is
+ * 10^min(ceilLog10, baseLog10 + perSqrtSecond·√t + perLoop·loops). Calibrated in meta/plausibility.test.ts against
+ * a superhuman greedy player with ×3 headroom; CloudCode applies the same curve (cloudcode/data.json). Calibrated
+ * 2026-10-13 (Runs 1–3): that player vaults Run 1 at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at
+ * ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump from a short run, so it is steep.
+ */
+export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, ceilLog10: 300 } as const;
+/** The most CLOUT one endRun pays: a capped claim near 10^ceilLog10 would otherwise overflow the Title's int64 balance
+ *  (and the CloudCode policy's daily CLOUT cap, 1e12). A real run pays thousands. */
+export const SERVER_MAX_CLOUT_PER_RUN = 1e11;
+/** A first run the server never saw start may claim at most this long. */
+export const SERVER_FIRST_RUN_MAX_SEC = 6 * 3600;
+/** Trophy reports: at least this many seconds apart, and at most this many per minute of a run. */
+export const TROPHY_GAP_SEC = 2;
+export const TROPHIES_PER_RUN_MINUTE = 30;
+/** Campaign stats sanity: no one opens more cases a second than this (bench, bot and every machine together). */
+export const MAX_OPENS_PER_SECOND = 2000;
+
 /** The auto-seller machine (rework spec §1): unlocked in Run 1, then it takes any waiting card. */
 export const SELLER_COST = 300;
 /** Seconds a card waits before the machine takes it, per Speed level (Run 1: 4 levels). */
