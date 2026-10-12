@@ -11,12 +11,12 @@ import type { SpriteSet } from "./sprites";
 
 const tex = new Texture({ source: new TextureSource({ width: 4, height: 4 }) });
 const frameSet = { frames: [tex] } as unknown as SpriteSet;
-const skins = { texture: () => tex } as unknown as SkinTextures;
+const skins = { texture: () => tex, size: () => ({ w: 26, h: 10 }), thumb: () => tex } as unknown as SkinTextures;
 const portrait = tableLayout({ worldW: 180, worldH: 320, portrait: true });
 const landscape = tableLayout({ worldW: 320, worldH: 180, portrait: false });
 
-/** Reel i's strip of cards (a Reel: frame, strip, clip, marker). */
-const strip = (r: BotReels, i: number) => (r.root.children[i] as Container).children[1] as Container;
+/** Reel i's strip of cards (a Reel: frame, thin, back, strip, clip, marker). */
+const strip = (r: BotReels, i: number) => (r.root.children[i] as Container).children[3] as Container;
 
 describe("BotReels", () => {
   it("starts reels made after the spin began (portrait → landscape), and the spin carries on", () => {

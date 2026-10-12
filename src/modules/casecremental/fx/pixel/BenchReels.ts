@@ -14,7 +14,7 @@ import type { SpriteSet } from "./sprites";
 // its teasing partner gets its own (quieter) stop; the camera leans toward the strongest tease until that reel lands.
 
 /** The tallest one reel gets in a stack. */
-const REEL_MAX_H = 26;
+export const REEL_MAX_H = 26;
 
 /** The camera leans in when the strongest tease starts its crawl. */
 export interface ReelLean {
