@@ -43,8 +43,10 @@ export function wrapLines(text: string, perLine: number): { lines: number; spill
   return { lines, spills };
 }
 
-/** The case the shelf frames in gold: the one auto-spin would buy now, else your pick while nothing is affordable. */
-export function framedCase(cases: ReadonlyArray<{ id: string; picked: boolean; buys: boolean }>): string | null {
+/** The case the shelf frames in gold: the one auto-spin would buy now, else your pick while nothing is affordable.
+ *  Nothing while auto-spin waits for the vault: the vault row is the gold frame then. */
+export function framedCase(cases: ReadonlyArray<{ id: string; picked: boolean; buys: boolean }>, status?: string): string | null {
+  if (status === "vault") return null;
   return (cases.find((c) => c.buys) ?? cases.find((c) => c.picked))?.id ?? null;
 }
 

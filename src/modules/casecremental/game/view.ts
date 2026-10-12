@@ -1,4 +1,4 @@
-import { autoSpinCase } from "../sim/autoSpin";
+import { autoSpinCase, autoSpinStatus } from "../sim/autoSpin";
 import { capRaisedLater, runNumber } from "../sim/campaign";
 import type { CharmId } from "../sim/charms";
 import { caseById, unlockCostOf } from "../sim/content/cases";
@@ -123,7 +123,7 @@ export function buildView(run: Run, meta: MetaState = freshMeta()): GameView {
   const benchFree = s.bench.phase === "empty";
   const open = !run.locked();
   const r = run.setup.run;
-  const buys = autoSpinCase(run);
+  const buys = autoSpinStatus(run) === "vault" ? null : autoSpinCase(run); // waiting for the vault: nothing is about to be bought
   const cases = run.runCases().map((id, i, ids): CaseView => {
     const c = caseById(id);
     const unlocked = s.unlocked.includes(c.id);

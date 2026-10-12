@@ -270,7 +270,19 @@ describe("buildView — M2b", () => {
     run.state.cash = 0;
     expect(buildView(run).cases.some((c) => c.buys)).toBe(false); // nothing affordable: nothing to frame
     expect(buildView(run).autoSpin.status).toBe("broke");
+    run.state.cash = 1e12;
+    expect(buildView(run).cases.some((c) => c.buys)).toBe(true);
     run.state.vault = { phase: "key" };
     expect(buildView(run).autoSpin.canToggle).toBe(false);
+  });
+
+  it("frames no case to buy while auto-spin waits for the vault", () => {
+    const run = new Run(1);
+    run.state.autoSpin = { ...run.state.autoSpin, owned: true, on: true };
+    run.state.cash = 1e12;
+    run.state.unlocked = [...run.runCases()];
+    const v = buildView(run);
+    expect(v.autoSpin.status).toBe("vault");
+    expect(v.cases.some((c) => c.buys)).toBe(false);
   });
 });

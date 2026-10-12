@@ -127,7 +127,7 @@ function VaultRow({ view, act }: { view: GameView; act: Act }): ReactNode {
 }
 
 export function CaseShelf({ view, act, title = true }: { view: GameView; act: Act; title?: boolean }): ReactNode {
-  const framed = framedCase(view.cases);
+  const framed = framedCase(view.cases, view.autoSpin.status);
   const urgent = shelfUrgent(view, dayJobButton(view) !== null);
   return (
     <>

@@ -80,6 +80,10 @@ describe("framedCase", () => {
     expect(framedCase([c("a", true, false), c("b", false, false)])).toBe("a");
     expect(framedCase([c("a", false, false)])).toBeNull();
   });
+  it("frames nothing while auto-spin waits for the vault: the vault row is the gold frame then", () => {
+    expect(framedCase([c("a", true, false), c("b", false, true)], "vault")).toBeNull();
+    expect(framedCase([c("a", true, false), c("b", false, true)], "on")).toBe("b");
+  });
 });
 
 describe("shelfUrgent", () => {
