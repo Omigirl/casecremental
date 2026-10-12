@@ -204,6 +204,6 @@ export class Reel extends Container {
       return this.strip.addChild(cell);
     });
     this.strip.addChild(this.winEdge);
-    this.landedShown = false; // place() re-applies it
+    this.showLanded(false); // a new strip never keeps the last spin's outline; place() re-applies a landed look
   }
 }

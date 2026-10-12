@@ -33,6 +33,7 @@ describe("cellLook", () => {
   });
 
   it("shrinks the art on a short strip and draws plain tiles where even that would not read", () => {
+    expect(cellLook(14)).toMatchObject({ artBox: { w: 28, h: 10 } }); // the bot's x2 window
     expect(cellLook(15).artBox).toEqual({ w: 28, h: 11 });
     expect(cellLook(11)).toMatchObject({ frame: "thin", cellW: 24, bar: 1, artBox: { w: 22, h: 8 } });
     expect(cellLook(9).artBox).toEqual({ w: 22, h: 6 });
@@ -72,7 +73,7 @@ describe("cellLook", () => {
 
 describe("the bench's stacked reels at every viewport (F1 #3, Review Focus 2)", () => {
   it.each(SIZES)(
-    "show full art at ×2–×3 and readable shrunk art at ×5 while spinning, at least clean tiles once landed, at %ix%i",
+    "show full art at ×2–×3 and readable shrunk art at ×5 in the tall window, at least clean tiles in the compact one, at %ix%i",
     (w, h) => {
       const l = tableLayout(pixelViewport(w, h));
       for (const n of [2, 3, 5]) {

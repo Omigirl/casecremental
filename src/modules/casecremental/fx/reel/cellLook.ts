@@ -29,6 +29,7 @@ export const CELL_GAP = 2;
 /** The shortest art that still reads as a weapon: half the skin's height. */
 const MIN_ART_H = Math.ceil(SKIN_H / 2);
 
+/** The cell look for a reel `reelH` px tall. */
 export function cellLook(reelH: number): CellLook {
   const frame: ReelFrameKind = reelH >= SLICE_MIN_H ? "slice" : "thin";
   const inset = frame === "slice" ? 3 : 1;
