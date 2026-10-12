@@ -190,7 +190,7 @@ Stages 3-5 each play a three-loop playlist instead of one loop, Run 4's stage 5 
 waits for F6-C. Spec §6; plan `docs/superpowers/plans/2026-10-12-casecremental-f5-music.md`.
 
 - **The eight tracks.** Made with ElevenLabs `eleven_music_v2_5`, instrumental, one take each (generated outside the
-  plan; the credits spent are not recorded). The prompts and the ffmpeg recipes (gain, limiter, trim, fade) are in
+  plan; 4,485 ElevenLabs credits in all: 7 loops x 480 plus the 73 s credits track at 1,125, per the generator's README). The prompts and the ffmpeg recipes (gain, limiter, trim, fade) are in
   `art/manifest.json`; the raw takes are in `art/source/audio/*-take-1.mp3`. No loop was built with the ffmpeg
   fallback. Measured: every loop is exactly 32.000 s; means 3b/3c -13.6 dB (3's first loop -13.3), 4b/4c -13.1
   (-12.8), 5b/5c/finale -15.1 (-14.8); the credits are 73.2 s at -16.2 (the prestige loop -16.1). Peaks -0.7 to
