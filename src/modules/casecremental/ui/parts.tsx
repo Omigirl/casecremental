@@ -1,9 +1,9 @@
 import { createContext, useContext, useRef, type CSSProperties, type ReactNode } from "react";
-import { springElement } from "../fx/hd/tween";
+import { pressElement } from "../fx/hd/tween";
 import type { Rect } from "../fx/pixel/layout";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
 
-// Small building blocks shared by the panels: a pixel button that presses in and springs back,
+// Small building blocks shared by the panels: a pixel button that presses in and eases back,
 // a progress bar, a framed panel placed over a world-pixel rect, and the settings gear.
 
 export interface UiEnv {
@@ -37,7 +37,7 @@ export function PxButton(props: {
       title={props.title}
       style={props.style}
       onClick={() => {
-        if (ref.current) springElement(ref.current);
+        if (ref.current) pressElement(ref.current);
         env.click();
         props.onClick?.();
       }}

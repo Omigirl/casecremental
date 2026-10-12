@@ -53,6 +53,14 @@ export function springElement(el: Element, amount = 0.12): gsap.core.Tween {
   return gsap.fromTo(el, { scale: 1 + amount }, { scale: 1, duration: 0.5, ease: "elastic.out(1, 0.35)", overwrite: true });
 }
 
+/** A panel button's press (F1): it dips to 0.92 and eases back to its size, never past it. A button that grew stuck out
+ *  of its scroll area and flashed a scrollbar for as long as the spring rang. */
+export const PRESS = { from: 0.92, duration: 0.25, ease: "power3.out" } as const;
+
+export function pressElement(el: Element): gsap.core.Tween {
+  return gsap.fromTo(el, { scale: PRESS.from }, { scale: 1, duration: PRESS.duration, ease: PRESS.ease, overwrite: true });
+}
+
 /** A DOM panel appears with a pop. */
 export function popElement(el: Element): gsap.core.Tween {
   return gsap.fromTo(el, { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.5)" });

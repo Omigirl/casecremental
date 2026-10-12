@@ -4,6 +4,7 @@ import type { GameController } from "../game/controller";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { Camera } from "./camera";
 import { canvasResolution } from "./pixel/screen";
+import { blockSelection } from "./noSelect";
 import { World } from "./World";
 
 // The Pixi scene the host's Mode Router drives: created on mount, ticking only while active
@@ -52,6 +53,7 @@ export function createGameScene(controller: GameController, audio: AudioEngine, 
             return;
           }
           appReady = true;
+          blockSelection(a.canvas);
           host.appendChild(a.canvas);
           world = w;
           a.ticker.add(tick);

@@ -1,16 +1,22 @@
 import { PIXEL_FONT } from "../fx/hd/font";
+import { NO_SELECT } from "../fx/noSelect";
 
 // The overlay's stylesheet. Sizes come from two CSS variables set on the root: --px (the pixel
 // world's integer scale) and --fs (the text size, a multiple of 8). Buttons use the sliced
 // ui-button art when it exists (--btn-normal / --btn-hover / --btn-pressed), else a pixel bevel.
+// The scroll areas never flash a scrollbar (F1: a gutter always reserved, no sideways overflow, room for a pressed button),
+// and the game's text is not selectable.
+
+const noSelect = NO_SELECT.map(([k, v]) => `${k}: ${v};`).join(" ");
 
 export const UI_CSS = `
-.cc-root { font-family: ${PIXEL_FONT}; color: #f2e9dc; font-size: var(--fs); line-height: 1.5; -webkit-font-smoothing: none; }
+.cc-root { font-family: ${PIXEL_FONT}; color: #f2e9dc; font-size: var(--fs); line-height: 1.5; -webkit-font-smoothing: none; ${noSelect} }
 .cc-root * { box-sizing: border-box; }
+.cc-root input, .cc-root textarea, .cc-root select, .cc-root [contenteditable="true"] { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
 .cc-panel { position: absolute; pointer-events: auto; display: flex; flex-direction: column; gap: calc(var(--px) * 3px); overflow: hidden; }
 .cc-title { color: #ffd34d; text-align: center; text-shadow: 0 calc(var(--px) * 1px) 0 #120e10; }
 .cc-dim { color: #a89a8c; }
-.cc-scroll { overflow-y: auto; display: flex; flex-direction: column; gap: calc(var(--px) * 3px); min-height: 0; }
+.cc-scroll { overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; padding-block: calc(var(--px) * 2px); display: flex; flex-direction: column; gap: calc(var(--px) * 3px); min-height: 0; }
 .cc-row { display: grid; gap: calc(var(--px) * 1px); padding: calc(var(--px) * 1px); background: rgba(18, 14, 16, 0.55); box-shadow: 0 0 0 var(--px) #120e10 inset; }
 .cc-row-line { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--px) * 2px); }
 .cc-btn { font: inherit; color: #fff6d5; background: #8a4b2a; border: 0; cursor: pointer; white-space: nowrap;
