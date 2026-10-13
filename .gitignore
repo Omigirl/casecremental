@@ -6,3 +6,4 @@ dist/
 .npm-cache/
 art/preview/
 .claude/worktrees/
+.claude-setup/
