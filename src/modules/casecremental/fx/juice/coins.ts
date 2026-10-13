@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { Container, Sprite, Text, type Texture } from "pixi.js";
 import { moneyStyle } from "../hd/font";
+import { fitCentre } from "../labels";
 import { floatAway, pop } from "../hd/tween";
 import type { Pt } from "../pixel/layout";
 import { SpritePool } from "./spritePool";
@@ -8,7 +9,8 @@ import { SpritePool } from "./spritePool";
 // Money you can see: spinning pixel coins arc from the sold skin to the cash counter, and the amount pops and floats up
 // in gold. The coins fly in the pixel world (world px, whole pixels), in a layer the World puts under the reels and the
 // bench's cards, so a stream of sales passes behind a reel's window instead of covering it (F1: at ×5 a column of them
-// hid all five markers). The amounts are HD text (screen px).
+// hid all five markers). The amounts are HD text (screen px), kept inside the table's width: the seller and the bin stand
+// near its ends, where an amount centred on them ran under a side panel.
 
 interface Flight {
   s: Sprite;
@@ -28,6 +30,8 @@ export class Coins {
   private flights: Flight[] = [];
   private readonly texts = new Set<Text>();
   private textSize = 16;
+  /** The screen-px span the amounts stay within (the table between the side panels); null = anywhere. */
+  private span: { lo: number; hi: number } | null = null;
   private readonly pool: SpritePool;
 
   constructor(private readonly frames: readonly Texture[]) {
@@ -36,6 +40,11 @@ export class Coins {
 
   setTextSize(textSize: number): void {
     this.textSize = textSize;
+  }
+
+  /** Keep the floating amounts between `lo` and `hi` (screen px). */
+  setSpan(lo: number, hi: number): void {
+    this.span = { lo, hi };
   }
 
   /** Coins from `from` to `to`, world px; more for a bigger amount. */
@@ -72,7 +81,7 @@ export class Coins {
     const t = new Text({ text, style: moneyStyle(this.textSize) });
     t.tint = tint;
     t.anchor.set(0.5);
-    t.position.set(at.x, at.y);
+    t.position.set(this.span ? fitCentre(at.x, t.width, this.span.lo, this.span.hi) : at.x, at.y);
     this.container.addChild(t);
     this.texts.add(t);
     pop(t);

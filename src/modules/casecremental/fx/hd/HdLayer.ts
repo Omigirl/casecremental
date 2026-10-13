@@ -152,6 +152,7 @@ export class HdLayer {
     this.drawLed();
     this.led.position.set(l.seller.x * k, (l.seller.y - 26) * k);
     this.coins.setTextSize(hdFontSize(k, 16));
+    this.coins.setSpan(l.table.x * k, (l.table.x + l.table.w) * k);
   }
 
   /** Glow under the reveal in the rarity's colour (null fades it out). */

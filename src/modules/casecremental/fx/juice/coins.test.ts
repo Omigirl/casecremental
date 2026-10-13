@@ -5,6 +5,23 @@ import { Coins } from "./coins";
 // F1 #3: the sale coins (12×22 spinning frames, the "golden bullets" at ×5) fly in the pixel world, in a layer the World
 // puts under the reels, so a stream of sales never covers a reel's window.
 
+// the floating amounts are pixi Text, whose measuring needs a canvas: a stand-in 10 px wide a character
+vi.mock("pixi.js", async (importOriginal) => {
+  const pixi = await importOriginal<typeof import("pixi.js")>();
+  class Text extends pixi.Container {
+    readonly anchor = { set: () => {} };
+    tint = 0xffffff;
+    constructor(readonly opts: { text: string }) {
+      super();
+    }
+    override get width(): number {
+      return this.opts.text.length * 10 * this.scale.x;
+    }
+  }
+  return { ...pixi, Text };
+});
+vi.mock("../hd/font", () => ({ moneyStyle: (fontSize: number) => ({ fontSize }) }));
+
 const frame = () => new Texture({ source: new TextureSource({ width: 12, height: 22 }) });
 
 describe("Coins", () => {
@@ -40,5 +57,23 @@ describe("Coins", () => {
     c.setTextSize(48);
     c.update(0);
     expect({ x: s.x, y: s.y }).toEqual(at);
+  });
+
+  it("keep a floating amount inside the table's span (F9: the seller's sales ran under the left panel)", () => {
+    const c = new Coins([frame()]);
+    c.setSpan(300, 1600);
+    c.floatText({ x: 310, y: 900 }, "+$19.6K");
+    c.floatText({ x: 1595, y: 900 }, "+$19.6K");
+    c.floatText({ x: 900, y: 900 }, "+$19.6K");
+    const [left, right, mid] = c.container.children as unknown as { x: number; y: number; width: number; scale: { x: number } }[];
+    for (const t of [left!, right!, mid!]) {
+      const w = t.width / t.scale.x; // pop() scales it up from 0.6
+      expect(w).toBeGreaterThan(0);
+      expect(t.x - w / 2).toBeGreaterThanOrEqual(300);
+      expect(t.x + w / 2).toBeLessThanOrEqual(1600);
+      expect(t.y).toBe(900);
+    }
+    expect(mid!.x).toBe(900);
+    c.destroy();
   });
 });
