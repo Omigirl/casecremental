@@ -8,9 +8,9 @@ An incremental game where every scratch ticket is a CS-style weapon case. You bu
 
 ## Trailer
 
-[![Watch the Casecremental trailer](docs/media/trailer-poster.jpg)](docs/media/casecremental-trailer.mp4)
+[![Watch the Casecremental trailer on YouTube](docs/media/trailer-poster.jpg)](https://www.youtube.com/watch?v=83-hW7Xk6zM)
 
-[▶ Watch the trailer](docs/media/casecremental-trailer.mp4). It runs 1:26 and was recorded live from the game with its in-game sound: the first case, the machine shop growing, a vault jackpot, Run 4's chaos, and The Last Case with its credits.
+[▶ Watch the trailer on YouTube](https://www.youtube.com/watch?v=83-hW7Xk6zM) (or the [MP4 in this repo](docs/media/casecremental-trailer.mp4)). It runs 1:26 and was recorded live from the game with its in-game sound: the first case, the machine shop growing, a vault jackpot, Run 4's chaos, and The Last Case with its credits.
 
 ## The game
 
