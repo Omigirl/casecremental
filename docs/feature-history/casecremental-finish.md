@@ -558,7 +558,11 @@ Plan `-f6b-run4-screen.md`. Everything here is looks; the sim rules are above.
 - **Frame time.** Headless Chrome on the Intel UHD (ANGLE D3D11), 1920x1080, production build, Run 4 with everything bought
   and the heat held at stage 5: p50 12.0-12.1, **p95 18.1-18.3**, p99 24-30 ms across six 10 s windows. The layers cost
   almost nothing (p95 18.3-18.5 on, 18.2-18.4 off). The dev server read p95 36-60 under load from other agents.
-  **Headed measurement: pending F9's browser pass (result to be filled in by the controller).**
+  **Headed (F9):** headed Chrome, production build, 1920x1080 DPR 1 on the laptop's 165 Hz panel, Run 4 fully bought with
+  all evolutions, stage 5 held for one continuous 60 s: p50 11.9 / **p95 18.0** / p99 18.5 ms, 6.48 % of frames over
+  16.7 ms, 0.05 % over 33.4 ms — inside the 20 ms budget. Vault III's impact p95 12.3 ms; The Last Case's impact p95 18.2 /
+  p99 24.3 ms. Its first opening had one 66.9 ms frame, likely the tear filter's first shader compile; later openings had
+  none.
 - **Not checked in a browser:** a Covert/★ reveal of each new finish, case boxes opening frame by frame, the RU dial text
   on screen (unit-tested), the RU shelf names, 1024x768.
 
@@ -624,3 +628,31 @@ players marked on the board, and a devnet spike for ★ trophies as NFTs — **c
   And per the F7 review, trophies would first need a stronger proof than the plausibility caps (server-side drops)
   before they could carry outside value. **★ trophies stay in-game items; revisit when `@idosgames/wallet` ships a
   Solana NFT withdrawal and the platform gives the Title a pool program (`RewardPoolAddress`).**
+
+## F9 — final review and browser pass (2026-10-13)
+
+The whole branch was reviewed (fixes 0b285e6), then played in real browsers: the real app (sign-in, guest session,
+lobby tabs, Russian) and the harness for Runs 1–4, every vault, The Last Case, the credits and THE END, in EN and RU at
+1920x1080, 1024x768 and 390x844. Nothing blocked the merge; frame time is in F6-B above. The defects it found, fixed:
+
+- **Tapping the case turns the key.** Tutorial step 2 says "turn the key — or tap the case", but only the key was a tap
+  target. The locked case is now one too (`fx/pixel/benchInput.ts`, the same `insertKey`), on the same rect the tutorial's
+  arrow points at (`caseRect` in `layout.ts`, shared with `tutorialTargets.ts`).
+- **HUD $0.00 after a huge balance.** The SDK's `useAnimatedNumber` ends on `from + (to - from)`, which float cancellation
+  turns into 0 on a drop from ~1e19 cents (a vault TOTAL) to a run's $6. The HUD tweens with its own `useAnimatedCash`
+  (`ui/cash.ts cashTweenAt`), which lands exactly on the target and keeps the cents.
+- **Charm cards overflowed their column** ("Classified+:", "Collector's"; `overflow-wrap: break-word` does not lower
+  min-content). Cards may shrink (`minmax(0, 1fr)`, `overflow-wrap: anywhere`), the prestige modal is 44em wide (was
+  36em) so English words fit whole at every size, and Chain Reaction reads "25% a free case on Classified+".
+- **The lobby follows the game's language** (`src/base/lobby/i18n.ts`, the sign-in screen's `detectLoginLang`, read on
+  every call), not the SDK's browser-only `makeT`.
+- **Floating sale amounts stay inside the table** (`Coins.setSpan`): the seller stands near the left panel.
+- **A favicon:** `src/base/favicon.png`, the Boot Camp case from the sign-in sprite, linked in `index.html`.
+- **The camera rests at stage 5.** In a fully bought Run 4 at stage 5 the ×1.3 push-in (it scales the panels and the HUD
+  too) was on for 17–31 % of frames. At stage 5 a push-in from rest now waits until the camera has rested 8 s
+  (`zoomRestFor`); a punch during a push-in still extends it; stages 1–4 are unchanged. Not re-measured in a browser.
+
+**Left for a human:** listening (the browsers were muted: fanfares, the stage playlists, the credits track); a real
+wallet sign-in through Phantom / WalletConnect, and Google / e-mail sign-in (only a guest was played); the idle-rpg seed
+leftovers on live ZVKC34TR (lootbox `gear_summon`, the 12 `Item` items, GOLD/GEMS — see "F7 on the live Title"), whose
+removal waits for the user's permission.
