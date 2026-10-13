@@ -37,7 +37,8 @@ export default defineConfig(() => {
     // connect-src allows only 'self' and its own hosts, so fetch() of an inlined data:image (how PixiJS loads
     // sprites) is refused and every small sprite turns into a placeholder. Real files under 'self' always load.
     build: { assetsInlineLimit: 0 },
-    // Other agents' git worktrees live under .claude/worktrees; keep their copies out of our runs.
-    test: { exclude: [...configDefaults.exclude, ".claude/**", ".superpowers/**"] },
+    // Other agents' git worktrees live under .claude/worktrees, and .claude-setup holds a local backup of agent tools;
+    // keep both out of our runs.
+    test: { exclude: [...configDefaults.exclude, ".claude/**", ".claude-setup/**"] },
   };
 });

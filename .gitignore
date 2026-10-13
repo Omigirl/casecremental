@@ -2,7 +2,6 @@ node_modules/
 dist/
 .env.local
 *.zip
-.superpowers/
 .npm-cache/
 art/preview/
 .claude/worktrees/

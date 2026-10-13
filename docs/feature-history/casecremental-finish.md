@@ -22,8 +22,8 @@ docs/superpowers/plans/2026-10-12-casecremental-f3-tutorial.md (F3)
   0.1 s), a 0.25 s pop to 1.6× on a claim (at the drop point when dragged; the coins start there), Covert/★ glow and the
   full-tray red frame both swinging 0.09 peak to peak (photosensitivity), "TRAY FULL" steady in red. A resize settles
   everything; a card still sliding cannot be grabbed. Grid stores do not slide (F2 removes the grid).
-- **Browser check** (scratch harness, `.superpowers/harness/`: `npm run dev`, Chrome with `--remote-debugging-port=9333`,
-  `node .superpowers/harness/cdp.mjs …`; query `state=midspin|revealed&n=2|3|5&tray=full|some&seller=<rarity>&freeze=<ms>`):
+- **Browser check** (scratch harness, `.claude-setup/superpowers/harness/`, local only: `npm run dev`, Chrome with `--remote-debugging-port=9333`,
+  `node .claude-setup/superpowers/harness/cdp.mjs …`; query `state=midspin|revealed&n=2|3|5&tray=full|some&seller=<rarity>&freeze=<ms>`):
   - Passed at 1920×1080 and 390×844: every stacked strip shows separate cells with dark gaps. ×2/×3 show full art, ×5
     mid-spin shows shrunk art that is still recognisable, and the ×5 compact window after landing shows clean tiles. The
     gold marker reads on every tile. The 1-px thin frame reads against the table, so it stays as it is (no dark outer row).
@@ -158,7 +158,7 @@ skippable, replayable from Settings. Spec §4. The step machine is `ui/tutorialR
   cases: it fills `{glitch}`, `{fever}` and `{last}` from `caseName()` (Russian Fever Dream is «Бредовый сон»), so the card
   cannot drift from `i18n/content.ts`.
 - **Browser pass (Task 5)** tested an exported copy of d5585e4, in headless Chrome. Screenshots are in
-  `.superpowers/harness/shots/f3/` (scratch, not committed).
+  `.claude-setup/superpowers/harness/shots/f3/` (scratch, not committed).
   - Every step in EN and RU at 1920×1080, 1024×768 and 390×844, including the second hop behind a tab (BOT → WAKE,
     MACHINES → seller / auto-spin; on the phone, the drawer's UPGRADES → the sub-tab → the row). The bubble never
     covered its current target (DOM rect check on every shot). The arrow pointed at the right element. On the phone
@@ -186,8 +186,37 @@ skippable, replayable from Settings. Spec §4. The step machine is `ui/tutorialR
 
 ## F4 — pacing for real players (2026-10-13)
 
-Plan: docs/superpowers/plans/2026-10-12-casecremental-f4-pacing.md · spec §5. The plan's levers table is the retuning guide:
+Plan: docs/superpowers/plans/2026-10-12-casecremental-f4-pacing.md · spec §5. The levers table below is the retuning guide:
 read it before touching `sim/tuning.ts`.
+
+All levers are in `sim/tuning.ts`. Change one lever at a time and re-measure the medians (`sim/pacing.test.ts`).
+
+| Median off target | Lever | It also moves |
+|---|---|---|
+| Run 1 vault (either profile) | `VAULT_PRICES[0]` | Run 1's 90 s ratio; CLOUT after Vault I (so which perk Run 2 gets) |
+| Run 2 / Run 3 vault | `VAULT_PRICES[1]` / `VAULT_PRICES[2]` | that run's 90 s ratio; `[2]` also sets the replay's price (× `VAULT_GROWTH`) |
+| Replay vault, with Run 3 on target | `VAULT_GROWTH` | every replay loop, and after F6-A Run 4's replay |
+| Run *n* catch-up | the previous shelf's top unlock: Run 2 → `CASE_ECONOMY.bedrock.unlockCost`, Run 3 → `neon.unlockCost` (Run 4 → `inferno`, F6-A) | that case's own run: Run 1's Bedrock window (150–400 s) for bedrock; Run 2's middle for neon |
+| Run *n*'s middle (catch-up fine, vault far off) | the run's new cases' unlocks: Run 2 → `mainframe`, `neon`; Run 3 → `deepspace`, `inferno` | when the vault shows (`vaultShown` needs every case) |
+| Every Run 2+ median off in the same direction | `CATCH_UP_PER_VAULT` | all later runs, replays and F6-A's Run 4. Last resort: re-check every row after |
+| CASUAL much slower than GREEDY, GREEDY on target | `AUTOSPIN_COST` down (CASUAL's slow bench goes automatic sooner), then `AUTOSPIN_DELAY_COSTS` / `AUTOSPIN_DELAYS`, then `SELLER_HOLD_SECONDS` | auto-spin must stay after the seller and before Vault I for both profiles (spec §1: "late Run 1") |
+| Bot awake / seller windows | `BOT_WAKE_COST`, `SELLER_COST` | Run 1's whole opening |
+| A run's growth rate; a probe that never gets fully bought | `UPGRADE_COSTS` (luck and appraiser `growth`), `BOT_SPEED_COSTS`, `SELLER_SPEED_COSTS`, `LOCKER_SIZE_COSTS`, `AUTO_CONTRACT_COST` | every run: upgrade costs are not run-scaled |
+| 90 s rule fails while the vault time is on target | lower that run's `VAULT_PRICES` entry **and** slow its middle (raise its new cases' unlocks) so the vault time holds | — |
+| A stage target missed (Run 2 High, Run 3 Tripping) | a dearer vault within its band (more time at high heat), before touching `STAGE_THRESHOLDS` | thresholds change the stage look for every player |
+
+Do not touch these:
+- the case prices (`CASE_ECONOMY.*.price`): skin values are multiples of them, and `cases.test.ts` keeps each at least 7× the one below;
+- `RARITY_*`, `LUCK_PER_LEVEL`, `APPRAISER_PER_LEVEL`: they change every value the player sees.
+
+Two cautions:
+- If a vault price drops a lot, check that the chain still buys a perk after each vault (CLOUT = `floor(√earnings / 105)`; the cheapest perk costs 3).
+- Tune in run order (Run 1, then 2, 3, the replay). A later run depends on the earlier ones only through CLOUT and perks.
+
+Do not touch the case prices (`CASE_ECONOMY.*.price`: skin values are multiples of them, `cases.test.ts` keeps each
+at least 7× the one below), `RARITY_*`, `LUCK_PER_LEVEL` or `APPRAISER_PER_LEVEL` (they change every value the player
+sees). If a vault price drops a lot, check the chain still buys a perk after each vault (CLOUT = `floor(√earnings / 105)`;
+the cheapest perk costs 3). Tune in run order: a later run depends on the earlier ones only through CLOUT and perks.
 
 - **Why.** The user's play-test: "runs are too slow… vault cases 2 and 3 are too hard to buy". M1–M3 were tuned to a perfect
   player who never pauses, so real players took far longer than the tests said.
@@ -242,7 +271,7 @@ read it before touching `sim/tuning.ts`.
 - **Thin margins.** GREEDY Run 3 catch-up 85/90, GREEDY Run 3 vault 347/360 and the CASUAL replay 253/240 sit close to
   their edges; neighbouring configs moved medians 15–20 s, so any change to a tuning number or a player can flip one.
 - **Test hygiene.** Other agents' git worktrees live in `.claude/worktrees/`, which the module path filter matched, so runs
-  collected foreign copies of the tests. `vite.config.ts` now excludes `.claude/**` and `.superpowers/**` from vitest.
+  collected foreign copies of the tests. `vite.config.ts` now excludes `.claude/**` and the local `.claude-setup/**` from vitest.
 
 ## F5 — music for the late stages
 
@@ -327,7 +356,7 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
   resource-operation Reason); buyPerk carries the level before the purchase, so a replay answers `stale`. Trophy
   reports: ≥ 2 s apart, ≤ 30 per run-minute (replaced by a server-time bucket in the review fixes), only for cases the player's loops have reached; legends come only with
   the vault, through endRun.
-- **What the probe found** (`cloudcode/probe.js`, the findings block): `ReadUserData(["InventoryV2"])` answers the data
+- **What the probe found** (full list in "CloudCode API findings" below): `ReadUserData(["InventoryV2"])` answers the data
   with no wrapper and Items keyed by ItemID; `GetUserCustomData()` returns every bucket; `SetUserCustomData(bucket, key,
   string)` is positional; `ApplyResourceOperation({ Operation, Reason })` needs a Reason, uses it as an idempotency key
   (the same Reason twice applies once) and fails on a Reason with a '.'; FunctionResult keys may not contain '.' or '$';
@@ -364,6 +393,66 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
   bundle). An Upgrader win reports its skin like any drop (`trophyDropsOf` reads `upgraderDone`); the server needs no
   change for it — a trophy is checked by its case's first run, not by how it was won.
 
+### CloudCode API findings (the F7 probe)
+
+A throwaway handler `probe` (revisions 1–8 and 10–11 on ZVKC34TR-DEV) learned the `server.*` call shapes, because no
+document we could read gives them. The probe itself was deleted in the 2026-10-13 cleanup; what it found:
+
+```text
+Findings (2026-10-13, ZVKC34TR-DEV, guest CTLGIIQITSQZUCFAZVKC34TR-DEV):
+
+context keys: UserID, FunctionName, Revision, InvokedAt.
+server keys: ReadUserData, GetTitleConfig, GetUserCustomData, GetPublicUserCustomDataOf, SetUserCustomData,
+  DeleteUserCustomData, Batch(Set|Delete)UserCustomData, (Get|Set|Increment|Delete|BatchSet|BatchDelete)TitleCustomData,
+  GetIntegrationVariable, HttpRequest, AddQuestProgress, LogEvent, ApplyResourceOperation, (Start|Get|List)AIGeneration,
+  SendMail, the DataItems family, GetDataCounter, (Get|Set)UserRoles.
+
+ReadUserData(["InventoryV2"]) → NO {Success, Data} wrapper; the data itself:
+  { InventoryV2: { VirtualCurrencies: { CLOUT: { Amount: 3, Daily: {…} } },
+                   Items: { bc_knife: { StackableAmount: 0, UnstackableAmount: 1, TotalAmount: 1 } },   ← keyed by ItemID,
+                   UnstackableItems: null, CryptoCurrencies: null } }                                     no CatalogID
+  ReadUserData() / ReadUserData({Fields}) / ReadUserData("InventoryV2") → an empty object.
+GetUserCustomData() → { Success, Error, Data: { Version, Private, Public, ReadOnly: { key: { Value: "<json string>",
+  UpdatedAt, Version, LastWriter: "Server" } }, Internal } }. Arguments are ignored (always every bucket).
+SetUserCustomData("ReadOnly", key, "<string>") → { Success: true, Data: { Bucket, KeyID, Version } }.
+  The object form ({Bucket, KeyID, Value}) fails: "Unknown value '[object Object]'".
+ApplyResourceOperation({ Operation: <ResourceOperation>, Reason: "<string>" }) → { Success, Error, Data }.
+  Without Reason (any shape): "Reason is required.". (op, "reason") and ("reason", op) fail too.
+  Over-consume → Success: false, Error "VC CLOUT: insufficient balance (have 1, need 1000000000, min 0).".
+  Item grant → the trophy appears in the inventory (client: UnstackableItems[instanceId] with CatalogID "Trophies").
+  The SAME Reason twice in one execution: both answer Success, but only the first is applied — Reason works as an
+  idempotency key, so every op gets its own Reason.
+Leaderboard event tokens (Address { Type: "Leaderboard", EntityID: "best_run" }) → applied to "best_run:all" as
+  MilestoneTokensEarned (1234); CurrentScore stays 0 → tokens do NOT move the BestScore → SERVER_SCORE = false
+  (the client submits the score with client.leaderboard.submitScore after endRun answers).
+FunctionResult must not contain object keys with '.' or '$' (Error "InvalidFieldName") — the handlers' views use
+  only skin ids, perk ids and plain field names.
+A publish takes a while to reach "Live" executions; execute(name, args, "Specific", rev) reaches it at once.
+Date.now() and Math.log10 exist.
+
+Found after the handlers went live (revisions 6–8, probe v6 at revision 7):
+- A Reason with a '.' in it (a fractional Date.now()/1000) makes ApplyResourceOperation fail → buyPerk uses integer
+  milliseconds. Colons are fine.
+- A publish changes the handler whitelist only after a few minutes ("HandlerNotFound … not declared in CloudCode
+  whitelist" meanwhile); the client port treats HandlerNotFound as "try again later".
+- CloudCode's resource operations are NOT visible to the client's own state reads: for a fresh guest
+  (PMEUP7QNEWOGLIFOZVKC34TR-DEV) four CLOUT grants and an endRun showed in ReadUserData inside CloudCode (CLOUT 11,
+  two trophies) while client.user.getClientState() / getUserState(["InventoryV2"]) — even with the SDK's stored
+  snapshot removed — kept answering CLOUT 0 and no items for 5+ minutes, though StateVersions.InventoryV2 went up.
+  (One earlier run, probe v5, did show up on the client.) So the game takes CLOUT and trophies from the handlers'
+  views (loadMeta etc.), never from client.data.user's inventory alone. Reported to the user as a platform issue.
+
+Found for the F7 review fixes (revisions 10–11, a one-handler probe `probe` applying a CLOUT op with a given Reason,
+guest DVK0YSQLHQ3YVQD2ZVKC34TR-DEV, run from Node with a device-id guest):
+- The Reason is an idempotency key ACROSS executions: grant 1 with Reason X in three separate executions → CLOUT
+  0 → 1 → 1 → 1 (all three answered Success); a new Reason → 2. Grant 5 with an earlier grant's Reason → no change.
+- A FAILED op does not use its Reason up: consume 50 with Reason C on 2 CLOUT → "insufficient balance"; after a grant,
+  consume 50 with C → applied (62 → 12).
+- A replay of an applied consume is checked against the balance first: consume 50 with C again on 12 CLOUT →
+  "insufficient balance" (not Success); with Reason D on 112 → 62, D again on 62 → Success, still 62.
+- How long a Reason is remembered was not measured (the runs spanned ~3 minutes).
+```
+
 ### F7 review fixes (2026-10-13, DEV CloudCode revision 13)
 
 - **Nothing important is dropped any more.** Time offline (no answer: connection, session, `HandlerNotFound` /
@@ -377,7 +466,7 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
   the server expects (`k ≥ min(loops, 3)`), sets `loops = k + 1`, caps that run as the run it was, and grants every
   skipped vault's legend too (each with its own Reason `legend:<user>:<legend>`). A failed meta write answers
   `retry: true`. The queue holds one endRun per run id.
-- **Reason idempotency holds across executions** (DEV probe, revisions 10–11, findings in `cloudcode/probe.js`): the same
+- **Reason idempotency holds across executions** (DEV probe, revisions 10–11, see "CloudCode API findings" above): the same
   Reason in three separate executions applied once, even with another amount; a failed op does not use its Reason up;
   a replayed consume is still checked against the balance first. How long the platform remembers a Reason is unknown.
   So a retried endRun (`endRun:<user>:<runId>`) or reportTrophy (`trophy:<user>:<skin>`) cannot pay twice, and buyPerk
@@ -517,7 +606,7 @@ looks), `-f6c-last-case.md` (the finale, the credits, THE END) · spec §7. Thre
 - **`fx/World.ts` did not grow:** `syncVault`/`restoreVault` moved to `fx/vault/vaultSync.ts` (540 → 535 lines with the
   finale and the credits' music wired; 532 after F6-B's review fixes folded the destroy calls).
 - **Browser pass (F6-C Task 6)**, headless Chrome on the Intel UHD over CDP, the scratch harness, screenshots in
-  `.superpowers/harness/shots/f6c/`. Vault III → "NEXT: RUN 4" with its brings and no later-update line. Run 4: The Last Case
+  `.claude-setup/superpowers/harness/shots/f6c/`. Vault III → "NEXT: RUN 4" with its brings and no later-update line. Run 4: The Last Case
   on the shelf and as the HUD goal at 450T; an Upgrader spin (a win) settled when the vault was bought; the intro's reels
   under the lighter dim; the tear at impact +0.1 to +1.2 s; the five beams, ★ Singularity. The replay's vault costs x2.0 (900T from 450T)
   and its credits came up 2.9 s after the run ended, with SKIP at +5.0 s. Reloads at intro 2.0 s (the reels resume),

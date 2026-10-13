@@ -5,6 +5,9 @@ show. Not loaded automatically — open the entry you need before changing that 
 gets a new file here plus ONE line below; an existing one gets its file updated. Never grow IDOS.md
 instead.
 
+The specs and step-by-step plans these entries cite under `docs/superpowers/` were removed in the 2026-10-13
+cleanup; read one from git history: `git show 5c21fc9:docs/superpowers/<path>`.
+
 <!-- One line per entry: - [Title](slug.md) — one-line gist -->
 - [Casecremental core loop](casecremental-core.md) — milestone 1: sim, reel, bench, upgrades, juice, stages 1–2
 - [Casecremental look (M2a)](casecremental-look.md) — pixel world + HD layer, art pipeline, code eyes, EN/RU, ElevenLabs audio, teasing spin, no brake

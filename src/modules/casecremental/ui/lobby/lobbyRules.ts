@@ -12,7 +12,8 @@ export interface TrophyGroup {
 
 /**
  * The trophies the player owns: the Trophies items of the client's inventory, plus the ids the server last answered
- * (CloudCode's grants can take a while to reach the client's inventory — cloudcode/probe.js).
+ * (CloudCode's grants can take a while to reach the client's inventory — see "CloudCode API findings" in
+ * docs/feature-history/casecremental-finish.md).
  */
 export function ownedTrophyIds(
   unstackable: Record<string, { ItemID: string; CatalogID?: string | null }> | null | undefined,
