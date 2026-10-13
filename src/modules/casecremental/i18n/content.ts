@@ -218,7 +218,7 @@ const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
   },
   chainReaction: {
     name: { en: "Chain Reaction", ru: "Цепная реакция" },
-    desc: { en: "Classified+: 25% a free case", ru: "Засекреч.+: 25% кейс даром" },
+    desc: { en: "25% a free case on Classified+", ru: "25% кейс даром за засекреч.+" },
   },
   contractKiller: {
     name: { en: "Contract Killer", ru: "Киллер контрактов" },

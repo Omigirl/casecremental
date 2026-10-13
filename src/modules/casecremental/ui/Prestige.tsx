@@ -42,7 +42,7 @@ export function Prestige({
           display: "grid",
           gap: 3 * scale,
           padding: 4 * scale,
-          width: "min(92vw, 36em)",
+          width: "min(92vw, 44em)", // three charm cards side by side, each wide enough for its longest word (F9)
           maxHeight: "92%",
           overflowY: "auto",
           ...frameCss(uiSpriteUrl("ui-frame"), scale),
@@ -81,9 +81,16 @@ export function Prestige({
         <div className="cc-title">{t("prestige.charms", { n: p.slots })}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(10em, 1fr))", gap: 2 * scale }}>
           {charmChoices(p).map((c) => (
-            // a long word (Барахольщик, Classified+:) hyphenates (or, without a dictionary, breaks) inside its own card,
-            // never running into the next one
-            <div key={c.id} lang={getLang()} className="cc-row" style={{ minWidth: 0, hyphens: "auto", overflowWrap: "break-word" }}>
+            // a long word (Барахольщик, коллекционера, Collector's) hyphenates (or, without a dictionary, breaks) inside
+            // its own card, never running into the next one: "anywhere" (unlike "break-word") lowers the card's
+            // min-content, and the card's one column may shrink below its longest word, so the card and its PICK
+            // button keep to the grid's column
+            <div
+              key={c.id}
+              lang={getLang()}
+              className="cc-row"
+              style={{ minWidth: 0, gridTemplateColumns: "minmax(0, 1fr)", hyphens: "auto", overflowWrap: "anywhere" }}
+            >
               <div>{charmName(c.id)}</div>
               <div className="cc-dim">{charmDesc(c.id)}</div>
               <PxButton on={c.picked} disabled={!c.enabled} onClick={() => act({ type: "pickCharm", id: c.id })}>
