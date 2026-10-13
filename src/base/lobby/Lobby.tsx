@@ -20,7 +20,6 @@ import {
   outlined,
   ResourceCounter,
   screenBackground,
-  uiT,
   useCatalog,
   useLayout,
   useUiKit,
@@ -304,7 +303,7 @@ function BackToMore({
         margin: "0 0 12px",
       }}
     >
-      <IconButton glyph="back" label={uiT("back")} onClick={onBack} size={36} />
+      <IconButton glyph="back" label={t("back")} onClick={onBack} size={36} />
       {icon ? <Icon glyph={icon} size={28} /> : null}
       <span style={{ ...outlined, fontSize: 19 }}>{label}</span>
     </div>
