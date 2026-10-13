@@ -1,16 +1,20 @@
 import { Container, Texture, TextureSource } from "pixi.js";
 import { describe, expect, it, vi } from "vitest";
 import { skinName } from "../../i18n/content";
-import { CASES } from "../../sim/content/cases";
+import { caseById } from "../../sim/content/cases";
+import { VAULTS, type VaultDef } from "../../sim/content/vaults";
 import { createRng } from "../../sim/rng";
 import { VAULT_LAND_TIMES } from "../../sim/tuning";
 import type { Drop } from "../../sim/types";
 import type { Juice } from "../juice/juice";
 import { pixelViewport } from "../pixel/viewport";
 import type { SkinTextures } from "../skins/pixelSkin";
+import { drawBeam } from "./beamArt";
+import { beamWidthAt } from "./beamStream";
 import { VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import { VaultBeams } from "./VaultBeams";
 import { vaultLayout } from "./vaultLayout";
+import { VAULT_LOOKS, vaultLook } from "./vaultLooks";
 import type { VaultScene } from "./VaultScene";
 
 /** Mid-spin: two seconds after the impact, every beam grown in. */
@@ -21,6 +25,11 @@ vi.mock("../hd/font", () => ({
   moneyStyle: (fontSize: number) => ({ fontSize }),
   pixelStyle: (fontSize: number, fill: number) => ({ fontSize, fill }),
 }));
+// drawBeam really draws, and the test reads which colour each beam got
+vi.mock("./beamArt", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./beamArt")>();
+  return { ...real, drawBeam: vi.fn(real.drawBeam) };
+});
 
 const tex = (w = 16, h = 16) => new Texture({ source: new TextureSource({ width: w, height: h }) });
 
@@ -45,7 +54,7 @@ function harness(screen = { w: 1324, h: 824 }) {
   return { beams, root, stage, beamSlot, streamSlot, labelSlot, L, play, firework };
 }
 
-const top = CASES[CASES.length - 1]!.skins;
+const top = caseById("bedrock").skins;
 const drops: Drop[] = top.slice(0, 5).map((s, i) => ({
   id: i + 1,
   caseId: "vault1",
@@ -181,5 +190,94 @@ describe("VaultBeams.update's cues", () => {
     const none = { ...vaultCues(SPINNING), columnIn: [0, 0, 0, 0, 0] as VaultCues["columnIn"] };
     h.beams.update(SPINNING, none);
     expect(lanesOf(h.beams)[0]!.beam.visible).toBe(false);
+  });
+});
+
+/** A vault's opening as the sim rolls it (plan M3-A): four from its source case, its legend fifth. */
+const vaultDrops = (v: VaultDef): Drop[] => [
+  ...caseById(v.sourceCase)
+    .skins.slice(0, 4)
+    .map((s, i) => ({
+      id: i + 1,
+      caseId: v.sourceCase,
+      skinId: s.id,
+      rarity: s.rarity,
+      float: 0.1,
+      wear: "MW" as const,
+      statTrak: false,
+      value: 1000 * (i + 1),
+    })),
+  { id: 5, caseId: v.id, skinId: v.legend.id, rarity: v.legend.rarity, float: 0.01, wear: "FN" as const, statTrak: false, value: 50_000 },
+];
+
+describe("VaultBeams per vault", () => {
+  /** The colours the last five drawBeam calls gave, beam by beam. */
+  const drawn = () =>
+    vi
+      .mocked(drawBeam)
+      .mock.calls.slice(-5)
+      .map((c) => c[3]);
+
+  it("draws the run's vault's colours, redrawn only when the vault changes", () => {
+    const h = harness();
+    expect(drawn()).toEqual([...VAULT_LOOKS.vault1.palette]);
+    for (const v of VAULTS.slice(1)) {
+      h.beams.setVault(v);
+      expect(drawn(), v.id).toEqual([...vaultLook(v.id).palette]);
+    }
+    const calls = vi.mocked(drawBeam).mock.calls.length;
+    const last = VAULTS.at(-1)!;
+    h.beams.setVault(last); // the same vault again (the World sets it every frame)
+    expect(vi.mocked(drawBeam).mock.calls.length).toBe(calls);
+    h.beams.layout(h.L, pixelViewport(1324, 824).scale); // a resize keeps the vault's colours
+    expect(drawn()).toEqual([...vaultLook(last.id).palette]);
+  });
+
+  it("streams the vault's source case and lands its own legend fifth, after a reload too (Review Focus 1, 2)", () => {
+    for (const v of VAULTS) {
+      const h = harness();
+      h.beams.setVault(v); // the World sets the vault before it restores the beams
+      h.beams.restore(vaultDrops(v), 2);
+      const source = caseById(v.sourceCase).skins;
+      for (const lane of lanesOf(h.beams)) for (const s of lane.filler) expect(source, `${v.id} streams ${s.id}`).toContain(s);
+      expect(lanesOf(h.beams)[4]!.drop).toBe(v.legend);
+      expect(lanesOf(h.beams).map((l) => l.lockedAt !== null)).toEqual([true, true, false, false, false]);
+    }
+  });
+
+  it("streams denser on a wilder vault", () => {
+    const visible = (v: VaultDef) => {
+      const h = harness();
+      h.beams.setVault(v);
+      h.beams.start(vaultDrops(v));
+      h.beams.update(SPINNING);
+      return lanesOf(h.beams).map((l) => l.pool.filter((s) => s.visible).length);
+    };
+    const [one, two, three] = VAULTS.map(visible);
+    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < 5; i++) {
+      expect(one![i]!, `beam ${i}`).toBeGreaterThan(3);
+      expect(two![i]!, `beam ${i}`).toBeGreaterThan(one![i]!);
+      expect(three![i]!, `beam ${i}`).toBeGreaterThanOrEqual(one![i]! * 2 - 3);
+    }
+    // Vault II twins about half its items by a hash: ~10-17 items a beam is too few to hold 1.25x beam by beam, the
+    // five beams together are not
+    expect(sum(two!)).toBeGreaterThan(sum(one!) * 1.25);
+  });
+
+  it("keeps a wilder vault's twins on their beam, each inside its width", () => {
+    const h = harness();
+    h.beams.setVault(VAULTS[2]!);
+    h.beams.start(vaultDrops(VAULTS[2]!));
+    h.beams.update(SPINNING);
+    const b = h.L.beams[2]!; // the centre beam points straight up
+    const shown = lanesOf(h.beams)[2]!.pool.filter((s) => s.visible);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const s of shown) {
+      const cx = s.x + (s.texture.width * s.scale.x) / 2;
+      const cy = s.y + (s.texture.height * s.scale.y) / 2;
+      const d = b.origin.y - cy;
+      expect(Math.abs(cx - b.origin.x), `${d} px out`).toBeLessThanOrEqual(beamWidthAt(b, d) / 2 + 1);
+    }
   });
 });

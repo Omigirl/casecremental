@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { benchReelArea, ITEM_SIZE, PANEL_CHROME, revealSpots, tableLayout, type Pt, type Rect } from "./layout";
+import {
+  benchReelArea,
+  botReelArea,
+  botRevealSpots,
+  ITEM_SIZE,
+  lockerCardSpots,
+  PANEL_CHROME,
+  revealSpots,
+  tableLayout,
+  type Pt,
+  type Rect,
+} from "./layout";
+import { traySlots } from "./traySlots";
 import { hdFontSize } from "./screen";
 import { pixelViewport } from "./viewport";
 
@@ -26,6 +38,12 @@ const SIZES: Array<[number, number]> = [
 const box = (cx: number, bottom: number, w: number, h: number): Rect => ({ x: cx - w / 2, y: bottom - h, w, h });
 const overlap = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const inside = (a: Rect, b: Rect) => a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
+const cardBox = (p: Pt): Rect => ({
+  x: p.x - ITEM_SIZE.reveal.w / 2,
+  y: p.y - ITEM_SIZE.reveal.h / 2,
+  w: ITEM_SIZE.reveal.w,
+  h: ITEM_SIZE.reveal.h,
+});
 
 describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
   const vp = pixelViewport(w, h);
@@ -38,12 +56,24 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     tray: l.tray,
     seller: box(l.seller.x, l.seller.y, ITEM_SIZE.seller.w, ITEM_SIZE.seller.h),
     bin: { x: l.bin.x - l.binR, y: l.bin.y - l.binR, w: l.binR * 2, h: l.binR * 2 },
+    locker: l.locker,
   };
 
   it("keeps every item on the table and inside the world", () => {
     const world: Rect = { x: 0, y: 0, w: l.worldW, h: l.worldH };
     expect(inside(l.table, world)).toBe(true);
     for (const [name, r] of Object.entries(items)) expect(inside(r, { ...l.table, y: l.table.y - 60, h: l.table.h + 60 }), name).toBe(true);
+  });
+
+  it("bolts auto-spin's arm to the mat's right end: on the mat, clear of the case, the cards, the reels and the stations", () => {
+    const a = l.you.arm;
+    expect([a.w, a.h]).toEqual([ITEM_SIZE.arm.w, ITEM_SIZE.arm.h]);
+    expect(inside(a, l.you.mat)).toBe(true);
+    expect(overlap(a, box(l.you.caseSpot.x, l.you.caseSpot.y, 26, 34))).toBe(false); // the case sprite's frame, lid open
+    for (const n of [1, 2, 3, 5])
+      for (const p of [...revealSpots(l, n), ...botRevealSpots(l, n)]) expect(overlap(a, cardBox(p))).toBe(false);
+    for (const r of [l.you.reel, benchReelArea(l, 5, true), botReelArea(l, 2)]) if (r) expect(overlap(a, r)).toBe(false);
+    for (const name of ["bot", "key", "tray", "seller", "bin", "locker"]) expect(overlap(a, items[name]!), name).toBe(false);
   });
 
   it("never lets items overlap (except the case on its mat)", () => {
@@ -91,6 +121,58 @@ describe.each(SIZES)("tableLayout at %i×%i", (w, h) => {
     expect(r.x + cw / 2).toBeLessThanOrEqual(l.table.x + l.table.w);
     expect(Math.abs(r.x - l.you.reveal.x)).toBeGreaterThanOrEqual(cw); // the two cards don't overlap
     expect(r.x).toBeLessThanOrEqual(l.bot.spot.x - 10); // the bot's face stays visible beside it
+  });
+  it("stands the locker on the front edge, between the tray and the bin", () => {
+    expect([l.locker.w, l.locker.h]).toEqual([ITEM_SIZE.locker.w, ITEM_SIZE.locker.h]);
+    expect(l.locker.x).toBeGreaterThanOrEqual(l.tray.x + l.tray.w + 2);
+    expect(l.locker.x + l.locker.w).toBeLessThanOrEqual(l.bin.x - l.binR - 2);
+    expect(l.locker.y + l.locker.h).toBe(l.bin.y + l.binR);
+  });
+
+  it("keeps every tray slot between the seller and the locker, even at the widest capacity", () => {
+    const seller = items.seller!;
+    for (const capacity of [12, 18, 24])
+      for (const s of traySlots(l.tray, capacity)) {
+        expect(s.x).toBeGreaterThanOrEqual(seller.x + seller.w);
+        expect(s.x + s.w).toBeLessThanOrEqual(l.locker.x);
+      }
+  });
+
+  it("sets the locker's results on the locker, on the table, clear of the stations and of the other cards", () => {
+    const others = [1, 2].flatMap((n) => [...revealSpots(l, n), ...botRevealSpots(l, n)]).map(cardBox);
+    for (const n of [1, 2])
+      for (const p of lockerCardSpots(l, n)) {
+        const c = cardBox(p);
+        expect(c.x).toBeGreaterThanOrEqual(l.table.x);
+        expect(c.x + c.w).toBeLessThanOrEqual(l.table.x + l.table.w);
+        expect(overlap(c, l.locker)).toBe(true); // it sits on the cabinet
+        for (const name of ["bot", "seller", "mat", "key", "case"]) expect(overlap(c, items[name]!), name).toBe(false);
+        for (const o of others) expect(overlap(c, o)).toBe(false);
+      }
+  });
+
+  it("gives the bot a second card to the right of its first, never past the table or onto your cards", () => {
+    const [a, b] = botRevealSpots(l, 2) as [Pt, Pt];
+    expect(botRevealSpots(l, 1)).toEqual([l.bot.reveal]);
+    expect(a).toEqual(l.bot.reveal);
+    expect(b.y).toBe(a.y);
+    expect(b.x - a.x).toBeGreaterThanOrEqual(6);
+    expect(b.x - a.x).toBeLessThanOrEqual(ITEM_SIZE.reveal.w + 2);
+    expect(b.x + ITEM_SIZE.reveal.w / 2).toBeLessThanOrEqual(l.table.x + l.table.w - 1);
+    for (const q of [...revealSpots(l, 1), ...revealSpots(l, 2)]) expect(overlap(cardBox(b), cardBox(q))).toBe(false);
+  });
+
+  it("stacks the bot's double spin above its cards' spot, clear of your cards (no reel in portrait)", () => {
+    const area = botReelArea(l, 2);
+    if (vp.portrait) {
+      expect(area).toBeNull();
+      return;
+    }
+    expect(botReelArea(l, 1)).toEqual(l.bot.reel);
+    expect(area!.y).toBe(l.bot.reel!.y);
+    expect(area!.h).toBeGreaterThanOrEqual(l.bot.reel!.h);
+    expect(area!.y + area!.h).toBeLessThanOrEqual(l.bot.reveal.y - ITEM_SIZE.reveal.h / 2 - 2);
+    for (const q of [...revealSpots(l, 1), ...revealSpots(l, 2)]) expect(overlap(area!, cardBox(q))).toBe(false);
   });
 });
 

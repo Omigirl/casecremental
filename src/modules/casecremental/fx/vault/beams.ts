@@ -35,8 +35,6 @@ export interface BeamOptions {
 /** Degrees from straight up, left to right. */
 export const BEAM_ANGLES_LANDSCAPE: readonly number[] = [-52, -26, 0, 26, 52];
 export const BEAM_ANGLES_PORTRAIT: readonly number[] = [-34, -17, 0, 17, 34];
-/** Yellow, orange, red, orange, yellow. */
-export const BEAM_PALETTE: readonly number[] = [0xffd23c, 0xff8a1e, 0xe8362a, 0xff8a1e, 0xffd23c];
 /** A beam's width at the mouth and at its far end, as shares of `width` (linear in between). */
 export const BEAM_MOUTH_SHARE = 0.4;
 export const BEAM_END_SHARE = 1.3;

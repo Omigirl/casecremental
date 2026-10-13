@@ -1,8 +1,10 @@
 import type { Rng } from "../../sim/rng";
 import type { Bench as BenchState, BenchReel } from "../../sim/run";
 import { caseById, skinById } from "../../sim/content/cases";
+import { MULTI_OPEN_MAX } from "../../sim/tuning";
 import type { CaseDef, SkinDef } from "../../sim/types";
 import { crawlSeconds } from "../reel/motion";
+import { slotRects } from "../reel/slotLayout";
 import type { SkinTextures } from "../skins/pixelSkin";
 import { StackedReels, stackRects } from "../vault/stackedReels";
 import { benchReelArea, type Pt, type Rect, type TableLayout } from "./layout";
@@ -12,9 +14,10 @@ import type { SpriteSet } from "./sprites";
 // more than one spins the window is tall — the cards are not up yet — and it snaps back to compact once they have
 // all landed: Reel.layout rebuilds the whole strip, so it is not glided frame by frame. A reel that lands before
 // its teasing partner gets its own (quieter) stop; the camera leans toward the strongest tease until that reel lands.
+// Slot Machine's ten reels stand as five slot columns of two (reel/slotLayout.ts).
 
 /** The tallest one reel gets in a stack. */
-const REEL_MAX_H = 26;
+export const REEL_MAX_H = 26;
 
 /** The camera leans in when the strongest tease starts its crawl. */
 export interface ReelLean {
@@ -66,6 +69,10 @@ export class BenchReels {
   private leaning = false;
   /** Last frame's elapsed time of this spin (null until its first frame: a reload lands nothing). */
   private lastElapsed: number | null = null;
+  /** Whether a spin frame was shown since the last start: the first frame after it snaps the reels to their landing. */
+  private spun = false;
+  /** The Last Case's free spin has the reel (freeSpin) until the next open: the bench's own frames leave it alone. */
+  private free = false;
 
   constructor(frameSet: SpriteSet, skins: SkinTextures, onTick: (i: number) => void) {
     this.root = new StackedReels(frameSet, skins, onTick);
@@ -93,16 +100,26 @@ export class BenchReels {
   start(caseId: string, reels: readonly BenchReel[], rng: Rng): void {
     this.n = Math.max(1, reels.length);
     this.tall = this.n > 1;
+    this.free = false;
     this.leaned = null;
     this.leaning = false;
     this.lastElapsed = null;
+    this.spun = false;
     this.apply();
     const c = caseById(caseId);
     reels.forEach((r, i) => this.root.start(i, c, skinById(r.drop.skinId), rng, r.tease));
   }
 
+  /** The Last Case's free spin (Finale.ts): one reel of the vault's source case, landing as the lid opens. */
+  freeSpin(c: CaseDef, winner: SkinDef, rng: Rng, start: boolean, elapsed: number, duration: number): void {
+    if (start) this.idle(c, winner, rng);
+    this.free = true;
+    this.root.update(0, { elapsed, fullDuration: duration, crawl: 0 });
+  }
+
   /** Move every reel: the lean (the first frame the strongest tease is into its crawl) and the early landings. */
   update(b: BenchState): ReelFrame {
+    if (this.free) return { lean: null, landed: [] };
     if (tallWindow(b) !== this.tall) {
       this.tall = !this.tall; // landed: back to compact
       this.apply();
@@ -110,8 +127,14 @@ export class BenchReels {
     if (b.phase !== "spinning") {
       this.leaned = null;
       this.leaning = false;
+      if (this.spun) {
+        // the sim leaves `spinning` in the tick that ends the spin, so no frame ever shows fraction 1: land them now
+        this.spun = false;
+        for (let i = 0; i < this.n; i++) this.root.land(i);
+      }
       return { lean: null, landed: [] };
     }
+    this.spun = true;
     b.reels.forEach((r, i) =>
       this.root.update(i, { elapsed: Math.min(b.elapsed, r.duration), fullDuration: r.duration, crawl: crawlSeconds(r.tease, r.duration) }),
     );
@@ -138,6 +161,9 @@ export class BenchReels {
   }
 
   private apply(): void {
-    if (this.l) this.root.layout(stackRects(benchReelArea(this.l, this.n, this.tall), this.n, REEL_MAX_H));
+    if (!this.l) return;
+    const area = benchReelArea(this.l, this.n, this.tall);
+    // Slot Machine (Run 4): more reels than multi-open's widest are five slot columns
+    this.root.layout(this.n > MULTI_OPEN_MAX ? slotRects(area, this.n) : stackRects(area, this.n, REEL_MAX_H));
   }
 }

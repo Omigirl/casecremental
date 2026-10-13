@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QUICK_HANDS_FACTOR, SPIN_BASE_SECONDS } from "./tuning";
-import { effectsOf, upgradeCost, UPGRADE_IDS } from "./upgrades";
+import { effectsOf, upgradeCap, upgradeCost, UPGRADE_IDS } from "./upgrades";
 
 const zero = { luck: 0, appraiser: 0, quickHands: 0, multiOpen: 0 };
 
@@ -38,6 +38,7 @@ describe("effectsOf", () => {
 
   it("multi-open opens two cases at level 1, and Run 1 caps it there", () => {
     expect(effectsOf({ ...zero, multiOpen: 1 }).openCount).toBe(2);
+    expect(upgradeCap("multiOpen", 1)).toBe(1);
     expect(upgradeCost("multiOpen", 1)).toBeNull();
   });
 });

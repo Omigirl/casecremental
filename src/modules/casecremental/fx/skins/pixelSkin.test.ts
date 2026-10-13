@@ -3,6 +3,7 @@ import type { Texture } from "pixi.js";
 import { CASES } from "../../sim/content/cases";
 import { renderPattern } from "./patterns";
 import { loadWeaponBases, fallbackBase, SkinTextures, tintWeapon, type PixelImage } from "./pixelSkin";
+import { shrinkImage } from "./thumb";
 
 describe("pixel skins", () => {
   it("keeps outline pixels dark, transparent pixels empty, and shades the pattern by the base", () => {
@@ -37,6 +38,27 @@ describe("loadWeaponBases", () => {
 });
 
 describe("SkinTextures", () => {
+  it("knows a skin's size, and bakes a shrunk still frame once per size (the full one when it fits)", () => {
+    const made: PixelImage[] = [];
+    let destroyed = 0;
+    const fake = (img: PixelImage) => {
+      made.push(img);
+      return { destroy: () => destroyed++ } as unknown as Texture;
+    };
+    const st = new SkinTextures(new Map(), fake);
+    const still = { ...CASES[0]!.skins.find((s) => s.weapon === "rifle")!, motion: undefined };
+    expect(st.size(still)).toEqual({ w: 26, h: 10 });
+    expect(st.thumb(still, 26, 10)).toBe(st.texture(still));
+    expect(st.thumb(still, 40, 20)).toBe(st.texture(still));
+    const small = st.thumb(still, 13, 5);
+    expect(made).toHaveLength(2);
+    expect(made[1]!).toEqual(shrinkImage(made[0]!, 13, 5));
+    expect(st.thumb(still, 13, 5)).toBe(small); // cached
+    expect(made).toHaveLength(2);
+    st.destroy();
+    expect(destroyed).toBe(2);
+  });
+
   it("bakes a still skin exactly as before, and a moving skin's loop once", () => {
     const made: PixelImage[] = [];
     const fake = (img: PixelImage) => {

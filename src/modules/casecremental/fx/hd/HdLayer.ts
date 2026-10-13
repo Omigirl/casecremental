@@ -5,12 +5,14 @@ import type { Pt, TableLayout } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { PixelViewport } from "../pixel/viewport";
 import { binLight, lampFlicker, makeMotes, stepMotes, type Box, type Mote } from "./ambience";
+import { FlashGate } from "./flashGate";
 import { pixelStyle } from "./font";
 import type { LightLevels } from "../vault/lights";
 
 // The full-resolution layer over the pixel world (spec §2): the lamp's warm light, a vignette, dust
 // drifting in the light, the glow under the case / reveal, the sleeping bot's Z's, the powered-off
-// auto-seller's standby LED, sparks and coins. Everything here is in screen (CSS) px.
+// auto-seller's standby LED, sparks and coin amounts (the coins themselves fly in the pixel world, coins.ts). Everything here is in
+// screen (CSS) px.
 
 const MOTES = 36;
 
@@ -37,6 +39,8 @@ export class HdLayer {
   readonly overlay = new Container();
   readonly particles: Particles;
   readonly coins: Coins;
+  /** The soft radial dot (glows, flashes). */
+  readonly glowTexture: Texture;
   private readonly textures: Texture[];
   private readonly lamp: Sprite;
   private readonly vignette: Sprite;
@@ -61,8 +65,11 @@ export class HdLayer {
   private asleep = true;
   private flashAlpha = 0;
   private sellerOn = false;
+  private readonly flashGate = new FlashGate();
+  private screenSize = { w: 1, h: 1 };
 
-  constructor(coinFrames: readonly Texture[]) {
+  /** `coinFrames`: the spinning coin (the flying coins; stage 5's gold rain). */
+  constructor(readonly coinFrames: readonly Texture[]) {
     const cone = canvasTexture(256, 256, (g) => {
       const grad = g.createRadialGradient(128, 0, 0, 128, 0, 256);
       grad.addColorStop(0, "rgba(255,214,150,0.55)");
@@ -80,6 +87,7 @@ export class HdLayer {
       [0, "rgba(255,255,255,1)"],
       [1, "rgba(255,255,255,0)"],
     ]);
+    this.glowTexture = soft;
     const dot = radial(16, [
       [0, "rgba(255,255,255,1)"],
       [0.5, "rgba(255,255,255,0.6)"],
@@ -124,6 +132,7 @@ export class HdLayer {
   layout(l: TableLayout, vp: PixelViewport, screenW: number, screenH: number): void {
     this.l = l;
     this.vp = vp;
+    this.screenSize = { w: screenW, h: screenH };
     const k = vp.scale;
     this.lamp.position.set(l.lamp.x * k, 0);
     this.lamp.width = l.table.w * k * 1.3;
@@ -142,7 +151,8 @@ export class HdLayer {
     for (const z of this.zs) z.style.fontSize = hdFontSize(k);
     this.drawLed();
     this.led.position.set(l.seller.x * k, (l.seller.y - 26) * k);
-    this.coins.setScale(k, hdFontSize(k, 16));
+    this.coins.setTextSize(hdFontSize(k, 16));
+    this.coins.setSpan(l.table.x * k, (l.table.x + l.table.w) * k);
   }
 
   /** Glow under the reveal in the rarity's colour (null fades it out). */
@@ -151,10 +161,17 @@ export class HdLayer {
     this.glowTarget = color === null ? 0 : 0.85;
   }
 
-  /** A full-screen flash that fades out (★ drops, stage-ups). */
+  /** A full-screen flash that fades out (★ drops, stage-ups, power-ons). Refused past three a second (photosensitivity). */
   flash(color: number, strength = 0.8): void {
+    if (!this.flashGate.take(this.t)) return;
     this.flashRect.tint = color;
     this.flashAlpha = Math.max(this.flashAlpha, strength);
+  }
+
+  /** Ask the flash gate for a full-screen change that is not a flash (a glitch burst, a screen tear): true when it
+   *  may happen now, and it counts toward the three a second. */
+  takeFlash(): boolean {
+    return this.flashGate.take(this.t);
   }
 
   /** A card is up and waiting to be sold: the bin's light calls for it. */
@@ -175,6 +192,16 @@ export class HdLayer {
   toScreen(p: Pt): Pt {
     const k = this.vp?.scale ?? 1;
     return { x: p.x * k, y: p.y * k };
+  }
+
+  /** The screen in CSS px, as last laid out. */
+  get screen(): { w: number; h: number } {
+    return this.screenSize;
+  }
+
+  /** The pixel scale, as last laid out. */
+  get scale(): number {
+    return this.vp?.scale ?? 1;
   }
 
   update(dt: number): void {

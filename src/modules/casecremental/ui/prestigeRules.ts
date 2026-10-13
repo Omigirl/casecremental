@@ -1,9 +1,28 @@
 import { BLACKOUT_SECONDS } from "../fx/vault/lights";
 import type { PrestigeView } from "../game/view";
 import type { CharmId } from "../sim/charms";
+import type { VaultDef } from "../sim/content/vaults";
+import { caseName } from "../i18n/content";
+import { t } from "../i18n/index";
+import { botSpeed } from "../sim/botOpener";
+import { runCaseIds, runContent } from "../sim/campaign";
 
 // The prestige screen's rules (M2b spec §8): pick up to `slots` of the three offered charms; the screen
-// waits for the blackout when you watched the run end, and comes up at once after a reload.
+// waits for the blackout when you watched the run end, and comes up at once after a reload. After The Last Case the
+// credits come first, then THE END (finish spec §7.4).
+
+const NUMERALS: Readonly<Record<Exclude<VaultDef["id"], "lastcase">, string>> = { vault1: "I", vault2: "II", vault3: "III" };
+
+/** The prestige screen's title: "VAULT II OPENED", or The Last Case's own. */
+export const prestigeTitle = (id: VaultDef["id"]): string =>
+  id === "lastcase" ? t("prestige.lastTitle") : t("prestige.title", { n: NUMERALS[id] });
+
+/** The trophy the vault left: "★ Vault II trophy", or ★ Singularity. */
+export const trophyLine = (id: VaultDef["id"]): string =>
+  id === "lastcase" ? t("prestige.lastTrophy") : t("prestige.trophy", { n: NUMERALS[id] });
+
+/** What the end of a run shows: the credits while they roll (after The Last Case), else the prestige screen. */
+export const endScreen = (p: PrestigeView | null): "credits" | "prestige" | null => (p ? (p.credits ? "credits" : "prestige") : null);
 
 export function charmChoices(p: PrestigeView): Array<{ id: CharmId; picked: boolean; enabled: boolean }> {
   return p.offer.map((id) => {
@@ -16,3 +35,31 @@ export function charmChoices(p: PrestigeView): Array<{ id: CharmId; picked: bool
 export const PRESTIGE_DELAY_MS = Math.round(BLACKOUT_SECONDS * 1000) + 300;
 
 export const prestigeDelayMs = (sawRunEnd: boolean): number => (sawRunEnd ? PRESTIGE_DELAY_MS : 0);
+
+export type Bring =
+  | { kind: "case"; caseId: string }
+  | { kind: "machine"; id: "locker" | "autoContract" | "upgrader" | "evolutions" }
+  | { kind: "cap"; id: "multiOpen" | "botSpeed" | "botMulti"; value: number };
+
+/** What run `run` adds over the one before it (spec §8): its new cases, its new machines, its raised caps. */
+export function runBrings(run: number): Bring[] {
+  if (run <= 1) return [];
+  const now = runContent(run);
+  const before = runContent(run - 1);
+  const out: Bring[] = runCaseIds(run)
+    .slice(before.cases)
+    .map((caseId) => ({ kind: "case", caseId }));
+  for (const id of ["locker", "autoContract", "upgrader", "evolutions"] as const)
+    if (now[id] && !before[id]) out.push({ kind: "machine", id });
+  if (now.multiOpen > before.multiOpen) out.push({ kind: "cap", id: "multiOpen", value: now.multiOpen });
+  if (now.botSpeedLevels > before.botSpeedLevels)
+    out.push({ kind: "cap", id: "botSpeed", value: Math.round(botSpeed(now.botSpeedLevels)) });
+  if (now.botMultiOpen > before.botMultiOpen) out.push({ kind: "cap", id: "botMulti", value: now.botMultiOpen });
+  return out;
+}
+
+export function bringText(b: Bring): string {
+  if (b.kind === "case") return t("brings.case", { name: caseName(b.caseId) });
+  if (b.kind === "cap") return t(`brings.${b.id}` as const, { n: b.value });
+  return t(`brings.${b.id}` as const);
+}

@@ -3,7 +3,7 @@ import type { VaultState } from "../../sim/run";
 import { VAULT_OPENING_SECONDS } from "../../sim/tuning";
 import { VAULT_CUES } from "./cues";
 import { BLACKOUT_SECONDS, LIGHTS_UP_SECONDS, lightCues } from "./lights";
-import { applyMusic, bindMusicResync, musicPlan, PowerCycle, type MusicAudio } from "./vaultFlow";
+import { afterRunTrack, applyMusic, bindMusicResync, musicPlan, PowerCycle, type MusicAudio } from "./vaultFlow";
 
 const at = (vault: VaultState | null, over = false) => ({ vault, over });
 const opening = (t: number): VaultState => ({ phase: "opening", t, drops: [], landed: 0 });
@@ -20,6 +20,20 @@ function recorder() {
 }
 
 describe("the music after a lobby trip picks up where the vault is", () => {
+  it("plays the run's own vault's fanfare: the same suspense and intro, the same hand-off at t − 3.40", () => {
+    for (const fanfare of ["vault-fanfare-2", "vault-fanfare-3"] as const) {
+      expect(musicPlan(at({ phase: "key" }), "lit", fanfare).track).toBe("vault-suspense");
+      expect(musicPlan(at(opening(1.6)), "lit", fanfare)).toEqual({ track: "vault-intro", loop: false, offset: 1.6, musicOn: true });
+      expect(musicPlan(at(opening(3.4)), "lit", fanfare)).toEqual({ track: fanfare, loop: false, offset: 0, musicOn: true });
+      const mid = musicPlan(at(opening(6.4)), "lit", fanfare);
+      expect(mid).toMatchObject({ track: fanfare, loop: false, musicOn: true });
+      expect(mid.offset).toBeCloseTo(3, 9);
+      const ended: VaultState = { phase: "opening", t: VAULT_OPENING_SECONDS, drops: [], landed: 5 };
+      expect(musicPlan(at(ended), "lit", fanfare).track).toBeNull();
+    }
+    expect(musicPlan(at(opening(6.4)), "lit").track).toBe("vault-fanfare"); // Vault I by default
+  });
+
   it("waits on the suspense loop while the key waits", () => {
     expect(musicPlan(at({ phase: "key" }), "lit")).toEqual({ track: "vault-suspense", loop: true, offset: 0, musicOn: true });
   });
@@ -64,6 +78,21 @@ describe("the music after a lobby trip picks up where the vault is", () => {
   });
 });
 
+describe("the music after The Last Case (finish spec §7.4)", () => {
+  it("picks the credits track while the credits roll, the prestige loop after (Review Focus 1)", () => {
+    const over = at(null, true);
+    expect(musicPlan(over, "dark", "vault-fanfare", "credits").track).toBe("credits");
+    expect(musicPlan(over, "dark").track).toBe("prestige");
+    expect(musicPlan(over, "blackout", "vault-fanfare", "credits")).toMatchObject({ track: "credits", musicOn: false });
+  });
+
+  it("falls back to the prestige loop without a credits track (Review Focus 3)", () => {
+    expect(afterRunTrack(true, true)).toBe("credits");
+    expect(afterRunTrack(true, false)).toBe("prestige");
+    expect(afterRunTrack(false, true)).toBe("prestige");
+  });
+});
+
 describe("applyMusic", () => {
   it("arms a silent plan's track as the plan says (a one-shot stays a one-shot), with the music off", () => {
     const r = recorder();
@@ -104,6 +133,14 @@ describe("PowerCycle", () => {
     expect(r.calls).toEqual(["play blackout", 'track prestige {"loop":true}', "music on"]);
     run(p, 3);
     expect(r.calls).toHaveLength(3); // once
+  });
+
+  it("fades to black, then starts the run's after-track in the dark (the credits after The Last Case)", () => {
+    const r = recorder();
+    const p = new PowerCycle(r.audio);
+    p.blackout("credits");
+    run(p, BLACKOUT_SECONDS + 0.05);
+    expect(r.calls).toEqual(["play blackout", 'track credits {"loop":true}', "music on"]);
   });
 
   it("is already dark after a reload on the prestige screen, leaving the music to musicPlan", () => {

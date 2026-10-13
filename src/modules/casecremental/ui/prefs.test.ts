@@ -21,8 +21,8 @@ describe("prefs", () => {
   it("cleans up whatever was stored", () => {
     expect(parsePrefs(null)).toEqual(DEFAULT_PREFS);
     expect(parsePrefs("{not json")).toEqual(DEFAULT_PREFS);
-    expect(parsePrefs('{"lang":"de","music":7,"sfx":"loud"}')).toEqual({ lang: null, music: 1, sfx: DEFAULT_PREFS.sfx });
-    expect(parsePrefs('{"lang":"ru","music":0.2,"sfx":0}')).toEqual({ lang: "ru", music: 0.2, sfx: 0 });
+    expect(parsePrefs('{"lang":"de","music":7,"sfx":"loud"}')).toEqual({ lang: null, music: 1, sfx: DEFAULT_PREFS.sfx, tutorial: null });
+    expect(parsePrefs('{"lang":"ru","music":0.2,"sfx":0}')).toEqual({ lang: "ru", music: 0.2, sfx: 0, tutorial: null });
   });
 
   it("follows the browser language until the player picks one", () => {
@@ -39,7 +39,7 @@ describe("prefs", () => {
     initPrefs(s, ["en"]);
     setPrefs({ lang: "ru", music: 0.3 });
     expect(getLang()).toBe("ru");
-    expect(parsePrefs(s.getItem(PREFS_KEY))).toEqual({ lang: "ru", music: 0.3, sfx: DEFAULT_PREFS.sfx });
+    expect(parsePrefs(s.getItem(PREFS_KEY))).toEqual({ lang: "ru", music: 0.3, sfx: DEFAULT_PREFS.sfx, tutorial: null });
   });
 
   it("keeps working when storage is blocked", () => {
@@ -47,5 +47,17 @@ describe("prefs", () => {
     expect(() => setPrefs({ sfx: 0.1 })).not.toThrow();
     expect(getPrefs().sfx).toBe(0.1);
     expect(() => initPrefs(null, [])).not.toThrow();
+  });
+
+  it("remembers the tutorial's progress, cleaned up, and keeps it in memory when storage is blocked", () => {
+    const s = memory();
+    initPrefs(s, ["en"]);
+    expect(getPrefs().tutorial).toBeNull(); // never stored: the overlay seeds it from the save
+    setPrefs({ tutorial: { done: ["buy"], off: false, cards: [2] } });
+    expect(parsePrefs(s.getItem(PREFS_KEY)).tutorial).toEqual({ done: ["buy"], off: false, cards: [2] });
+    expect(parsePrefs('{"tutorial":{"done":["key","bogus"],"off":true}}').tutorial).toEqual({ done: ["key"], off: true, cards: [] });
+    initPrefs(broken, ["en"]);
+    setPrefs({ tutorial: { done: ["buy", "key"], off: false, cards: [] } });
+    expect(getPrefs().tutorial?.done).toEqual(["buy", "key"]);
   });
 });

@@ -2,11 +2,12 @@ import { Container, Text, type Application, type FederatedPointerEvent } from "p
 import type { GameController } from "../game/controller";
 import type { Camera } from "./camera";
 import { getLang, t } from "../i18n/index";
-import { caseById, skinById } from "../sim/content/cases";
+import { autoSpinStatus } from "../sim/autoSpin";
+import { caseById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
-import { RARITY_INFO, RARITY_ORDER } from "../sim/rarity";
+import { RARITY_INFO } from "../sim/rarity";
 import { createRng } from "../sim/rng";
-import type { Bench as BenchState, RunState, SimEvent } from "../sim/run";
+import type { Bench as BenchState, SimEvent } from "../sim/run";
 import type { AudioEngine } from "./audio/AudioEngine";
 import { comboPitch } from "./audio/schedule";
 import { BenchFx } from "./benchFx";
@@ -17,18 +18,15 @@ import { Lifted } from "./hd/Lifted";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
-import { Zoom } from "./juice/zoom";
+import { Zoom, zoomRestFor } from "./juice/zoom";
 import { binCalling, fitCentre, hintKey, revealLines, trayFull } from "./labels";
 import { Bench } from "./pixel/Bench";
 import { bestSlot } from "./pixel/BenchCards";
 import { BenchReels } from "./pixel/BenchReels";
-import { BotCardView } from "./pixel/BotCard";
-import { BotSprite } from "./pixel/BotSprite";
-import { onPointerCancel } from "./pixel/drag";
+import { onPointerCancel, onPointerGone } from "./pixel/drag";
 import { reelFrameSet } from "./pixel/drawn";
 import { tableLayout, type Pt, type TableLayout } from "./pixel/layout";
 import { PixelLayer } from "./pixel/PixelLayer";
-import { Reel } from "./pixel/Reel";
 import { Room } from "./pixel/Room";
 import { scaleTint } from "./pixel/tint";
 import { TrayView } from "./pixel/Tray";
@@ -36,10 +34,14 @@ import { hdFontSize } from "./pixel/screen";
 import { spriteIndex, SpriteLibrary } from "./pixel/sprites";
 import { pixelViewport, type PixelViewport } from "./pixel/viewport";
 import { restorePlan } from "./restore";
+import { Stations } from "./stations/Stations";
 import { loadWeaponBases, SkinTextures } from "./skins/pixelSkin";
-import { applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
+import { GlitchTear } from "./vault/glitchTear";
+import { Finale } from "./vault/Finale";
+import { afterRunTrack, applyMusic, bindMusicResync, musicPlan, PowerCycle } from "./vault/vaultFlow";
 import { VaultBeams } from "./vault/VaultBeams";
 import { VaultScene } from "./vault/VaultScene";
+import { restoreVault, syncVault } from "./vault/vaultSync";
 
 // Everything drawn on the canvas (spec §2): the pixel world (room, table, your bench, the reel)
 // rendered small and scaled up by a whole number, and the HD layer over it (light, dust, glow,
@@ -61,19 +63,19 @@ export class World {
   /** Your bench's reels (multi-open stacks them) and its cards' reveal and sale juice. */
   private readonly benchReels: BenchReels;
   private readonly benchFx: BenchFx;
-  private readonly bot: BotSprite;
-  private readonly botReel: Reel;
-  private readonly botCard: BotCardView;
+  private readonly stations: Stations;
   private readonly tray: TrayView;
   private readonly look: StageLook;
   private readonly shake = new Shake(Math.random, 3);
   private readonly time = new TimeScale();
   private readonly zoom = new Zoom();
   private readonly lifted = new Lifted();
-  /** Vault Case I's scene over everything (screen px), its five reels as beams in its layers. */
+  /** The run's vault's scene over everything (screen px), its five reels as beams in its layers. */
   private readonly vault: VaultScene;
   private readonly vaultBeams: VaultBeams;
   private readonly power: PowerCycle;
+  /** The Last Case's screen tear and free-spinning reels (nothing for an ordinary vault). */
+  private readonly finale: Finale;
   private readonly unbindMusic: () => void;
   /** Visual-only randomness (strip filler, landing jitter) — never the outcome. */
   private readonly rng = createRng(0x5eed);
@@ -83,8 +85,7 @@ export class World {
   /** The card the label lines sit under (the best one waiting). */
   private labelAt: Pt = { x: 0, y: 0 };
   private readonly offline = new Text({ text: "", style: pixelStyle(8, 0x6a6f80) });
-  private readonly trayFullLabel = new Text({ text: "", style: pixelStyle(8, 0xffb020) });
-  private trayBlink = 0;
+  private readonly trayFullLabel = new Text({ text: "", style: pixelStyle(8, 0xff5a4a) });
   private vp: PixelViewport;
   private l: TableLayout;
   private screen = { w: 0, h: 0 };
@@ -117,36 +118,47 @@ export class World {
       return tex;
     };
     this.bench = new Bench(lib, skins, controller, bake);
-    this.tray = new TrayView(skins, controller, bake);
+    this.tray = new TrayView(skins, controller, bake, { scale: () => this.vp.scale, onLand: () => audio.play("tray-store") });
     // the other reels tick more quietly, so two reels never sound like a doubled click
     this.benchReels = new BenchReels(this.reelFrame, skins, (i) =>
       audio.play("reel-tick", { rate: comboPitch(controller.run.state.combo), gain: i === 0 ? 1 : 0.5 }),
     );
-    this.botReel = new Reel(this.reelFrame, skins, () => audio.play("reel-tick", { gain: 0.35, rate: 1.2 }));
-    this.bot = new BotSprite(lib);
-    this.botCard = new BotCardView(skins, controller, bake);
     this.hd = new HdLayer(lib.get("coin", { w: 12, h: 22, frames: 4 }).frames);
     const juice = { hd: this.hd, audio, shake: this.shake, zoom: this.zoom, time: this.time };
     this.benchFx = new BenchFx(this.bench, juice, skins, () => this.vp.scale, this.hd.root);
+    this.stations = new Stations({
+      lib,
+      skins,
+      controller,
+      bake,
+      juice,
+      reelFrame: this.reelFrame,
+      rng: this.rng,
+      scale: () => this.vp.scale,
+      hud: () => ({ x: this.l.worldW / 2, y: this.l.hudH / 2 }),
+    });
     this.pixel.world.addChild(
       this.room.back,
       this.room.front,
+      this.stations.under,
       this.tray.root,
+      this.hd.coins.flyers,
       this.benchReels.root,
-      this.botReel,
+      this.stations.reels,
       this.bench.root,
-      this.bot.root,
-      this.botCard.root,
+      this.tray.over,
+      this.stations.over,
     );
-    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.lifted.root);
+    this.look = new StageLook(this.scene, this.hd); // first: its gold rain falls under the labels, cards and stations
+    this.hd.root.addChild(this.hint, ...this.label, this.offline, this.trayFullLabel, this.stations.hd, this.tray.hd, this.lifted.root);
     for (const txt of [this.hint, ...this.label, this.offline]) txt.anchor.set(0.5, 0);
     this.trayFullLabel.anchor.set(0.5, 1);
     this.trayFullLabel.visible = false;
     this.scene.addChild(this.pixel.view, this.hd.root);
-    this.look = new StageLook(this.scene);
     this.vault = new VaultScene(lib, this.hd, audio, this.shake, () => this.resumeMusic());
     this.vaultBeams = new VaultBeams(skins, this.vault, juice, this.rng);
     this.power = new PowerCycle(audio);
+    this.finale = new Finale([this.scene, this.vault.root], this.hd, this.rng, this.benchReels, this.stations, new GlitchTear());
     this.unbindMusic = bindMusicResync(
       audio,
       document,
@@ -162,35 +174,34 @@ export class World {
       this.vault.keyMove(e.global, e.pointerId);
       const p = this.worldPt(e);
       this.tray.pointerMove(p);
-      this.botCard.pointerMove(p);
+      this.stations.pointerMove(p);
       this.bench.pointerMove(p);
     });
     const up = (e: FederatedPointerEvent) => {
       if (this.vault.keyRelease(e.global, e.pointerId) === "turn") void this.controller.act({ type: "turnVaultKey" });
       const p = this.worldPt(e);
       this.tray.pointerUp(p);
-      this.botCard.pointerUp(p);
+      this.stations.pointerUp(p);
       this.bench.pointerUp(p);
     };
     app.stage.on("pointerup", up);
     app.stage.on("pointerupoutside", up);
     this.offs.push(controller.onEvent((e) => this.onEvent(e)));
     this.offs.push(onPointerCancel(app.canvas, (id) => this.cancelDrags(id)));
+    this.offs.push(onPointerGone(app.canvas, () => this.stations.pointerGone())); // Hot Hand's flames go out with it
 
     this.vp = pixelViewport(app.screen.width, app.screen.height);
     this.l = tableLayout(this.vp);
     this.applyLayout();
     const first = caseById("bootcamp");
     this.benchReels.idle(first, this.rng.pick(first.skins), this.rng);
-    this.botReel.start(first, this.rng.pick(first.skins), this.rng);
     this.restore();
   }
 
   /** Redraw a run already in progress (the scene is rebuilt after a trip to the lobby). */
   private restore(): void {
     const plan = restorePlan(this.controller.run.state);
-    const br = plan.botReel; // its spin under way, or stopped on the drop its waiting card shows
-    if (br) this.botReel.start(caseById(br.caseId), skinById(br.skinId), this.rng, null, br.landed);
+    this.stations.restore(plan);
     if (plan.caseId) this.bench.showCase(plan.caseId, false);
     if (plan.caseId && plan.spinning) {
       this.benchReels.start(plan.caseId, plan.spinning, this.rng);
@@ -199,23 +210,19 @@ export class World {
     if (plan.revealed) this.benchFx.restore(plan.revealed);
     this.look.setStage(plan.stage);
     this.audio.setStage(plan.stage);
+    this.zoom.minRest = zoomRestFor(plan.stage);
     this.lastStage = plan.stage;
-    this.restoreVault(this.controller.run.state);
-  }
-
-  /** A reload or a new run: the vault's key or opening where the sim is, or the dark; the music always from the
-   *  sim, so a stale track goes (while suspended, activate() applies it). */
-  private restoreVault(s: RunState): void {
-    const v = s.vault;
-    if (v?.phase === "opening") this.vaultBeams.restore(v.drops, v.landed);
-    if (!v && s.over) this.power.darkNow();
-    if (this.controller.running) this.resumeMusic();
+    restoreVault(this.controller.run, this.vault, this.vaultBeams, this.power);
+    if (this.controller.running) this.resumeMusic(); // always from the sim (while suspended, activate() applies it)
   }
 
   /** Back from the lobby: the music picks up where the vault (or the lights) are, not where it was asked for. */
   resumeMusic(): void {
-    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase));
+    applyMusic(this.audio, musicPlan(this.controller.run.state, this.power.phase, this.vault.fanfare, this.afterRun()));
   }
+
+  /** The dark's music after a run: the credits' track while they roll (after The Last Case), else the prestige loop. */
+  private afterRun = () => afterRunTrack(this.controller.meta.credits, this.audio.hasTrack("credits"));
 
   /** Real seconds → this frame's game-time scale (0 during hit-stop, <1 in slow-mo). */
   timeScale(realSeconds: number): number {
@@ -238,29 +245,26 @@ export class World {
     if (reels.landed.length) this.benchFx.reelLanded(); // a reel that lands before its teasing partner stops on its own
     this.bench.update(gameMs, b);
     const bot = run.state.bot;
-    this.bot.update(gameMs, bot);
-    const spin = bot.spin;
-    this.botReel.update(spin ? { elapsed: spin.elapsed, fullDuration: spin.duration, crawl: 0 } : null);
-    this.botCard.update(bot.card);
+    this.stations.update(realSeconds, gameMs, run.state);
+    this.audio.tick(run.setup.run); // the stage playlist's clock, and the run (Run 4's finale in stage 5)
     this.room.setBotOnline(bot.awake);
-    this.botReel.visible = !!this.l.bot.reel && bot.awake;
     this.offline.visible = !!this.l.bot.reel && !bot.awake;
     this.hd.setBotAsleep(!bot.awake);
-    this.tray.update(run.state.tray, run.setup.trayCapacity);
-    this.trayBlink += realSeconds;
-    this.trayFullLabel.visible = trayFull(run.state, run.setup.trayCapacity) && Math.floor(this.trayBlink * 4) % 2 === 0; // ~2 Hz
+    const trayIsFull = trayFull(run.state, run.setup.trayCapacity);
+    this.tray.update(run.state.tray, run.setup.trayCapacity, realSeconds, trayIsFull);
+    this.trayFullLabel.visible = trayIsFull; // steady while full; the frame pulses (Tray.ts)
     this.room.setSellerOn(run.state.seller.on);
     this.hd.setSellerOn(run.state.seller.on);
     this.room.update(realSeconds * 1000);
     this.updateVault(realSeconds);
     this.hd.update(realSeconds);
-    this.look.update(realSeconds);
+    this.look.update(realSeconds, run.state);
     setTweenTimeScale(scale);
     this.updateText(b);
     this.hd.setBinCalling(binCalling(run.state));
 
     const k = this.vp.scale;
-    this.lifted.update(this.tray.lifted() ?? this.botCard.lifted() ?? this.bench.lifted(), k, realSeconds);
+    this.lifted.update(this.tray.lifted() ?? this.stations.lifted() ?? this.bench.lifted(), k, realSeconds);
     this.benchFx.update(realSeconds);
     // camera: shake in whole px, zoom around the reveal cards
     const s = this.shake.update(realSeconds);
@@ -284,11 +288,7 @@ export class World {
     this.cancelDrags(); // a drag left mid-air would leave the card "held" across a lobby trip
     for (const off of this.offs) off();
     this.app.stage.removeAllListeners();
-    this.hd.destroy();
-    this.bench.destroy();
-    this.tray.destroy();
-    this.botCard.destroy();
-    this.pixel.destroy();
+    for (const x of [this.look, this.hd, this.bench, this.tray, this.stations, this.pixel, this.finale]) x.destroy();
     this.vaultBeams.destroy();
     this.vault.destroy();
     this.scene.destroy({ children: true });
@@ -310,11 +310,13 @@ export class World {
       return;
     }
     const p = this.worldPt(e);
-    if (!this.tray.pointerDown(p) && !this.botCard.pointerDown(p)) void this.bench.pointerDown(p);
+    if (this.stations.grabCard(p) || this.tray.pointerDown(p) || this.bench.pointerDown(p)) return;
+    this.stations.tap(p, run.state);
   }
 
   /** The vault, read from the sim each frame (a reload picks it up where it is), and the lights. */
   private updateVault(realSeconds: number): void {
+    syncVault(this.controller.run, this.vault, this.vaultBeams);
     const s = this.controller.run.state;
     const v = s.vault;
     const opening = v?.phase === "opening" ? v : null;
@@ -329,14 +331,16 @@ export class World {
     this.room.setLight(lights.room);
     const reels = scaleTint(0xffffff, lights.reels);
     this.benchReels.root.tint = reels;
-    this.botReel.tint = reels;
+    this.stations.reels.tint = reels;
     this.vaultBeams.tint = reels;
+    this.finale.update(this.controller.run, this.vp.scale);
   }
 
   /** Every drag ends, nothing fired. For a touch the OS cancelled (`id`; no up comes), the vault's key only if that
    *  finger holds it (else it stays locked to a dead finger); the others follow any one pointer, so they go too. */
   private cancelDrags(id?: number): void {
-    for (const d of [this.bench, this.tray, this.botCard]) d.cancelDrag();
+    for (const d of [this.bench, this.tray]) d.cancelDrag();
+    this.stations.cancelDrags();
     this.vault.cancelDrag(id);
   }
 
@@ -354,11 +358,9 @@ export class World {
     this.pixel.resize(this.vp);
     this.room.layout(this.l);
     this.bench.layout(this.l);
-    this.bot.layout(this.l);
+    this.stations.layout(this.l);
     this.tray.layout(this.l);
     this.benchReels.layout(this.l);
-    if (this.l.bot.reel) this.botReel.layout(this.l.bot.reel);
-    this.botCard.layout(this.l);
     this.hd.layout(this.l, this.vp, width, height);
     this.vaultBeams.layout(this.vault.layout(this.screen, this.vp.scale), this.vp.scale);
     const k = this.vp.scale;
@@ -370,14 +372,14 @@ export class World {
     this.labelSpan = { lo: (tb.x + 2) * k, hi: (tb.x + tb.w - 2) * k };
     this.placeLabels();
     const tr = this.l.tray;
-    this.trayFullLabel.position.set((tr.x + tr.w / 2) * k, (tr.y - 1) * k);
+    this.trayFullLabel.position.set((tr.x + tr.w / 2) * k, (tr.y - 3) * k);
     const br = this.l.bot.reel;
     if (br) this.offline.position.set((br.x + br.w / 2) * k, (br.y + br.h / 2) * k - size / 2);
   }
 
-  /** Strings are rebuilt every frame from state, so a language switch shows at once (Review Focus 2). */
+  /** Rebuilt every frame (a language switch shows at once); no hint while the vault is out, the run is over or auto-spin works. */
   private updateText(b: BenchState): void {
-    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait); // no "Buy a case" while the vault is out or after the run
+    const key = this.controller.run.locked() ? null : hintKey(b, this.l.portrait, autoSpinStatus(this.controller.run) === "on");
     const hint = key ? t(key) : "";
     if (this.hint.text !== hint) this.hint.text = hint;
     const r = this.benchReels.area ?? this.l.you.reel; // under the reel window, whatever its height
@@ -398,6 +400,14 @@ export class World {
     if (this.trayFullLabel.text !== full) this.trayFullLabel.text = full;
   }
 
+  /** Where a card waiting at `from` sits (world px). */
+  private spotOf(from: "bench" | "bot" | "locker" | "tray", slot: number): Pt {
+    if (from === "bench") return this.bench.cardCentre(slot);
+    if (from === "bot" || from === "locker") return this.stations.cardCentre(from, slot);
+    const r = this.l.tray;
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+  }
+
   private placeLabels(): void {
     const k = this.vp.scale;
     const card = this.labelAt;
@@ -408,6 +418,7 @@ export class World {
   }
 
   private onEvent(e: SimEvent): void {
+    this.stations.onEvent(e);
     switch (e.type) {
       case "caseBought":
         this.bench.showCase(e.caseId, true);
@@ -423,30 +434,34 @@ export class World {
         this.benchFx.revealed(e.drops);
         break;
       case "sold": {
-        // only a bench sale clears the card; the bot's and the tray's sales burst coins from the bin
+        // only a bench sale clears the card (the stations' cards follow the sim); coins burst from the card sold by
+        // hand, the seller, a station's card, or the bin (a tray claim)
         const fromBench = e.from === "bench";
         const src =
           fromBench && e.source === "bench"
             ? this.bench.cardCentre(e.slot)
-            : e.source === "bot"
-              ? this.botCard.centre()
+            : e.source === "bot" || e.source === "locker"
+              ? this.stations.cardCentre(e.source, e.slot)
               : e.source === "seller"
                 ? this.l.seller
-                : this.l.bin;
+                : e.source === "tray"
+                  ? this.tray.claimed(e.drop.id) // it pops out where it was; the coins start there
+                  : this.l.bin;
         const at = this.hd.toScreen(src);
-        this.hd.coins.burst(at, { x: this.screen.w / 2, y: (this.l.hudH / 2) * this.vp.scale }, e.amount);
+        this.hd.coins.burst(src, { x: this.l.worldW / 2, y: this.l.hudH / 2 }, e.amount);
         this.hd.coins.floatText({ x: at.x, y: at.y - 10 * this.vp.scale }, `+${formatCash(e.amount, getLang())}`);
         this.audio.play(e.source === "seller" ? "seller-sell" : "cash-register");
         this.audio.play("coin-clink", { rate: comboPitch(e.combo), delay: 0.05 });
         if (e.amount >= 100) this.audio.play("coin-cascade", { delay: 0.1 });
         if (fromBench) this.benchFx.left(e.slot, e.source === "bench", this.controller.run.state.bench); // a machine sale just clears it
-        if (e.source === "tray" || e.source === "bot") this.bench.swallow();
+        if (e.source === "tray" || e.source === "bot" || e.source === "locker") this.bench.swallow();
         break;
       }
-      case "botWoke":
-        this.bot.wake();
-        this.hd.flash(0xffd28a, 0.15); // the station's lamp flickers on
-        this.audio.play("bot-wake");
+      case "lockerStored":
+        // the station opens its door and plays the sound; a card the Collect sent flies in from its spot (one dragged
+        // in was let go over the cabinet). A refused store emits nothing, so the card stays.
+        if (!e.byHand) this.stations.storedFrom(this.spotOf(e.from, e.slot), e.drop.rarity);
+        if (e.from === "bench") this.benchFx.left(e.slot, false, this.controller.run.state.bench);
         break;
       case "sellerBought":
         this.hd.flash(0x3ddc84, 0.2);
@@ -458,20 +473,6 @@ export class World {
       case "dayJobStarted":
         this.audio.play("dayjob-work");
         break;
-      case "botUpgraded":
-        this.audio.play("bot-servo", { rate: 1.2 });
-        break;
-      case "botSpinStarted":
-        this.bot.open();
-        this.botReel.start(caseById(e.caseId), skinById(e.drop.skinId), this.rng);
-        this.audio.play("bot-reel-spin");
-        break;
-      case "botRevealed": {
-        const at = this.hd.toScreen(this.botCard.centre());
-        this.hd.particles.burst(at, RARITY_INFO[e.drop.rarity].color, 18, 160 * (this.vp.scale / 6));
-        this.audio.play("reveal-chime", { gain: 0.5, rate: 2 ** (RARITY_ORDER.indexOf(e.drop.rarity) / 6) });
-        break;
-      }
       case "dayJobDone": {
         const tb = this.l.table;
         const at = this.hd.toScreen({ x: tb.x + tb.w / 2, y: tb.y + 12 });
@@ -480,8 +481,8 @@ export class World {
         break;
       }
       case "stored":
+        this.tray.arriving(e.drop.id, this.spotOf(e.from, e.slot)); // it slides in from its spot; tray-store plays as it lands
         if (e.from === "bench") this.benchFx.left(e.slot, false, this.controller.run.state.bench);
-        this.audio.play("tray-store");
         break;
       case "vaultBought":
         // the screen goes to the vault: it slams in, the suspense loop takes over the music
@@ -497,8 +498,11 @@ export class World {
       case "vaultReelLanded":
         this.vaultBeams.landed(e.index, e.drop, e.amount);
         break;
-      case "vaultOpened":
-        this.power.blackout();
+      case "vaultOpened": // completeVault ran first: after The Last Case meta.credits is set
+        this.power.blackout(this.afterRun());
+        break;
+      case "creditsEnded": // the prestige loop takes over in the dark
+        this.resumeMusic();
         break;
       case "charmPicked":
         this.audio.play("charm-pick");
@@ -516,6 +520,7 @@ export class World {
       case "stageChanged":
         this.look.setStage(e.stage);
         this.audio.setStage(e.stage);
+        this.zoom.minRest = zoomRestFor(e.stage);
         if (e.stage > this.lastStage) {
           this.shake.add(0.3);
           this.zoom.punch(1.06, 0.25);

@@ -1,5 +1,6 @@
 // Pure timing and variation for the mixer (spec §9): which variant plays, the per-play pitch and
-// level jitter, the combo's rising pitch, bar-aligned music changes and equal-power crossfades.
+// level jitter, the combo's rising pitch, bar-aligned music changes and equal-power crossfades, and the stage
+// playlists' order and hand-overs.
 
 /** All stage loops share this tempo and a 4/4 bar, so they can swap on bar lines. */
 export const MUSIC_BPM = 120;
@@ -44,4 +45,35 @@ export function crossfade(progress: number): [number, number] {
 export function musicFor(stage: number, available: readonly number[]): number | null {
   const lower = available.filter((s) => s <= stage);
   return lower.length ? Math.max(...lower) : null;
+}
+
+/** A stage loop plays this many times before its playlist moves on (finish spec §6: a 32 s loop twice, 64 s). */
+export const LOOP_PLAYS = 2;
+/** Stage 5's playlist takes Run 4's finale loop (finish spec §6), from this run on (Run 4's replays too). */
+export const FINALE_STAGE = 5;
+export const FINALE_RUN = 4;
+/** The engine schedules a playlist hand-over on the audio clock this long before its bar line, so a frame's jitter
+ *  never misses it. */
+export const SWAP_LEAD = 0.25;
+
+/** The loops a stage plays in `run`, in order: its own, then the finale in stage 5 from Run 4 on. */
+export function playlistFor<T>(loops: readonly T[], stage: number, run: number, finale: T | null): T[] {
+  return finale !== null && stage === FINALE_STAGE && run >= FINALE_RUN ? [...loops, finale] : [...loops];
+}
+
+/** When a loop that started at `startedAt` hands over: the bar line nearest the end of its LOOP_PLAYS plays (at least
+ *  one bar in), so an mp3 a few ms off 32 s still swaps on the grid it started on. */
+export function swapTime(startedAt: number, duration: number, plays = LOOP_PLAYS, bpm = MUSIC_BPM): number {
+  const bar = barSeconds(bpm);
+  return startedAt + Math.max(1, Math.round((plays * duration) / bar)) * bar;
+}
+
+/** The first playlist entry from `from` on (wrapping) whose file is ready, or null when none is: a loop that failed to
+ *  decode is skipped, never left as silence. */
+export function nextReady(from: number, count: number, ready: (i: number) => boolean): number | null {
+  for (let k = 0; k < count; k++) {
+    const i = (from + k) % count;
+    if (ready(i)) return i;
+  }
+  return null;
 }

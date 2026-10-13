@@ -1,6 +1,6 @@
 import type { PatternSpec, SkinDef, SkinMotion } from "../../sim/types";
 import { hash2 } from "./noise";
-import { hexToRgb, patternColor, type Rgb } from "./patterns";
+import { hexToRgb, OWN_MOTION, patternColor, type Rgb } from "./patterns";
 import type { PixelImage } from "./pixelSkin";
 import { SILHOUETTE_BOX, SILHOUETTES } from "./silhouettes";
 
@@ -81,13 +81,16 @@ export function finishAt(
 ): Rgb {
   let uu = u;
   let vv = v;
-  if (kind === "flow") {
-    // a small closed drift, so the loop returns to where it started
+  // a kind that draws this motion itself (OWN_MOTION) gets the phase, and nothing generic goes on top
+  const own = kind !== undefined && OWN_MOTION[spec.kind] === kind;
+  if (!own && (kind === "flow" || kind === "rise" || kind === "glitch" || kind === "drip")) {
+    // a small closed drift, so the loop returns to where it started; a finish that cannot scroll up
+    // seamlessly drifts instead of rising
     uu += 0.08 * Math.cos(TAU * t);
     vv += 0.08 * Math.sin(TAU * t);
   }
-  let c = patternColor(spec, pal, uu, vv);
-  if (kind === "pulse") {
+  let c = patternColor(spec, pal, uu, vv, own ? t : undefined);
+  if (kind === "pulse" && !own) {
     const f = 1 + 0.12 * Math.sin(TAU * t);
     c = [c[0] * f, c[1] * f, c[2] * f];
   }

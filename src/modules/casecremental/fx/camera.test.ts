@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Camera, cameraCss } from "./camera";
+import { Camera, cameraCss, cameraPoint } from "./camera";
 
 describe("camera shared with the UI overlay", () => {
   it("maps the scene camera onto a CSS transform around the same focus", () => {
@@ -20,5 +20,11 @@ describe("camera shared with the UI overlay", () => {
     off();
     cam.set({ focusX: 10, focusY: 10, dx: 0, dy: 0, zoom: 1 });
     expect(seen).toEqual([1, 1.2]);
+  });
+
+  it("puts a canvas point where the camera shows it, the same transform cameraCss gives the DOM (F3: the tutorial's arrow)", () => {
+    expect(cameraPoint({ focusX: 0, focusY: 0, dx: 0, dy: 0, zoom: 1 }, { x: 12, y: 34 })).toEqual({ x: 12, y: 34 });
+    // translate(4px, -2px) scale(1.5) around (400, 300)
+    expect(cameraPoint({ focusX: 400, focusY: 300, dx: 4, dy: -2, zoom: 1.5 }, { x: 500, y: 200 })).toEqual({ x: 554, y: 148 });
   });
 });

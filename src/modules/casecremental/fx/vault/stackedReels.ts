@@ -64,6 +64,11 @@ export class StackedReels extends Container {
     this.reels[i]?.update(motion);
   }
 
+  /** Reel i stopped on its drop (its spin is over). */
+  land(i: number): void {
+    this.reels[i]?.land();
+  }
+
   get count(): number {
     return this.reels.length;
   }

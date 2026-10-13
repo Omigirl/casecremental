@@ -1,8 +1,26 @@
+import { AUTOSPIN_DELAY_LEVELS } from "../sim/autoSpin";
+import { botWaiting } from "../sim/botOpener";
 import { describe, expect, it } from "vitest";
 import { CASES, unlockCostOf } from "../sim/content/cases";
 import { completeVault, freshMeta } from "../sim/meta";
 import { DEFAULT_SETUP, Run } from "../sim/run";
-import { BOT_WAKE_COST, CLOUT_DIVISOR, DAY_JOB_SECONDS, SELLER_COST, START_CASH, VAULT_OPENING_SECONDS } from "../sim/tuning";
+import {
+  AUTOSPIN_COST,
+  AUTOSPIN_DELAY_COSTS,
+  AUTOSPIN_DELAYS,
+  BOT_WAKE_COST,
+  CLOUT_DIVISOR,
+  DAY_JOB_SECONDS,
+  EVOLUTION_COSTS,
+  UPGRADER_COST,
+  LOCKER_BASE_CAPACITY,
+  LOCKER_COST,
+  SELLER_COST,
+  START_CASH,
+  VAULT_OPENING_SECONDS,
+} from "../sim/tuning";
+import type { RarityId } from "../sim/types";
+import { buyUpgrader, setUpgraderStake, setUpgraderTarget, upgraderGo } from "../sim/upgrader";
 import { buildView } from "./view";
 
 describe("buildView", () => {
@@ -63,6 +81,19 @@ describe("buildView", () => {
 });
 
 describe("buildView — M2b", () => {
+  it("says which bench cards wait and which card is held (F3: the tutorial points at them)", () => {
+    const run = new Run(1);
+    expect(buildView(run)).toMatchObject({ held: null, benchCards: [] });
+    run.buyCase("bootcamp");
+    run.insertKey();
+    for (let i = 0; i < 600 && run.state.bench.phase === "spinning"; i++) run.tick(1 / 30);
+    expect(buildView(run).benchCards).toEqual([true]);
+    run.setHeld("bench", 0);
+    expect(buildView(run).held).toBe("bench");
+    run.sell(0);
+    expect(buildView(run)).toMatchObject({ held: null, benchCards: [] });
+  });
+
   it("shows the bot asleep and wakeable, then spinning and its card", () => {
     const run = new Run(1);
     run.state.cash = BOT_WAKE_COST;
@@ -73,16 +104,16 @@ describe("buildView — M2b", () => {
       wakeCost: BOT_WAKE_COST,
       speed: 1,
       spinning: false,
-      card: null,
+      cards: [],
       caseChoice: null,
     });
     run.state.cash = 1e6;
     run.wakeBot();
     for (let i = 0; i < 40; i++) run.tick(1 / 30); // the bot rests a moment after waking
     expect(buildView(run).bot.spinning).toBe(true);
-    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(1 / 30);
+    for (let i = 0; i < 900 && !botWaiting(run.state.bot); i++) run.tick(1 / 30);
     v = buildView(run);
-    expect(v.bot.card).toMatchObject({ skinId: run.state.bot.card!.skinId });
+    expect(v.bot.cards[0]).toMatchObject({ skinId: run.state.bot.cards[0]!.skinId });
   });
 
   it("shows the auto-seller to buy, then its speed and threshold", () => {
@@ -94,6 +125,32 @@ describe("buildView — M2b", () => {
     run.state.cash = 1e6;
     v = buildView(run);
     expect(v.seller).toMatchObject({ on: true, canBuy: false, speedLevel: 0, canBuySpeed: true, threshold: "classified" });
+  });
+
+  it("shows the locker from Run 2: to buy, then what a press would take, the press, and its result", () => {
+    expect(buildView(new Run(1)).locker).toMatchObject({ available: false, canBuy: false, autoAvailable: false });
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 2, startCash: 1e9 });
+    let v = buildView(run);
+    expect(v.locker).toMatchObject({ available: true, on: false, cost: LOCKER_COST, canBuy: true, autoAvailable: false });
+    run.buyLocker();
+    for (let i = 0; i < 10; i++) run.state.locker.items.push(run.rollFor("bootcamp", "milspec"));
+    v = buildView(run);
+    expect(v.locker).toMatchObject({
+      on: true,
+      canBuy: false,
+      count: 10,
+      capacity: LOCKER_BASE_CAPACITY,
+      tradeUp: "milspec",
+      canTradeUp: true,
+    });
+    expect(v.locker.counts.milspec).toBe(10);
+    run.tradeUp();
+    run.tick(1);
+    v = buildView(run);
+    expect(v.locker).toMatchObject({ pressing: true, tradeUp: null, canTradeUp: false, count: 0 });
+    expect(v.locker.pressProgress).toBeCloseTo(0.4, 5);
+    run.tick(2);
+    expect(buildView(run).locker.cards).toEqual([expect.objectContaining({ rarity: "restricted" })]);
   });
 
   it("shows the tray and the day job", () => {
@@ -125,7 +182,15 @@ describe("buildView — M2b", () => {
     run.state.unlocked = CASES.map((c) => c.id);
     run.state.cash = DEFAULT_SETUP.vaultPrice / 2;
     let v = buildView(run);
-    expect(v.vault).toEqual({ shown: true, price: DEFAULT_SETUP.vaultPrice, canBuy: false, blockedBy: null, phase: null, progress: 0 });
+    expect(v.vault).toEqual({
+      id: "vault1",
+      shown: true,
+      price: DEFAULT_SETUP.vaultPrice,
+      canBuy: false,
+      blockedBy: null,
+      phase: null,
+      progress: 0,
+    });
     expect(v.nextGoal).toEqual({ kind: "vault", progress: 0.5 });
     run.state.cash = DEFAULT_SETUP.vaultPrice;
     run.buyVault();
@@ -156,6 +221,7 @@ describe("buildView — M2b", () => {
     expect(v.prestige).toMatchObject({ clout: 10, gained: 10, loops: 1, slots: 1, picked: [] });
     expect(v.prestige!.offer).toHaveLength(3);
     expect(v.prestige!.perks.map((p) => p.id)).toEqual(["startCash", "luck", "charmSlot", "botAwake", "biggerTray"]);
+    expect(v.prestige).toMatchObject({ credits: false, stats: { ...freshMeta().stats, cloutEarned: 10 } });
     expect(buildView(new Run(1)).prestige).toBeNull();
   });
 
@@ -177,5 +243,113 @@ describe("buildView — M2b", () => {
     expect(buildView(run).cases[0]!.count).toBe(2);
     run.state.cash = run.casePrice("bootcamp");
     expect(buildView(run).cases[0]!.count).toBe(1);
+  });
+
+  it("shows auto-spin on the Machines tab from Run 1: it needs the auto-seller, then its switch, status, delay and pick", () => {
+    const run = new Run(1);
+    run.state.cash = 1e6;
+    expect(buildView(run).autoSpin).toMatchObject({ owned: false, needsSeller: true, canBuy: false, cost: AUTOSPIN_COST });
+    run.buySeller();
+    expect(buildView(run).autoSpin).toMatchObject({ needsSeller: false, canBuy: true });
+    run.buyAutoSpin();
+    expect(buildView(run).autoSpin).toMatchObject({
+      owned: true,
+      canBuy: false,
+      on: false,
+      canToggle: true,
+      status: "off",
+      delay: AUTOSPIN_DELAYS[0],
+      delayLevel: 0,
+      maxLevel: AUTOSPIN_DELAY_LEVELS,
+      delayCost: AUTOSPIN_DELAY_COSTS.baseCost,
+      canBuyDelay: true,
+      pick: null,
+    });
+    run.setAutoSpinCase("bootcamp");
+    expect(buildView(run).cases.some((c) => c.buys)).toBe(false); // OFF: nothing is about to be bought, so nothing is framed as such
+    run.setAutoSpin(true);
+    const v = buildView(run);
+    expect(v.autoSpin).toMatchObject({ on: true, status: "on", pick: "bootcamp" });
+    expect(v.cases.find((c) => c.id === "bootcamp")!.picked).toBe(true);
+    expect(v.cases.filter((c) => c.buys).map((c) => c.id)).toEqual(["bootcamp"]); // the case it would buy now
+    run.state.cash = 0;
+    expect(buildView(run).cases.some((c) => c.buys)).toBe(false); // nothing affordable: nothing to frame
+    expect(buildView(run).autoSpin.status).toBe("broke");
+    run.state.cash = 1e12;
+    expect(buildView(run).cases.some((c) => c.buys)).toBe(true);
+    run.state.vault = { phase: "key" };
+    expect(buildView(run).autoSpin.canToggle).toBe(false);
+  });
+
+  it("frames no case to buy while auto-spin waits for the vault", () => {
+    const run = new Run(1);
+    run.state.autoSpin = { ...run.state.autoSpin, owned: true, on: true };
+    run.state.cash = 1e12;
+    run.state.unlocked = [...run.runCases()];
+    const v = buildView(run);
+    expect(v.autoSpin.status).toBe("vault");
+    expect(v.cases.some((c) => c.buys)).toBe(false);
+  });
+
+  it("shows the Upgrader in Run 4: it needs the locker, then the stake, the target and the chance", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 4, startCash: 1e18 });
+    expect(buildView(run).upgrader).toMatchObject({ available: true, on: false, needsLocker: true, canBuy: false, cost: UPGRADER_COST });
+    run.buyLocker();
+    expect(buildView(run).upgrader).toMatchObject({ needsLocker: false, canBuy: true });
+    buyUpgrader(run);
+    const d = (id: number, rarity: RarityId) => ({
+      id,
+      caseId: "bootcamp",
+      skinId: "bc_woodland",
+      rarity,
+      float: 0.2,
+      wear: "FT" as const,
+      statTrak: false,
+      value: 10,
+    });
+    run.state.locker.items = [d(1, "restricted"), d(2, "milspec"), d(3, "restricted")];
+    setUpgraderStake(run, "restricted");
+    setUpgraderTarget(run, 3);
+    const v = buildView(run).upgrader;
+    expect(v).toMatchObject({
+      on: true,
+      stake: "restricted",
+      stakeCount: 2,
+      stakes: ["milspec", "restricted"],
+      target: 3,
+      mult: 10,
+      canGo: true,
+      spinning: false,
+    });
+    expect(v.chance).toBeCloseTo(0.09, 9);
+    expect(v.stakeValue).toBeCloseTo(2 * run.payout(d(1, "restricted"), false), 6);
+    upgraderGo(run);
+    expect(buildView(run).upgrader).toMatchObject({ spinning: true, canGo: false, progress: 0 });
+    expect(buildView(new Run(1, { ...DEFAULT_SETUP, run: 3 })).upgrader.available).toBe(false);
+  });
+
+  it("shows the evolutions in Run 4 with their recipes, what is done and what each costs", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 4, startCash: 1e18 });
+    run.state.upgrades.quickHands = 10;
+    const ev = buildView(run).evolutions;
+    expect(ev.available).toBe(true);
+    expect(ev.list.map((e) => e.id)).toEqual(["slotMachine", "cartel", "moneyPrinter", "assemblyLine", "hotHand"]);
+    const slot = ev.list[0]!;
+    expect(slot.parts.map((p) => p.done)).toEqual([true, false]);
+    expect(slot).toMatchObject({ ready: false, canBuy: false, owned: false, cost: EVOLUTION_COSTS.slotMachine });
+    run.state.evolutions.bestCombo = 31;
+    expect(buildView(run).evolutions.list[4]!.parts[1]).toMatchObject({ done: false, have: 31 });
+    expect(buildView(new Run(1, { ...DEFAULT_SETUP, run: 3 })).evolutions.available).toBe(false);
+  });
+
+  it("says when Hot Hand burns: owned and a combo of 25 or more", () => {
+    const run = new Run(1, { ...DEFAULT_SETUP, run: 4 });
+    run.state.combo = 30;
+    expect(buildView(run).hotHand).toBe(false);
+    run.state.evolutions.owned = ["hotHand"];
+    run.state.combo = 24;
+    expect(buildView(run).hotHand).toBe(false);
+    run.state.combo = 25;
+    expect(buildView(run).hotHand).toBe(true);
   });
 });

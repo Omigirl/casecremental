@@ -31,9 +31,11 @@ export class Room {
   private readonly tableBody = new Graphics();
   private readonly mat: Sprite | null;
   private readonly matFallback = new Graphics();
-  private readonly tray: Sprite;
+  private readonly tray: NineSliceSprite;
   private readonly seller: Sprite;
+  /** The bot's dark reel window while it sleeps; awake, its reels draw their own frames (two for a double spin). */
   private readonly botReel: NineSliceSprite;
+  private botOnline = false;
   private l: TableLayout | null = null;
 
   constructor(lib: SpriteLibrary, reelFrame: SpriteSet) {
@@ -47,7 +49,13 @@ export class Room {
     const table = lib.has("table") ? lib.get("table", { w: 1, h: 1 }).frames[0]! : null;
     this.tableTop = table ? new TilingSprite({ texture: table, width: 1, height: table.height }) : null;
     this.mat = optional("mat");
-    this.tray = new Sprite(lib.get("tray", { w: 100, h: 18 }).frames[0]);
+    this.tray = new NineSliceSprite({
+      texture: lib.get("tray", { w: 100, h: 18 }).frames[0]!,
+      leftWidth: 12,
+      topHeight: 4,
+      rightWidth: 12,
+      bottomHeight: 4,
+    });
     this.seller = new Sprite(lib.get("auto-seller", { w: 24, h: 30 }).frames[0]);
     this.seller.tint = 0xa8a8b8; // dimmed until bought
     this.botReel = new NineSliceSprite({ texture: reelFrame.frames[0]!, leftWidth: 6, topHeight: 6, rightWidth: 6, bottomHeight: 6 });
@@ -76,12 +84,11 @@ export class Room {
     const m = l.you.mat;
     if (this.mat) this.mat.position.set(Math.round(m.x + (m.w - this.mat.width) / 2), m.y + m.h - this.mat.height);
     else this.matFallback.clear().rect(m.x, m.y, m.w, m.h).fill({ color: FELT });
-    this.tray.position.set(
-      Math.round(l.tray.x + (l.tray.w - this.tray.width) / 2),
-      Math.round(l.tray.y + (l.tray.h - this.tray.height) / 2),
-    );
+    // the tray's art stretches to its rect (+1 px each side): since M3 the locker stands at its right end
+    this.tray.width = l.tray.w + 2;
+    this.tray.position.set(l.tray.x - 1, Math.round(l.tray.y + (l.tray.h - this.tray.height) / 2));
     this.seller.position.set(Math.round(l.seller.x - this.seller.width / 2), l.seller.y - this.seller.height);
-    this.botReel.visible = !!l.bot.reel;
+    this.botReel.visible = !!l.bot.reel && !this.botOnline;
     if (l.bot.reel) {
       this.botReel.position.set(l.bot.reel.x, l.bot.reel.y);
       this.botReel.width = l.bot.reel.w;
@@ -91,9 +98,10 @@ export class Room {
     if (this.shelves) this.shelves.position.set(Math.round((l.worldW - this.shelves.width) / 2), 6);
   }
 
-  /** The bot's reel window lights up once the bot is awake (its reel is online). */
+  /** The bot's reel window shows, dimmed, while the bot sleeps; once it is awake its reels take its place. */
   setBotOnline(on: boolean): void {
-    this.botReel.tint = on ? 0xffffff : 0x444455;
+    this.botOnline = on;
+    this.botReel.visible = !!this.l?.bot.reel && !on;
   }
 
   /** The auto-seller powers on when bought (rework spec §1). */

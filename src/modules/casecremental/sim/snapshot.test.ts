@@ -1,3 +1,4 @@
+import { botWaiting } from "./botOpener";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETUP, Run } from "./run";
 
@@ -12,7 +13,7 @@ describe("run snapshots", () => {
     a.state.cash = 1e6;
     a.buyCase("bootcamp");
     a.insertKey();
-    for (let i = 0; i < 900 && !(a.state.bot.card && a.state.bench.phase === "revealed"); i++) a.tick(DT);
+    for (let i = 0; i < 900 && !(botWaiting(a.state.bot) && a.state.bench.phase === "revealed"); i++) a.tick(DT);
     a.sellBotCard();
     a.tick(DT); // the bot starts its next spin
     expect(a.state.bot.spin).not.toBeNull();
@@ -45,6 +46,24 @@ describe("run snapshots", () => {
     const b = Run.fromSnapshot(a.snapshot());
     tickFor(b, 20);
     expect(b.state.over).toBe(true);
+  });
+
+  it("restores a trade-up press half done, and ends identically", () => {
+    const a = new Run(7, { ...DEFAULT_SETUP, run: 2, startCash: 1e9 });
+    expect(a.buyLocker().ok).toBe(true);
+    for (let i = 0; i < 10; i++) a.state.locker.items.push(a.rollFor("wildwood", "milspec"));
+    expect(a.tradeUp().ok).toBe(true);
+    tickFor(a, 1);
+    expect(a.state.locker.press).not.toBeNull();
+    const b = Run.fromSnapshot(JSON.parse(JSON.stringify(a.snapshot())) as ReturnType<Run["snapshot"]>);
+    expect(b.state).toEqual(a.state);
+    for (const r of [a, b]) {
+      r.drainEvents();
+      tickFor(r, 3);
+      r.sellLockerCard(0);
+    }
+    expect(a.state.locker.cards).toEqual([]);
+    expect(b.state).toEqual(a.state);
   });
 
   it("restores a two-reel spin and a half-sold pair identically (Review Focus 3)", () => {

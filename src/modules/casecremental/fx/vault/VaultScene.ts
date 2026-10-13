@@ -1,5 +1,6 @@
 import { Container, Graphics, Text, type Texture } from "pixi.js";
 import { getLang, t as tr } from "../../i18n/index";
+import type { VaultDef } from "../../sim/content/vaults";
 import { formatCash } from "../../sim/format";
 import type { Drop } from "../../sim/types";
 import type { AudioEngine } from "../audio/AudioEngine";
@@ -10,26 +11,29 @@ import type { Pt } from "../pixel/layout";
 import { hdFontSize } from "../pixel/screen";
 import type { SpriteLibrary } from "../pixel/sprites";
 import { breath, dueBeats, type DueBeat } from "./beats";
-import { burstColor, FIREWORK_COLORS, introSpot, kickSpot, pick } from "./bursts";
+import { burstColor, FIREWORK_COLORS, introSpot, kickBursts, pick } from "./bursts";
 import { VaultChaos } from "./chaos";
 import { chaosBeat, flashCrossed } from "./chaosPlan";
 import { Chest } from "./chest";
 import { countUp } from "./countUp";
 import { INTRO_HITS, VAULT_CUES, vaultCues, type VaultCues } from "./cues";
 import { DevilKey, dist, EMBER, KEY_FRAME } from "./devilKey";
+import { finaleDim } from "./finaleRules";
 import { Rays } from "./rays";
 import { vaultTextures } from "./textures";
 import { VaultFx } from "./vaultFx";
 import { BODY_W, VAULT_FRAME, vaultLayout, type VaultLayout } from "./vaultLayout";
+import { vaultLook, type VaultLook } from "./vaultLooks";
 
-// Vault Case I takes the screen (rework spec §4, jackpot spec 2026-10-09): a dark room, the vault slammed into
-// the centre, the devil key floating beside it until the player drags it into the lock; then the legendary
-// chest — it jolts at lower centre on the intro's kicks (INTRO_HITS), snaps open on the fanfare's first downbeat,
-// five beams pour out of it past the screen edges (VaultBeams, in the beam/stream/label slots), coins and fireworks
-// fly, the total counts up, and it holds. The chaos layer (VaultChaos) shakes, sways and rains behind all of it to
-// the fanfare, and a kick explodes somewhere on screen every VAULT_CUES.fireworks time. Screen px, over the scene
-// and under the HD overlay. The World drives it from the sim each frame: each beat fires once when the sim's t
-// crosses it, and a reload or a lobby trip lands on t without replaying any.
+// The run's vault takes the screen (rework spec §4, jackpot spec 2026-10-09): a dark room, the vault slammed into the
+// centre, the devil key floating beside it until the player drags it into the lock; then the legendary chest — it jolts
+// at lower centre on the intro's kicks (INTRO_HITS), snaps open on the fanfare's first downbeat, five beams pour out of
+// it past the screen edges (VaultBeams, in the beam/stream/label slots), coins and fireworks fly, the total counts up,
+// and it holds. Each vault in its own look (vaultLooks: its chest, beams, light and chaos density), on the same
+// timeline. The chaos layer (VaultChaos) shakes, sways and rains behind all of it to the fanfare, and a kick explodes
+// somewhere on screen every VAULT_CUES.fireworks time. Screen px, over the scene and under the HD overlay. The World
+// drives it from the sim each frame: each beat fires once when the sim's t crosses it, and a reload or a lobby trip
+// lands on t without replaying any.
 
 export type VaultPhase = "key" | "opening" | "done" | null;
 
@@ -80,9 +84,10 @@ export class VaultScene {
   private slamPending = false;
   /** This frame's cues, computed once (show) and shared: the chest, the light, the beams' pulse (the World). */
   private frameCues: VaultCues = WAITING;
+  private look: VaultLook = vaultLook("vault1");
 
   constructor(
-    lib: SpriteLibrary,
+    private readonly lib: SpriteLibrary,
     private readonly hd: HdLayer,
     private readonly audio: AudioEngine,
     private readonly shake: Pick<Shake, "add">,
@@ -92,10 +97,10 @@ export class VaultScene {
     const { soft, dot, star } = vaultTextures();
     this.textures = [soft, dot, star];
 
-    const vaultFrames = lib.get("vault-case", VAULT_FRAME).frames;
+    const vaultFrames = this.chestFrames(this.look);
     const keyFrames = lib.get("devil-key", KEY_FRAME).frames;
     const coinFrames = lib.get("coin", { w: 12, h: 22, frames: 4 }).frames;
-    for (const f of [...vaultFrames, ...keyFrames, ...coinFrames]) f.source.scaleMode = "nearest";
+    for (const f of [...keyFrames, ...coinFrames]) f.source.scaleMode = "nearest";
 
     this.art = { soft, coins: coinFrames };
     this.rays = new Rays(soft);
@@ -153,6 +158,11 @@ export class VaultScene {
     return this.frameCues;
   }
 
+  /** The run's vault's fanfare (the World's music plan). */
+  get fanfare(): VaultLook["fanfare"] {
+    return this.look.fanfare;
+  }
+
   /** The room behind (the World's camera): the chaos's offset and zoom; identity while the vault is away. */
   get room(): { readonly x: number; readonly y: number; readonly zoom: number } {
     return this.chaos.room;
@@ -161,6 +171,16 @@ export class VaultScene {
   /** The vault was bought just now: it drops in from above instead of just being there. */
   slam(): void {
     this.slamPending = true;
+  }
+
+  /** The run's vault (the World, every frame and before a restore): its chest, its light, its chaos. Nothing
+   *  changes for the same vault; a new one takes over while the scene is away or waiting. */
+  setVault(def: VaultDef): void {
+    if (def.id === this.look.id) return;
+    this.look = vaultLook(def.id);
+    this.chest.setLook(this.chestFrames(this.look), this.look.light);
+    this.rays.setLight(this.look.light);
+    this.chaos.setLook(this.look.chaos);
   }
 
   /** The sim's vault this frame; "done" holds the last frame while the blackout falls. */
@@ -176,7 +196,7 @@ export class VaultScene {
     for (const b of dueBeats(prev, t)) this.beat(b);
     // the full-screen flashes, within the photosensitivity budget (chaosPlan): the impact and the kicks (the intro never flashes)
     const flash = flashCrossed(prev, t);
-    if (flash === VAULT_CUES.impact) this.hd.flash(0xfff2c0, IMPACT_FLASH);
+    if (flash === VAULT_CUES.impact) this.hd.flash(this.look.light.impactFlash, IMPACT_FLASH);
     else if (flash !== null) this.hd.flash(this.burstColor(), KICK_FLASH);
   }
 
@@ -221,7 +241,7 @@ export class VaultScene {
     const cues = this.frameCues;
 
     // the room behind darkens
-    const dimTarget = this.phase === "key" ? DIM_KEY : DIM_OPEN;
+    const dimTarget = this.phase === "key" ? DIM_KEY : finaleDim(this.look.finale, this.t, DIM_OPEN);
     this.dim.alpha += (dimTarget - this.dim.alpha) * Math.min(1, dt * 5);
 
     const near = this.phase === "key" && this.key.dragging && dist(this.key.pos, this.chest.lockPos()) <= BODY_W * this.chest.scale * 0.3;
@@ -353,7 +373,7 @@ export class VaultScene {
       this.tickText = this.totalText(this.t);
       this.chest.clearSlam();
       this.key.cancel();
-      if (was !== "key") this.dim.alpha = DIM_OPEN;
+      if (was !== "key") this.dim.alpha = finaleDim(this.look.finale, t, DIM_OPEN);
     }
   }
 
@@ -368,12 +388,11 @@ export class VaultScene {
     this.firework(introSpot(index, this.screen));
   }
 
-  /** Kick `index` of VAULT_CUES.fireworks: a two-colour burst at its spot (bursts.ts: corners and sides too) with
-   *  its explosion — the same spot for the same kick, live or after a reload. */
+  /** Kick `index` of VAULT_CUES.fireworks: its bursts (bursts.ts kickBursts: two on its own spot, more across the
+   *  screen on a wilder vault) and its one explosion — the same spots for the same kick, live or after a reload.
+   *  More bursts never mean another flash or another sound: those follow the kick schedule. */
   private kick(index: number): void {
-    const at = kickSpot(index, this.screen);
-    this.firework(at);
-    this.firework(at);
+    for (const at of kickBursts(index, this.look.chaos.burstsPerKick, this.screen)) this.firework(at);
     this.audio.play("firework", { gain: 0.7, rate: 0.9 + Math.random() * 0.25 });
   }
 
@@ -394,6 +413,13 @@ export class VaultScene {
   /** A landed drop's rarity colour, or a festive one. */
   private burstColor(): number {
     return burstColor(this.drops.slice(0, this.landed));
+  }
+
+  /** The look's chest sheet, crisp (a sheet not built yet is the magenta placeholder, never a crash). */
+  private chestFrames(look: VaultLook): readonly Texture[] {
+    const frames = this.lib.get(look.chest, VAULT_FRAME).frames;
+    for (const f of frames) f.source.scaleMode = "nearest";
+    return frames;
   }
 
   private local(p: Pt): Pt {

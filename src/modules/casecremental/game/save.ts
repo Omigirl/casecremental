@@ -1,18 +1,29 @@
+import { accountKey, adoptLegacy } from "../meta/account";
+import { freshAutoSpin } from "../sim/autoSpin";
 import { freshSeller } from "../sim/autoSeller";
 import { freshBot } from "../sim/botOpener";
+import { vaultFor } from "../sim/content/vaults";
+import { freshEvolutions } from "../sim/evolved";
+import { freshLocker } from "../sim/locker";
 import { freshMeta, type MetaState } from "../sim/meta";
 import { DEFAULT_SETUP, type RunSnapshot } from "../sim/run";
-import { MULTI_OPEN_MAX } from "../sim/tuning";
+import { BENCH_OPEN_MAX, LAST_RUN } from "../sim/tuning";
+import { freshUpgrader } from "../sim/upgrader";
 import { UPGRADE_IDS, type UpgradeId } from "../sim/upgrades";
 
 // The local save (M2b spec §9): the meta and the run in progress under one localStorage key, versioned.
 // Version 2 (rework): the bot opens, the auto-seller sells; a version-1 save starts fresh.
 // Version 3: the bench holds several cases (multi-open); a version-2 save is migrated.
+// Version 4 (campaign): the bot holds several cards (its multi-open) and the setup knows its run; a version-3 save is migrated.
+// Version 5 (finish F2): the auto-buyer grid is gone and auto-spin arrives; a version-4 save is migrated.
+// F6 added the Upgrader, evolutions, the best drop and the campaign stats as fields with defaults; the version stays 5.
 // A save that is missing, broken or from another version never stops the game — it is dropped with a
 // warning and a fresh run starts; storage errors are swallowed. M4 moves the same data to the server.
+// Per account (F7 review): the browser keeps one save per signed-in player, `${SAVE_KEY}.${userID}`; the unkeyed save
+// of an older build goes to the first account that loads (meta/account.ts).
 
 export const SAVE_KEY = "casecremental.save";
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 5;
 
 export interface SaveData {
   v: typeof SAVE_VERSION;
@@ -44,7 +55,7 @@ function isBench(b: unknown): boolean {
   if (b.phase === "revealed") {
     return Array.isArray(b.cards) && b.cards.every((c) => c === null || isObj(c)) && b.cards.some((c) => isObj(c));
   }
-  return Number.isInteger(b.count) && (b.count as number) >= 1 && (b.count as number) <= MULTI_OPEN_MAX;
+  return Number.isInteger(b.count) && (b.count as number) >= 1 && (b.count as number) <= BENCH_OPEN_MAX;
 }
 
 /** A version-2 save held one card; it becomes a bench of one (and no multi-open). */
@@ -65,13 +76,47 @@ function migrateV2(d: unknown): unknown {
   return { ...d, v: 3, run: { ...d.run, state: { ...s, bench, heldSlot: 0 } } };
 }
 
+/** A version-3 save's bot held one card and spun one drop; it becomes a list of both, in Run 1. */
+function migrateV3(d: unknown): unknown {
+  if (!isObj(d) || d.v !== 3 || !isObj(d.run) || !isObj(d.run.state)) return d;
+  const s = d.run.state;
+  let bot = s.bot;
+  if (isObj(bot)) {
+    const { card, spin, ...rest } = bot;
+    let next = spin;
+    if (isObj(spin)) {
+      const { drop, ...spinRest } = spin;
+      next = { ...spinRest, drops: [drop] };
+    }
+    bot = { ...rest, spin: next ?? null, cards: card ? [card] : [], multiLevel: 0 };
+  }
+  const setup = isObj(d.run.setup) ? { ...d.run.setup, run: 1 } : d.run.setup;
+  return { ...d, v: 4, run: { ...d.run, setup, state: { ...s, bot } } };
+}
+
+/** A version-4 save had the auto-buyer grid (gone from every run; its spent cash is not refunded) and no auto-spin. */
+function migrateV4(d: unknown): unknown {
+  if (!isObj(d) || d.v !== 4 || !isObj(d.run) || !isObj(d.run.state)) return d;
+  const { grid, ...state } = d.run.state;
+  void grid;
+  return { ...d, v: 5, run: { ...d.run, state: { ...state, autoSpin: freshAutoSpin() } } };
+}
+
 const ZERO_UPGRADES = Object.fromEntries(UPGRADE_IDS.map((id) => [id, 0])) as Record<UpgradeId, number>;
 
 /** Fills in what an older or partial save leaves out (a perk or setup field added later). */
 function normalize(d: SaveData): SaveData {
   const fresh = freshMeta();
-  const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks } };
+  const meta: MetaState = { ...fresh, ...d.meta, perks: { ...fresh.perks, ...d.meta.perks }, stats: { ...fresh.stats, ...d.meta.stats } };
   const setup = { ...DEFAULT_SETUP, ...d.run.setup };
+  // A save that was replaying Run 3 (loops > 3) before Run 4 existed has never opened The Last Case: roll it back so
+  // it plays a first Run 4 and not a priced replay. On the prestige screen (over) loops already counts the run just
+  // ended, so the cap is LAST_RUN - 1; mid-run it counts the runs before this one, so the cap is this run's own number
+  // less one (a legacy replay holds setup.run 3 -> 2; a real first Run 4 holds setup.run 4 -> 3, untouched).
+  if (!meta.trophies.includes(vaultFor(LAST_RUN).trophy)) {
+    const cap = d.run.state.over ? LAST_RUN - 1 : Math.max(0, Math.min(LAST_RUN, setup.run) - 1);
+    meta.loops = Math.min(meta.loops, cap);
+  }
   if (!Array.isArray(setup.charms)) setup.charms = [];
   // nobody is holding a card after a reload
   return {
@@ -85,9 +130,15 @@ function normalize(d: SaveData): SaveData {
         upgrades: { ...ZERO_UPGRADES, ...d.run.state.upgrades },
         bot: { ...freshBot(false), ...d.run.state.bot },
         seller: { ...freshSeller(), ...d.run.state.seller },
+        locker: { ...freshLocker(), ...d.run.state.locker },
+        autoSpin: { ...freshAutoSpin(), ...d.run.state.autoSpin },
+        upgrader: { ...freshUpgrader(), ...d.run.state.upgrader },
+        evolutions: { ...freshEvolutions(), ...d.run.state.evolutions },
+        seen: d.run.state.seen ?? {},
         held: null,
         heldSlot: 0,
         vault: d.run.state.vault ?? null,
+        best: d.run.state.best ?? null,
       },
     },
   };
@@ -106,6 +157,7 @@ function isSave(d: unknown): d is SaveData {
     isBench(s.bench) &&
     Array.isArray(s.tray) &&
     isObj(s.bot) &&
+    Array.isArray(s.bot.cards) &&
     isObj(s.seller) &&
     Array.isArray(s.unlocked)
   );
@@ -116,7 +168,7 @@ export const encodeSave = (data: SaveData): string => JSON.stringify(data);
 export function decodeSave(raw: string | null): SaveData | null {
   if (raw === null) return null;
   try {
-    const d: unknown = migrateV2(JSON.parse(raw));
+    const d: unknown = migrateV4(migrateV3(migrateV2(JSON.parse(raw))));
     if (isSave(d)) return normalize(d);
   } catch {
     // fall through to the warning
@@ -126,12 +178,15 @@ export function decodeSave(raw: string | null): SaveData | null {
 }
 
 export class SaveSlot {
-  constructor(private readonly store: SaveStore | null) {}
+  constructor(
+    private readonly store: SaveStore | null,
+    private readonly key: string = SAVE_KEY,
+  ) {}
 
   load(): SaveData | null {
     let raw: string | null = null;
     try {
-      raw = this.store?.getItem(SAVE_KEY) ?? null;
+      raw = this.store?.getItem(this.key) ?? null;
     } catch {
       return null;
     }
@@ -140,7 +195,7 @@ export class SaveSlot {
 
   save(data: SaveData): void {
     try {
-      this.store?.setItem(SAVE_KEY, encodeSave(data));
+      this.store?.setItem(this.key, encodeSave(data));
     } catch {
       // storage full or blocked: keep playing
     }
@@ -148,17 +203,20 @@ export class SaveSlot {
 
   clear(): void {
     try {
-      this.store?.removeItem(SAVE_KEY);
+      this.store?.removeItem(this.key);
     } catch {
       // nothing to clear
     }
   }
 }
 
-/** The browser's localStorage, or no storage at all when it is blocked. */
-export function browserSlot(): SaveSlot {
+/** The signed-in player's save in the browser's localStorage (adopting an older unkeyed save), or no storage at all
+ *  when it is blocked. */
+export function browserSlot(userId: string | null): SaveSlot {
   try {
-    return new SaveSlot(typeof localStorage === "undefined" ? null : localStorage);
+    const store = typeof localStorage === "undefined" ? null : localStorage;
+    adoptLegacy(store, SAVE_KEY, userId);
+    return new SaveSlot(store, accountKey(SAVE_KEY, userId));
   } catch {
     return new SaveSlot(null);
   }

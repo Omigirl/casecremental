@@ -29,6 +29,9 @@ describe("canvas labels", () => {
     const reel = { drop: DROP, tease: null, duration: 6 };
     expect(hintKey({ phase: "spinning", caseId: "bootcamp", reels: [reel, reel], elapsed: 1, fullDuration: 6 })).toBeNull();
     expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP] })).toBe("hint.sell");
+    expect(hintKey({ phase: "empty" }, false, true)).toBeNull(); // auto-spin buys and keys: no hint flashing every open
+    expect(hintKey({ phase: "locked", caseId: "bootcamp", free: false, count: 1 }, false, true)).toBeNull();
+    expect(hintKey({ phase: "revealed", caseId: "bootcamp", cards: [DROP] }, false, true)).toBe("hint.sell");
   });
 
   it("hints at selling a single card, and stays quiet over a pair, even half-sold (it would cover their tops)", () => {
@@ -63,10 +66,13 @@ describe("trayFull", () => {
 });
 
 describe("binCalling", () => {
-  it("calls for a card waiting on your bench or at the bot's station", () => {
+  it("calls for a card waiting on your bench, at the bot's station or on the locker", () => {
     const empty = { phase: "empty" } as const;
-    expect(binCalling({ bench: empty, bot: { card: null } })).toBe(false);
-    expect(binCalling({ bench: { phase: "revealed", caseId: "bootcamp", cards: [DROP] }, bot: { card: null } })).toBe(true);
-    expect(binCalling({ bench: empty, bot: { card: DROP } })).toBe(true);
+    expect(binCalling({ bench: empty, bot: { cards: [] }, locker: { cards: [] } })).toBe(false);
+    expect(binCalling({ bench: { phase: "revealed", caseId: "bootcamp", cards: [DROP] }, bot: { cards: [] }, locker: { cards: [] } })).toBe(
+      true,
+    );
+    expect(binCalling({ bench: empty, bot: { cards: [null, DROP] }, locker: { cards: [] } })).toBe(true);
+    expect(binCalling({ bench: empty, bot: { cards: [] }, locker: { cards: [null, DROP] } })).toBe(true);
   });
 });

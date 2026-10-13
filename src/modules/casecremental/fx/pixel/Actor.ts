@@ -44,6 +44,8 @@ export class Actor extends Container {
   private readonly eyes = new Graphics();
   private readonly cut = new Map<string, Texture>();
   private anchorPt: Pt = { x: 0, y: 0 };
+  /** The pose last shown (its frame clamped to the sheet): where its eyes are. */
+  private shown: Pose | null = null;
 
   constructor(
     readonly set: SpriteSet,
@@ -73,6 +75,7 @@ export class Actor extends Container {
   show(pose: Pose, eyeOverride: EyeState | null = null): void {
     const m = this.meta;
     const frame = Math.min(pose.frame, m.frames - 1);
+    this.shown = { ...pose, frame };
     this.position.set(this.anchorPt.x - Math.floor(m.frameW / 2) + pose.dx, this.anchorPt.y - m.ground);
     actorParts(m.frameH, pose, this.bands).forEach((p, i) => {
       const s = this.sprites[i]!;
@@ -86,6 +89,11 @@ export class Actor extends Container {
       this.eyes.rect(v.x, v.y, v.w, v.h).fill({ color: VISOR_COLOR });
       for (const r of eyeRects(state, e.x, e.y)) this.eyes.rect(r.x, r.y, r.w, r.h).fill({ color: EYE_COLOR });
     }
+  }
+
+  /** Eye centres in the parent's px for the pose last shown (none for art without eyes). */
+  eyesNow(): Pt[] {
+    return this.shown ? eyePositions(this.meta, this.shown).map((e) => ({ x: this.x + e.x, y: this.y + e.y })) : [];
   }
 
   override destroy(): void {

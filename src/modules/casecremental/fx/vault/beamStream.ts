@@ -32,6 +32,25 @@ export function itemJitter(seed: number, j: number): number {
 /** One item in three is a gold coin; the reward never is. */
 export const isCoin = (j: number, target: number): boolean => j !== target && ((j % 3) + 3) % 3 === 2;
 
+/** The hashes' salts for a twin: whether it is there, and its own lane across the beam. */
+const TWIN_SALT = 0x7a11c0de;
+const TWIN_LANE_SALT = 0x3c6ef372;
+
+/** Whether item j has a twin half a step further out on a wilder vault's beam (`density` items per slot, 1-2,
+ *  vaultLooks stream): never at 1 (Vault I), always at 2, else that share of the items by a hash of the opening's
+ *  seed, so a reload keeps them. Twins thicken the stream without tightening its spacing (no wagon-wheel). */
+export function hasTwin(seed: number, j: number, density: number): boolean {
+  if (density <= 1) return false;
+  if (density >= 2) return true;
+  return (itemJitter(seed ^ TWIN_SALT, j) + 1) / 2 < density - 1;
+}
+
+/** A twin's sideways offset, in [-1, 1] like itemJitter's, on a lane of its own. */
+export const twinJitter = (seed: number, j: number): number => itemJitter(seed ^ TWIN_LANE_SALT, j);
+
+/** A twin shows the filler this many skins on from its item, so neighbours differ. */
+export const TWIN_SKIN_SHIFT = 5;
+
 /** A whole-number scale (1..k) that fits a w×h texture in a `box`-px icon box: crisp pixels, never bigger than
  *  the world's own scale. */
 export const iconScale = (w: number, h: number, box: number, k: number): number =>
@@ -49,6 +68,25 @@ export const STREAM_BOXES_PER_SECOND = 9;
 /** Items per second past the spot while a beam spins; each beam's exact speed follows from its start, landing and
  *  target (columnMotion). */
 export const STREAM_ITEMS_PER_SECOND = STREAM_BOXES_PER_SECOND / STREAM_SPACING;
+
+/** A streamed item (a Pixi Sprite): its texture's size, its scale, where it is drawn. */
+interface Item {
+  readonly texture: { readonly width: number; readonly height: number };
+  readonly scale: Pt;
+  readonly position: { set(x: number, y: number): void };
+}
+
+/** Centres `item` `d` px out along beam b and `off` px across it, on whole screen px. Nothing is allocated, so it
+ *  runs every frame. */
+export function setOnBeam(item: Item, b: Pick<Beam, "origin" | "angle">, d: number, off: number): void {
+  const dx = Math.sin(b.angle);
+  const dy = -Math.cos(b.angle);
+  // perpendicular to the beam is (-dy, dx)
+  item.position.set(
+    Math.round(b.origin.x + dx * d - dy * off - (item.texture.width * item.scale.x) / 2),
+    Math.round(b.origin.y + dy * d + dx * off - (item.texture.height * item.scale.y) / 2),
+  );
+}
 
 /** A Pixi layer's transform (a Container's): maps p to position + rotation · scale · (p − pivot). */
 interface Layer {

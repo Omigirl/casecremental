@@ -3,6 +3,7 @@ import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import type { Pt } from "../pixel/layout";
 import { VAULT_CUES, type VaultCues } from "./cues";
 import { BODY_UP, BODY_W, VAULT_FRAME, type VaultLayout } from "./vaultLayout";
+import { VAULT_LOOKS, type VaultLight } from "./vaultLooks";
 
 // The vault itself (spec 2026-10-09 §1): slammed into the centre while the key waits; once it turns, it glides
 // down to lower centre and settles, jolts on each of the intro's hits (harder with each) while a gold seam of light
@@ -35,7 +36,6 @@ const BEAT_SQUASH = 0.06;
 const BEAT_HOP = 1.5;
 const BEAT_THROB = BEAT_LIGHT_AMPLITUDES.mouthLight;
 const RED = 0xff2a1a;
-const GOLD = 0xffd34d;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeOut = (x: number) => 1 - (1 - clamp01(x)) ** 3;
@@ -80,15 +80,25 @@ export class Chest {
   private sx = 1;
   private sy = 1;
 
-  constructor(
-    private readonly frames: readonly Texture[],
-    soft: Texture,
-  ) {
+  private frames: readonly Texture[];
+  private look: VaultLight;
+
+  constructor(frames: readonly Texture[], soft: Texture, light: VaultLight = VAULT_LOOKS.vault1.light) {
+    this.frames = frames;
+    this.look = light;
     this.sprite = new Sprite({ texture: frames[0], anchor: { x: MID_X / VAULT_FRAME.w, y: 1 } });
     this.glow = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0 });
-    this.mouthLight = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0, tint: GOLD });
+    this.mouthLight = new Sprite({ texture: soft, anchor: 0.5, blendMode: "add", alpha: 0, tint: light.open });
     this.seam.blendMode = "add";
     this.front.addChild(this.sprite, this.seam, this.mouthLight);
+  }
+
+  /** The run's vault: its sheet (same frame, same lock, mouth and seam) and its light. */
+  setLook(frames: readonly Texture[], light: VaultLight): void {
+    this.frames = frames;
+    this.look = light;
+    this.sprite.texture = frames[0]!;
+    this.mouthLight.tint = light.open;
   }
 
   layout(L: VaultLayout): void {
@@ -210,7 +220,7 @@ export class Chest {
     return landed;
   }
 
-  /** Red around the waiting vault; orange and the seam while it trembles; gold once it is open. */
+  /** Red around the waiting vault; orange and the seam while it trembles; its vault's light once it is open. */
   private light(clock: number, t: number | null, v: ChestView): void {
     const pulse = 0.5 + 0.5 * Math.sin(clock * 3.1);
     const c = this.centre();
@@ -221,10 +231,10 @@ export class Chest {
       this.glow.tint = RED;
       this.glow.alpha = (v.near ? 0.75 : 0.35) + 0.25 * pulse;
     } else if (!open) {
-      this.glow.tint = 0xffb040;
+      this.glow.tint = this.look.tremble;
       this.glow.alpha = 0.3 + 0.5 * v.cues.seam + 0.1 * pulse;
     } else {
-      this.glow.tint = GOLD;
+      this.glow.tint = this.look.open;
       this.glow.alpha = Math.min(1, 0.7 + 0.15 * pulse + BEAT_LIGHT_AMPLITUDES.chestGlow * v.beat);
     }
     // the seam: a gold line over the lid's seam, wider hit by hit, flaring on each and steady between them
@@ -234,7 +244,7 @@ export class Chest {
       const sw = BODY_W * this.sx * (0.5 + 0.5 * seam);
       const th = Math.max(2, Math.round(this.sx * (0.5 + 2 * seam)));
       const sy = this.pos.y + (SEAM_Y - VAULT_FRAME.h) * this.sy;
-      this.seam.rect(Math.round(this.pos.x - sw / 2), Math.round(sy - th / 2), Math.round(sw), th).fill({ color: GOLD });
+      this.seam.rect(Math.round(this.pos.x - sw / 2), Math.round(sy - th / 2), Math.round(sw), th).fill({ color: this.look.seam });
       this.seam.alpha = 0.7 + 0.3 * v.cues.hit;
     }
     // the gentle gold light inside while it is open

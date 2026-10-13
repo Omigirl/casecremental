@@ -1,4 +1,5 @@
 import type { CharmId } from "../sim/charms";
+import type { EvolutionId } from "../sim/evolved";
 import type { PerkId } from "../sim/meta";
 import type { RarityId, WeaponId, WearId } from "../sim/types";
 import type { UpgradeId } from "../sim/upgrades";
@@ -12,7 +13,16 @@ const CASES: Record<string, Pair> = {
   bootcamp: { en: "Boot Camp", ru: "Учебка" },
   wildwood: { en: "Wildwood", ru: "Дебри" },
   bedrock: { en: "Bedrock", ru: "Монолит" },
+  mainframe: { en: "Mainframe", ru: "Мейнфрейм" },
+  neon: { en: "Neon Nights", ru: "Ночной неон" },
+  deepspace: { en: "Deep Space", ru: "Космос" },
+  inferno: { en: "Inferno", ru: "Инферно" },
+  glitch: { en: "Glitch", ru: "Глитч" },
+  feverdream: { en: "Fever Dream", ru: "Бредовый сон" },
   vault1: { en: "Vault Case I", ru: "Сейф-кейс I" },
+  vault2: { en: "Vault Case II", ru: "Сейф-кейс II" },
+  vault3: { en: "Vault Case III", ru: "Сейф-кейс III" },
+  lastcase: { en: "The Last Case", ru: "Последний кейс" },
 };
 
 const WEAPONS: Record<WeaponId, Pair> = {
@@ -41,6 +51,61 @@ const SKINS: Record<string, Pair> = {
   bc_warlord: { en: "Warlord", ru: "Военачальник" },
   vault1_legend: { en: "Event Horizon", ru: "Горизонт событий" },
   bc_knife: { en: "Field Marshal", ru: "Фельдмаршал" },
+  mf_busline: { en: "Bus Line", ru: "Шина данных" },
+  mf_heatsink: { en: "Heatsink", ru: "Радиатор" },
+  mf_weave: { en: "Carbon Weave", ru: "Карбоновое плетение" },
+  mf_board: { en: "Motherboard", ru: "Материнская плата" },
+  mf_firewall: { en: "Firewall", ru: "Файрвол" },
+  mf_overclock: { en: "Overclocked", ru: "Разгон" },
+  mf_hexcore: { en: "Hex Core", ru: "Гекс-ядро" },
+  mf_blackcarbon: { en: "Black Carbon", ru: "Чёрный карбон" },
+  mf_panic: { en: "Kernel Panic", ru: "Паника ядра" },
+  mf_lattice: { en: "Quantum Lattice", ru: "Квантовая решётка" },
+  mf_root: { en: "Root Access", ru: "Root-доступ" },
+  mf_zeroday: { en: "Zero Day", ru: "Нулевой день" },
+  mf_knife: { en: "Blue Screen", ru: "Синий экран" },
+  nn_drive: { en: "Night Drive", ru: "Ночная трасса" },
+  nn_glow: { en: "Afterglow", ru: "Послесвечение" },
+  nn_arcade: { en: "Arcade", ru: "Аркада" },
+  nn_strip: { en: "Strip Light", ru: "Неоновая лента" },
+  nn_retro: { en: "Retrowave", ru: "Ретровейв" },
+  nn_sunset: { en: "Sunset Grid", ru: "Закатная сетка" },
+  nn_lasertag: { en: "Laser Tag", ru: "Лазертаг" },
+  nn_vapor: { en: "Vaporhaze", ru: "Вейпор-дымка" },
+  nn_hotpink: { en: "Hot Pink", ru: "Ярко-розовый" },
+  nn_outrun: { en: "Outrun", ru: "Аутран" },
+  nn_demon: { en: "Neon Demon", ru: "Неоновый демон" },
+  nn_racer: { en: "Midnight Racer", ru: "Полуночный гонщик" },
+  nn_knife: { en: "Prism", ru: "Призма" },
+  ds_stardust: { en: "Stardust", ru: "Звёздная пыль" },
+  ds_darkmatter: { en: "Dark Matter", ru: "Тёмная материя" },
+  ds_orbit: { en: "Orbit", ru: "Орбита" },
+  ds_moonrock: { en: "Moonrock", ru: "Лунный камень" },
+  ds_comet: { en: "Comet Tail", ru: "Хвост кометы" },
+  ds_aurora: { en: "Aurora", ru: "Полярное сияние" },
+  ds_pulsar: { en: "Pulsar", ru: "Пульсар" },
+  ds_redgiant: { en: "Red Giant", ru: "Красный гигант" },
+  ds_nebula: { en: "Nebula", ru: "Туманность" },
+  ds_oilslick: { en: "Oil Slick", ru: "Нефтяная плёнка" },
+  ds_cosmicray: { en: "Cosmic Ray", ru: "Космический луч" },
+  ds_blackhole: { en: "Black Hole Sun", ru: "Солнце чёрной дыры" },
+  ds_knife: { en: "Starforged", ru: "Звёздная ковка" },
+  in_kindling: { en: "Kindling", ru: "Растопка" },
+  in_cinder: { en: "Cinder", ru: "Пепел" },
+  in_coals: { en: "Hot Coals", ru: "Горячие угли" },
+  in_firebrand: { en: "Firebrand", ru: "Головня" },
+  in_furnace: { en: "Furnace", ru: "Горн" },
+  in_wildfire: { en: "Wildfire", ru: "Лесной пожар" },
+  in_slag: { en: "Slag", ru: "Шлак" },
+  in_brimstone: { en: "Brimstone", ru: "Сера" },
+  in_hellfire: { en: "Hellfire", ru: "Адское пламя" },
+  in_meltdown: { en: "Meltdown", ru: "Расплав" },
+  in_phoenix: { en: "Phoenix", ru: "Феникс" },
+  in_dragon: { en: "Dragon's Breath", ru: "Дыхание дракона" },
+  in_knife: { en: "Forgeheart", ru: "Сердце горна" },
+  vault2_legend: { en: "Overdrive", ru: "Овердрайв" },
+  vault3_legend: { en: "Supernova", ru: "Сверхновая" },
+  lastcase_legend: { en: "Singularity", ru: "Сингулярность" },
   ww_fern: { en: "Fernlight", ru: "Папоротник" },
   ww_bark: { en: "Old Bark", ru: "Старая кора" },
   ww_moss: { en: "Mossback", ru: "Мшистый" },
@@ -67,6 +132,32 @@ const SKINS: Record<string, Pair> = {
   br_magma: { en: "Magma Core", ru: "Ядро магмы" },
   br_diamond: { en: "Diamond Hands", ru: "Алмазные руки" },
   br_knife: { en: "Molten Crown", ru: "Расплавленная корона" },
+  gl_deadpixel: { en: "Dead Pixel", ru: "Битый пиксель" },
+  gl_compression: { en: "Compression", ru: "Сжатие" },
+  gl_static: { en: "Static", ru: "Помехи" },
+  gl_buffer: { en: "Buffer Underrun", ru: "Пустой буфер" },
+  gl_404: { en: "Error 404", ru: "Ошибка 404" },
+  gl_vhs: { en: "VHS Rewind", ru: "Перемотка VHS" },
+  gl_tear: { en: "Screen Tear", ru: "Разрыв кадра" },
+  gl_corrupt: { en: "Corrupted", ru: "Повреждённый" },
+  gl_chroma: { en: "Chromatic", ru: "Хроматика" },
+  gl_mosh: { en: "Datamosh", ru: "Датамош" },
+  gl_fatal: { en: "Fatal Exception", ru: "Фатальная ошибка" },
+  gl_null: { en: "Null Pointer", ru: "Нулевой указатель" },
+  gl_knife: { en: "Segfault", ru: "Сегфолт" },
+  fd_lullaby: { en: "Lullaby", ru: "Колыбельная" },
+  fd_wax: { en: "Candle Wax", ru: "Свечной воск" },
+  fd_glass: { en: "Stained Glass", ru: "Витраж" },
+  fd_sherbet: { en: "Sherbet", ru: "Щербет" },
+  fd_softclock: { en: "Soft Clock", ru: "Мягкие часы" },
+  fd_mirrors: { en: "Hall of Mirrors", ru: "Зеркальный зал" },
+  fd_lavalamp: { en: "Lava Lamp", ru: "Лава-лампа" },
+  fd_halo: { en: "Halo", ru: "Нимб" },
+  fd_kaleido: { en: "Kaleidoscope", ru: "Калейдоскоп" },
+  fd_rainbow: { en: "Rainbow Road", ru: "Радужная дорога" },
+  fd_lucid: { en: "Lucid Dream", ru: "Осознанный сон" },
+  fd_feverpitch: { en: "Fever Pitch", ru: "Пик лихорадки" },
+  fd_knife: { en: "Daydream", ru: "Грёза" },
 };
 
 const RARITIES: Record<RarityId, Pair> = {
@@ -89,7 +180,7 @@ const UPGRADES: Record<UpgradeId, { name: Pair; desc: Pair }> = {
   luck: { name: { en: "Luck", ru: "Удача" }, desc: { en: "Better rarities", ru: "Чаще редкие" } },
   appraiser: { name: { en: "Appraiser", ru: "Оценщик" }, desc: { en: "+25% sell value", ru: "+25% к продаже" } },
   quickHands: { name: { en: "Quick Hands", ru: "Ловкие руки" }, desc: { en: "Faster reel", ru: "Быстрее рулетка" } },
-  multiOpen: { name: { en: "Multi-open", ru: "Мультикейс" }, desc: { en: "BUY opens 2 cases", ru: "2 кейса за раз" } },
+  multiOpen: { name: { en: "Multi-open", ru: "Мультикейс" }, desc: { en: "BUY opens many cases", ru: "Несколько кейсов" } },
 };
 
 const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
@@ -125,6 +216,30 @@ const CHARMS: Record<CharmId, { name: Pair; desc: Pair }> = {
     name: { en: "Mil-Spec Maniac", ru: "Армейский маньяк" },
     desc: { en: "Mil-Spec x4, the rest x0.5", ru: "Армейское x4, прочее x0,5" },
   },
+  chainReaction: {
+    name: { en: "Chain Reaction", ru: "Цепная реакция" },
+    desc: { en: "25% a free case on Classified+", ru: "25% кейс даром за засекреч.+" },
+  },
+  contractKiller: {
+    name: { en: "Contract Killer", ru: "Киллер контрактов" },
+    desc: { en: "Trade-ups: 20% two results", ru: "Контракты: 20% два итога" },
+  },
+  hoarder: {
+    name: { en: "Hoarder", ru: "Барахольщик" },
+    desc: { en: "+1% value per locker skin", ru: "+1% цены за скин в шкафу" },
+  },
+  fever: {
+    name: { en: "Fever", ru: "Лихорадка" },
+    desc: { en: "Stage +1, all payouts x1.5", ru: "Стадия +1, выплаты x1,5" },
+  },
+  collectorsEye: {
+    name: { en: "Collector's Eye", ru: "Глаз коллекционера" },
+    desc: { en: "Full set of a case: x2", ru: "Полный набор кейса: x2" },
+  },
+  loadedDice: {
+    name: { en: "Loaded Dice", ru: "Шулерские кости" },
+    desc: { en: "Upgrader wins 10% more often", ru: "Апгрейдер выигрывает на 10% чаще" },
+  },
 };
 
 const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
@@ -133,9 +248,17 @@ const PERKS: Record<PerkId, { name: Pair; desc: Pair }> = {
     desc: { en: "+$20 at the start of a run", ru: "+$20 в начале забега" },
   },
   luck: { name: { en: "Four-Leaf", ru: "Клевер" }, desc: { en: "+1 Luck level every run", ru: "+1 уровень удачи в забеге" } },
-  charmSlot: { name: { en: "Charm Slot", ru: "Слот талисмана" }, desc: { en: "Carry 2 charms", ru: "Носить 2 талисмана" } },
+  charmSlot: { name: { en: "Charm Slot", ru: "Слот талисмана" }, desc: { en: "+1 charm slot", ru: "+1 слот талисмана" } },
   botAwake: { name: { en: "Early Bird", ru: "Ранняя пташка" }, desc: { en: "The bot starts awake", ru: "Бот просыпается сразу" } },
   biggerTray: { name: { en: "Bigger Tray", ru: "Большой лоток" }, desc: { en: "+4 claim tray slots", ru: "+4 места в лотке" } },
+};
+
+const EVOLUTIONS: Record<EvolutionId, { name: Pair; desc: Pair }> = {
+  slotMachine: { name: { en: "Slot Machine", ru: "Игровой автомат" }, desc: { en: "BUY opens x10", ru: "BUY открывает x10" } },
+  cartel: { name: { en: "Cartel", ru: "Картель" }, desc: { en: "Bot keeps the best of 2", ru: "Бот берёт лучший из 2" } },
+  moneyPrinter: { name: { en: "Money Printer", ru: "Денежный станок" }, desc: { en: "Auto-seller sales x3", ru: "Автопродажи x3" } },
+  assemblyLine: { name: { en: "Assembly Line", ru: "Конвейер" }, desc: { en: "No delay, 25th is free", ru: "Без паузы, 25-й даром" } },
+  hotHand: { name: { en: "Hot Hand", ru: "Горячая рука" }, desc: { en: "Combo 25+: +5 Luck", ru: "Комбо 25+: +5 удачи" } },
 };
 
 const STAGES: Pair[] = [
@@ -158,6 +281,14 @@ export const charmName = (id: CharmId): string => pick(CHARMS[id]?.name);
 export const charmDesc = (id: CharmId): string => pick(CHARMS[id]?.desc);
 export const perkName = (id: PerkId): string => pick(PERKS[id]?.name);
 export const perkDesc = (id: PerkId): string => pick(PERKS[id]?.desc);
+export const evolutionName = (id: EvolutionId): string => pick(EVOLUTIONS[id]?.name);
+export const evolutionDesc = (id: EvolutionId): string => pick(EVOLUTIONS[id]?.desc);
+/** The names a new-run card's text fills in (`card.run4`: {glitch}, {fever}, {last}), so it always matches the shelf. */
+export const cardFill = (): Record<string, string> => ({
+  glitch: caseName("glitch"),
+  fever: caseName("feverdream"),
+  last: caseName("lastcase"),
+});
 
 /** Every content name with its budget key, for the budget test. */
 export function CONTENT_KEYS(): Array<[string, string, string]> {
@@ -181,6 +312,10 @@ export function CONTENT_KEYS(): Array<[string, string, string]> {
   for (const [k, p] of Object.entries(PERKS)) {
     rows.push(["perk.name." + k, p.name.en, p.name.ru]);
     rows.push(["perk.desc." + k, p.desc.en, p.desc.ru]);
+  }
+  for (const [k, e] of Object.entries(EVOLUTIONS)) {
+    rows.push(["evo.name." + k, e.name.en, e.name.ru]);
+    rows.push(["evo.desc." + k, e.desc.en, e.desc.ru]);
   }
   STAGES.forEach((p, i) => rows.push(["stage." + (i + 1), p.en, p.ru]));
   return rows;

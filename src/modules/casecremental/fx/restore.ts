@@ -13,8 +13,9 @@ export interface RestorePlan {
   /** The cards waiting to be sold, left to right; null where one is already gone. */
   revealed: (Drop | null)[] | null;
   stage: number;
-  /** The bot's reel: its spin under way, or — while its card waits — landed on that card's drop. */
-  botReel: { caseId: string; skinId: string; landed: boolean } | null;
+  /** The bot's reels: its spin under way (one reel per case it opened), or — while its cards wait — stopped on each
+   *  card's skin (a slot already sold shows its partner's, so the window keeps its shape). */
+  botReels: { caseId: string; skinIds: string[]; landed: boolean } | null;
 }
 
 export function restorePlan(s: RunState): RestorePlan {
@@ -24,12 +25,14 @@ export function restorePlan(s: RunState): RestorePlan {
     spinning: b.phase === "spinning" ? b.reels : null,
     revealed: b.phase === "revealed" ? b.cards : null,
     stage: s.stage,
-    botReel: botReel(s),
+    botReels: botReels(s),
   };
 }
 
-function botReel(s: RunState): RestorePlan["botReel"] {
-  const { spin, card } = s.bot;
-  if (spin) return { caseId: spin.caseId, skinId: spin.drop.skinId, landed: false };
-  return card ? { caseId: card.caseId, skinId: card.skinId, landed: true } : null;
+function botReels(s: RunState): RestorePlan["botReels"] {
+  const { spin, cards } = s.bot;
+  if (spin) return { caseId: spin.caseId, skinIds: spin.drops.map((d) => d.skinId), landed: false };
+  const first = cards.find((d): d is Drop => d !== null);
+  if (!first) return null;
+  return { caseId: first.caseId, skinIds: cards.map((d) => (d ?? first).skinId), landed: true };
 }

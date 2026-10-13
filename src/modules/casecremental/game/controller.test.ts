@@ -1,5 +1,7 @@
+import { botWaiting } from "../sim/botOpener";
 import { describe, expect, it, vi } from "vitest";
 import { CASES } from "../sim/content/cases";
+import { runCaseIds } from "../sim/campaign";
 import { freshMeta } from "../sim/meta";
 import { Run, type SimEvent } from "../sim/run";
 import { VAULT_OPENING_SECONDS } from "../sim/tuning";
@@ -99,10 +101,29 @@ describe("GameController — the campaign", () => {
     expect(c.run.state.held).toBe("bench");
     expect(c.act({ type: "holdCard", spot: null }).ok).toBe(true);
     expect(c.act({ type: "wakeBot" }).ok).toBe(true);
-    for (let i = 0; i < 900 && !c.run.state.bot.card; i++) c.run.tick(1 / 30);
-    expect(c.run.state.bot.card).not.toBeNull();
+    for (let i = 0; i < 900 && !botWaiting(c.run.state.bot); i++) c.run.tick(1 / 30);
+    expect(botWaiting(c.run.state.bot)).toBe(true);
     expect(c.act({ type: "sellBot" }).ok).toBe(true);
-    expect(c.run.state.bot.card).toBeNull();
+    expect(botWaiting(c.run.state.bot)).toBe(false);
+  });
+
+  it("routes the locker's actions", () => {
+    const c = new GameController(1);
+    c.devStartRun(2);
+    c.devAddCash(1e9);
+    expect(c.act({ type: "buyLocker" }).ok).toBe(true);
+    expect(c.act({ type: "buyLockerSize" }).ok).toBe(true);
+    expect(c.act({ type: "setCollect", rarity: "milspec" }).ok).toBe(true);
+    expect(c.act({ type: "setCollect", rarity: "gold" }).ok).toBe(false);
+    for (let i = 0; i < 10; i++) c.run.state.tray.push(c.run.rollFor("bootcamp", "milspec"));
+    for (let i = 0; i < 10; i++) expect(c.act({ type: "storeCard", from: "tray", slot: 0 }).ok).toBe(true);
+    expect(c.act({ type: "tradeUp" }).ok).toBe(true);
+    for (let i = 0; i < 90; i++) c.run.tick(1 / 30);
+    expect(c.act({ type: "holdCard", spot: "locker", slot: 0 }).ok).toBe(true);
+    expect(c.run.state.held).toBe("locker");
+    expect(c.act({ type: "sellLocker" }).ok).toBe(true);
+    expect(c.run.state.held).toBeNull();
+    expect(c.act({ type: "buyAutoContract" })).toEqual({ ok: false, reason: "not in this run" });
   });
 
   it("pays the vault into the meta exactly once, then prestiges into a fresh boosted run", () => {
@@ -141,6 +162,96 @@ describe("GameController — the campaign", () => {
     expect(c.act({ type: "buyPerk", id: "botAwake" }).ok).toBe(true);
     expect(events).toContain("charmPicked");
     expect(events).toContain("perkBought");
+  });
+
+  it("emits perkBought with the perk and its new level", () => {
+    const c = new GameController(1);
+    openVault(c);
+    c.step(1);
+    c.meta.clout = 1e6;
+    const seen: SimEvent[] = [];
+    c.onEvent((e) => seen.push(e));
+    expect(c.act({ type: "buyPerk", id: "luck" }).ok).toBe(true);
+    expect(seen).toContainEqual({ type: "perkBought", id: "luck", level: 1 });
+  });
+
+  it("merges a server answer into the meta and refreshes the view", () => {
+    const c = new GameController(1);
+    let refreshed = 0;
+    c.subscribe(() => refreshed++);
+    c.applyServerMeta(
+      {
+        clout: 77,
+        trophies: ["vault1_legend"],
+        perks: { luck: 2 },
+        loops: 1,
+        stats: { playSeconds: 1, opened: 1, best: null, cloutEarned: 77 },
+        picked: [],
+      },
+      false,
+    );
+    expect(c.meta).toMatchObject({ clout: 77, loops: 1, trophies: ["vault1"] });
+    expect(c.meta.perks.luck).toBe(2);
+    expect(refreshed).toBeGreaterThan(0);
+  });
+
+  it("rebuilds an untouched run for the campaign the server knows (a new device), but keeps a run in progress", () => {
+    const doc = {
+      clout: 9,
+      trophies: ["vault1_legend"],
+      perks: { startCash: 2 },
+      loops: 1,
+      stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 9 },
+      picked: [],
+    };
+    const fresh = new GameController(1);
+    const events: string[] = [];
+    fresh.onEvent((e) => events.push(e.type));
+    fresh.applyServerMeta(doc, false);
+    expect(fresh.run.setup.run).toBe(2);
+    expect(fresh.run.state.cash).toBe(fresh.run.setup.startCash);
+    expect(events).toContain("runStarted");
+
+    const playing = new GameController(1);
+    playing.run.state.lifetimeEarnings = 5;
+    const old = playing.run;
+    playing.applyServerMeta(doc, false);
+    expect(playing.run).toBe(old);
+  });
+
+  it("keeps a run that has opened or spent anything, even with no earnings yet", () => {
+    const doc = {
+      clout: 9,
+      trophies: ["vault1_legend"],
+      perks: {},
+      loops: 1,
+      stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 9 },
+      picked: [],
+    };
+    const opened = new GameController(1);
+    opened.run.state.opened = 1;
+    const a = opened.run;
+    opened.applyServerMeta(doc, false);
+    expect(opened.run).toBe(a);
+    const spent = new GameController(1);
+    spent.run.state.cash -= 1;
+    const b = spent.run;
+    spent.applyServerMeta(doc, false);
+    expect(spent.run).toBe(b);
+  });
+
+  it("rebuilds a new device's run with the charms the server kept for it (valid ones, as many as the slots)", () => {
+    const doc = {
+      clout: 9,
+      trophies: ["vault1_legend"],
+      perks: { charmSlot: 0 },
+      loops: 1,
+      stats: { playSeconds: 0, opened: 0, best: null, cloutEarned: 9 },
+      picked: ["nope", "insider", "fever"],
+    };
+    const fresh = new GameController(1);
+    fresh.applyServerMeta(doc, false);
+    expect(fresh.run.setup.charms).toEqual(["insider"]);
   });
 
   it("emits charmPicked on a pick, not on an un-pick", () => {
@@ -213,6 +324,51 @@ describe("GameController — the campaign", () => {
     expect(c.act({ type: "sell" }).ok).toBe(true); // slot 0 by default
     expect(c.run.state.bench.phase).toBe("empty");
   });
+
+  it("dev: devStartRun(3) starts Run 3 keeping the meta, devAddCash adds cash but not earnings", () => {
+    const c = new GameController(1);
+    c.meta.clout = 7;
+    c.meta.offer = [];
+    c.devStartRun(3);
+    expect(c.run.setup.run).toBe(3);
+    expect(c.getView().cases.length).toBe(runCaseIds(3).length);
+    expect(c.meta.loops).toBe(2);
+    expect(c.meta.clout).toBe(7);
+    expect(c.meta.offer).toBeNull();
+    const cash = c.run.state.cash;
+    const life = c.run.state.lifetimeEarnings;
+    c.devAddCash(1000);
+    expect(c.run.state.cash).toBe(cash + 1000);
+    expect(c.run.state.lifetimeEarnings).toBe(life);
+  });
+
+  it("routes auto-spin's actions", () => {
+    const c = new GameController(1);
+    c.devAddCash(1e6);
+    expect(c.act({ type: "buyAutoSpin" })).toEqual({ ok: false, reason: "buy the auto-seller first" });
+    expect(c.act({ type: "buySeller" }).ok).toBe(true);
+    expect(c.act({ type: "buyAutoSpin" }).ok).toBe(true);
+    expect(c.act({ type: "buyAutoSpinDelay" }).ok).toBe(true);
+    expect(c.act({ type: "setAutoSpin", on: true }).ok).toBe(true);
+    expect(c.act({ type: "setAutoSpinCase", caseId: "bootcamp" }).ok).toBe(true);
+    expect(c.run.state.autoSpin).toMatchObject({ owned: true, on: true, delayLevel: 1, pick: "bootcamp" });
+  });
+
+  it("keeps auto-spin's switch across a reload (Review Focus 2)", () => {
+    const m = new Map<string, string>();
+    const store = {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    };
+    const a = new GameController(1, new SaveSlot(store));
+    a.devAddCash(1e6);
+    a.act({ type: "buySeller" });
+    a.act({ type: "buyAutoSpin" });
+    a.act({ type: "setAutoSpin", on: true });
+    const b = new GameController(2, new SaveSlot(store));
+    expect(b.run.state.autoSpin).toMatchObject({ owned: true, on: true, powered: true });
+  });
 });
 
 function openVaultAfterUnlock(c: GameController) {
@@ -220,3 +376,42 @@ function openVaultAfterUnlock(c: GameController) {
   openVault(c);
   c.step(1);
 }
+
+describe("GameController — the credits", () => {
+  it("keeps the campaign stats, rolls the credits after The Last Case and ends them on endCredits", () => {
+    const c = new GameController(1);
+    c.devStartRun(4);
+    const run = c.run;
+    run.state.opened = 77;
+    run.state.cash = 1e30;
+    for (const id of run.runCases().slice(1)) run.unlockCase(id);
+    expect(c.act({ type: "buyVault" }).ok).toBe(true);
+    c.act({ type: "turnVaultKey" });
+    for (let i = 0; i < 20 * 30; i++) c.step(1 / 30);
+    expect(c.meta.credits).toBe(true);
+    expect(c.meta.stats.opened).toBeGreaterThanOrEqual(77);
+    expect(c.act({ type: "startNextRun" })).toEqual({ ok: false, reason: "the credits are rolling" });
+    const seen: string[] = [];
+    c.onEvent((e) => seen.push(e.type));
+    expect(c.act({ type: "endCredits" }).ok).toBe(true);
+    expect(seen).toContain("creditsEnded");
+    expect(c.act({ type: "startNextRun" }).ok).toBe(true);
+    expect(c.run.setup.run).toBe(4); // THE END: Run 4 again, boosted
+  });
+});
+
+describe("GameController — Run 4's machines", () => {
+  it("routes the Upgrader's and the evolutions' actions", () => {
+    const c = new GameController(1);
+    c.devStartRun(4);
+    c.devAddCash(1e18);
+    expect(c.act({ type: "buyUpgrader" })).toEqual({ ok: false, reason: "buy the locker first" });
+    c.act({ type: "buyLocker" });
+    expect(c.act({ type: "buyUpgrader" }).ok).toBe(true);
+    expect(c.act({ type: "setUpgraderStake", rarity: "milspec" }).ok).toBe(true);
+    expect(c.act({ type: "setUpgraderTarget", index: 5 }).ok).toBe(true);
+    expect(c.act({ type: "upgraderGo" })).toEqual({ ok: false, reason: "nothing to stake" });
+    expect(c.act({ type: "buyEvolution", id: "cartel" })).toEqual({ ok: false, reason: "finish the recipe first" });
+    expect(c.run.state.upgrader).toMatchObject({ on: true, stake: "milspec", target: 5 });
+  });
+});

@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { CASES } from "../sim/content/cases";
+import { VAULTS } from "../sim/content/vaults";
 import { UPGRADE_IDS } from "../sim/upgrades";
 import { budgetFor, fitsBudget } from "./budgets";
-import { RUN1_CHARMS } from "../sim/charms";
+import { RUN4_CHARMS } from "../sim/charms";
 import { PERK_IDS } from "../sim/meta";
 import {
   CONTENT_KEYS,
@@ -45,10 +46,10 @@ describe("content names", () => {
     expect(stageName(5)).toBe("Без тормозов");
   });
 
-  it("names every Run 1 charm and perk, and the vault, in both languages", () => {
+  it("names every charm and perk, and the vault, in both languages", () => {
     for (const lang of ["en", "ru"] as const) {
       setLang(lang);
-      for (const id of RUN1_CHARMS) {
+      for (const id of RUN4_CHARMS) {
         expect(charmName(id)).not.toBe("");
         expect(charmDesc(id)).not.toBe("");
       }
@@ -57,6 +58,16 @@ describe("content names", () => {
         expect(perkDesc(id)).not.toBe("");
       }
       expect(caseName("vault1")).not.toBe("");
+      expect(caseName("lastcase")).not.toBe("");
+    }
+  });
+
+  it("names every case, vault and skin (vault legends included) in both languages", () => {
+    for (const lang of ["en", "ru"] as const) {
+      setLang(lang);
+      for (const id of [...CASES.map((c) => c.id), "vault1", "vault2", "vault3"]) expect(caseName(id), id).not.toBe("");
+      for (const id of [...CASES.flatMap((c) => c.skins.map((s) => s.id)), ...VAULTS.map((v) => v.legend.id)])
+        expect(skinName(id), id).not.toBe("");
     }
   });
 

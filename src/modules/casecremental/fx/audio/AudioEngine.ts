@@ -1,8 +1,9 @@
-import { barSeconds, crossfade, jitter, musicFor, nextBar, pickVariant } from "./schedule";
+import { jitter, pickVariant } from "./schedule";
+import { StageMusic, type BufferOf } from "./stageMusic";
 import { indexAudio, maxSecondsOf, MUSIC_BOOST, SOUNDS, TRACK_GAIN, type AudioFiles, type SoundId, type TrackId } from "./sounds";
 
-// The mixer (spec §9): music / SFX / UI buses into a limiter, music that swaps on bar lines when the
-// stage changes and ducks under big reveals, per-play pitch and level jitter. Audio unlocks on the
+// The mixer (spec §9): music / SFX / UI buses into a limiter, the stage music (fx/audio/stageMusic.ts: each stage's
+// loops as a playlist, swapped on bar lines) that ducks under big reveals, per-play pitch and level jitter. Audio unlocks on the
 // first user gesture. Anything missing — no AudioContext, autoplay blocked, a file that won't load
 // or decode — leaves that sound silent and the game running (Review Focus 4).
 
@@ -51,12 +52,6 @@ const browserDeps: AudioDeps = {
   random: Math.random,
 };
 
-interface Loop {
-  stage: number;
-  source: AudioBufferSourceNode;
-  gain: GainNode;
-}
-
 interface WantTrack {
   id: TrackId;
   loop: boolean;
@@ -78,9 +73,11 @@ export class AudioEngine {
   private readonly playing = new Map<SoundId, Set<{ src: AudioBufferSourceNode; g: GainNode }>>();
   private readonly files: AudioFiles;
   private volumes = { music: 0.6, sfx: 0.8 };
-  private loop: Loop | null = null;
-  private loopStartedAt = 0;
   private wantStage = 1;
+  private readonly stageMusic: StageMusic;
+  /** The campaign's run, from tick(): stage 5 takes Run 4's finale. */
+  private run = 1;
+  private readonly bufferOf: BufferOf = (url) => this.buffers.get(url);
   private track: PlayingTrack | null = null;
   private wantTrack: WantTrack | null = null;
   /** Off until the game scene activates: a click in the lobby unlocks audio, never the music. */
@@ -96,6 +93,7 @@ export class AudioEngine {
     private readonly deps: AudioDeps = browserDeps,
   ) {
     this.files = indexAudio(urls);
+    this.stageMusic = new StageMusic(this.files);
   }
 
   /** Call from a user gesture. Safe to call often; does nothing once running. */
@@ -159,6 +157,11 @@ export class AudioEngine {
     live.clear();
   }
 
+  /** The named track has a file (a credits track may be missing: the prestige loop stands in). */
+  hasTrack(id: TrackId): boolean {
+    return this.files.tracks.has(id);
+  }
+
   /** How many generated files a sound has (the dev sound board lists them). */
   variantCount(id: SoundId): number {
     return this.files.sfx.get(id)?.length ?? 0;
@@ -212,17 +215,46 @@ export class AudioEngine {
     b.duck.gain.setTargetAtTime(1, now + seconds, 0.4);
   }
 
-  /** The intensity stage changed: swap loops on the next bar line. */
+  /** The intensity stage changed: its playlist starts on the next bar line (at the loop after the one it last played). */
   setStage(stage: number): void {
     this.wantStage = stage;
     this.updateMusic();
+  }
+
+  /** Every frame (World.update): the stage playlist's clock — a hand-over is scheduled on the audio clock just before its
+   *  bar line — and the campaign's run: stage 5 takes Run 4's finale loop from Run 4 on (finish spec §6). */
+  tick(run: number): void {
+    this.run = run;
+    const ctx = this.ctx;
+    const b = this.buses;
+    if (!ctx || !b || !this.musicOn || this.wantTrack) return;
+    this.stageMusic.tick(ctx, b.music, this.bufferOf, run);
+  }
+
+  /** Dev sound board: hold one loop of a stage's playlist (stage 5's last is Run 4's finale) until a stage is asked for. */
+  auditionLoop(stage: number, index: number): void {
+    const ctx = this.ctx;
+    const b = this.buses;
+    if (ctx && b && this.musicOn && !this.wantTrack) this.stageMusic.audition(ctx, b.music, this.bufferOf, stage, index);
+  }
+
+  /** Dev sound board: the playlist's next loop on the next bar line. */
+  skipLoop(): void {
+    const ctx = this.ctx;
+    const b = this.buses;
+    if (ctx && b && this.musicOn && !this.wantTrack) this.stageMusic.skip(ctx, b.music, this.bufferOf, this.run);
+  }
+
+  /** Dev sound board: how many loops a stage's playlist has (stage 5 counts the finale). */
+  loopCount(stage: number): number {
+    return this.stageMusic.length(stage);
   }
 
   /** The scene was suspended (lobby) or resumed. */
   setMusicOn(on: boolean): void {
     this.musicOn = on;
     if (!on) {
-      this.stopLoop(0.3);
+      this.stageMusic.stop(this.ctx, 0.3);
       this.stopTrack(0.3);
     } else this.updateMusic();
   }
@@ -237,7 +269,7 @@ export class AudioEngine {
   }
 
   dispose(): void {
-    this.stopLoop(0);
+    this.stageMusic.stop(this.ctx, 0);
     this.stopTrack(0);
     void this.ctx?.close().catch(() => {});
     this.ctx = null;
@@ -268,7 +300,12 @@ export class AudioEngine {
   }
 
   private async preload(gen: number): Promise<void> {
-    const urls = [...this.files.music.values(), ...this.files.tracks.values(), ...[...this.files.sfx.values()].flat()];
+    const urls = [
+      ...[...this.files.music.values()].flat(),
+      ...(this.files.finale ? [this.files.finale] : []),
+      ...this.files.tracks.values(),
+      ...[...this.files.sfx.values()].flat(),
+    ];
     await Promise.all(urls.map((u) => this.loadBuffer(u)));
     if (gen !== this.loadGen || !this.ctx) return; // a dropped context's load: the current one fires
     this.updateMusic();
@@ -294,52 +331,12 @@ export class AudioEngine {
     const b = this.buses;
     if (!ctx || !b || !this.musicOn) return;
     if (this.wantTrack) {
-      this.stopLoop(0.6);
+      this.stageMusic.stop(ctx, 0.6);
       if (this.track?.want !== this.wantTrack) this.startTrack(this.wantTrack);
       return;
     }
     this.stopTrack(0.6);
-    const stage = musicFor(this.wantStage, [...this.files.music.keys()]);
-    if (stage === null || this.loop?.stage === stage) return;
-    const buffer = this.buffers.get(this.files.music.get(stage)!);
-    if (!buffer) return; // not decoded yet — preload() calls again when it is
-    try {
-      const at = this.loop ? nextBar(ctx.currentTime, this.loopStartedAt) : ctx.currentTime;
-      const fade = this.loop ? barSeconds() : 0.5;
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const gain = ctx.createGain();
-      gain.gain.value = 0;
-      gain.gain.setValueAtTime(0, at);
-      source.connect(gain).connect(b.music);
-      source.start(at);
-      const steps = 8;
-      for (let i = 1; i <= steps; i++) gain.gain.linearRampToValueAtTime(crossfade(i / steps)[1], at + (fade * i) / steps);
-      if (this.loop) {
-        const old = this.loop.gain;
-        old.gain.setValueAtTime(old.gain.value, at);
-        for (let i = 1; i <= steps; i++) old.gain.linearRampToValueAtTime(crossfade(i / steps)[0], at + (fade * i) / steps);
-        this.loop.source.stop(at + fade + 0.05);
-      }
-      this.loopStartedAt = at;
-      this.loop = { stage, source, gain };
-    } catch {
-      // music is optional
-    }
-  }
-
-  private stopLoop(fade: number): void {
-    const l = this.loop;
-    const ctx = this.ctx;
-    this.loop = null;
-    if (!l || !ctx) return;
-    try {
-      l.gain.gain.setTargetAtTime(0, ctx.currentTime, Math.max(0.01, fade / 3));
-      l.source.stop(ctx.currentTime + fade + 0.05);
-    } catch {
-      // already stopped
-    }
+    this.stageMusic.want(ctx, b.music, this.bufferOf, this.wantStage, this.run);
   }
 
   private startTrack(want: WantTrack): void {

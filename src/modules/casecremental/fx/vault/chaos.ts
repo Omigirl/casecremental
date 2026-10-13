@@ -5,6 +5,7 @@ import { itemJitter } from "./beamStream";
 import { chaosBeat, chaosLevels, introPunch, kickPulse, type ChaosLevels } from "./chaosPlan";
 import { VAULT_CUES } from "./cues";
 import { canvasTexture } from "./textures";
+import { MAX_DENSITY, VAULT_LOOKS, type VaultChaosLook } from "./vaultLooks";
 
 // The vault's chaos layer (plan M2b-C6, "no space on screen which is not moving"): before the drop, only a punch in
 // on each of the intro's run-up hits; then the camera shaking on every beat of the fanfare, harder on the bars and
@@ -15,9 +16,9 @@ import { canvasTexture } from "./textures";
 // and nothing replays. The sprites are pooled at construction; a frame allocates none.
 
 /** Rain sprites: coins, pixel stars and confetti in turn. */
-const RAIN = 96;
+export const RAIN = 96;
 /** Side sparks per screen edge, each bar. */
-const EDGE_SPARKS = 22;
+export const EDGE_SPARKS = 22;
 const BAR_SECONDS = (4 * 60) / VAULT_BPM;
 const SPARK_LIFE = 0.9;
 /** The backdrop's slow sway, at most this far either way, over two bars. */
@@ -43,6 +44,21 @@ const RAIN_MARGIN = 12;
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 /** A fixed per-sprite random in [0, 1): the same every frame and after a reload. */
 const rnd = (i: number, salt: number) => (itemJitter(salt, i) + 1) / 2;
+
+/** Rain sprites showing on a vault: Vault I's 96, more on a wilder one. */
+export const rainCount = (look: Pick<VaultChaosLook, "rain">): number => Math.round(RAIN * look.rain);
+/** Edge sparks on each bar, both edges together: Vault I's 2 × 22, more on a wilder one. */
+export const sparkCount = (look: Pick<VaultChaosLook, "sparks">): number => Math.round(2 * EDGE_SPARKS * look.sparks);
+/** How much of rain sprite i shows at the rain's level (0-1) with `count` raining: they join in order as it builds,
+ *  and the pool past `count` stays dry. */
+export const rainShow = (level: number, count: number, i: number): number => clamp01(level * count - i);
+/** Edge spark i's side (1 sprays right from the left edge, -1 left from the right): Vault I's 22 a side, then a
+ *  wilder vault's extras alternating. */
+export const sparkSide = (i: number): 1 | -1 => (i < 2 * EDGE_SPARKS ? (i < EDGE_SPARKS ? 1 : -1) : i % 2 ? -1 : 1);
+/** The beams' shimmer at sim time t: a tint swinging over the vault's hues, as strong as the chaos's hue level. */
+export function shimmerTint(t: number, hue: number, s: VaultChaosLook["shimmer"]): number {
+  return hsv(s.from + s.span * (0.5 + 0.5 * Math.sin(t * 5.3)), s.sat * hue, 1);
+}
 
 /** A colour around the wheel: h in turns, s and v 0-1. Allocation-free (it runs ~100 times a frame). */
 export function hsv(h: number, s: number, v: number): number {
@@ -101,8 +117,13 @@ export class VaultChaos {
   private u = 1;
   private coinScale = 1;
   private starScale = 0.25;
+  private look: VaultChaosLook;
 
-  constructor(private readonly art: ChaosArt) {
+  constructor(
+    private readonly art: ChaosArt,
+    look: VaultChaosLook = VAULT_LOOKS.vault1.chaos,
+  ) {
+    this.look = look;
     // diagonal bands, crisp
     this.stripeTex = canvasTexture(32, 32, (g) => {
       g.fillStyle = "#fff";
@@ -112,14 +133,19 @@ export class VaultChaos {
     this.stripes = new TilingSprite({ texture: this.stripeTex, width: 1, height: 1 });
     this.stripes.blendMode = "add";
     this.backdrop.addChild(this.stripes);
-    for (let i = 0; i < RAIN; i++)
+    for (let i = 0; i < RAIN * MAX_DENSITY; i++)
       this.drops.push(this.pooled(i % 3 === 0 ? art.coins[0]! : i % 3 === 1 ? art.star : Texture.WHITE, this.rain));
-    for (let i = 0; i < 2 * EDGE_SPARKS; i++) {
+    for (let i = 0; i < 2 * EDGE_SPARKS * MAX_DENSITY; i++) {
       const s = this.pooled(i % 2 ? art.star : art.dot, this.rain);
       s.blendMode = "add";
       this.sparks.push(s);
     }
     this.reset();
+  }
+
+  /** The run's vault's chaos: how much it rains and sparks, and its beams' shimmer (the pools hold the densest). */
+  setLook(look: VaultChaosLook): void {
+    this.look = look;
   }
 
   layout(screen: { w: number; h: number }, k: number): void {
@@ -222,8 +248,8 @@ export class VaultChaos {
     this.stripes.alpha = L.background * (0.06 + 0.07 * beat);
     const scroll = t * 40 * this.u;
     this.stripes.tilePosition.set(scroll, scroll * 0.5);
-    // a warm shimmer: yellow beams lean orange, orange ones red, red stays red
-    this.shimmer = hsv(0.02 + 0.06 * (0.5 + 0.5 * Math.sin(t * 5.3)), 0.35 * L.hue, 1);
+    // the beams shimmer within their vault's hues (Vault I: yellow leans orange, orange red)
+    this.shimmer = shimmerTint(t, L.hue, this.look.shimmer);
   }
 
   /** Coins, stars and confetti falling across the whole width, pouring in from the top after the impact. */
@@ -232,15 +258,20 @@ export class VaultChaos {
     const margin = RAIN_MARGIN * this.u;
     const span = h + 2 * margin;
     const coins = this.art.coins;
-    for (let i = 0; i < RAIN; i++) {
+    const count = rainCount(this.look);
+    for (let i = 0; i < this.drops.length; i++) {
       const s = this.drops[i]!;
+      if (i >= count) {
+        s.visible = false;
+        continue;
+      }
       const kind = i % 3;
       const r1 = rnd(i, 11);
       const r2 = rnd(i, 23);
       const r3 = rnd(i, 37);
       const speed = h * (kind === 0 ? 0.55 + 0.35 * r2 : 0.25 + 0.3 * r2);
       const travel = (t - VAULT_CUES.impact) * speed - r3 * span * 0.6;
-      const show = clamp01(level * RAIN - i);
+      const show = rainShow(level, count, i);
       s.visible = show > 0 && travel >= 0;
       if (!s.visible) continue;
       const y = (travel % span) - margin;
@@ -272,11 +303,12 @@ export class VaultChaos {
     const { w, h } = this.screen;
     const v = this.u * 2;
     const fade = 1 - since / SPARK_LIFE;
+    const shown = sparkCount(this.look);
     for (let i = 0; i < this.sparks.length; i++) {
       const s = this.sparks[i]!;
-      s.visible = live;
-      if (!live) continue;
-      const side = i < EDGE_SPARKS ? 1 : -1; // the left edge sprays right, the right edge left
+      s.visible = live && i < shown;
+      if (!s.visible) continue;
+      const side = sparkSide(i); // the left edge sprays right, the right edge left
       const fromX = side > 0 ? 0 : w;
       const fromY = h * (0.15 + 0.6 * rnd(n, side > 0 ? 3 : 5));
       const a = (rnd(i, n) - 0.5) * 1.6 - 0.35; // up and across, fanned

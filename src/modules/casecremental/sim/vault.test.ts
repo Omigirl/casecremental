@@ -1,15 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { botWaiting } from "./botOpener";
+import { runCaseIds } from "./campaign";
 import { CASES, VAULT_LEGEND } from "./content/cases";
 import { STAGE_NAMES } from "./intensity";
 import { DEFAULT_SETUP, Run } from "./run";
-import {
-  VAULT_INTRO_SECONDS,
-  VAULT_LAND_TIMES,
-  VAULT_OPENING_SECONDS,
-  VAULT_REEL_RARITIES,
-  VAULT_REEL_SHARES,
-  VAULT_TROPHY,
-} from "./tuning";
+import { VAULT_INTRO_SECONDS, VAULT_LAND_TIMES, VAULT_OPENING_SECONDS, VAULT_REEL_RARITIES, VAULT_REEL_SHARES } from "./tuning";
 
 const DT = 1 / 30;
 const tickFor = (run: Run, s: number) => {
@@ -110,22 +105,54 @@ describe("Vault Case I", () => {
     expect(b.state.tray).toHaveLength(0);
     const opened = b.drainEvents().filter((e) => e.type === "vaultOpened");
     expect(opened).toHaveLength(1);
-    expect(opened[0]).toMatchObject({ trophy: VAULT_TROPHY, drop: { skinId: VAULT_LEGEND.id } });
+    expect(opened[0]).toMatchObject({ trophy: "vault1", drop: { skinId: VAULT_LEGEND.id } });
   });
 
   it("cashes in the bot's card and its spin when the vault is bought, then freezes the bot", () => {
     const run = new Run(1, { ...DEFAULT_SETUP, botAwake: true });
     allUnlocked(run);
     run.state.cash = 1e9;
-    for (let i = 0; i < 900 && !run.state.bot.card; i++) run.tick(DT);
-    const card = run.state.bot.card!;
+    for (let i = 0; i < 900 && !botWaiting(run.state.bot); i++) run.tick(DT);
+    const card = run.state.bot.cards[0]!;
     const earned = run.state.lifetimeEarnings;
     expect(run.buyVault().ok).toBe(true);
-    expect(run.state.bot.card).toBeNull();
+    expect(botWaiting(run.state.bot)).toBe(false);
     expect(run.state.bot.spin).toBeNull();
     expect(run.state.lifetimeEarnings - earned).toBeCloseTo(run.payout(card, false));
     tickFor(run, 10);
     expect(run.state.bot.spin).toBeNull(); // frozen
+  });
+
+  it("buying the vault cashes in both bot cards and a double spin in flight, once each", () => {
+    const setup = { ...DEFAULT_SETUP, run: 2, botAwake: true, startCash: 1e9 };
+    const cashedIn = (run: Run) => {
+      run.state.unlocked = runCaseIds(2);
+      run.drainEvents();
+      const cash = run.state.cash;
+      expect(run.buyVault().ok).toBe(true);
+      const sold = run.drainEvents().filter((e) => e.type === "sold" && e.from === "bot");
+      expect(run.state.bot.cards).toEqual([]);
+      expect(run.state.bot.spin).toBeNull();
+      return { sold, gained: run.state.cash - cash + run.setup.vaultPrice };
+    };
+    // a double spin in flight
+    const spinning = new Run(3, setup);
+    spinning.buyBotMulti();
+    tickFor(spinning, 1.2);
+    const drops = spinning.state.bot.spin!.drops;
+    expect(drops).toHaveLength(2);
+    let r = cashedIn(spinning);
+    expect(r.sold).toHaveLength(2);
+    expect(r.gained).toBeCloseTo(drops.reduce((n, d) => n + spinning.payout(d, false), 0));
+    // two cards waiting
+    const waiting = new Run(3, setup);
+    waiting.buyBotMulti();
+    tickFor(waiting, 6);
+    const cards = waiting.state.bot.cards.filter((d) => d !== null);
+    expect(cards).toHaveLength(2);
+    r = cashedIn(waiting);
+    expect(r.sold).toHaveLength(2);
+    expect(r.gained).toBeCloseTo(cards.reduce((n, d) => n + waiting.payout(d, false), 0));
   });
 
   it("clears a running day job when the vault is bought", () => {

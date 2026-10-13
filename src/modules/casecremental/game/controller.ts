@@ -1,7 +1,12 @@
-import type { CharmId } from "../sim/charms";
-import { buyPerk, completeVault, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
+import type { ServerDoc } from "../meta/bridge";
+import { applyServerDoc } from "../meta/merge";
+import { charmPool, type CharmId } from "../sim/charms";
+import { buyEvolution } from "../sim/evolutions";
+import type { EvolutionId } from "../sim/evolved";
+import { buyPerk, charmSlots, completeVault, endCredits, freshMeta, pickCharm, setupFor, type MetaState, type PerkId } from "../sim/meta";
 import { Run, type ActionResult, type CardSpot, type SimEvent } from "../sim/run";
 import type { RarityId } from "../sim/types";
+import * as upgrader from "../sim/upgrader";
 import type { UpgradeId } from "../sim/upgrades";
 import { SAVE_VERSION, type SaveSlot } from "./save";
 import { buildView, type GameView } from "./view";
@@ -20,18 +25,36 @@ export type Action =
   | { type: "claim"; index: number }
   | { type: "wakeBot" }
   | { type: "buyBotSpeed" }
-  | { type: "sellBot" }
+  | { type: "buyBotMulti" }
+  | { type: "sellBot"; slot?: number }
   | { type: "setBotCase"; caseId: string | null }
   | { type: "buySeller" }
   | { type: "buySellerSpeed" }
   | { type: "setSellerThreshold"; rarity: RarityId }
   | { type: "holdCard"; spot: CardSpot | null; slot?: number }
+  | { type: "buyLocker" }
+  | { type: "buyLockerSize" }
+  | { type: "setCollect"; rarity: RarityId | null }
+  | { type: "storeCard"; from: CardSpot | "tray"; slot: number }
+  | { type: "tradeUp" }
+  | { type: "sellLocker"; slot?: number }
+  | { type: "buyAutoContract" }
+  | { type: "buyAutoSpin" }
+  | { type: "buyAutoSpinDelay" }
+  | { type: "setAutoSpin"; on: boolean }
+  | { type: "setAutoSpinCase"; caseId: string }
   | { type: "startDayJob" }
   | { type: "buyVault" }
   | { type: "turnVaultKey" }
   | { type: "buyPerk"; id: PerkId }
   | { type: "pickCharm"; id: CharmId }
-  | { type: "startNextRun" };
+  | { type: "startNextRun" }
+  | { type: "buyUpgrader" }
+  | { type: "setUpgraderStake"; rarity: RarityId | null }
+  | { type: "setUpgraderTarget"; index: number }
+  | { type: "upgraderGo" }
+  | { type: "buyEvolution"; id: EvolutionId }
+  | { type: "endCredits" };
 
 export const SIM_STEP = 1 / 30;
 /** A frame longer than this (tab was hidden, debugger pause) is clamped. */
@@ -119,6 +142,55 @@ export class GameController {
     this.refreshView();
   }
 
+  /** Dev: jump to a run (1-4) with the meta kept (CLOUT, perks, trophies); offer and picks are cleared. */
+  devStartRun(run: number): void {
+    this.meta.loops = Math.max(0, Math.floor(run) - 1);
+    this.meta.offer = null;
+    this.meta.picked = [];
+    this.current = new Run((this.current.seed + 1) >>> 0, setupFor(this.meta));
+    this.emit({ type: "runStarted" });
+    this.save();
+    this.refreshView();
+  }
+
+  /** Dev: add cash (not lifetime earnings). */
+  devAddCash(amount: number): void {
+    this.current.state.cash += amount;
+    this.save();
+    this.refreshView();
+  }
+
+  /** A server answer (plan F7): merged into the meta, saved, shown. A run nothing has happened in yet (a new device
+   *  started a fresh Run 1) is rebuilt for the campaign the server knows — with the charms the server kept for the
+   *  run — so its vault is the one the server expects. */
+  applyServerMeta(doc: ServerDoc, pendingWrites: boolean): void {
+    applyServerDoc(this.meta, doc, pendingWrites);
+    const setup = setupFor(this.meta);
+    if (this.untouched() && setup.run !== this.current.setup.run) {
+      const pool = charmPool(setup.run);
+      const charms = doc.picked.filter((c): c is CharmId => (pool as readonly string[]).includes(c)).slice(0, charmSlots(this.meta));
+      this.current = new Run(this.current.seed, { ...setup, charms });
+      this.emit({ type: "runStarted" });
+    }
+    this.save();
+    this.refreshView();
+  }
+
+  /** Nothing has happened in the run yet: nothing earned, opened or spent, no card anywhere, no vault. */
+  private untouched(): boolean {
+    const s = this.current.state;
+    return (
+      s.lifetimeEarnings === 0 &&
+      s.opened === 0 &&
+      s.cash === this.current.setup.startCash &&
+      s.bench.phase === "empty" &&
+      s.tray.length === 0 &&
+      s.bot.cards.length === 0 &&
+      s.vault === null &&
+      !s.over
+    );
+  }
+
   /** Save now (the page is closing): autosave runs only about once a second. */
   saveNow(): void {
     this.save();
@@ -155,8 +227,10 @@ export class GameController {
         return run.wakeBot();
       case "buyBotSpeed":
         return run.buyBotSpeed();
+      case "buyBotMulti":
+        return run.buyBotMulti();
       case "sellBot":
-        return run.sellBotCard();
+        return run.sellBotCard(a.slot ?? 0);
       case "setBotCase":
         return run.setBotCase(a.caseId);
       case "buySeller":
@@ -167,19 +241,59 @@ export class GameController {
         return run.setSellerThreshold(a.rarity);
       case "holdCard":
         return run.setHeld(a.spot, a.slot ?? 0);
+      case "buyLocker":
+        return run.buyLocker();
+      case "buyLockerSize":
+        return run.buyLockerSize();
+      case "setCollect":
+        return run.setCollect(a.rarity);
+      case "storeCard":
+        return run.storeCard(a.from, a.slot);
+      case "tradeUp":
+        return run.tradeUp();
+      case "sellLocker":
+        return run.sellLockerCard(a.slot);
+      case "buyAutoContract":
+        return run.buyAutoContract();
+      case "buyAutoSpin":
+        return run.buyAutoSpin();
+      case "buyAutoSpinDelay":
+        return run.buyAutoSpinDelay();
+      case "setAutoSpin":
+        return run.setAutoSpin(a.on);
+      case "setAutoSpinCase":
+        return run.setAutoSpinCase(a.caseId);
       case "startDayJob":
         return run.startDayJob();
       case "buyVault":
         return run.buyVault();
       case "turnVaultKey":
         return run.turnVaultKey();
-      case "buyPerk":
+      case "buyPerk": {
         if (!run.state.over) return { ok: false, reason: "perks are bought between runs" };
-        return this.emitOnOk(buyPerk(this.meta, a.id), { type: "perkBought" });
+        const r = buyPerk(this.meta, a.id);
+        if (r.ok) this.emit({ type: "perkBought", id: a.id, level: this.meta.perks[a.id] });
+        return r;
+      }
       case "pickCharm":
         return this.pickCharm(a.id);
       case "startNextRun":
         return this.startNextRun();
+      case "buyUpgrader":
+        return upgrader.buyUpgrader(run);
+      case "setUpgraderStake":
+        return upgrader.setUpgraderStake(run, a.rarity);
+      case "setUpgraderTarget":
+        return upgrader.setUpgraderTarget(run, a.index);
+      case "upgraderGo":
+        return upgrader.upgraderGo(run);
+      case "buyEvolution":
+        return buyEvolution(run, a.id);
+      case "endCredits": {
+        const r = endCredits(this.meta);
+        if (r.ok) this.emit({ type: "creditsEnded" });
+        return r;
+      }
     }
   }
 
@@ -192,6 +306,7 @@ export class GameController {
 
   private startNextRun(): ActionResult {
     if (!this.current.state.over) return { ok: false, reason: "the run is still going" };
+    if (this.meta.credits) return { ok: false, reason: "the credits are rolling" };
     const seed = (this.current.seed + Math.imul(this.meta.loops, 0x9e3779b1)) >>> 0;
     this.current = new Run(seed, setupFor(this.meta));
     this.meta.offer = null;
@@ -203,16 +318,11 @@ export class GameController {
   private flush(): void {
     for (const e of this.current.drainEvents()) {
       if (e.type === "vaultOpened") {
-        completeVault(this.meta, e.lifetimeEarnings, e.trophy, this.current.seed);
+        completeVault(this.meta, e.lifetimeEarnings, e.trophy, this.current.seed, this.current.state);
         this.save();
       }
       this.emit(e);
     }
-  }
-
-  private emitOnOk(r: ActionResult, e: SimEvent): ActionResult {
-    if (r.ok) this.emit(e);
-    return r;
   }
 
   private emit(e: SimEvent): void {

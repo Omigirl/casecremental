@@ -1,13 +1,13 @@
 import type { RunState } from "../../sim/run";
 import { VAULT_OPENING_SECONDS } from "../../sim/tuning";
 import type { AudioEngine } from "../audio/AudioEngine";
-import type { TrackId } from "../audio/sounds";
+import type { FanfareId, TrackId } from "../audio/sounds";
 import { VAULT_CUES } from "./cues";
 import { BLACKOUT_SECONDS, blackoutLevel, LIGHTS_UP_SECONDS, lightCues, lightLevels, type LightLevels } from "./lights";
 
 // The run's end and the next run's start, for the World (rework spec §4): the blackout after the vault, the
-// dark prestige screen with its music, and the workshop powering back up — light levels each frame, the
-// breaker sounds on their cues, and the music handed back to the stage loop once the lights are on.
+// dark prestige screen with its music (the credits or the prestige loop), and the workshop powering back up — light
+// levels each frame, the breaker sounds on their cues, and the music handed back to the stage loop once the lights are on.
 
 export interface MusicPlan {
   /** A named track over the stage loop, or null for the stage loop. */
@@ -25,19 +25,29 @@ export type PowerPhase = "blackout" | "dark" | "powerUp" | "lit";
 /** What the music needs from the audio engine (a recorder stands in for it in the tests). */
 export type MusicAudio = Pick<AudioEngine, "play" | "setMusicOn" | "setTrack">;
 
+/** What plays in the dark after a run: the credits track while the credits roll (when it exists), else the prestige loop. */
+export const afterRunTrack = (credits: boolean, hasCredits: boolean): TrackId => (credits && hasCredits ? "credits" : "prestige");
+
 /** What should be playing, read from the sim and the lights (the music engine only remembers where a track
- *  started, not where the vault is): on a reload, back from the lobby, and whenever the World restores a run. */
-export function musicPlan(s: Pick<RunState, "vault" | "over">, power: PowerPhase): MusicPlan {
+ *  started, not where the vault is): on a reload, back from the lobby, and whenever the World restores a run.
+ *  `fanfare`: the run's vault's (vaultLooks), Vault I's by default; `afterRun`: what plays in the dark after it
+ *  (afterRunTrack). */
+export function musicPlan(
+  s: Pick<RunState, "vault" | "over">,
+  power: PowerPhase,
+  fanfare: FanfareId = "vault-fanfare",
+  afterRun: TrackId = "prestige",
+): MusicPlan {
   const plan = (track: TrackId | null, loop = true, offset = 0, musicOn = true): MusicPlan => ({ track, loop, offset, musicOn });
   const v = s.vault;
   if (v?.phase === "key") return plan("vault-suspense");
   if (v?.phase === "opening") {
-    // the intro from the key turn; on the impact the scene hands over to the fanfare (its first downbeat)
+    // the intro from the key turn; on the impact the scene hands over to the vault's fanfare (its first downbeat)
     if (v.t < VAULT_CUES.impact) return plan("vault-intro", false, v.t);
-    return v.t < VAULT_OPENING_SECONDS ? plan("vault-fanfare", false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
+    return v.t < VAULT_OPENING_SECONDS ? plan(fanfare, false, v.t - VAULT_CUES.impact) : plan(null, true, 0, false);
   }
-  // the prestige loop waits for the dark: the PowerCycle turns it on when the blackout has fallen
-  if (s.over) return power === "blackout" ? plan("prestige", true, 0, false) : plan("prestige");
+  // the prestige loop (or the credits) waits for the dark: the PowerCycle turns it on when the blackout has fallen
+  if (s.over) return power === "blackout" ? plan(afterRun, true, 0, false) : plan(afterRun);
   if (power === "powerUp") return plan(null, true, 0, false); // the PowerCycle turns it on when the lights are up
   return plan(null);
 }
@@ -79,6 +89,8 @@ export class PowerCycle {
   private lightsT: number | null = null;
   private dark = false;
   private prestigeOn = false;
+  /** What the dark plays once the blackout has fallen (blackout()). */
+  private track: TrackId = "prestige";
 
   constructor(private readonly audio: MusicAudio) {}
 
@@ -89,8 +101,9 @@ export class PowerCycle {
     return this.lightsT !== null ? "powerUp" : "lit";
   }
 
-  /** The vault has opened: fade everything to black, then the prestige music. */
-  blackout(): void {
+  /** The vault has opened: fade everything to black, then the prestige music (or the credits' track). */
+  blackout(track: TrackId = "prestige"): void {
+    this.track = track;
     this.blackoutT = 0;
     this.lightsT = null;
     this.prestigeOn = false;
@@ -118,7 +131,7 @@ export class PowerCycle {
       if (!this.prestigeOn && this.blackoutT >= BLACKOUT_SECONDS) {
         this.prestigeOn = true;
         // on as well: a lobby trip during the fade left the music off, the prestige loop armed (musicPlan)
-        this.audio.setTrack("prestige", { loop: true });
+        this.audio.setTrack(this.track, { loop: true });
         this.audio.setMusicOn(true);
       }
       return all(blackoutLevel(this.blackoutT));

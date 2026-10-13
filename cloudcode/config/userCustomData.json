@@ -1,0 +1,11 @@
+{
+  "DefaultMaxValueLengthBytes": 8192,
+  "MaxKeysPerBucket": 128,
+  "MaxTotalSizeBytes": 1500000,
+  "RejectUnregisteredKeys": false,
+  "Keys": {
+    "cc_meta": { "KeyID": "cc_meta", "Bucket": "ReadOnly", "ValueType": "Json", "MaxValueLengthBytes": 16384, "Description": "Casecremental meta: perks, loops, campaign stats, charm picks, ended runs (CloudCode writes)" },
+    "cc_anti": { "KeyID": "cc_anti", "Bucket": "Internal", "ValueType": "Json", "MaxValueLengthBytes": 8192, "Description": "Casecremental plausibility state: first seen, last run end, trophy pacing" },
+    "cc_wallet": { "KeyID": "cc_wallet", "Bucket": "Public", "ValueType": "String", "MaxValueLengthBytes": 64, "Description": "Casecremental: the player's Solana wallet, shown on the leaderboard (plan F8)" }
+  }
+}

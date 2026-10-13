@@ -1,0 +1,7 @@
+{
+  "CurrencyID": "CLOUT",
+  "DisplayName": "Clout",
+  "Economy": { "ValueInUSD": 0, "InitialDeposit": 0, "MinBalance": 0, "MaxBalance": 9223372036854775807 },
+  "Permissions": { "IsTradable": false, "IsPurchasable": false, "IsRefundable": false },
+  "Status": "Active"
+}

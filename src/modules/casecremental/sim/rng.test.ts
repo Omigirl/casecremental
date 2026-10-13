@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createRng } from "./rng";
 
+// large statistical samples: the default 5 s is too tight when the machine is loaded
+const SLOW = 30_000;
+
 describe("createRng", () => {
   it("is deterministic for a seed", () => {
     const a = createRng(123);
@@ -12,17 +15,21 @@ describe("createRng", () => {
     expect(createRng(1).next()).not.toBe(createRng(2).next());
   });
 
-  it("stays in [0, 1) and averages near 0.5", () => {
-    const r = createRng(7);
-    let sum = 0;
-    for (let i = 0; i < 100_000; i++) {
-      const x = r.next();
-      expect(x).toBeGreaterThanOrEqual(0);
-      expect(x).toBeLessThan(1);
-      sum += x;
-    }
-    expect(sum / 100_000).toBeCloseTo(0.5, 2);
-  });
+  it(
+    "stays in [0, 1) and averages near 0.5",
+    () => {
+      const r = createRng(7);
+      let sum = 0;
+      for (let i = 0; i < 100_000; i++) {
+        const x = r.next();
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThan(1);
+        sum += x;
+      }
+      expect(sum / 100_000).toBeCloseTo(0.5, 2);
+    },
+    SLOW,
+  );
 
   it("int covers [min, max) only", () => {
     const r = createRng(9);

@@ -5,11 +5,51 @@ import type { RarityId, WearId } from "./types";
 
 export const START_CASH = 6;
 
+/** The campaign has this many runs; after the last, a vault replays it. */
+export const LAST_RUN = 4;
+
+/** What each run (index = run - 1) offers: the shelf, the caps and the machines that arrive with it. */
+export interface RunContent {
+  /** How many cases of the ladder this run's shelf has. */
+  cases: number;
+  /** Your widest multi-open. */
+  multiOpen: number;
+  /** The bot's Speed levels this run. */
+  botSpeedLevels: number;
+  /** Cases one bot spin opens at most (1 = no bot multi-open). */
+  botMultiOpen: number;
+  locker: boolean;
+  autoContract: boolean;
+  /** Run 4: stake a locker rarity stack on a multiplier (finish spec §7.2). */
+  upgrader: boolean;
+  /** Run 4: a completed recipe can be bought as a big power jump (finish spec §7.3). */
+  evolutions: boolean;
+}
+export const RUN_CONTENT: readonly RunContent[] = [
+  { cases: 3, multiOpen: 2, botSpeedLevels: 5, botMultiOpen: 1, locker: false, autoContract: false, upgrader: false, evolutions: false },
+  { cases: 5, multiOpen: 3, botSpeedLevels: 8, botMultiOpen: 2, locker: true, autoContract: false, upgrader: false, evolutions: false },
+  { cases: 7, multiOpen: 5, botSpeedLevels: 11, botMultiOpen: 2, locker: true, autoContract: true, upgrader: false, evolutions: false },
+  { cases: 9, multiOpen: 5, botSpeedLevels: 14, botMultiOpen: 3, locker: true, autoContract: true, upgrader: true, evolutions: true },
+];
+
 /** Price and one-time unlock cost per case id, in ladder order. */
 export const CASE_ECONOMY: Readonly<Record<string, { price: number; unlockCost: number }>> = {
   bootcamp: { price: 2, unlockCost: 0 },
   wildwood: { price: 15, unlockCost: 30 },
-  bedrock: { price: 150, unlockCost: 1200 },
+  // F4: unlock 600, so a real player's Run 2 catches up to Run 1's shelf within 2 min
+  bedrock: { price: 150, unlockCost: 600 },
+  // F4: Mainframe 650K and Neon 20M are Run 2's middle (its vault shows at ~4 min for a real player) and Run 3's
+  // catch-up to Run 2's shelf (~1.5 min)
+  mainframe: { price: 1_500, unlockCost: 650_000 },
+  neon: { price: 15_000, unlockCost: 20_000_000 },
+  // F4: Deep Space 1B and Inferno 55B are Run 3's middle: its vault shows at ~6.5 min for a real player, the
+  // replay's at ~3.5 min
+  deepspace: { price: 150_000, unlockCost: 1_000_000_000 },
+  inferno: { price: 1_500_000, unlockCost: 55_000_000_000 },
+  // F6-A: Glitch 1.5T and Fever Dream 25T are Run 4's middle: The Last Case shows at ~4.5 min for a real player
+  // (~4 min for a perfect one), its first replay's vault at ~4.5 min
+  glitch: { price: 15_000_000, unlockCost: 1_500_000_000_000 },
+  feverdream: { price: 150_000_000, unlockCost: 25_000_000_000_000 },
 };
 
 export const RARITY_BASE_WEIGHT: Readonly<Record<RarityId, number>> = {
@@ -77,11 +117,11 @@ export const UPGRADE_COSTS = {
   luck: { baseCost: 15, growth: 1.6, maxLevel: 25 },
   appraiser: { baseCost: 10, growth: 1.55, maxLevel: 25 },
   quickHands: { baseCost: 8, growth: 1.7, maxLevel: 10 },
-  /** Run 1 cap x2 (rework spec 2): one level. */
-  multiOpen: { baseCost: 500, growth: 1, maxLevel: 1 },
+  /** Each level opens one more case; the run caps it (RUN_CONTENT.multiOpen: x2, x3, x5). */
+  multiOpen: { baseCost: 500, growth: 25, maxLevel: 4 },
 } as const;
 
-/** The widest multi-open in the campaign (×5 in Run 3, rework spec §2): a bench of more is a corrupt save. */
+/** The widest multi-open in the campaign (×5 from Run 3). */
 export const MULTI_OPEN_MAX = 5;
 
 /** Sells closer together than this keep the combo going. */
@@ -116,8 +156,20 @@ export const LUCKY_SEVEN_EVERY = 7;
 export const MANIAC_MILSPEC_MULT = 4;
 export const MANIAC_OTHER_MULT = 0.5;
 
+// Run 2 and 3 charms
+export const CHAIN_REACTION_CHANCE = 0.25;
+/** Ricochet and Chain Reaction free cases waiting for the bench never pile up past this. */
+export const FREE_CASE_QUEUE_MAX = 5;
+export const CONTRACT_KILLER_CHANCE = 0.2;
+export const HOARDER_PER_SKIN = 0.01;
+export const FEVER_PAY_MULT = 1.5;
+export const FEVER_STAGE_BONUS = 1;
+export const COLLECTOR_MULT = 2;
+/** Loaded Dice (Run 4): the Upgrader's win chance x this (multiplicative, so its EV stays under 1 at every target:
+ *  0.9 / m x 1.1 = 0.99 / m). */
+export const LOADED_DICE_MULT = 1.1;
+
 export const TRAY_BASE_CAPACITY = 12;
-export const VAULT_BASE_PRICE = 1_000_000;
 
 /** Broke with an empty bench: a day job (campaign spec §6.1). */
 export const DAY_JOB_SECONDS = 3;
@@ -130,13 +182,30 @@ export const BOT_WAKE_COST = 22;
 /** A bot just woken rests this long before its first spin, so its waking-up plays out: at least the length of
  *  fx/pixel/anims.ts `botWake` (1.11 s; anims.test.ts pins it), else its first spin cuts the hop's end. */
 export const BOT_WAKE_SECONDS = 1.15;
-/** Run 1's cap: Speed levels and the speed at the last one. */
-export const BOT_SPEED_LEVELS = 5;
-export const BOT_MAX_SPEED = 8;
+/** The bot's speed at these levels; geometric in between (Run 1's x1 to x8 over 5 levels is unchanged). */
+export const BOT_SPEED_ANCHORS: ReadonlyArray<readonly [level: number, speed: number]> = [
+  [0, 1],
+  [5, 8],
+  [8, 20],
+  [11, 50],
+  [14, 100],
+];
+/** Run 2: the bot opens two cases per spin on stacked reels. */
+export const BOT_MULTI_COST = 4_000;
 export const BOT_SPEED_COSTS = { baseCost: 60, growth: 2.3 } as const;
 
-/** Vault Case I: its price grows this much per completed loop. */
-export const VAULT_GROWTH = 4;
+/** Each run's vault price (The Last Case is Run 4's) the first time it is reached; a replay of the last run multiplies
+ *  it by VAULT_GROWTH. */
+// F4 (finish spec §5): a vault costs well under 90 s of a fully bought run's income for a real player (the 90 s rule
+// measures ~30–75 s); each run's middle — its unlocks — sets how long the run takes instead. F6-A: The Last Case 450T
+// (its 90 s rule ~65 s, replays included).
+export const VAULT_PRICES = [300_000, 450_000_000, 120_000_000_000, 450_000_000_000_000] as const;
+/** A replay of the last run: its vault price grows this much per completed loop, about the replay's boost
+ *  (The Last Case's CATCH_UP_PER_VAULT), so each replay's vault costs about as many seconds of its income as the last.
+ *  Spec §5's replay band holds for the FIRST replay only; later replays run faster (a post-credits victory lap:
+ *  ~4.5 min for the first, ~2 min by the fifth, ~1.6 min by the fifteenth) while the 90 s rule holds for at least 15 CASUAL
+ *  replays (pacing.test.ts; measured 61-74 s of income). F4's 3.4 broke the rule by the third replay. */
+export const VAULT_GROWTH = 2.0;
 /** Vault Case I's intro (plan M2b-C8): the key turns, the intro track plays, and its end is the impact, where
  *  the lid snaps open on the fanfare's drop. Every vault time after it counts from here. */
 export const VAULT_INTRO_SECONDS = 3.4;
@@ -147,12 +216,15 @@ export const VAULT_LAND_TIMES = [8.4, 8.9, 9.4, 9.9, 10.9] as const;
 export const VAULT_OPENING_SECONDS = 17.4;
 export const VAULT_REEL_SHARES = [0.03, 0.06, 0.08, 0.13, 0.3] as const;
 export const VAULT_REEL_RARITIES = ["classified", "covert", "covert", "gold", "gold"] as const;
-export const VAULT_TROPHY = "vault1";
 
 /** CLOUT = floor(√(lifetime earnings) / this). */
 export const CLOUT_DIVISOR = 105;
-/** Each opened vault multiplies every later sale by this (the catch-up boost). */
-export const CATCH_UP_PER_VAULT = 3;
+/** Each opened vault multiplies every later sale by its boost (the catch-up boost), in vault order: Vault I, II, III,
+ *  then The Last Case's, which every replay's vault repeats. F4: 2.8 for Vaults I and II, so Runs 1–3 are as F4 tuned
+ *  them. F6-A: Vault III's is 8, since Run 4 climbs two cases more than Run 3 to catch up (Deep Space and Inferno, ~1.5
+ *  min for a real player); The Last Case's is 2, so a replay of Run 4 still takes a real player ~4.5 min (with 2.8 its
+ *  unlocks were over in ~3.5). */
+export const CATCH_UP_PER_VAULT = [2.8, 2.8, 8, 2] as const;
 export const CHARM_OFFER_SIZE = 3;
 export const PERK_START_CASH = 20;
 export const TRAY_PER_PERK = 4;
@@ -160,10 +232,40 @@ export const TRAY_PER_PERK = 4;
 export const PERK_COSTS = {
   startCash: { baseCost: 3, growth: 1.8, maxLevel: 5 },
   luck: { baseCost: 5, growth: 2, maxLevel: 5 },
-  charmSlot: { baseCost: 15, growth: 1, maxLevel: 1 },
+  charmSlot: { baseCost: 15, growth: 2, maxLevel: 2 },
   botAwake: { baseCost: 8, growth: 1, maxLevel: 1 },
   biggerTray: { baseCost: 4, growth: 2, maxLevel: 3 },
 } as const;
+
+/**
+ * Server plausibility (plan F7): the most a run can earn after `t` seconds with `loops` vaults behind it is
+ * 10^min(ceilLog10, baseLog10 + perSqrtSecond·√t + perLoop·min(loops, V) + perReplay·max(0, loops − V)), V = the
+ * campaign's vaults. Calibrated in meta/plausibility.test.ts against a superhuman greedy player with ×3 headroom;
+ * CloudCode applies the same curve (cloudcode/data.json). Calibrated 2026-10-13 (Runs 1–3): that player vaults Run 1
+ * at ≥ 244 s with 10^6.6, Run 2 at ≥ 151 s with 10^9.6, Run 3 at ≥ 100 s with 10^12.1; perLoop must carry Run 2's jump
+ * from a short run, so it is steep. Replays of the last run grow only ~0.3 log10 each (F7 review, 2026-10-13: the FAST
+ * bot's replays 10^15.2 → 10^19.4 over 15), so past the campaign each loop adds perReplay, not perLoop. The server
+ * gives the loop terms only to a run that took the minimum run time (SERVER_MIN_VAULT_SEC): a run that ends at once
+ * gets the time-only cap (10^3 → 0 CLOUT).
+ */
+export const SERVER_CAP = { baseLog10: 3, perSqrtSecond: 0.3, perLoop: 4, perReplay: 0.5, ceilLog10: 300 } as const;
+/** The most CLOUT one endRun pays: a capped claim near 10^ceilLog10 would otherwise overflow the Title's int64 balance
+ *  (and the CloudCode policy's daily CLOUT cap, 1e12). A real run pays thousands. */
+export const SERVER_MAX_CLOUT_PER_RUN = 1e11;
+/** The least a run takes before the server counts its vault (a loop, the legend), by run 1…LAST_RUN, then for every
+ *  replay of the last run. Calibrated 2026-10-13 against the superhuman FAST bot of meta/plausibility.test.ts (its
+ *  fastest vaults, seeds 1–6: Run 1 187 s, Run 2 66 s, Run 3 95 s, Run 4 123 s, replays down to ~34 s by the 15th),
+ *  which must clear them by ×1.25; every value is also at most a third of the CASUAL median (≈430, 320, 430, 350 s,
+ *  replays ≈100 s by the 15th). A scripted client that skips the game has to wait at least this long per vault. */
+export const SERVER_MIN_VAULT_SEC = [120, 45, 60, 80] as const;
+export const SERVER_MIN_REPLAY_SEC = 25;
+/** Trophy reports: at least this many seconds apart, and a token bucket in server time — this many a minute, at most
+ *  TROPHY_BURST at once. A report over the limit is asked to retry later, never refused for good. */
+export const TROPHY_GAP_SEC = 2;
+export const TROPHIES_PER_MINUTE = 2;
+export const TROPHY_BURST = 3;
+/** Campaign stats sanity: no one opens more cases a second than this (bench, bot and every machine together). */
+export const MAX_OPENS_PER_SECOND = 2000;
 
 /** The auto-seller machine (rework spec §1): unlocked in Run 1, then it takes any waiting card. */
 export const SELLER_COST = 300;
@@ -172,3 +274,69 @@ export const SELLER_HOLD_SECONDS = [2.5, 1.8, 1.2, 0.8, 0.5] as const;
 /** A Covert or ★ waits this long, so its reveal (the knife's showcase) plays first. */
 export const SELLER_BIG_HOLD = 2.6;
 export const SELLER_SPEED_COSTS = { baseCost: 120, growth: 2.4 } as const;
+
+/** The locker (Run 2): keeps skins, by hand or through the auto-seller's Collect setting. */
+export const LOCKER_COST = 6_000;
+export const LOCKER_BASE_CAPACITY = 20;
+export const LOCKER_SIZE_STEP = 10;
+export const LOCKER_SIZE_LEVELS = 3;
+export const LOCKER_SIZE_COSTS = { baseCost: 10_000, growth: 3 } as const;
+/** A trade-up contract presses this many skins of one rarity into one of the next. */
+export const TRADE_UP_COUNT = 10;
+export const TRADE_UP_SECONDS = 2.5;
+/** A contract pays its normal value × this (by its inputs' rarity), so it returns ~1.5× what its inputs would sell for. */
+export const TRADE_UP_BONUS: Readonly<Record<Exclude<RarityId, "gold">, number>> = {
+  milspec: 4.77,
+  restricted: 5.25,
+  classified: 3.82,
+  covert: 3.82,
+};
+/** Run 3: the locker presses on its own. */
+export const AUTO_CONTRACT_COST = 250_000_000;
+
+/** The Upgrader (Run 4, finish spec §7.2): stake a locker rarity stack on a multiplier. */
+export const UPGRADER_COST = 2_000_000_000_000;
+export const UPGRADER_MULTS = [1.5, 2, 5, 10, 25, 100] as const;
+/** Win chance = this / multiplier (+ Loaded Dice), never past UPGRADER_MAX_CHANCE. */
+export const UPGRADER_WIN_BASE = 0.9;
+export const UPGRADER_MAX_CHANCE = 0.95;
+/** The dial's spin on the locker; the outcome is rolled at GO. */
+export const UPGRADER_SPIN_SECONDS = 3;
+/** A win pays a skin this many rarities above the stake's (up to ★): the steps of the first row whose multiplier
+ *  covers the target. */
+export const UPGRADER_RARITY_STEPS: ReadonlyArray<readonly [maxMult: number, steps: number]> = [
+  [2, 1],
+  [10, 2],
+  [100, 3],
+];
+
+/** Evolutions (Run 4, finish spec §7.3): each costs one purchase once its recipe is complete. */
+export const EVOLUTION_COSTS = {
+  slotMachine: 5_000_000_000_000,
+  cartel: 8_000_000_000_000,
+  moneyPrinter: 12_000_000_000_000,
+  assemblyLine: 20_000_000_000_000,
+  hotHand: 30_000_000_000_000,
+} as const;
+/** Slot Machine: one BUY opens this many cases. */
+export const SLOT_MACHINE_OPEN = 10;
+/** The widest bench (Slot Machine): a save with more is corrupt. */
+export const BENCH_OPEN_MAX = SLOT_MACHINE_OPEN;
+/** Money Printer: the auto-seller's sales × this. */
+export const MONEY_PRINTER_MULT = 3;
+/** Assembly Line: every this-many-th auto-spin buy is a free case one tier up. */
+export const ASSEMBLY_FREE_EVERY = 25;
+/** Hot Hand: its recipe's hand combo; while the combo is at least HOT_HAND_MIN_COMBO the bench rolls with
+ *  HOT_HAND_LUCK more Luck levels. */
+export const HOT_HAND_RECIPE_COMBO = 50;
+export const HOT_HAND_MIN_COMBO = 25;
+export const HOT_HAND_LUCK = 5;
+
+/** Auto-spin (finish spec §3): your own bench's machine, bought in Run 1 once the auto-seller is on, then switched
+ *  ON/OFF. F4: 5K, so both players switch it on well before Vault I (~45 s GREEDY, ~1.5 min CASUAL). */
+export const AUTOSPIN_COST = 5_000;
+/** Seconds the bench stands empty before it buys, per Delay level (5 upgrades: 1.5 s → 0.2 s). */
+export const AUTOSPIN_DELAYS = [1.5, 1.1, 0.8, 0.55, 0.35, 0.2] as const;
+export const AUTOSPIN_DELAY_COSTS = { baseCost: 20_000, growth: 2.5 } as const;
+/** A case left locked on the bench is keyed this long after it landed: the case drops in, then its arm turns the key. */
+export const AUTOSPIN_KEY_SECONDS = 0.5;

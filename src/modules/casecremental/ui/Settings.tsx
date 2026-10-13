@@ -3,20 +3,27 @@ import { popElement } from "../fx/hd/tween";
 import { t } from "../i18n/index";
 import { frameCss, uiSpriteUrl } from "./pixelFrame";
 import { PxButton, UiEnvContext } from "./parts";
-import { setPrefs } from "./prefs";
+import { getPrefs, setPrefs } from "./prefs";
+import { replay } from "./tutorialRules";
 import { useLang, usePrefs } from "./hooks";
 
-// Settings: language (EN / RU, remembered) and the music and sound volumes.
+// Settings: language (EN / RU, remembered), the music and sound volumes, and Replay tutorial.
 
 export function Settings({
   onClose,
   onSoundBoard,
   onReset,
+  onDevRun,
+  onDevCash,
 }: {
   onClose: () => void;
   onSoundBoard?: () => void;
   /** Dev builds: forget the save and start a fresh campaign. */
   onReset?: () => void;
+  /** Dev builds: start Run 2 or 3 right away. */
+  onDevRun?: (run: number) => void;
+  /** Dev builds: add cash. */
+  onDevCash?: () => void;
 }): ReactNode {
   const { scale } = useContext(UiEnvContext);
   const prefs = usePrefs();
@@ -66,8 +73,24 @@ export function Settings({
         </div>
         {slider(t("settings.music"), prefs.music, (music) => setPrefs({ music }))}
         {slider(t("settings.sfx"), prefs.sfx, (sfx) => setPrefs({ sfx }))}
+        <PxButton
+          onClick={() => {
+            setPrefs({ tutorial: replay(getPrefs().tutorial) });
+            onClose();
+          }}
+        >
+          {t("tut.replay")}
+        </PxButton>
         {onSoundBoard ? <PxButton onClick={onSoundBoard}>SOUND BOARD (DEV)</PxButton> : null}
         {onReset ? <PxButton onClick={onReset}>RESET PROGRESS (DEV)</PxButton> : null}
+        {onDevRun ? (
+          <div className="cc-tabs">
+            <PxButton onClick={() => onDevRun(2)}>{t("settings.devRun2")}</PxButton>
+            <PxButton onClick={() => onDevRun(3)}>{t("settings.devRun3")}</PxButton>
+            <PxButton onClick={() => onDevRun(4)}>{t("settings.devRun4")}</PxButton>
+            {onDevCash ? <PxButton onClick={onDevCash}>{t("settings.devCash")}</PxButton> : null}
+          </div>
+        ) : null}
         <PxButton onClick={onClose}>{t("settings.close")}</PxButton>
       </div>
     </div>

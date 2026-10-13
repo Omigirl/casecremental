@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import type { AudioEngine } from "../fx/audio/AudioEngine";
 import { cameraCss, type Camera } from "../fx/camera";
-import { CASES } from "../sim/content/cases";
 import type { GameController } from "../game/controller";
+import type { SimEvent } from "../sim/run";
 import { CaseShelf } from "./CaseShelf";
+import { Credits } from "./Credits";
 import { Drawer } from "./Drawer";
 import { useButtonImages, useDelayedFlag, useLang, usePixelUi } from "./hooks";
 import { Hud } from "./Hud";
@@ -11,15 +12,17 @@ import { comboTint } from "./juice";
 import { Panel, UiEnvContext } from "./parts";
 import { Prestige } from "./Prestige";
 import { LIGHTS_UP_SECONDS } from "../fx/vault/lights";
-import { prestigeDelayMs } from "./prestigeRules";
+import { endScreen, prestigeDelayMs } from "./prestigeRules";
 import { Settings } from "./Settings";
 import { SoundBoard } from "./SoundBoard";
+import { Tutorial } from "./Tutorial";
 import { UI_CSS } from "./styles";
 import { UpgradesBoard } from "./UpgradesBoard";
 import { useGameView } from "./useGameView";
 
 // The overlay over the canvas, laid out on the same world-pixel grid as the pixel world: HUD on
-// top, Upgrades board left and Case shelf right (or a drawer on phones), Settings on demand. The
+// top, Upgrades board left and Case shelf right (or a drawer on phones), Settings on demand, and the tutorial's bubbles
+// and new-run cards over everything but Settings; after The Last Case the credits roll before the prestige screen. The
 // layer lets pointer events through to the canvas; only the panels take them.
 
 /** The HUD and the panels come back as the workshop's lights finish coming on (rework spec §4). */
@@ -27,6 +30,7 @@ const UI_BACK_S = Math.round(LIGHTS_UP_SECONDS * 0.8 * 10) / 10;
 
 export function makeGamePanel(controller: GameController, audio: AudioEngine, camera: Camera): ComponentType {
   const act = (a: Parameters<GameController["act"]>[0]) => void controller.act(a);
+  const onEvent = (fn: (e: SimEvent) => void) => controller.onEvent(fn);
   return function GamePanel(): ReactNode {
     const view = useGameView(controller);
     useLang(); // re-render every string on a language switch
@@ -52,6 +56,8 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
     const prestigeShown = useDelayedFlag(view.prestige !== null, prestigeDelayMs);
     // the vault takes the screen (rework spec §4): the HUD, the panels and the drawer fade away until the next run
     const hidden = view.vault.phase !== null || view.over;
+    // the tutorial comes back after the panels do (a new run's lights), at once on a reload
+    const tutorialBack = useDelayedFlag(!hidden, (wasOff) => (wasOff ? (UI_BACK_S + 0.6) * 1000 : 0));
     const scale = ui?.vp.scale ?? 1;
     const vars = {
       "--px": scale,
@@ -101,7 +107,21 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 {ui.vp.portrait ? <Drawer view={view} act={act} top={ui.vp.areaH} /> : null}
               </div>
             </div>
-            {prestigeShown && view.prestige ? <Prestige p={view.prestige} act={act} onSettings={openSettings} /> : null}
+            <Tutorial
+              view={view}
+              ui={ui}
+              camera={camera}
+              root={root}
+              onEvent={onEvent}
+              visible={tutorialBack && !settings && !soundBoard}
+            />
+            {prestigeShown && view.prestige ? (
+              endScreen(view.prestige) === "credits" ? (
+                <Credits p={view.prestige} act={act} onSettings={openSettings} />
+              ) : (
+                <Prestige p={view.prestige} vault={view.vault.id} act={act} onSettings={openSettings} />
+              )
+            ) : null}
             {settings ? (
               <Settings
                 onClose={() => setSettings(false)}
@@ -114,6 +134,17 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                       }
                     : undefined
                 }
+                onDevRun={
+                  import.meta.env.DEV
+                    ? (run) => {
+                        controller.devStartRun(run);
+                        setSettings(false);
+                      }
+                    : undefined
+                }
+                onDevCash={
+                  import.meta.env.DEV ? () => controller.devAddCash(Math.max(1_000_000, 10 * controller.run.state.cash)) : undefined
+                }
               />
             ) : null}
             {import.meta.env.DEV && soundBoard ? (
@@ -124,7 +155,7 @@ export function makeGamePanel(controller: GameController, audio: AudioEngine, ca
                 onCheat={(c) => {
                   // dev only: straight into the run's state, like the forced drops
                   if (c === "cash") controller.run.state.cash += 100_000;
-                  else controller.run.state.unlocked = CASES.map((x) => x.id);
+                  else controller.run.state.unlocked = controller.run.runCases();
                 }}
                 onClose={() => setSoundBoard(false)}
               />

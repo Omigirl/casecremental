@@ -50,4 +50,41 @@ describe("agent surface", () => {
     const api = createAgentApi(new GameController(1));
     expect(Object.keys(api.describeActions ?? {}).sort()).toEqual(Object.keys(api.actions ?? {}).sort());
   });
+
+  it("reports auto-spin and checks its switch's argument", async () => {
+    const c = new GameController(1);
+    const api = createAgentApi(c);
+    expect((api.state() as { autoSpin: unknown }).autoSpin).toEqual({
+      owned: false,
+      on: false,
+      delayLevel: 0,
+      delay: 1.5,
+      pick: null,
+      status: "off",
+    });
+    c.devAddCash(1e6);
+    await api.actions!.buySeller!({});
+    expect(await api.actions!.buyAutoSpin!({})).toEqual({ ok: true });
+    await expect(api.actions!.setAutoSpin!({ on: "yes" })).rejects.toThrow(/on must be true or false/);
+    expect(await api.actions!.setAutoSpin!({ on: true })).toEqual({ ok: true });
+    expect(await api.actions!.setAutoSpinCase!({ caseId: "bootcamp" })).toEqual({ ok: true });
+    expect((api.state() as { autoSpin: { on: boolean; pick: string; status: string } }).autoSpin).toMatchObject({
+      on: true,
+      pick: "bootcamp",
+      status: "on",
+    });
+  });
+
+  it("reports the Upgrader and the evolutions, and checks their arguments", async () => {
+    const c = new GameController(1);
+    c.devStartRun(4);
+    const api = createAgentApi(c);
+    const s = api.state() as { upgrader: unknown; evolutions: unknown; meta: { credits: boolean } };
+    expect(s.upgrader).toEqual({ on: false, stake: null, target: 0, mult: 1.5, spinning: false });
+    expect(s.evolutions).toEqual({ owned: [], ready: [], bestCombo: 0 });
+    expect(s.meta.credits).toBe(false);
+    await expect(api.actions.setUpgraderTarget!({ index: 9 })).resolves.toEqual({ ok: false, reason: "unknown target" });
+    await expect(api.actions.buyEvolution!({ id: "nope" })).rejects.toThrow(/unknown evolution "nope"/);
+    await expect(api.actions.setUpgraderStake!({ rarity: "shiny" })).rejects.toThrow(/unknown rarity "shiny"/);
+  });
 });

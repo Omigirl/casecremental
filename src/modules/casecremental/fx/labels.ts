@@ -1,7 +1,9 @@
+import { botWaiting } from "../sim/botOpener";
 import { skinName, wearName, weaponName } from "../i18n/content";
 import { getLang, type StringKey } from "../i18n/index";
 import { skinById } from "../sim/content/cases";
 import { formatCash } from "../sim/format";
+import { lockerWaiting, type LockerState } from "../sim/locker";
 import type { Bench, RunState } from "../sim/run";
 import type { Drop } from "../sim/types";
 import { wearOf } from "../sim/wear";
@@ -9,13 +11,14 @@ import { wearOf } from "../sim/wear";
 // Text on the canvas, built from state in the current language every frame — so switching the
 // language mid-run (reel spinning, card up) updates it at once (Review Focus 2).
 
-/** The next step's hint under your reel. In portrait it would sit on a single card's top, so it is dropped there. */
-export function hintKey(b: Bench, portrait = false): StringKey | null {
+/** The next step's hint under your reel. In portrait it would sit on a single card's top, so it is dropped there. It is
+ *  quiet while auto-spin buys and keys for you (`auto`): it would flash every open. */
+export function hintKey(b: Bench, portrait = false, auto = false): StringKey | null {
   switch (b.phase) {
     case "empty":
-      return "hint.buy";
+      return auto ? null : "hint.buy";
     case "locked":
-      return "hint.key";
+      return auto ? null : "hint.key";
     case "spinning":
       return null;
     case "revealed":
@@ -42,7 +45,7 @@ export function trayFull(state: { seller: { on: boolean }; tray: readonly unknow
   return state.seller.on && state.tray.length >= capacity;
 }
 
-/** The sell bin's light calls while a card waits to be sold: on your bench or at the bot's station. */
-export function binCalling(state: { bench: Bench; bot: Pick<RunState["bot"], "card"> }): boolean {
-  return state.bench.phase === "revealed" || state.bot.card !== null;
+/** The sell bin's light calls while a card waits to be sold: on your bench, at the bot's station or on the locker. */
+export function binCalling(state: { bench: Bench; bot: Pick<RunState["bot"], "cards">; locker: Pick<LockerState, "cards"> }): boolean {
+  return state.bench.phase === "revealed" || botWaiting(state.bot) || lockerWaiting(state.locker);
 }

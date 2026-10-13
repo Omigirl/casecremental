@@ -29,10 +29,10 @@ export function Drawer({ view, act, top }: { view: GameView; act: Act; top: numb
       }}
     >
       <div className="cc-tabs">
-        <PxButton on={tab === "cases"} onClick={() => setTab("cases")}>
+        <PxButton tut="drawer:cases" on={tab === "cases"} onClick={() => setTab("cases")}>
           {t("panel.cases")}
         </PxButton>
-        <PxButton on={tab === "upgrades"} onClick={() => setTab("upgrades")}>
+        <PxButton tut="drawer:upgrades" on={tab === "upgrades"} onClick={() => setTab("upgrades")}>
           {t("panel.upgrades")}
         </PxButton>
       </div>

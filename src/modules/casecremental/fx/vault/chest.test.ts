@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { chestFrame, snapStretch } from "./chest";
+import { Texture, TextureSource } from "pixi.js";
+import { Chest, chestFrame, snapStretch } from "./chest";
 import { VAULT_CUES } from "./cues";
+import { vaultCues } from "./cues";
+import { vaultLayout } from "./vaultLayout";
+import { VAULT_LOOKS, type VaultLook } from "./vaultLooks";
 
 const shut = { lid: 0, seam: 0 };
 const { impact } = VAULT_CUES;
@@ -35,4 +39,65 @@ describe("the lid's overshoot", () => {
     expect(s.sy).toBeCloseTo(1.25);
     expect(s.sx).toBeCloseTo(0.9);
   });
+});
+
+const tex = (w = 68, h = 78) => new Texture({ source: new TextureSource({ width: w, height: h }) });
+const sheet = () => [tex(), tex(), tex(), tex()];
+const LOOKS: VaultLook[] = Object.values(VAULT_LOOKS);
+const OPEN = 9; // the lid long open
+const TREMBLING = 2.0; // the intro's run-up: closed, its seam lit
+
+function chestWith(look: VaultLook, frames = sheet()) {
+  const chest = new Chest(sheet(), tex(128, 128));
+  chest.layout(vaultLayout({ w: 1324, h: 824 }, 4));
+  chest.setLook(frames, look.light);
+  return chest;
+}
+
+describe("the chest's look", () => {
+  it("draws the vault's own sheet and lights once its look is set", () => {
+    const frames = sheet();
+    const look = VAULT_LOOKS.vault2;
+    const chest = chestWith(look, frames);
+    chest.update(1 / 60, 0, { t: OPEN, cues: vaultCues(OPEN), near: false, beat: 0 });
+    expect(chest["sprite"].texture).toBe(frames[3]);
+    expect(chest.glow.tint).toBe(look.light.open);
+    expect(chest["mouthLight"].tint).toBe(look.light.open);
+    chest.update(1 / 60, 0, { t: TREMBLING, cues: vaultCues(TREMBLING), near: false, beat: 0 });
+    expect(chest["sprite"].texture).toBe(frames[1]);
+    expect(chest.glow.tint).toBe(look.light.tremble);
+  });
+
+  it("lights Vault I as before when no look is given", () => {
+    const chest = new Chest(sheet(), tex(128, 128));
+    chest.layout(vaultLayout({ w: 1324, h: 824 }, 4));
+    chest.update(1 / 60, 0, { t: OPEN, cues: vaultCues(OPEN), near: false, beat: 0 });
+    expect(chest.glow.tint).toBe(0xffd34d);
+    expect(chest["mouthLight"].tint).toBe(0xffd34d);
+    chest.update(1 / 60, 0, { t: TREMBLING, cues: vaultCues(TREMBLING), near: false, beat: 0 });
+    expect(chest.glow.tint).toBe(0xffb040);
+  });
+
+  it("keeps the devil's red around the waiting vault, whatever the vault", () => {
+    for (const look of LOOKS) {
+      const chest = chestWith(look);
+      chest.update(1 / 60, 0, { t: null, cues: vaultCues(-1), near: false, beat: 0 });
+      expect(chest.glow.tint, look.id).toBe(0xff2a1a);
+    }
+  });
+
+  it.each(LOOKS.map((l) => [l.id, l] as const))(
+    "%s: the open chest's glow and inner light throb by less than 0.1 on the beat",
+    (_, look) => {
+      const at = (beat: number) => {
+        const chest = chestWith(look);
+        chest.update(1 / 60, 0, { t: OPEN, cues: vaultCues(OPEN), near: false, beat });
+        return { glow: chest.glow.alpha, mouth: chest["mouthLight"].alpha };
+      };
+      const still = at(0);
+      const hit = at(1);
+      expect(Math.abs(hit.glow - still.glow)).toBeLessThan(0.1);
+      expect(Math.abs(hit.mouth - still.mouth)).toBeLessThan(0.1);
+    },
+  );
 });

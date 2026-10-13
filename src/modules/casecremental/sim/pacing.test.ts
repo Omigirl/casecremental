@@ -1,74 +1,111 @@
 import { describe, expect, it } from "vitest";
-import { HUMAN, playGreedy } from "./bot";
-import { buyPerk, completeVault, freshMeta, PERK_IDS, perkCost, setupFor } from "./meta";
+import { CASUAL, HUMAN, playCampaign, playToFull, PROBE_SECONDS, RUN_SECONDS, type BotTimings, type Leg, type PacingReport } from "./bot";
+import { LAST_RUN } from "./tuning";
 
-// Spec §9.6 targets for milestone 1's slice (cases 1–3). Median of five seeds so one lucky knife
-// doesn't decide the result. When this fails, tune sim/tuning.ts — never the bot or the logic.
+// The pacing targets (finish spec §5). Two players play the whole campaign — Run 1, then the next run after each
+// vault, the last a replay of LAST_RUN, the cheapest perk after each vault: GREEDY (the HUMAN timings), a perfect
+// player who never pauses, and CASUAL, a real player's slower hands that look at the shop every 8 s. Medians of five
+// seeds, so one lucky knife doesn't decide a result. When this fails, tune sim/tuning.ts — never the players or the
+// logic. The run rows loop over runs 2…LAST_RUN, so Run 4 (F6-A) is held to the same targets.
 
 const SEEDS = [1, 2, 3, 4, 5];
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
 
-describe("pacing (greedy bot, human-speed actions)", () => {
-  const reports = SEEDS.map((s) => playGreedy(s, 600));
-  const at = (pick: (r: (typeof reports)[number]) => number | undefined) => median(reports.map((r) => pick(r) ?? Number.POSITIVE_INFINITY));
+type Profile = "GREEDY" | "CASUAL";
+type Band = readonly [min: number, max: number];
+const PROFILES: Record<Profile, BotTimings> = { GREEDY: HUMAN, CASUAL };
+/** Spec §5's table, in seconds — but GREEDY's Runs 2–3 vault may come from 3 min, not 4: once CASUAL and the 90 s
+ *  rule fit, the perfect player's Run 2 vaults at ~3.4 min (F4: faster for a perfect player is fine). */
+const TARGETS: Record<Profile, { firstVault: Band; catchUp: Band; vault: Band; replay: Band }> = {
+  GREEDY: { firstVault: [240, 360], catchUp: [30, 90], vault: [180, 360], replay: [180, 300] },
+  CASUAL: { firstVault: [360, 540], catchUp: [60, 120], vault: [300, 480], replay: [240, 420] },
+};
+/** The stage each run reaches before its vault (spec §5): Run 2 High, Run 3 Tripping, Run 4 Unhinged. */
+const STAGE_TARGETS: Readonly<Record<number, number>> = { 2: 3, 3: 4, 4: 5 };
+/** The 90 s rule: once a run is fully bought, its vault costs at most this many seconds of CASUAL income. */
+const VAULT_INCOME_SECONDS = 90;
+/** The replay's leg: legs[0] is Run 1, legs[n - 1] Run n, legs[LAST_RUN] the replay of LAST_RUN. */
+const REPLAY = LAST_RUN;
+/** The last run's replay is endless (after The Last Case, finish spec §7): CASUAL plays this many replays, and every one
+ *  of them keeps the 90 s rule (each replay's vault grows by VAULT_GROWTH, its income by The Last Case's CATCH_UP_PER_VAULT). */
+const REPLAYS = 15;
 
-  it("unlocks Wildwood in about 1–2.5 minutes", () => {
-    const t = at((r) => r.caseUnlockedAt.wildwood);
-    expect(t).toBeGreaterThan(45);
-    expect(t).toBeLessThan(150);
-  });
+const mins = ([a, b]: Band) => `${a / 60}–${b / 60} min`;
+const campaigns: Record<Profile, Leg[][]> = {
+  GREEDY: SEEDS.map((s) => playCampaign(s, PROFILES.GREEDY)),
+  CASUAL: SEEDS.map((s) => playCampaign(s, PROFILES.CASUAL, RUN_SECONDS, REPLAYS)),
+};
+/** One leg's value across the seeds (a time that never came counts as never). */
+const values = (p: Profile, leg: number, pick: (r: PacingReport) => number | undefined) =>
+  campaigns[p].map((legs) => pick(legs[leg]!.report) ?? Number.POSITIVE_INFINITY);
+const med = (p: Profile, leg: number, pick: (r: PacingReport) => number | undefined) => median(values(p, leg, pick));
+/** The median within [min, max]; a failure lists every seed's value, for tuning. */
+function expectBand(p: Profile, leg: number, pick: (r: PacingReport) => number | undefined, [min, max]: Band, what: string): void {
+  const vs = values(p, leg, pick);
+  const m = median(vs);
+  const msg = `${p} ${what}: median ${m.toFixed(0)} s of [${vs.map((v) => v.toFixed(0)).join(", ")}]`;
+  expect(m, msg).toBeGreaterThanOrEqual(min);
+  expect(m, msg).toBeLessThanOrEqual(max);
+}
 
-  it("unlocks Bedrock in about 2.5–6.5 minutes", () => {
-    const t = at((r) => r.caseUnlockedAt.bedrock);
-    expect(t).toBeGreaterThan(150);
-    expect(t).toBeLessThan(400);
-  });
-
-  it("reaches stage 2 (Buzzed) within 20 s – 2 min", () => {
-    const t = at((r) => r.stageReachedAt[2]);
-    expect(t).toBeGreaterThan(20);
-    expect(t).toBeLessThan(120);
-  });
+describe("pacing — Run 1's opening (GREEDY)", () => {
+  it("unlocks Wildwood in about 1–2.5 minutes", () => expectBand("GREEDY", 0, (r) => r.caseUnlockedAt.wildwood, [45, 150], "Wildwood"));
+  it("unlocks Bedrock in about 2.5–6.5 minutes", () => expectBand("GREEDY", 0, (r) => r.caseUnlockedAt.bedrock, [150, 400], "Bedrock"));
+  it("reaches stage 2 (Buzzed) within 20 s – 2 min", () => expectBand("GREEDY", 0, (r) => r.stageReachedAt[2], [20, 120], "Buzzed"));
+  it("wakes the bot by about two and a half minutes", () => expectBand("GREEDY", 0, (r) => r.botAwakeAt, [0, 150], "bot awake"));
+  it("buys the auto-seller at about 3–5 minutes", () => expectBand("GREEDY", 0, (r) => r.sellerAt, [180, 300], "seller"));
 });
 
-describe("pacing — the whole of Run 1 and a boosted second run", () => {
-  const first = SEEDS.map((s) => playGreedy(s, 900));
-  const med = (pick: (r: (typeof first)[number]) => number | undefined, rs = first) =>
-    median(rs.map((r) => pick(r) ?? Number.POSITIVE_INFINITY));
-
-  it("wakes the bot by about two and a half minutes", () => {
-    expect(med((r) => r.botAwakeAt)).toBeLessThan(150);
-  });
-
-  it("buys the auto-seller at about 3–5 minutes", () => {
-    const t = med((r) => r.sellerAt);
-    expect(t).toBeGreaterThanOrEqual(180);
-    expect(t).toBeLessThanOrEqual(300);
-  });
-
-  it("buys Vault Case I at 6–10 minutes", () => {
-    const t = med((r) => r.vaultAt);
-    expect(t).toBeGreaterThan(360);
-    expect(t).toBeLessThan(600);
-  });
-
-  it("never leaves the tray stuck full for long", () => {
-    for (const r of first) expect(r.longestTrayFull).toBeLessThan(10);
-  });
-
-  it("a boosted second run (one vault, cheapest perk) catches up in 1–2 min and vaults again by 5–7 min", () => {
-    const second = SEEDS.map((s, i) => {
-      const meta = freshMeta();
-      completeVault(meta, first[i]!.lifetimeEarnings, "vault1", s);
-      const cheapest = [...PERK_IDS].sort((a, b) => (perkCost(a, 0) ?? Infinity) - (perkCost(b, 0) ?? Infinity))[0]!;
-      buyPerk(meta, cheapest);
-      return playGreedy(s + 100, 900, HUMAN, setupFor(meta));
+for (const p of ["GREEDY", "CASUAL"] as const) {
+  const t = TARGETS[p];
+  describe(`pacing — ${p} through the campaign`, () => {
+    it("buys auto-spin after the auto-seller and before Vault I", () => {
+      const at = med(p, 0, (r) => r.autoSpinAt);
+      expect(at).toBeGreaterThan(med(p, 0, (r) => r.sellerAt));
+      expect(at).toBeLessThan(med(p, 0, (r) => r.vaultAt));
     });
-    const caughtUp = med((r) => r.allUnlockedAt, second);
-    expect(caughtUp).toBeGreaterThan(60);
-    expect(caughtUp).toBeLessThan(120);
-    const again = med((r) => r.vaultAt, second);
-    expect(again).toBeGreaterThan(300);
-    expect(again).toBeLessThan(420);
+    it(`opens Vault I at ${mins(t.firstVault)}`, () => expectBand(p, 0, (r) => r.vaultAt, t.firstVault, "Run 1 vault"));
+    for (let n = 2; n <= LAST_RUN; n++) {
+      it(`Run ${n} catches up to Run ${n - 1}'s shelf in ${mins(t.catchUp)} and opens its vault at ${mins(t.vault)}`, () => {
+        expectBand(p, n - 1, (r) => r.runCasesAt[n - 1], t.catchUp, `Run ${n} catch-up`);
+        expectBand(p, n - 1, (r) => r.vaultAt, t.vault, `Run ${n} vault`);
+      });
+    }
+    it(`a replay of Run ${LAST_RUN} vaults again at ${mins(t.replay)}`, () =>
+      expectBand(p, REPLAY, (r) => r.vaultAt, t.replay, `Run ${LAST_RUN} replay vault`));
+    it("never leaves the tray stuck full for long", () => {
+      for (const legs of campaigns[p]) for (const l of legs) expect(l.report.longestTrayFull, `${p} Run ${l.run}`).toBeLessThan(10);
+    });
   });
+}
+
+describe("pacing — the runs' machines and stages (GREEDY)", () => {
+  it("Run 2 buys the locker by about 4 min and presses contracts", () => {
+    expect(med("GREEDY", 1, (r) => r.lockerAt)).toBeLessThan(240);
+    expect(median(campaigns.GREEDY.map((legs) => legs[1]!.report.contracts))).toBeGreaterThan(0);
+  });
+  it("Run 4 buys the Upgrader before The Last Case", () => {
+    expect(med("GREEDY", 3, (r) => r.upgraderAt)).toBeLessThan(med("GREEDY", 3, (r) => r.vaultAt));
+  });
+  for (let n = 2; n <= LAST_RUN; n++) {
+    it(`Run ${n} reaches stage ${STAGE_TARGETS[n]} before its vault`, () => {
+      expect(median(campaigns.GREEDY.map((legs) => legs[n - 1]!.report.topStage))).toBeGreaterThanOrEqual(STAGE_TARGETS[n]!);
+    });
+  }
+});
+
+describe("the 90 s rule (spec §5): once a run is fully bought, its vault costs at most 90 s of its CASUAL income", () => {
+  // each CASUAL leg again, same seed and setup, with the vault out of reach until everything is bought (bot.ts)
+  const probes = campaigns.CASUAL.map((legs) => legs.map((l) => playToFull(l.seed, CASUAL, l.setup)));
+  for (let i = 0; i < LAST_RUN + REPLAYS; i++) {
+    const name = i >= REPLAY ? `the Run ${LAST_RUN} replay ${i - REPLAY + 1} of ${REPLAYS}` : `Run ${i + 1}`;
+    it(name, () => {
+      for (const legs of probes) {
+        const r = legs[i]!;
+        expect(r.fullAt, `${name} never fully bought within ${PROBE_SECONDS} s`).toBeDefined();
+        expect(r.fullIncome!, name).toBeGreaterThan(0);
+        expect(r.vaultPrice / r.fullIncome!, `${name}: the vault in seconds of income`).toBeLessThanOrEqual(VAULT_INCOME_SECONDS);
+      }
+    });
+  }
 });

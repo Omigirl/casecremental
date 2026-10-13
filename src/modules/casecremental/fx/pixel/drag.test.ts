@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardGrabbable, DragTracker, onPointerCancel } from "./drag";
+import { cardGrabbable, DragTracker, onPointerCancel, onPointerGone } from "./drag";
 
 const KEY = { id: "key", rect: { x: 10, y: 10, w: 10, h: 6 } };
 const CARD = { id: "card", rect: { x: 40, y: 10, w: 44, h: 30 } };
@@ -60,5 +60,24 @@ describe("onPointerCancel", () => {
     unbind();
     target.dispatchEvent(cancel(4));
     expect(ids).toEqual([3]);
+  });
+});
+
+describe("onPointerGone", () => {
+  const ev = (type: string, pointerType: string) => Object.assign(new Event(type), { pointerType });
+
+  it("hears the mouse leaving and a finger lifting or cancelled, not a mouse button let go, until unbound", () => {
+    const target = new EventTarget();
+    let gone = 0;
+    const unbind = onPointerGone(target, () => gone++);
+    target.dispatchEvent(ev("pointerup", "mouse"));
+    expect(gone).toBe(0);
+    target.dispatchEvent(ev("pointerleave", "mouse"));
+    target.dispatchEvent(ev("pointerup", "touch"));
+    target.dispatchEvent(ev("pointercancel", "touch"));
+    expect(gone).toBe(3);
+    unbind();
+    target.dispatchEvent(ev("pointerleave", "mouse"));
+    expect(gone).toBe(3);
   });
 });

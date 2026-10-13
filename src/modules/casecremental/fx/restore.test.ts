@@ -31,7 +31,7 @@ const multi = () => {
 
 describe("restorePlan", () => {
   it("is empty for a fresh run", () => {
-    expect(restorePlan(new Run(1).state)).toEqual({ caseId: null, spinning: null, revealed: null, stage: 1, botReel: null });
+    expect(restorePlan(new Run(1).state)).toEqual({ caseId: null, spinning: null, revealed: null, stage: 1, botReels: null });
   });
 
   it("restores a locked case", () => {
@@ -81,15 +81,23 @@ describe("restorePlan", () => {
     expect(restorePlan(run.state)).toMatchObject({ caseId: "bootcamp", spinning: null, revealed: [null, second] });
   });
 
-  it("restores the bot's reel: its spin under way, or landed on the drop its waiting card shows", () => {
+  it("restores the bot's reels: a double spin under way, or landed on its cards (a sold slot shows its partner)", () => {
     const run = new Run(1);
     const s = run.state;
-    s.bot.spin = { caseId: "bootcamp", drop: { ...DROP, id: 7 }, elapsed: 1, duration: 3 };
-    expect(restorePlan(s).botReel).toEqual({ caseId: "bootcamp", skinId: DROP.skinId, landed: false });
+    s.bot.spin = {
+      caseId: "bootcamp",
+      drops: [
+        { ...DROP, id: 7 },
+        { ...DROP, id: 8, skinId: "bc_desert" },
+      ],
+      elapsed: 1,
+      duration: 3,
+    };
+    expect(restorePlan(s).botReels).toEqual({ caseId: "bootcamp", skinIds: ["bc_woodland", "bc_desert"], landed: false });
     s.bot.spin = null;
-    s.bot.card = { ...DROP, id: 8, caseId: "bootcamp" };
-    expect(restorePlan(s).botReel).toEqual({ caseId: "bootcamp", skinId: DROP.skinId, landed: true });
-    s.bot.card = null;
-    expect(restorePlan(s).botReel).toBeNull();
+    s.bot.cards = [null, { ...DROP, id: 9, skinId: "bc_desert" }];
+    expect(restorePlan(s).botReels).toEqual({ caseId: "bootcamp", skinIds: ["bc_desert", "bc_desert"], landed: true });
+    s.bot.cards = [];
+    expect(restorePlan(s).botReels).toBeNull();
   });
 });
