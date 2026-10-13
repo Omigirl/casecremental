@@ -10,8 +10,6 @@ An incremental game where every scratch ticket is a CS-style weapon case. You bu
 
 [![Watch the Casecremental trailer on YouTube](docs/media/trailer-poster.jpg)](https://www.youtube.com/watch?v=83-hW7Xk6zM)
 
-[▶ Watch the trailer on YouTube](https://www.youtube.com/watch?v=83-hW7Xk6zM) (or the [MP4 in this repo](docs/media/casecremental-trailer.mp4)). It runs 1:26 and was recorded live from the game with its in-game sound: the first case, the machine shop growing, a vault jackpot, Run 4's chaos, and The Last Case with its credits.
-
 ## The game
 
 - **The reel:** a CS-style spin that teases every red and knife. The rarity ladder runs Mil-Spec, Restricted, Classified, Covert and ★. Each skin also rolls a wear and a chance of StatTrak.
