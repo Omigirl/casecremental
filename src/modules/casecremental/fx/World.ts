@@ -18,7 +18,7 @@ import { Lifted } from "./hd/Lifted";
 import { Shake } from "./juice/shake";
 import { StageLook } from "./juice/stageLook";
 import { TimeScale } from "./juice/timeScale";
-import { Zoom } from "./juice/zoom";
+import { Zoom, zoomRestFor } from "./juice/zoom";
 import { binCalling, fitCentre, hintKey, revealLines, trayFull } from "./labels";
 import { Bench } from "./pixel/Bench";
 import { bestSlot } from "./pixel/BenchCards";
@@ -210,6 +210,7 @@ export class World {
     if (plan.revealed) this.benchFx.restore(plan.revealed);
     this.look.setStage(plan.stage);
     this.audio.setStage(plan.stage);
+    this.zoom.minRest = zoomRestFor(plan.stage);
     this.lastStage = plan.stage;
     restoreVault(this.controller.run, this.vault, this.vaultBeams, this.power);
     if (this.controller.running) this.resumeMusic(); // always from the sim (while suspended, activate() applies it)
@@ -519,6 +520,7 @@ export class World {
       case "stageChanged":
         this.look.setStage(e.stage);
         this.audio.setStage(e.stage);
+        this.zoom.minRest = zoomRestFor(e.stage);
         if (e.stage > this.lastStage) {
           this.shake.add(0.3);
           this.zoom.punch(1.06, 0.25);
