@@ -99,6 +99,8 @@ export interface LoginScreenExtras {
 const INK = "#120e10";
 const CREAM = "#fff6d5";
 const DIM = "#a89a8c";
+/** Google sign-in stays hidden until the platform's Google client accepts this game's origin (see googleClientID). */
+const GOOGLE_SIGN_IN = false;
 const VAULT: Strip = { url: vaultUrl, frameW: 68, frameH: 78, frames: 4 };
 const KEY: Strip = { url: keyUrl, frameW: 16, frameH: 24, frames: 4 };
 /** The closed chest and the key without the headroom of their animations (frame 0's art bounds). */
@@ -165,9 +167,10 @@ export function LoginScreen({
   const loginMode = options?.PlayAccessMode ?? "Open";
   const walletOnly = loginMode === "WalletOnly";
   const guestAllowed = loginMode === "Open";
-  const googleClientID =
-    ENV_GOOGLE_CLIENT_ID ||
-    (options?.Google?.Enabled ? (options.Google.WebClientID ?? "") : "");
+  // Google sign-in is off: Google only accepts the web origins registered on the platform's OAuth client, and
+  // zvkc34tr.idos.games isn't one of them; embedded on idosgames.com the platform CSP also blocks Google's frames.
+  // Re-enable by restoring `ENV_GOOGLE_CLIENT_ID || (options?.Google?.Enabled ? WebClientID : "")` once that is set up.
+  const googleClientID = GOOGLE_SIGN_IN ? ENV_GOOGLE_CLIENT_ID || (options?.Google?.Enabled ? (options.Google.WebClientID ?? "") : "") : "";
   const appleServiceID = options?.Apple?.Enabled
     ? (options.Apple.ServiceID ?? "")
     : "";
