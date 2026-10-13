@@ -1,8 +1,16 @@
+<p align="center"><img src="docs/media/banner.png" alt="Casecremental" width="100%"></p>
+
 # Casecremental
 
 An incremental game where every scratch ticket is a CS-style weapon case. You buy a case, turn the key and watch the reel tease reds and knives before it lands. Then you sell the skin and grow a pixel-art workbench from a single case into a busy machine shop. The game's intensity climbs from Sober to Unhinged, and the music changes with it.
 
 **Play:** https://zvkc34tr.idos.games/ · [idosgames.com/app/ZVKC34TR](https://idosgames.com/app/ZVKC34TR/)
+
+## Trailer
+
+[![Watch the Casecremental trailer](docs/media/trailer-poster.jpg)](docs/media/casecremental-trailer.mp4)
+
+[▶ Watch the trailer](docs/media/casecremental-trailer.mp4). It runs 1:26 and was recorded live from the game with its in-game sound: the first case, the machine shop growing, a vault jackpot, Run 4's chaos, and The Last Case with its credits.
 
 ## The game
 
