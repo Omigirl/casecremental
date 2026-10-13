@@ -8,7 +8,11 @@ An incremental game where every scratch ticket is a CS-style weapon case. You bu
 
 ## Trailer
 
-[![Watch the Casecremental trailer on YouTube](docs/media/trailer-poster.jpg)](https://www.youtube.com/watch?v=83-hW7Xk6zM)
+
+
+https://github.com/user-attachments/assets/b9c16a0f-0d17-446a-9220-ec6fa670daf5
+
+
 
 ## The game
 
