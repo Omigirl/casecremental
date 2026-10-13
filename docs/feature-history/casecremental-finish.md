@@ -437,12 +437,13 @@ before F6 merged; Task 8, promotion to the live Title, done 2026-10-13 — see "
   sent back exactly as read. The Blockchain section was not saved at all: mainnet network `solana`, account safety
   (7-day minimum age, multi-account check, ban on a shared withdrawal address) and wallet sign-in (on, WalletConnect id
   02e026fb…). A read-back after the promotion matched the before-snapshot byte for byte.
-- **Idle-rpg seed: partly removed.** Removed: quests `guide_*` and cycle `guide`, store `shop` and its four offers,
-  idle accrual `idle_gold` (TierRewards kept), characters Knight/Archer/Mage. **Still on live:** lootbox `gear_summon`,
-  catalog `Item` (12 items) and currencies GOLD/GEMS. The lootbox save was refused by the agent's permission
-  classifier. The lootbox prices in GEMS and pays out `Item` items, so those stay with it. To finish, save Lootbox
-  `{ "Definitions": {} }`, then Item with only `Trophies`, then Currency without GOLD/GEMS, keeping `Main`/`Main_IOU`
-  exactly as they are. Nothing in the game uses any of these entities.
+- **Idle-rpg seed: fully removed on 2026-10-13.** At promotion: quests `guide_*` and cycle `guide`, store `shop` and
+  its four offers, idle accrual `idle_gold` (TierRewards kept), characters Knight/Archer/Mage. The lootbox save was
+  refused by the agent's permission classifier then, so the rest came off later the same day, once the user allowed
+  it: lootbox `gear_summon` (Lootbox is now `{ "Definitions": {} }`), catalog `Item` (12 items; Item now holds only
+  `Trophies`, 31) and currencies GOLD/GEMS (so new players no longer get GOLD 500 / GEMS 300). Nothing referenced them
+  any more. `Main`/`Main_IOU`, CLOUT, the currency flags and `Trophies` read back identical to the before-snapshots;
+  a fresh guest's loadMeta (revision 1) still answered a fresh view.
 - **Smoke on live** (one throwaway device guest, CAWI995KFFV1MPP6ZVKC34TR, `execute(..., "Specific", 1)`): loadMeta
   answered a fresh view; reportTrophy granted `bc_commander`; a zero-time endRun claiming 1e300 for vault1 paid 0 CLOUT
   with no loop counted; the same runId again answered `duplicate: true`.
@@ -653,6 +654,5 @@ lobby tabs, Russian) and the harness for Runs 1–4, every vault, The Last Case,
   (`zoomRestFor`); a punch during a push-in still extends it; stages 1–4 are unchanged. Not re-measured in a browser.
 
 **Left for a human:** listening (the browsers were muted: fanfares, the stage playlists, the credits track); a real
-wallet sign-in through Phantom / WalletConnect, and Google / e-mail sign-in (only a guest was played); the idle-rpg seed
-leftovers on live ZVKC34TR (lootbox `gear_summon`, the 12 `Item` items, GOLD/GEMS — see "F7 on the live Title"), whose
-removal waits for the user's permission.
+wallet sign-in through Phantom / WalletConnect, and Google / e-mail sign-in (only a guest was played). (The idle-rpg
+seed leftovers on live ZVKC34TR were removed on 2026-10-13 — see "F7 on the live Title".)
